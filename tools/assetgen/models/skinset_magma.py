@@ -1,134 +1,141 @@
 """
 용암 시리즈 (magma series): a premium tool skin set, every tool a volcanic stand-in for the real one.
 
-    magma_sword          화산 대검        a broad serrated obsidian greatsword split by a lava fissure (blade 1.6x the toys')
-    magma_pickaxe        분화구 곡괭이    a smoking volcano cone, its base spreading into two glowing prongs
-    magma_shovel         마그마 국자 삽   a deep iron ladle brimming with molten magma
-    magma_axe            불새 날개 도끼   a phoenix wing of obsidian feathers burning to flame at their tips, a firebird head behind
-    magma_hoe            화염 괭이        a straight flat ㄱ head of black rock with flames rising along its top edge
-    magma_fishing_rod    불꽃 채찍 낚싯대 a braided whip with a coiled lash at its foot and a flame at its tip (+ _cast)
+    magma_sword          화산 대검        a broad basalt greatsword with molten serrated edges and a white-hot fissure
+    magma_pickaxe        분화구 곡괭이    a basalt pick whose crown is a little smoking volcano, molten points on both arms
+    magma_shovel         마그마 국자 삽   a basalt spade dished like a ladle, brimming with magma that spills off its shoulders
+    magma_axe            불새 날개 도끼   a blade of firebird feathers burning from red to white-hot, a firebird head behind
+    magma_hoe            화염 괭이        a straight flat ㄱ head of basalt with a lava vein, small flames on its top edge
+    magma_fishing_rod    불꽃 채찍 낚싯대 a charred whip with glowing knots and a flame at its tip, a basalt reel (+ _cast)
     magma_bobber         용암 찌          a little magma rock float
 
 Same frame, grip and display transforms as the toy series (models/toys.py: built upright on the axis x = z = 8, the hand
 on GRIP_Y, _held() puts the sprite's 45 degree tilt into the transforms). The greatsword is longer than a model may be
-(elements end at y = 32): it is built at full size through LongModel, which shrinks every box about the grip point by
-k as it is added (the faces painted at their full size first, so the texels stay one a unit), and its held views are
-then enlarged about the grip by 1 / k, so in the hand it is full size again.
+(elements end at y = 32): it is built at full size and every box shrunk about the grip point by k as it is added (the
+faces painted at their full size first, so the texels stay one a unit); its held views are enlarged about the grip by
+1 / k, so in the hand it is full size again.
 
-Looks: black-violet obsidian rock (its faces painted with orange crack lines, a texel a model unit), and on it the
-lava itself as separate glowing boxes (light_emission 15, unshaded): fissures, ember-red serrations, flames, magma.
-Dark iron fittings, a charred leather grip bound with iron bands, an obsidian pommel with a glowing core.
+Looks: the rock is painted in WORLD space (Rock): one 3D cell pattern runs across every box of a piece, so the plates of
+cooled basalt and the glowing cracks between them (yellow-hot core, a red crust round it) continue from box to box and
+round the corners like one cast stone. On that rock the lava itself is separate glowing boxes (light_emission 15,
+unshaded): molten edges, fissures, flames, magma pools. Dark steel fittings, charred leather grips.
 """
 
-import random
+import math
 import zlib
 
 from PIL import Image
 
-from economy_machines import MModel, Mat, _face_size, bands, cyl
+from economy_machines import MModel, Mat, _face_size, cyl
 from stsv_assets import presets
 from stsv_assets import textures as T
-from stsv_assets.palette import ramp
 
 from models.toys import C, GRIP, GRIP_Y, SIZES, _held, round_y  # noqa: F401  (SIZES: the frame this set shares)
 
 S = 16
 
+# cooled basalt: near black with a violet-brown cast, a light step for the lit top/left edge of each face
+BASALT = [(18, 14, 22, 255), (30, 24, 36, 255), (44, 36, 52, 255), (62, 52, 70, 255), (92, 80, 98, 255)]
+CRACK_CORE = (255, 214, 92, 255)       # yellow-hot middle of a crack
+CRACK = (244, 132, 22, 255)            # orange
+CRUST = (122, 34, 18, 255)             # the red crust either side of a crack
+CRUST_DARK = (78, 22, 20, 255)
 
-# volcanic glass: near black with a violet sheen (darker and less blue than the palette's "obsidian" metal)
-OBSIDIAN = [(16, 11, 24, 255), (27, 18, 38, 255), (41, 27, 57, 255), (61, 41, 82, 255), (88, 62, 112, 255)]
+
+def _h(*a):
+    n = zlib.crc32(("|".join(str(x) for x in a)).encode())
+    return (n & 0xffff) / 65536.0
 
 
-class LavaRock(Mat):
-    """Obsidian painted per face at the face's size: a dark violet speckle with a 1 px bevel, split by one or two
-    jagged crack lines of bright lava (orange with yellow-hot pixels) along the face's longer side."""
+# face -> (u axis, u sign, v axis, v sign, normal axis, normal sign): how Minecraft lays a face's uv on the box
+_UV = {
+    "north": (0, -1, 1, -1, 2, -1), "south": (0, 1, 1, -1, 2, 1),
+    "east": (2, -1, 1, -1, 0, 1), "west": (2, 1, 1, -1, 0, -1),
+    "up": (0, 1, 2, 1, 1, 1), "down": (0, 1, 2, -1, 1, -1),
+}
 
-    def __init__(self, base=1, cracks=True):
-        super().__init__("obsidian", "plain", base, bevel=(1, -1), noise=0)
-        self.cracks = cracks
+
+class Rock(Mat):
+    """Basalt painted at each texel's world position: Voronoi plates (cell size `cell`) in 3D, so neighbouring boxes
+    share one pattern. hot: the plate borders are lava cracks (yellow core, orange, a red crust beside them);
+    cold: they are thin dark seams. Each face gets a 1 px light edge top/left and a dark one bottom/right."""
+
+    def __init__(self, base=1, hot=True, cell=4.0, seed=0, light=1):
+        super().__init__("iron", "plain", base, bevel=(1, -1), noise=0)
+        self.hot, self.cell, self.seed, self.light = hot, cell, seed, light
 
     def __call__(self, **changes):
-        m = LavaRock(self.base, self.cracks)
-        m.bevel = changes.get("bevel", self.bevel)
-        return m
+        r = Rock(self.base, self.hot, self.cell, self.seed, self.light)
+        r.bevel = changes.get("bevel", self.bevel)
+        return r
 
-    def face(self, w, h, face, seed):
-        pw, ph = max(1, round(w + 0.49)), max(1, round(h + 0.49))
-        tile = pw > S or ph > S
-        if tile:
-            pw = ph = S
-        rnd = random.Random(zlib.crc32(f"lava|{self.base}|{self.cracks}|{bool(self.bevel)}|{pw}x{ph}|{face}|{seed}".encode()))
-        b = self.base
-        grid = [[b] * S for _ in range(S)]
-        for y in range(ph):
-            for x in range(pw):
-                r = rnd.random()
-                g = b - 1 if r < 0.16 else b + 1 if r < 0.24 else b
-                if not tile:
-                    if self.bevel and ((y == 0 and ph > 1) or (x == 0 and pw > 1)):
-                        g = b + 1
-                    if self.bevel and ((y == ph - 1 and ph > 1) or (x == pw - 1 and pw > 1)):
-                        g = b - 1
-                grid[y][x] = max(0, min(len(OBSIDIAN) - 1, g))
-        hot = {}
-        if self.cracks and min(pw, ph) >= 4 and max(pw, ph) >= 6:
-            vertical = ph >= pw or face not in ("up", "down")      # on the sides a crack runs down the height
-            L, A = (ph, pw) if vertical else (pw, ph)
-            n = 1
-            for k in range(n):
-                a = rnd.randrange(1, A - 1) if n == 1 else (rnd.randrange(1, max(2, A // 2)) if k == 0 else rnd.randrange(A // 2, A - 1))
-                start = rnd.randrange(0, max(1, L // 4))
-                end = L - rnd.randrange(0, max(1, L // 4))
-                for t in range(start, end):
-                    if t > start and rnd.random() < 0.45:
-                        a = max(1, min(A - 2, a + rnd.choice((-1, 1))))
-                    p = (a, t) if vertical else (t, a)
-                    hot[p] = 3 if rnd.random() < 0.25 else 2
-                    # a short branch now and then
-                    if rnd.random() < 0.12:
-                        bx = max(1, min(A - 2, a + rnd.choice((-1, 1))))
-                        q = (bx, t) if vertical else (t, bx)
-                        hot.setdefault(q, 1)
+    def _seed_pt(self, c):
+        g = self.cell
+        return tuple((c[i] + 0.15 + 0.7 * _h("rk", self.seed, c, i)) * g for i in range(3))
+
+    def _d12(self, p):
+        g = self.cell
+        base = [math.floor(p[i] / g) for i in range(3)]
+        ds = []
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                for dz in (-1, 0, 1):
+                    c = (base[0] + dx, base[1] + dy, base[2] + dz)
+                    s = self._seed_pt(c)
+                    ds.append((math.dist(p, s), c))
+        ds.sort()
+        return ds[0][0], ds[1][0], ds[0][1]
+
+    def face_world(self, f, frm, to):
+        lo = [min(frm[i], to[i]) for i in range(3)]
+        hi = [max(frm[i], to[i]) for i in range(3)]
+        w, h = _face_size(f, lo, hi)
+        pw, ph = max(1, math.ceil(w - 1e-6)), max(1, math.ceil(h - 1e-6))
+        if pw > S or ph > S:
+            return self.face(w, h, f, 0)
+        ua, us, va, vs, na, ns = _UV[f]
         im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
         px = im.load()
-        for y in range(S):
-            for x in range(S):
-                px[x, y] = ramp("fire", hot[(x, y)]) if (x, y) in hot else OBSIDIAN[grid[y][x]]
-        key = "lava_" + format(zlib.crc32(im.tobytes()), "08x")
+        for j in range(ph):
+            for i in range(pw):
+                p = [0.0, 0.0, 0.0]
+                cu = min(i + 0.5, max(0.0, (hi[ua] - lo[ua]) - 0.05))
+                cv = min(j + 0.5, max(0.0, (hi[va] - lo[va]) - 0.05))
+                p[ua] = lo[ua] + cu if us > 0 else hi[ua] - cu
+                p[va] = lo[va] + cv if vs > 0 else hi[va] - cv
+                p[na] = hi[na] - 0.3 if ns > 0 else lo[na] + 0.3
+                d1, d2, cell = self._d12(p)
+                gap = d2 - d1
+                shade = self.base + (1 if _h("pl", self.seed, cell) < 0.3 else 0)
+                if self.bevel:
+                    if (j == 0 and ph > 1) or (i == 0 and pw > 1):
+                        shade += self.light
+                    elif (j == ph - 1 and ph > 1) or (i == pw - 1 and pw > 1):
+                        shade -= 1
+                col = BASALT[max(0, min(len(BASALT) - 1, shade))]
+                if self.hot:
+                    if gap < 0.32:
+                        col = CRACK_CORE
+                    elif gap < 0.75:
+                        col = CRACK
+                    elif gap < 1.25:
+                        col = CRUST
+                    elif gap < 1.6 and shade <= self.base:
+                        col = CRUST_DARK
+                elif gap < 0.45:
+                    col = BASALT[0]
+                px[i, j] = col
+        key = "magma_" + format(zlib.crc32(im.tobytes()), "08x")
         if key not in T.SURFACES:
             T.SURFACES[key] = (lambda img=im: img.copy())
-        return key, (None if tile else [0, 0, round(w, 4), round(h, 4)])
+        return key, [0, 0, round(w, 4), round(h, 4)]
 
 
-ROCK = LavaRock(1)                                   # the cracked obsidian of the blades and heads
-ROCK_PLAIN = LavaRock(1, cracks=False)               # small rock parts (tips, horns)
-ROCK_LIGHT = LavaRock(2, cracks=False)
-LAVA = Mat("fire", "plain", 4, bevel=(1, -1), noise=0, glow=True)        # the molten core: yellow-hot
-LAVA_DEEP = Mat("fire", "plain", 3, bevel=(1, -1), noise=0, glow=True)   # flowing lava: orange
-EMBER = Mat("signal_red", "plain", 1, bevel=None, noise=0, glow=True)    # hot edges: ember orange-red
-EMBER_RED = Mat("signal_red", "plain", 0, bevel=None, noise=0, glow=True)   # the cooling red rim
-IRON = Mat("iron", "metal", 2, bevel=(1, -1), noise=0)
-IRON_DARK = Mat("iron", "metal", 1, bevel=(1, -1), noise=0)
-IRON_BAND = Mat("blacksteel", "metal", 3, bevel=(1, -1), noise=0)
-LEATHER = Mat("soot", "weave", 1, bevel=(0, -1), noise=0.05)              # charred leather wrap
-ROD = Mat("iron", "metal", 1, bevel=(1, -1), noise=0)
-LINE = Mat("glow_amber", "plain", 1, bevel=None, noise=0)
-WHIP = Mat("leather", "weave", 1, bevel=(1, -1), noise=0.05)              # the braided lash
-WHIP_DARK = Mat("soot", "plain", 0, bevel=None, noise=0)
-SMOKE = Mat("stone", "plain", 3, bevel=(1, -1), noise=0.06)
-SMOKE_DARK = Mat("stone", "plain", 2, bevel=(1, -1), noise=0.06)
-WHITE_HOT = Mat("fire", "plain", 5, bevel=None, noise=0, glow=True)      # a bubble bursting, a flame's heart
+class MagmaModel(MModel):
+    """An MModel that paints Rock faces at their world position, and (k < 1) shrinks every box by k about the grip
+    point (8, GRIP_Y, 8) after painting it at full size."""
 
-
-# ================================================================================================
-# A model built bigger than the frame allows
-# ================================================================================================
-
-class LongModel(MModel):
-    """An MModel whose boxes shrink by k about the grip point (8, GRIP_Y, 8) as they are added, painted first at their
-    full size. _long() then enlarges the held views by 1 / k, so in the hand the model is its full size."""
-
-    def __init__(self, name, k):
+    def __init__(self, name, k=1.0):
         super().__init__(name)
         self.k = k
 
@@ -141,16 +148,22 @@ class LongModel(MModel):
         fs.update(faces or {})
         uv = dict(uv or {})
         for f, t in list(fs.items()):
-            if isinstance(t, Mat):
+            if isinstance(t, Rock):
+                fs[f], region = t.face_world(f, frm, to)
+            elif isinstance(t, Mat):
                 w, h = _face_size(f, frm, to)
                 fs[f], region = t.face(w, h, f, zlib.crc32(f"{round(w, 2)}x{round(h, 2)}/{f}".encode()))
-                if region and f not in uv and f not in full_uv:
-                    uv[f] = region
                 glow = glow or t.glow
-        if rotation:
-            rotation = (rotation[0], rotation[1], self._p(rotation[2]))
+            else:
+                continue
+            if region and f not in uv and f not in full_uv:
+                uv[f] = region
+        if self.k != 1.0:
+            frm, to = self._p(frm), self._p(to)
+            if rotation:
+                rotation = (rotation[0], rotation[1], self._p(rotation[2]))
         first = next((t for t in fs.values() if t is not None), None)
-        return super().box(name, self._p(frm), self._p(to), first, faces=fs, full_uv=full_uv, glow=glow,
+        return super().box(name, frm, to, first, faces=fs, full_uv=full_uv, glow=glow,
                            rotation=rotation, uv=uv, side_v=side_v, shade=shade)
 
 
@@ -162,82 +175,77 @@ def _long(m, kind):
 
 
 # ================================================================================================
+# Materials
+# ================================================================================================
+
+ROCK = Rock(1, hot=True, cell=4.0)                  # the cracked basalt of blades and heads
+ROCK_FINE = Rock(1, hot=True, cell=3.0, seed=7)     # smaller heads: finer cracks
+ROCK_COLD = Rock(2, hot=False, cell=3.0, seed=3)    # cooled crust: rims, horns, small parts
+ROCK_DARK = Rock(1, hot=False, cell=3.0, seed=5)
+LAVA = Mat("fire", "plain", 4, bevel=(1, -1), noise=0, glow=True)        # yellow-hot
+LAVA_DEEP = Mat("fire", "plain", 3, bevel=(1, -1), noise=0, glow=True)   # flowing orange
+LAVA_RED = Mat("fire", "plain", 2, bevel=(1, -1), noise=0, glow=True)    # cooling orange-red
+EMBER = Mat("tomato", "plain", 2, bevel=(1, -1), noise=0, glow=True)     # red-hot
+WHITE_HOT = Mat("fire", "plain", 5, bevel=None, noise=0, glow=True)
+STEEL = Mat("blacksteel", "metal", 2, bevel=(1, -1), noise=0)
+STEEL_LIGHT = Mat("blacksteel", "metal", 3, bevel=(1, -1), noise=0)
+LEATHER = Mat("soot", "weave", 0, bevel=(1, -1), noise=0.04)              # charred leather wrap
+WHIP = Mat("soot", "weave", 1, bevel=(1, -1), noise=0.04)
+LINE = Mat("glow_amber", "plain", 1, bevel=None, noise=0)
+SMOKE = Mat("stone", "plain", 2, bevel=(1, -1), noise=0.06)
+SMOKE_DARK = Mat("stone", "plain", 1, bevel=(1, -1), noise=0.06)
+
+
+# ================================================================================================
 # Shared parts
 # ================================================================================================
 
-def handle(m, low=-1.25, rings=(0.25, 3.0)):
-    """Obsidian pommel with a glowing ring and core, charred leather grip from low with iron bands, an iron collar
-    with a hot rim (up to y 6.75)."""
+def handle(m, low=-1.25, bands=(0.5,)):
+    """Basalt pommel with a glowing ring and a molten tip, a charred leather grip from `low` with steel bands, a steel
+    collar with a red-hot rim (up to y 6.75)."""
     m.group("handle")
     p = low - 2
-    m.box("pommel_spike", (7.25, p - 0.75, 7.25), (8.75, p, 8.75), IRON_DARK)
-    m.box("pommel_core", (7.5, p - 1.5, 7.5), (8.5, p - 0.75, 8.5), LAVA)
-    round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, p, low, ROCK, 0.75)
-    m.box("pommel_glow", (6.2, p + 0.5, 6.2), (9.8, p + 1.5, 9.8), EMBER)
+    m.box("pommel_tip", (7.375, p - 1, 7.375), (8.625, p, 8.625), LAVA)
+    round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, p, low, ROCK_COLD, 0.75)
+    m.box("pommel_ring", (6.0, p + 0.75, 7.0), (10.0, p + 1.25, 9.0), EMBER)
+    m.box("pommel_ring", (7.0, p + 0.75, 6.0), (9.0, p + 1.25, 10.0), EMBER)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, low, 5.25, LEATHER, 0.5)
-    for y in rings:
-        round_y(m, "grip_band", 6.5, 9.5, 6.5, 9.5, y, y + 0.75, IRON_BAND, 0.5)
-    round_y(m, "collar", 6, 10, 6, 10, 5.25, 6.5, IRON, 1)
-    m.box("collar_rim", (6.5, 6.25, 6.5), (9.5, 6.75, 9.5), EMBER_RED)
+    for y in bands:
+        m.box("grip_band", (6.5, y, 6.5), (9.5, y + 0.75, 9.5), STEEL_LIGHT)
+    round_y(m, "collar", 6, 10, 6, 10, 5.25, 6.5, STEEL, 1)
+    m.box("collar_rim", (6.5, 6.5, 6.5), (9.5, 6.75, 9.5), EMBER)
 
 
-def shaft(m, top, ring=True):
-    """The iron haft above the collar, up to y = top, with a glowing crack ring part way up."""
+def shaft(m, top, mat=None):
+    """The basalt haft above the collar, up to y = top: cold, with a red-hot band part way up."""
     m.group("shaft")
-    round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, IRON_DARK, 0.5)
-    if ring:
-        mid = 6.5 + (top - 6.5) * 0.42
-        m.box("shaft_ring", (6.625, mid, 6.625), (9.375, mid + 0.75, 9.375), ROCK_PLAIN)
-        m.box("shaft_ring_glow", (6.45, mid + 0.75, 6.45), (9.55, mid + 1.0, 9.55), EMBER)
+    round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.75, top, mat or ROCK_DARK, 0.5)
+    mid = 6.75 + (top - 6.75) * 0.45
+    m.box("shaft_band", (6.625, mid, 6.625), (9.375, mid + 0.75, 9.375), STEEL_LIGHT)
 
 
 def drip(m, x, y, z=C, big=True):
     """A molten drip hanging from y: a bead under a thin neck."""
-    m.box("drip", (x - 0.5, y - 1, z - 0.5), (x + 0.5, y, z + 0.5), LAVA_DEEP)
+    m.box("drip", (x - 0.375, y - 1, z - 0.375), (x + 0.375, y, z + 0.375), LAVA_DEEP)
     if big:
-        m.box("drip", (x - 0.375, y - 1.75, z - 0.375), (x + 0.375, y - 1, z + 0.375), LAVA)
+        m.box("drip", (x - 0.5, y - 1.75, z - 0.5), (x + 0.5, y - 1, z + 0.5), LAVA)
 
 
-def fissure(m, segs, z0, z1, mat=None):
-    """A zigzag lava crack: segments (x0, x1, y0, y1), each a little off the last, glowing through the rock."""
-    for x0, x1, y0, y1 in segs:
-        m.box("fissure", (x0, y0, z0), (x1, y1, z1), mat or LAVA_DEEP)
+def _arm(m, name, side, pivot, length, half_h, z0, z1, angle, mat, back=0.5):
+    """A piece of the pickaxe's arm along x from its pivot, drooping by angle; returns the next piece's pivot."""
+    px, py = pivot
+    if side > 0:
+        frm, to = (px - back, py - half_h, z0), (px + length, py + half_h, z1)
+    else:
+        frm, to = (px - length, py - half_h, z0), (px + back, py + half_h, z1)
+    m.box(name, frm, to, mat, rotation=("z", -angle * side, (px, py, C)))
+    a = math.radians(angle)
+    return px + side * (length - 0.5) * math.cos(a), py - (length - 0.5) * math.sin(a)
 
 
-def _rows(d):
-    """A stepped circle of even diameter d a unit row at a time: {row: half width}, rows -d/2 .. d/2 - 1."""
-    out = {}
-    for a, b, hw in bands(d):
-        for r in range(round(a), round(b)):
-            out[r] = hw
-    return out
-
-
-def disc(m, name, cx, cy, d, z0, z1, mat, inset=0.0):
-    """A round plate facing z (even diameter), its rows merged; inset shrinks it a little all round."""
-    r = d // 2
-    for a, b, hw in bands(d):
-        a2 = a + inset if round(a) == -r else a
-        b2 = b - inset if round(b) == r else b
-        m.box(name, (cx - hw + inset, cy + a2, z0), (cx + hw - inset, cy + b2, z1), mat)
-
-
-def ring(m, name, cx, cy, d_out, d_in, z0, z1, mat):
-    """A round ring facing z: the stepped circle d_out with the circle d_in cut out of its middle."""
-    o, i = _rows(d_out), _rows(d_in)
-    rows = []
-    for r in sorted(o):
-        key = (o[r], i.get(r))
-        if rows and rows[-1][2] == key:
-            rows[-1][1] = r + 1
-        else:
-            rows.append([r, r + 1, key])
-    for a, b, (ho, hi) in rows:
-        if hi is None:
-            m.box(name, (cx - ho, cy + a, z0), (cx + ho, cy + b, z1), mat)
-        else:
-            m.box(name, (cx - ho, cy + a, z0), (cx - hi, cy + b, z1), mat)
-            m.box(name, (cx + hi, cy + a, z0), (cx + ho, cy + b, z1), mat)
+def _lr(side, a, b):
+    """x range from C + side * a to C + side * b, sorted."""
+    return tuple(sorted((C + side * a, C + side * b)))
 
 
 # ================================================================================================
@@ -248,241 +256,249 @@ SWORD_K = 0.75      # the greatsword is built at full size (tip at y 41.75) and 
 
 
 def magma_sword():
-    """화산 대검: a broad obsidian greatsword (its blade 1.6 times the toy sword's, from the grip) narrowing in steps to
-    its point, ember-red serrations biting out of both edges, a zigzag lava fissure from the guard to near the tip
-    with side cracks; a wide rock crossguard whose ends sweep up into glowing horns round a molten gem; a long two-hand
-    grip."""
-    m = LongModel("magma_sword", SWORD_K)
-    handle(m, low=-4.25, rings=(-2.75, 0.25, 3.0))
+    """화산 대검: a broad basalt greatsword cracked with lava all over, narrowing in steps to a molten point; both edges
+    molten orange with serrations biting out of them, a white-hot zigzag fissure up the middle; a wide basalt crossguard
+    sweeping up into horns with red-hot tips round a lava gem, lava dripping off it; a long two-hand grip."""
+    m = MagmaModel("magma_sword", SWORD_K)
+    handle(m, low=-4.25, bands=(-2.5, 0.75))
     m.group("guard")
-    m.box("guard", (1.5, 6.5, 6.5), (14.5, 9, 9.5), ROCK)
-    m.box("guard_core", (4.5, 6.2, 6.25), (11.5, 9.25, 9.75), IRON)
-    m.box("guard_gem", (6.75, 6.75, 6), (9.25, 8.75, 10), LAVA)
+    m.box("guard", (3.75, 6.5, 6.5), (12.25, 9.5, 9.5), ROCK_FINE)
+    m.box("guard_gem", (6.75, 6.75, 6.25), (9.25, 9.25, 9.75), LAVA_DEEP)
+    m.box("guard_gem", (7.375, 7.375, 6.0), (8.625, 8.625, 10.0), WHITE_HOT)
     for side in (1, -1):
-        lo, hi = sorted((C + side * 6.5, C + side * 8))
-        m.box("horn", (lo, 9, 6.875), (hi, 11, 9.125), ROCK_PLAIN)
-        lo, hi = sorted((C + side * 7, C + side * 8))
-        m.box("horn", (lo, 11, 7.25), (hi, 12.5, 8.75), ROCK_PLAIN)
-        lo, hi = sorted((C + side * 7.25, C + side * 8))
-        m.box("horn_tip", (lo, 12.5, 7.5), (hi, 13.5, 8.5), EMBER)
-    drip(m, 3, 6.5)
-    drip(m, 13, 6.5, big=False)
+        x0, x1 = _lr(side, 4.25, 6.5)
+        m.box("guard_wing", (x0, 7.0, 6.75), (x1, 10.0, 9.25), ROCK_FINE)
+        x0, x1 = _lr(side, 5.75, 7.25)
+        m.box("horn", (x0, 10.0, 7.0), (x1, 12.0, 9.0), ROCK_COLD)
+        x0, x1 = _lr(side, 6.25, 7.25)
+        m.box("horn_tip", (x0, 12.0, 7.25), (x1, 13.25, 8.75), EMBER)
+        x0, x1 = _lr(side, 6.5, 7.25)
+        m.box("horn_tip", (x0, 13.25, 7.5), (x1, 14.0, 8.5), LAVA)
+        drip(m, C + side * 5.25, 7.0, big=side > 0)
     m.group("blade")
     # stepped rows to the point: (y0, y1, half width, half depth)
-    rows = ((9, 15, 4.25, 1.25), (15, 21, 4.0, 1.25), (21, 27, 3.5, 1.0), (27, 32, 3.0, 1.0), (32, 36, 2.5, 1.0),
-            (36, 39, 1.75, 0.875), (39, 40.75, 1.0, 0.75), (40.75, 41.75, 0.5, 0.5))
+    rows = ((9.5, 16, 4.25, 1.25), (16, 22.5, 4.0, 1.25), (22.5, 28.5, 3.5, 1.0), (28.5, 33.5, 3.0, 1.0),
+            (33.5, 37, 2.25, 0.875), (37, 39.5, 1.5, 0.75))
     for y0, y1, hw, hz in rows:
         m.box("blade", (C - hw, y0, C - hz), (C + hw, y1, C + hz), ROCK)
-    # serrations: teeth leaning up out of both edges, hot
-    for y in (10, 14, 18, 22, 26, 30, 34):
+        for side in (1, -1):        # the molten edge along both sides
+            x0, x1 = _lr(side, hw, hw + 0.75)
+            m.box("edge", (x0, y0 + 0.25 if y0 > 9.5 else y0, C - 0.5), (x1, y1, C + 0.5), LAVA_DEEP)
+    m.box("point", (C - 1.0, 39.5, C - 0.5), (C + 1.0, 40.75, C + 0.5), LAVA_DEEP)
+    m.box("point", (C - 0.5, 40.75, C - 0.375), (C + 0.5, 41.75, C + 0.375), LAVA)
+    # serrations: hooked teeth leaning up out of both edges, red-hot, a yellow tip
+    for k, y in enumerate((11, 15, 19, 23, 27, 31)):
         hw = next(r[2] for r in rows if r[0] <= y < r[1])
         for side in (1, -1):
-            lo, hi = sorted((C + side * hw, C + side * (hw + 1)))
-            m.box("tooth", (lo, y, 7.5), (hi, y + 1.5, 8.5), EMBER)
-            lo, hi = sorted((C + side * (hw + 1), C + side * (hw + 1.5)))
-            m.box("tooth_tip", (lo, y + 0.75, 7.625), (hi, y + 1.75, 8.375), EMBER_RED)
-    fissure(m, ((7.5, 8.5, 9.5, 13.5), (7, 8, 13.5, 17.5), (7.75, 8.75, 17.5, 22), (7.25, 8.25, 22, 26.5),
-                (7.75, 8.75, 26.5, 30.5), (7.25, 8.25, 30.5, 34.5), (7.625, 8.375, 34.5, 38.5)), 6.6, 9.4)
-    # side cracks branching off the fissure
-    fissure(m, ((8.75, 10.75, 19.75, 20.5), (5.25, 7.25, 24.25, 25), (8.75, 10.25, 32, 32.75)), 6.65, 9.35, EMBER)
-    m.box("fissure_hot", (7.7, 9.55, 6.55), (8.3, 12, 9.45), LAVA)
+            yy = y + (1.75 if side < 0 else 0)
+            x0, x1 = _lr(side, hw + 0.75, hw + 1.75)
+            m.box("tooth", (x0, yy, C - 0.375), (x1, yy + 1.5, C + 0.375), LAVA_RED)
+            x0, x1 = _lr(side, hw + 1.75, hw + 2.25)
+            m.box("tooth_tip", (x0, yy + 0.75, C - 0.25), (x1, yy + 1.5, C + 0.25), LAVA)
+    # the fissure: a white-hot zigzag up the middle, proud of both faces
+    segs = ((7.5, 8.5, 9.5, 14, 1.375), (7.0, 8.0, 14, 18.5, 1.375), (7.75, 8.75, 18.5, 23, 1.375),
+            (7.25, 8.25, 23, 28, 1.125), (7.75, 8.75, 28, 32.5, 1.125), (7.375, 8.375, 32.5, 36.5, 1.0))
+    for x0, x1, y0, y1, hz in segs:
+        m.box("fissure", (x0, y0, C - hz), (x1, y1, C + hz), LAVA)
+    m.box("fissure_glow", (7.625, 10, C - 1.5), (8.375, 13, C + 1.5), WHITE_HOT)
     return _long(m, "sword")
 
 
 def magma_pickaxe():
-    """분화구 곡괭이: a smoking volcano for a head: a stepped obsidian cone whose wide base runs out into two prongs with
-    glowing points (the pick's arms), lava welling from the crater and running down its front in two streams, a
-    column of grey smoke puffs above."""
-    m = MModel("magma_pickaxe")
+    """분화구 곡괭이: a basalt pick head cracked with lava, its arms drooping in two bends to molten points; on its crown a
+    little volcano: a stepped cone with a lava pool in its crater running down its front, a puff of smoke above;
+    steel straps where the arms leave the head."""
+    m = MagmaModel("magma_pickaxe")
     handle(m)
-    shaft(m, 15)
-    m.group("cone")
-    rows = ((14.5, 16.5, 7.0, 2.5), (16.5, 18.5, 5.5, 2.25), (18.5, 20.5, 4.25, 2.0), (20.5, 22, 3.25, 1.75))
-    for y0, y1, hw, hz in rows:
-        m.box("cone", (C - hw, y0, C - hz), (C + hw, y1, C + hz), ROCK)
-    for side in (1, -1):        # the base's ends: prongs pointing down, glowing at the point
-        lo, hi = sorted((C + side * 7, C + side * 4.75))
-        m.box("prong", (lo, 12.75, 6.25), (hi, 14.5, 9.75), ROCK_PLAIN)
-        lo, hi = sorted((C + side * 7, C + side * 5.5))
-        m.box("prong_tip", (lo, 11.25, 7), (hi, 12.75, 9), LAVA_DEEP)
-        lo, hi = sorted((C + side * 6.75, C + side * 5.75))
-        m.box("prong_tip", (lo, 10.25, 7.5), (hi, 11.25, 8.5), LAVA)
-    # the crater: a rim round a pool of lava
-    m.box("rim", (C - 3.25, 22, C + 1.25), (C + 3.25, 22.75, C + 1.75), ROCK_PLAIN)
-    m.box("rim", (C - 3.25, 22, C - 1.75), (C + 3.25, 23.25, C - 1.25), ROCK_PLAIN)
-    m.box("rim", (C - 3.25, 22, C - 1.25), (C - 2.25, 23.25, C + 1.25), ROCK_PLAIN)
-    m.box("rim", (C + 2.25, 22, C - 1.25), (C + 3.25, 23.25, C + 1.25), ROCK_PLAIN)
-    m.box("crater", (C - 2.25, 22, C - 1.25), (C + 2.25, 23, C + 1.25), LAVA)
-    # lava running down the front (and the back)
-    for z0, z1 in ((C + 1.65, C + 1.9), (C - 1.9, C - 1.65)):
-        m.box("flow", (C - 1, 20.5, z0), (C + 0.5, 22.75, z1), LAVA_DEEP)
-    m.box("flow", (C - 1.5, 18.5, C + 1.9), (C - 0.5, 20.5, C + 2.15), LAVA_DEEP)
-    m.box("flow", (C - 2.25, 16.5, C + 2.15), (C - 1.25, 18.5, C + 2.4), EMBER)
-    m.box("flow", (C + 0.5, 18.5, C + 1.9), (C + 1.5, 20, C + 2.15), LAVA_DEEP)
-    m.box("flow", (C + 1.25, 16.5, C + 2.15), (C + 2.25, 18.5, C + 2.4), EMBER)
+    shaft(m, 15.25)
+    m.group("head")
+    m.box("head", (4.75, 14.75, 6.25), (11.25, 19.25, 9.75), ROCK_FINE)
+    for side in (1, -1):
+        x0, x1 = _lr(side, 3.0, 3.5)
+        m.box("strap", (x0, 14.5, 6.0), (x1, 19.5, 10.0), STEEL_LIGHT)
+        p = (C + side * 3.25, 17.25)
+        p = _arm(m, "arm_a", side, p, 4.5, 1.75, 6.625, 9.375, 22.5, ROCK_FINE)
+        p = _arm(m, "arm_b", side, p, 3.75, 1.375, 6.875, 9.125, 45, ROCK_FINE)
+        px, py = p
+        rot = ("z", -45 * side, (px, py, C))
+        if side > 0:
+            m.box("arm_hot", (px + 0.25, py - 1.125, 7.125), (px + 1.75, py + 1.125, 8.875), LAVA_DEEP, rotation=rot)
+            m.box("arm_tip", (px + 1.75, py - 0.625, 7.375), (px + 2.75, py + 0.625, 8.625), LAVA, rotation=rot)
+        else:
+            m.box("arm_hot", (px - 1.75, py - 1.125, 7.125), (px - 0.25, py + 1.125, 8.875), LAVA_DEEP, rotation=rot)
+            m.box("arm_tip", (px - 2.75, py - 0.625, 7.375), (px - 1.75, py + 0.625, 8.625), LAVA, rotation=rot)
+    m.group("volcano")
+    m.box("cone", (C - 2.75, 19.25, C - 1.5), (C + 2.75, 20.75, C + 1.5), ROCK_COLD)
+    m.box("cone", (C - 2.0, 20.75, C - 1.125), (C + 2.0, 22.0, C + 1.125), ROCK_COLD)
+    m.box("crater", (C - 1.25, 22.0, C - 0.75), (C + 1.25, 22.5, C + 0.75), LAVA)
+    m.box("crater_rim", (C - 2.0, 22.0, C - 1.125), (C - 1.25, 22.75, C + 1.125), ROCK_COLD)
+    m.box("crater_rim", (C + 1.25, 22.0, C - 1.125), (C + 2.0, 22.75, C + 1.125), ROCK_COLD)
+    for s in (1, -1):        # the lava running over the lip, down the front and the back
+        z0, z1 = sorted((C + s * 1.125, C + s * 1.375))
+        m.box("flow", (C - 0.5, 20.75, z0), (C + 0.5, 22.25, z1), LAVA_DEEP)
+        z0, z1 = sorted((C + s * 1.5, C + s * 1.75))
+        m.box("flow", (C - 0.25, 19.5, z0), (C + 0.75, 21.0, z1), LAVA_DEEP)
+        z0, z1 = sorted((C + s * 1.75, C + s * 2.0))
+        m.box("flow", (C + 0.25, 18.0, z0), (C + 1.0, 19.75, z1), LAVA_RED)
     m.group("smoke")
-    m.box("smoke", (C - 1.75, 23.25, C - 1.5), (C + 1.25, 25.75, C + 1.5), SMOKE_DARK)
-    m.box("smoke", (C - 0.75, 25.75, C - 1.25), (C + 2.25, 28, C + 1.25), SMOKE)
-    m.box("smoke", (C - 2.25, 28, C - 1), (C + 0.25, 30, C + 1), SMOKE)
-    m.box("smoke", (C - 1.5, 30, C - 0.75), (C + 0.0, 31.25, C + 0.75), SMOKE)
-    m.box("ember", (C + 1.75, 24.25, C - 0.25), (C + 2.25, 24.75, C + 0.25), LAVA)
-    m.box("ember", (C - 2.75, 26.75, C - 0.25), (C - 2.25, 27.25, C + 0.25), LAVA_DEEP)
+    m.box("smoke", (C - 1.0, 22.75, C - 0.75), (C + 0.75, 24.0, C + 0.75), SMOKE_DARK)
+    m.box("smoke", (C - 0.25, 24.0, C - 0.625), (C + 1.5, 25.25, C + 0.625), SMOKE)
+    m.box("spark", (C - 1.75, 24.25, C - 0.25), (C - 1.25, 24.75, C + 0.25), LAVA)
     return _held(m, "pickaxe")
 
 
-def ring_y(m, name, cx, cz, d_out, d_in, y0, y1, mat):
-    """A round ring lying flat (facing y): the stepped circle d_out with d_in cut out of its middle."""
-    o, i = _rows(d_out), _rows(d_in)
-    rows = []
-    for r in sorted(o):
-        key = (o[r], i.get(r))
-        if rows and rows[-1][2] == key:
-            rows[-1][1] = r + 1
-        else:
-            rows.append([r, r + 1, key])
-    for a, b, (ho, hi) in rows:
-        if hi is None:
-            m.box(name, (cx - ho, y0, cz + a), (cx + ho, y1, cz + b), mat)
-        else:
-            m.box(name, (cx - ho, y0, cz + a), (cx - hi, y1, cz + b), mat)
-            m.box(name, (cx + hi, y0, cz + a), (cx + ho, y1, cz + b), mat)
-
-
 def magma_shovel():
-    """마그마 국자 삽: a deep round iron ladle bowl on the haft, open to the sky, brimming with molten magma that heaps
-    above its rim with a bubble bursting on it; a pouring lip on one side with magma running off it, magma spilling
-    down the bowl's front and dripping from its foot."""
-    m = MModel("magma_shovel")
+    """마그마 국자 삽: a basalt spade dished like a ladle: a raised crust rim round its face holds a pool of glowing magma,
+    a cooled floe and white-hot bubbles on it, magma spilling over both shoulders in drips; a molten point, a basalt
+    spine on the back, a steel socket."""
+    m = MagmaModel("magma_shovel")
     handle(m)
-    shaft(m, 17.5)
-    m.group("ladle")
-    round_y(m, "neck", 6.5, 9.5, 6.5, 9.5, 16.5, 18, IRON, 0.75)
-    cyl(m, "bowl", "y", (C, C), 6, 18, 19, IRON_DARK, cap=IRON_DARK)
-    cyl(m, "bowl", "y", (C, C), 8, 19, 20.5, IRON_DARK, cap=IRON_DARK)
-    cyl(m, "bowl", "y", (C, C), 10, 20.5, 23.5, ROCK, cap=ROCK)
-    cyl(m, "bowl_band", "y", (C, C), 10, 23.5, 24.25, ROCK_PLAIN, cap=ROCK_PLAIN)
-    ring_y(m, "rim", C, C, 12, 8, 24.25, 25.25, IRON)
-    cyl(m, "magma", "y", (C, C), 8, 24.25, 25.5, LAVA, cap=LAVA)
-    cyl(m, "magma_heap", "y", (C, C), 6, 25.5, 26.75, LAVA_DEEP, cap=LAVA_DEEP)
-    cyl(m, "magma_heap", "y", (C, C), 4, 26.75, 27.75, LAVA, cap=LAVA)
-    cyl(m, "magma_heap", "y", (C, C), 2, 27.75, 28.5, WHITE_HOT, cap=WHITE_HOT)
-    m.box("bubble", (10.25, 25.5, 7.25), (11.25, 26.5, 8.25), LAVA)
-    # the pouring lip (-x) and what runs off it
-    m.box("lip", (0.75, 24.25, 7), (2.05, 25.25, 9), IRON)
-    m.box("lip_magma", (1.25, 25.25, 7.375), (3.5, 25.75, 8.625), LAVA_DEEP)
-    m.box("lip_spill", (0.25, 22.5, 7.5), (1.0, 25.2, 8.5), LAVA_DEEP)
-    drip(m, 0.625, 22.5, big=True)
-    # spills down the front, over the rim
-    m.box("spill", (8.75, 23.25, 14.0), (9.75, 25.2, 14.3), LAVA_DEEP)
-    m.box("spill", (8.75, 20.75, 13.0), (9.75, 23.4, 13.3), LAVA_DEEP)
-    m.box("spill", (6.25, 24.0, 14.0), (7.0, 25.2, 14.3), EMBER)
-    m.box("spill", (6.25, 21.75, 13.0), (7.0, 23.4, 13.3), EMBER)
-    drip(m, 8, 18, z=C)
+    shaft(m, 15.5)
+    m.group("blade")
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.25, 17.0, STEEL, 0.75)
+    m.box("socket_rim", (6.5, 16.75, 6.0), (9.5, 17.0, 10.0), STEEL_LIGHT)
+    rows = ((17, 18.25, 3.75), (18.25, 24, 4.75), (24, 26, 4.0), (26, 27.5, 3.0), (27.5, 28.75, 1.75))
+    for y0, y1, hw in rows:
+        m.box("blade", (C - hw, y0, 7.0), (C + hw, y1, 9.0), ROCK)
+    # the rim standing proud of the front (+z) all round, the magma pool inside it
+    z0, z1 = 9.0, 9.75
+    m.box("rim", (C - 4.75, 18.25, z0), (C + 4.75, 19.25, z1), ROCK_COLD)       # the shoulders' rim
+    m.box("rim", (C - 3.75, 17.0, z0), (C + 3.75, 18.25, z1), ROCK_COLD)
+    for y0, y1, hw in rows[1:4]:
+        lo = max(y0, 19.25)
+        for side in (1, -1):
+            x0, x1 = _lr(side, hw - 1, hw)
+            m.box("rim", (x0, lo, z0), (x1, y1, z1), ROCK_COLD)
+    m.box("rim", (C - 2.0, 26.75, z0), (C + 2.0, 27.5, z1), ROCK_COLD)
+    m.box("rim", (C - 1.75, 27.5, z0), (C + 1.75, 28.75, z1), ROCK_COLD)
+    m.box("pool", (C - 3.75, 19.25, 9.0), (C + 3.75, 24.0, 9.35), LAVA_DEEP)
+    m.box("pool", (C - 3.0, 24.0, 9.0), (C + 3.0, 26.0, 9.35), LAVA_DEEP)
+    m.box("pool", (C - 2.0, 26.0, 9.0), (C + 2.0, 26.75, 9.35), LAVA)
+    m.box("floe", (C - 2.75, 20.0, 9.35), (C - 0.75, 21.5, 9.6), ROCK_DARK)
+    m.box("floe", (C + 1.0, 23.0, 9.35), (C + 2.25, 24.0, 9.55), ROCK_DARK)
+    m.box("bubble", (C + 0.75, 20.75, 9.35), (C + 1.75, 21.75, 9.85), WHITE_HOT)
+    m.box("bubble", (C - 1.5, 24.5, 9.35), (C - 0.75, 25.25, 9.7), LAVA)
+    m.box("point", (C - 0.75, 28.75, 7.25), (C + 0.75, 29.75, 8.75), LAVA_DEEP)
+    m.box("point", (C - 0.375, 29.75, 7.5), (C + 0.375, 30.5, 8.5), LAVA)
+    # spilling over the shoulders and dripping
+    for side, big in ((1, True), (-1, False)):
+        x0, x1 = _lr(side, 4.0, 4.75)
+        m.box("spill", (x0, 18.25, 9.0), (x1, 19.5, 9.9), LAVA_DEEP)
+        x0, x1 = _lr(side, 4.125, 4.625)
+        m.box("spill", (x0, 16.75, 8.5), (x1, 18.25, 9.25), LAVA_DEEP)
+        if big:
+            m.box("spill", (x0 - 0.125, 16.0, 8.375), (x1 + 0.125, 16.75, 9.375), LAVA)
+    m.box("spine", (C - 0.75, 17.0, 6.6), (C + 0.75, 26.0, 7.0), ROCK_COLD)
     return _held(m, "shovel")
 
 
 def magma_axe():
-    """불새 날개 도끼: a phoenix wing for a blade: rows of obsidian feathers fanning out to one side (-x), longest at the
-    top, each burning to ember and then yellow flame at its tip; behind the haft a small firebird head with a beak,
-    a glowing eye and a flame crest."""
-    m = MModel("magma_axe")
+    """불새 날개 도끼: a phoenix wing for a blade: a basalt head on the haft, and fanned out from it to one side (-x) a row
+    of feathers that burn from red-hot through orange to a white-hot cutting edge, the top feather sweeping up like a
+    wing tip; behind the haft a firebird head with a molten beak, glowing eyes and a flame crest; a steel cap."""
+    m = MagmaModel("magma_axe")
     handle(m)
     shaft(m, 21.5)
     m.group("head")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 13.5, 21, IRON, 0.75)
-    round_y(m, "shaft_cap", 6.75, 9.25, 6.75, 9.25, 21, 22.25, ROCK_PLAIN, 0.5)
-    m.box("cap_flame", (7.5, 22.25, 7.5), (8.5, 23.5, 8.5), LAVA)
+    m.box("head", (5.25, 14.0, 6.25), (10.75, 21.0, 9.75), ROCK_FINE)
+    m.box("head_band", (4.75, 13.75, 6.0), (5.25, 21.25, 10.0), STEEL_LIGHT)
+    round_y(m, "cap", 6.5, 9.5, 6.5, 9.5, 21.0, 22.0, STEEL, 0.75)
+    m.box("cap_gem", (7.375, 22.0, 7.375), (8.625, 22.75, 8.625), LAVA)
     m.group("wing")
-    # feathers from the top: (y0, y1, x where the feather ends)
-    feathers = ((21, 22.75, -2.25), (19.25, 21, -3.0), (17.5, 19.25, -2.5), (15.75, 17.5, -1.25), (14, 15.75, 0.5),
-                (12.25, 14, 2.5))
+    m.box("wing_root", (2.25, 13.25, 6.75), (4.75, 21.75, 9.25), ROCK)
+    # feathers from the bottom: (y0, y1, x of the feather's end)
+    feathers = ((11.75, 13.75, -0.25), (13.75, 15.75, -1.25), (15.75, 17.75, -1.75), (17.75, 19.75, -1.75),
+                (19.75, 21.75, -1.25))
     for k, (y0, y1, xe) in enumerate(feathers):
-        z0, z1 = (7, 9) if k % 2 == 0 else (7.25, 8.75)
-        m.box("feather", (xe + 3.25, y0, z0), (6.25, y1, z1), ROCK)
-        m.box("feather_burn", (xe + 1.5, y0, z0 + 0.125), (xe + 3.25, y1, z1 - 0.125), EMBER)
-        m.box("feather_tip", (xe, y0 + 0.25, z0 + 0.25), (xe + 1.5, y1 - 0.25, z1 - 0.25), LAVA)
-    m.box("leading_edge", (-1.25, 22.75, 7.25), (6.25, 23.5, 8.75), ROCK_PLAIN)
-    m.box("leading_tip", (-2.75, 22.75, 7.5), (-1.25, 24.75, 8.5), LAVA_DEEP)
-    m.box("leading_tip", (-3.5, 24.75, 7.625), (-2.25, 25.75, 8.375), LAVA)
+        g0, g1 = y0 + 0.125, y1 - 0.125
+        m.box("feather", (0.75, g0, 7.0), (2.25, g1, 9.0), EMBER)
+        m.box("feather", (xe + 0.75, g0 + 0.125, 7.25), (0.75, g1 - 0.125, 8.75), LAVA_DEEP)
+        m.box("feather_edge", (xe, g0 + 0.375, 7.5), (xe + 0.75, g1 - 0.375, 8.5), LAVA)
+    # the wing tip: the top feather sweeping up and out
+    m.box("tip", (0.25, 21.75, 7.0), (4.0, 23.0, 9.0), EMBER)
+    m.box("tip", (-0.75, 23.0, 7.25), (2.0, 24.25, 8.75), LAVA_DEEP)
+    m.box("tip", (-1.25, 24.25, 7.5), (0.25, 25.25, 8.5), LAVA)
     m.group("firebird")
-    m.box("bird_head", (9.75, 16, 6.75), (12.25, 19, 9.25), ROCK)
-    m.box("beak", (12.25, 16.5, 7.5), (13.75, 17.75, 8.5), EMBER)
-    m.box("beak_tip", (13.75, 16.5, 7.75), (14.5, 17.25, 8.25), LAVA_DEEP)
-    m.box("eye", (11, 17.75, 9.25), (11.75, 18.5, 9.5), LAVA)
-    m.box("eye", (11, 17.75, 6.5), (11.75, 18.5, 6.75), LAVA)
-    m.box("crest", (10.25, 19, 7.5), (11.25, 20.5, 8.5), LAVA_DEEP)
-    m.box("crest", (11.25, 19, 7.625), (12, 20, 8.375), EMBER)
-    m.box("crest_tip", (10.5, 20.5, 7.75), (11, 21.5, 8.25), LAVA)
+    m.box("bird", (10.75, 15.25, 6.75), (12.75, 19.75, 9.25), ROCK_COLD)
+    m.box("beak", (12.75, 16.0, 7.25), (14.0, 17.5, 8.75), LAVA_DEEP)
+    m.box("beak_tip", (14.0, 16.0, 7.5), (14.75, 16.75, 8.5), LAVA)
+    m.box("eye", (11.5, 18.0, 6.5), (12.25, 18.75, 9.5), LAVA)
+    m.box("crest", (10.75, 19.75, 7.25), (12.25, 21.0, 8.75), EMBER)
+    m.box("crest", (11.5, 21.0, 7.5), (12.75, 22.25, 8.5), LAVA_DEEP)
+    m.box("crest", (12.25, 22.25, 7.75), (13.0, 23.0, 8.25), LAVA)
     return _held(m, "axe")
 
 
 def magma_hoe():
-    """화염 괭이: the vanilla hoe's L: a straight flat head of black rock standing out to one side (-x) from an iron
-    socket on the haft's top, ending flat in a glowing edge; flames rising along its top edge, a lava vein along it.
-    Nothing droops or hooks: the head is one straight bar, the flames stand up from it."""
-    m = MModel("magma_hoe")
+    """화염 괭이: the vanilla hoe's L: a straight flat basalt bar standing out to one side (-x) from the haft's top,
+    a lava vein along it, a steel band, then the blade block ending flat in a molten edge; three small flames rising
+    from the bar's top edge; a steel cap with a lava gem on the haft. Nothing droops or hooks."""
+    m = MagmaModel("magma_hoe")
     handle(m)
-    shaft(m, 19.5)
+    shaft(m, 20.5)
     m.group("head")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 19, 23, IRON, 0.75)
-    m.box("socket_rim", (6, 21.25, 6), (10, 21.75, 10), EMBER_RED)
-    m.box("head", (-1, 19.75, 6.25), (6.25, 22.75, 9.75), ROCK)
-    fissure(m, ((3.25, 6.2, 20.75, 21.5), (0, 3.25, 21.25, 22)), 6.1, 9.9)
-    m.box("rim", (-1, 19.5, 6.5), (6.25, 19.75, 9.5), EMBER_RED)
-    m.box("edge", (-1.75, 19.75, 6.5), (-1, 22.75, 9.5), LAVA)
+    m.box("bar", (1.25, 19.75, 6.75), (9.75, 22.5, 9.25), ROCK_FINE)
+    m.box("vein", (1.5, 20.75, 6.5), (9.25, 21.25, 9.5), LAVA_DEEP)
+    round_y(m, "cap", 6.5, 9.5, 6.5, 9.5, 22.5, 23.25, STEEL, 0.75)
+    m.box("cap_gem", (7.375, 23.25, 7.375), (8.625, 24.0, 8.625), LAVA)
+    m.box("bar_end", (9.75, 20.0, 7.0), (10.25, 22.25, 9.0), STEEL_LIGHT)
+    m.box("band", (0.75, 19.5, 6.5), (1.25, 22.75, 9.5), STEEL_LIGHT)
+    m.box("blade", (-1.25, 19.5, 6.0), (0.75, 22.75, 10.0), ROCK)
+    m.box("blade_edge", (-2.0, 19.75, 6.25), (-1.25, 22.5, 9.75), LAVA_DEEP)
+    m.box("blade_edge", (-2.375, 20.25, 6.75), (-2.0, 22.0, 9.25), LAVA)
     m.group("flames")
-    # tongues along the top edge, uneven: (x0, height)
-    for x0, h in ((-0.75, 4.0), (0.5, 2.25), (1.75, 5.0), (3.0, 3.0), (4.25, 4.5), (5.5, 2.5), (6.75, 3.5)):
-        m.box("flame", (x0, 22.75 if x0 < 6.25 else 23, 7.25), (x0 + 1.25, 22.75 + h * 0.6, 8.75), LAVA_DEEP)
-        m.box("flame_tip", (x0 + 0.25, 22.75 + h * 0.6, 7.5), (x0 + 1.0, 22.75 + h, 8.5), LAVA)
-    m.box("flame_root", (-0.6, 22.75, 7), (6.2, 23.25, 9), EMBER)
+    for x0, h in ((2.0, 1.75), (3.75, 2.5), (5.5, 1.5)):
+        m.box("flame", (x0, 22.5, 7.25), (x0 + 1.25, 22.5 + h * 0.6, 8.75), LAVA_DEEP)
+        m.box("flame_tip", (x0 + 0.25, 22.5 + h * 0.6, 7.5), (x0 + 1.0, 22.5 + h, 8.5), LAVA)
     return _held(m, "hoe")
 
 
 def _rod(name, cast):
-    m = MModel(name)
+    m = MagmaModel(name)
     handle(m)
-    m.group("coil")
-    # the rest of the lash coiled beside the rod's foot (+x, where a reel would be), an ember glow inside the loop
-    m.box("coil_foot", (9, 7.5, 7.25), (10, 9.5, 8.75), IRON_DARK)
-    ring(m, "coil", 13, 8.5, 6, 4, 7, 9, WHIP)
-    disc(m, "coil_glow", 13, 8.5, 4, 7.6, 8.4, EMBER_RED, inset=0.05)
-    m.box("coil_end", (15.5, 5.25, 7.25), (16.5, 6.25, 8.75), WHIP)
-    m.box("coil_end", (16, 4.25, 7.5), (16.75, 5.25, 8.5), EMBER)
+    m.group("reel")
+    # a basalt reel beside the rod's foot (+x): a red-hot ring round a molten hub, a steel crank with an ember knob
+    m.box("reel_foot", (9.0, 7.5, 7.25), (10.0, 9.5, 8.75), STEEL)
+    cyl(m, "reel", "z", (12.75, 8.5), 6, 6.5, 9.5, ROCK_COLD, cap=ROCK_COLD)
+    cyl(m, "reel_ring", "z", (12.75, 8.5), 4, 6.25, 9.75, EMBER, cap=EMBER)
+    m.box("reel_hub", (12.0, 7.75, 6.0), (13.5, 9.25, 10.0), LAVA)
+    m.box("crank", (12.25, 8.0, 10.0), (13.25, 11.25, 10.75), STEEL_LIGHT)
+    m.box("crank_knob", (12.0, 10.5, 10.75), (13.5, 12.0, 12.0), LAVA_DEEP)
     m.group("whip")
-    # the lash: braided segments thinning upwards, each a little off the last (a whip's sway), ember knots between
-    segs = ((6.5, 11, 0.0, 1.25), (11, 15.5, 0.25, 1.125), (15.5, 20, 0.5, 1.0), (20, 24, 0.25, 0.875),
-            (24, 26.5, 0.0, 0.75), (26.5, 28.5, -0.25, 0.625))
+    # the lash: charred braided segments thinning and swaying a little upwards, red-hot knots between them
+    segs = ((6.75, 11.5, 0.0, 1.25), (11.5, 16, 0.25, 1.125), (16, 20.5, 0.5, 1.0), (20.5, 24.5, 0.25, 0.875),
+            (24.5, 27.25, 0.0, 0.75), (27.25, 29.25, -0.25, 0.625))
     for y0, y1, dx, hw in segs:
         m.box("lash", (C + dx - hw, y0, C - hw), (C + dx + hw, y1, C + hw), WHIP)
-    for y0, y1, dx, hw in segs[1:]:
-        m.box("knot", (C + dx - hw - 0.25, y0 - 0.25, C - hw - 0.25), (C + dx + hw + 0.25, y0 + 0.5, C + hw + 0.25), EMBER)
-    m.box("guide", (9.25, 17.5, 7.5), (10.25, 18.5, 8.5), IRON)
-    m.box("guide", (8.75, 25.5, 7.625), (9.75, 26.5, 8.375), IRON)
+    for i, (y0, y1, dx, hw) in enumerate(segs[1:]):
+        m.box("knot", (C + dx - hw - 0.25, y0 - 0.25, C - hw - 0.25), (C + dx + hw + 0.25, y0 + 0.5, C + hw + 0.25),
+              LAVA_DEEP if i % 2 else EMBER)
+    m.box("guide", (9.25, 17.75, 7.5), (10.5, 19.0, 8.5), STEEL_LIGHT)
+    m.box("guide", (8.75, 25.75, 7.625), (9.75, 26.75, 8.375), STEEL_LIGHT)
     m.group("flame")
-    m.box("flame_base", (6.75, 28.5, 7.0), (8.75, 29.75, 9.0), EMBER)
-    m.box("flame", (7.0, 29.75, 7.25), (8.5, 31, 8.75), LAVA_DEEP)
-    m.box("flame", (7.25, 31, 7.5), (8.25, 32, 8.5), LAVA)
-    m.box("flame_heart", (7.375, 29.25, 8.75), (8.125, 30.5, 9.05), WHITE_HOT)
-    m.box("flame_lick", (6.25, 29.25, 7.625), (6.75, 30.75, 8.375), EMBER)
-    m.box("flame_lick", (8.75, 29.5, 7.625), (9.25, 31.25, 8.375), LAVA_DEEP)
+    m.box("flame_base", (6.5, 29.25, 7.0), (8.75, 30.25, 9.0), EMBER)
+    m.box("flame", (6.75, 30.25, 7.25), (8.5, 31.25, 8.75), LAVA_DEEP)
+    m.box("flame", (7.25, 31.25, 7.5), (8.25, 32.0, 8.5), LAVA)
+    m.box("flame_heart", (7.25, 29.5, 6.75), (8.0, 30.75, 9.25), WHITE_HOT)
+    m.box("flame_lick", (6.0, 29.75, 7.625), (6.5, 31.0, 8.375), LAVA_DEEP)
+    m.box("flame_lick", (8.75, 30.0, 7.625), (9.25, 31.5, 8.375), LAVA)
     if not cast:
         m.group("line")
         top = (7.75, 30.5, C)
         rot = ("z", 45, top)
         m.box("line", (7.5, 19.75, 7.75), (8.0, 30.5, 8.25), LINE, rotation=rot)
-        # a magma rock float on the line: an iron eye, cracked rock, a glowing band, an ember drop below
-        m.box("float_eye", (7, 19, 7.5), (8.5, 19.75, 8.5), IRON, rotation=rot)
-        m.box("float_top", (6, 17.5, 6.75), (9.5, 19, 9.25), ROCK_PLAIN, rotation=rot)
+        # a magma rock float on the line: a steel eye, cracked rock, a glowing band, an ember drop below
+        m.box("float_eye", (7.0, 19.0, 7.5), (8.5, 19.75, 8.5), STEEL_LIGHT, rotation=rot)
+        m.box("float_top", (6.0, 17.5, 6.75), (9.5, 19.0, 9.25), ROCK_COLD, rotation=rot)
         m.box("float_band", (5.75, 16.75, 6.5), (9.75, 17.5, 9.5), LAVA, rotation=rot)
-        m.box("float_bottom", (6, 15, 6.75), (9.5, 16.75, 9.25), ROCK_PLAIN, rotation=rot)
-        m.box("float_drop", (7, 14, 7.75), (8.5, 15, 8.25), EMBER, rotation=rot)
+        m.box("float_bottom", (6.0, 15.0, 6.75), (9.5, 16.75, 9.25), ROCK_COLD, rotation=rot)
+        m.box("float_drop", (7.0, 14.0, 7.75), (8.5, 15.0, 8.25), EMBER, rotation=rot)
     return _held(m, "rod")
 
 
 def magma_fishing_rod():
-    """불꽃 채찍 낚싯대: a braided fire whip for a rod: the lash thinning and swaying a little upwards with ember knots,
-    a flame at its tip, the rest of it coiled at the foot; a magma rock float on the line."""
+    """불꽃 채찍 낚싯대: a charred braided whip for a rod: the lash thinning and swaying a little upwards with red-hot
+    knots, a flame at its tip, a basalt reel with a molten hub; a magma rock float on the line."""
     return _rod("magma_fishing_rod", False)
 
 
@@ -497,22 +513,18 @@ BOBBER_WATERLINE = 4.0        # the glowing band: where the water's surface is (
 
 
 def magma_bobber():
-    """용암 찌: a small magma rock float for an item display on the hook. A rough cracked obsidian lump, a glowing lava
-    band at the waterline, glowing cracks on four sides, a molten crown with an iron eye on top. Stands on y = 0
-    about x = z = 8."""
-    m = MModel("magma_bobber")
+    """용암 찌: a small magma rock float for an item display on the hook. A cracked basalt lump, a glowing lava band at
+    the waterline, a molten crown with a steel eye on top. Stands on y = 0 about x = z = 8."""
+    m = MagmaModel("magma_bobber")
     m.group("float")
-    cyl(m, "keel", "y", (C, C), 2, 0, 1, EMBER_RED, cap=EMBER_RED)
-    cyl(m, "belly", "y", (C, C), 4, 1, 2, ROCK, cap=ROCK)
-    cyl(m, "belly", "y", (C, C), 6, 2, 3.5, ROCK, cap=ROCK)
+    cyl(m, "keel", "y", (C, C), 2, 0, 1, EMBER, cap=EMBER)
+    cyl(m, "belly", "y", (C, C), 4, 1, 2, ROCK_COLD, cap=ROCK_COLD)
+    cyl(m, "belly", "y", (C, C), 6, 2, 3.5, ROCK_COLD, cap=ROCK_COLD)
     cyl(m, "band", "y", (C, C), 6, 3.5, 4.5, LAVA, cap=LAVA)
-    cyl(m, "top", "y", (C, C), 6, 4.5, 7, ROCK, cap=ROCK)
-    cyl(m, "top", "y", (C, C), 4, 7, 8.25, ROCK, cap=ROCK)
-    for face, frm, to in (("south", (7.5, 4.5, 11), (8.5, 7, 11.2)), ("north", (7.5, 4.5, 4.8), (8.5, 7, 5)),
-                          ("east", (11, 4.5, 7.5), (11.2, 7, 8.5)), ("west", (4.8, 4.5, 7.5), (5, 7, 8.5))):
-        m.box("crack", frm, to, LAVA_DEEP)
+    cyl(m, "top", "y", (C, C), 6, 4.5, 7, ROCK_FINE, cap=ROCK_FINE)
+    cyl(m, "top", "y", (C, C), 4, 7, 8.25, ROCK_FINE, cap=ROCK_FINE)
     m.box("crown", (7, 8.25, 7), (9, 9, 9), LAVA)
-    m.box("eye", (7.25, 9, 7.625), (8.75, 10, 8.375), IRON)
+    m.box("eye", (7.25, 9, 7.625), (8.75, 10, 8.375), STEEL_LIGHT)
     m.display = presets.furniture(gui_scale=1.3, gui_translation=(0, 3.25, 0))
     m.kind = "bobber"
     return m

@@ -142,6 +142,8 @@ CONST_INK = shade("feather", 3)         # a constellation's star: pure white, ne
 
 
 SPACE_PLAIN = SpaceCrystal(1.0, density=0.8)
+SPACE_SHAFT = SpaceCrystal(1.15, density=0.7)
+SPACE_RICH = SpaceCrystal(1.0, density=1.2)
 
 # ================================================================================================
 # The other materials
@@ -262,6 +264,8 @@ RING = HMat("gold", "metal", 2.7)
 RING_EDGE = HMat("blade", "metal", 3.0)
 LINE = HMat("blade", "smooth", 2.8, ao=False)
 LINE_GLOW = HMat("ice", "smooth", 2.6, glow=True, ao=False)
+GAP = HMat("indigo", "smooth", 1.0)                 # the dark gap between the ring's bands
+SPADE = SpaceCrystal(1.0, density=1.1, const=[(0.12, 0.3), (0.3, 0.2), (0.45, 0.42), (0.62, 0.35), (0.62, 0.7), (0.88, 0.78), (0.86, 0.45), (0.62, 0.35)])
 
 
 # ================================================================================================
@@ -284,20 +288,23 @@ def star(m, name, x, y, z0, z1, s, core=STAR, tips=STAR_WHITE):
 
 def handle(m):
     """Every piece's handle (y -4 .. 6.5, like the toys'): a silver pommel with a gold star under it, a grip of dark velvet
-    with three silver wraps, a silver collar."""
+    with three silver wraps, a silver collar set with a gold star front and back."""
     m.group("handle")
     m.box("pommel_star", (7.5, -4.75, 7.5), (8.5, -3.25, 8.5), STAR)
     m.box("pommel_star", (6.75, -4.25, 7.55), (9.25, -3.75, 8.45), STAR)
     round_y(m, "pommel", 6.25, 9.75, 6.25, 9.75, -3.25, -1.25, SILVER, 0.75)
     round_y(m, "grip", 6.75, 9.25, 6.75, 9.25, -1.25, 5.25, VELVET, 0.5)
     for y in (-0.25, 1.75, 3.75):
-        round_y(m, "grip_wrap", 6.5, 9.5, 6.5, 9.5, y, y + 0.5, SILVER_LIGHT, 0.5)
+        m.box("grip_wrap", (6.6, y, 6.6), (9.4, y + 0.5, 9.4), SILVER_LIGHT)
     round_y(m, "collar", 6, 10, 6, 10, 5.25, 6.5, SILVER, 1)
+    m.box("collar_gem", (7.4, 5.4, 5.7), (8.6, 6.35, 10.3), STAR)
 
 
 def shaft(m, top):
+    """A shaft of night sky (the space crystal, stars twinkling up it) with a silver band a little under its top."""
     m.group("shaft")
-    round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, SILVER_DARK, 0.5)
+    round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, SPACE_SHAFT, 0.5)
+    m.box("shaft_band", (6.7, top - 3, 6.7), (9.3, top - 2.5, 9.3), SILVER_LIGHT)
 
 
 def disc(m, name, axis, c, d, lo, hi, mat):
@@ -405,112 +412,161 @@ def galaxy_sword():
     return _scaled_held(m, "sword")
 
 
+def _seg(m, name, side, pivot, length, half_h, z0, z1, angle, mat, streak=None, back=0.5):
+    """One piece of a comet tail (like toys._arm: along x from its pivot, drooping by angle), with a white streak
+    along its top edge. Returns the centre line's end, the next piece's pivot."""
+    px, py = pivot
+    rot = ("z", -angle * side, (px, py, C))
+    if side > 0:
+        x0, x1 = px - back, px + length
+    else:
+        x0, x1 = px - length, px + back
+    m.box(name, (x0, py - half_h, z0), (x1, py + half_h, z1), mat, rotation=rot)
+    if streak is not None:
+        m.box(name + "_streak", (x0 + 0.25, py + half_h - 0.5, z0 - 0.1), (x1 - 0.25, py + half_h + 0.2, z1 + 0.1), streak, rotation=rot)
+    a = math.radians(angle)
+    return px + side * (length - 0.5) * math.cos(a), py - (length - 0.5) * math.sin(a)
+
+
 def galaxy_pickaxe():
-    """혜성 곡괭이: a blazing comet on the shaft: a gold-white nucleus, its two tails streaming out to the sides and drooping
-    as the pick's arms, cyan near the head, then aqua, then violet tapering to a point, a few sparks along them."""
+    """혜성 곡괭이: a block of night sky banded in silver with a gold cap is the head; a blazing comet nucleus (a big gold
+    star) shines through its middle, front and back, and its two tails stream out as the pick's arms, drooping in three
+    bends from cyan through aqua to violet, a white streak along each, white-hot points."""
     m = MModel("galaxy_pickaxe")
     handle(m)
-    shaft(m, 16)
-    m.group("comet")
-    ball(m, "nucleus", C, 18.5, C, 6, NUCLEUS)
+    shaft(m, 15.5)
+    m.group("head")
+    m.box("head", (5.25, 15, 6.25), (10.75, 21, 9.75), SPACE_RICH)
+    for x0 in (4.875, 10.375):
+        m.box("head_band", (x0, 14.75, 6), (x0 + 0.75, 21.25, 10), SILVER_LIGHT)
+    m.box("head_cap", (6, 21, 6.5), (10, 21.75, 9.5), GOLD)
+    m.box("head_crown", (7.25, 21.75, 7.25), (8.75, 22.5, 8.75), STAR_WHITE)
+    star(m, "nucleus", C, 18, 5.6, 10.4, 2.1, core=NUCLEUS)
+    m.group("tails")
     for side in (1, -1):
-        p = (C + side * 2.25, 19)
-        p = _arm(m, "tail_a", side, p, 4.25, 1.75, 6.75, 9.25, 0, TAIL_A)
-        p = _arm(m, "tail_b", side, p, 4.0, 1.25, 7, 9, 22.5, TAIL_B)
-        p = _arm(m, "tail_c", side, p, 3.25, 0.75, 7.25, 8.75, 45, TAIL_C)
+        p = (C + side * 3.25, 18.5)
+        p = _seg(m, "tail_a", side, p, 4.25, 1.75, 6.6, 9.4, 0, TAIL_A, STAR_WHITE)
+        p = _seg(m, "tail_b", side, p, 3.75, 1.3, 6.85, 9.15, 22.5, TAIL_B, TAIL_A)
+        p = _seg(m, "tail_c", side, p, 3.0, 0.85, 7.1, 8.9, 45, TAIL_C, TAIL_B)
         px, py = p
         a = math.radians(45)
-        tx, ty = px + side * 0.9 * math.cos(a), py - 0.9 * math.sin(a)
-        m.box("tail_tip", (tx - 0.4, ty - 0.4, 7.5), (tx + 0.4, ty + 0.4, 8.5), STAR_WHITE, rotation=("z", -45 * side, (tx, ty, C)))
-        # sparks beside the tails
-        m.box("spark", (C + side * 5.5 - 0.375, 21.5, 7.625), (C + side * 5.5 + 0.375, 22.25, 8.375), STAR, rotation=("z", 45, (C + side * 5.5, 21.875, C)))
-    m.box("nucleus_glint", (6.5, 20, 4.7), (7.5, 21, 5.05), STAR_WHITE)
-    m.box("nucleus_glint", (8.5, 20, 10.95), (9.5, 21, 11.3), STAR_WHITE)
+        tx, ty = px + side * 0.6 * math.cos(a), py - 0.6 * math.sin(a)
+        m.box("tail_tip", (tx - 0.5, ty - 0.5, 7.4), (tx + 0.5, ty + 0.5, 8.6), STAR_WHITE, rotation=("z", 45, (tx, ty, C)))
+        # sparks shed above the tails
+        sx = C + side * 6.25
+        m.box("spark", (sx - 0.4, 22.1, 7.6), (sx + 0.4, 22.9, 8.4), STAR, rotation=("z", 45, (sx, 22.5, C)))
+        sx = C + side * 9.5
+        m.box("spark", (sx - 0.3, 19.7, 7.7), (sx + 0.3, 20.3, 8.3), STAR_WHITE, rotation=("z", 45, (sx, 20, C)))
     return _held(m, "pickaxe")
 
 
 def galaxy_shovel():
-    """초승달 삽: a pale-gold crescent moon with craters lying horns up as the scoop, a gold star resting in its hollow,
-    a silver cup where it meets the shaft."""
+    """초승달 삽: a spade of night sky (twinkling stars, a constellation on its face) with a silver rim and point, held
+    in a pale-gold crescent moon lying horns up: the moon cups the blade's base as its shoulders and its horns rise
+    beside the blade, a white star on each horn tip; a gold star shines on the blade."""
     m = MModel("galaxy_shovel")
     handle(m)
     shaft(m, 15.5)
+    m.group("blade")
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15, 16.75, SILVER, 0.75)
+    rows = ((16.5, 23.5, 4.5), (23.5, 25.5, 3.75), (25.5, 27, 2.75))
+    for y0, y1, hw in rows:
+        m.box("blade", (C - hw, y0, 7.25), (C + hw, y1, 8.75), SPADE if hw == 4.5 else SPACE_PLAIN)
+        for s in (-1, 1):
+            e = C + s * hw
+            lo, hi = (e - 0.5, e) if s < 0 else (e, e + 0.5)
+            m.box("rim", (lo, max(y0, 19.5), 7.05), (hi, y1, 8.95), SILVER_LIGHT)
+    m.box("point", (6.25, 27, 7.1), (9.75, 28.25, 8.9), SILVER_LIGHT)
+    m.box("point", (7.25, 28.25, 7.3), (8.75, 29.25, 8.7), RING_EDGE)
+    m.box("point_star", (7.6, 29.25, 7.6), (8.4, 30, 8.4), STAR_WHITE)
+    star(m, "star", C, 22.75, 6.9, 9.1, 1.9)
     m.group("moon")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15, 16.5, SILVER, 0.75)
-    for x0, x1, y0, y1 in ring_rows(C, 22, 6.5, 6.5, 5.25, 5.5, icy=25, y0=15.5, y1=26):
-        m.box("moon", (x0, y0, 6.5), (x1, y1, 9.5), MOON)
-    star(m, "star", C, 22.25, 7, 9, 2.25)
-    m.box("horn_star", (2, 25.75, 7.5), (2.75, 26.5, 8.5), STAR_WHITE)
-    m.box("horn_star", (13.25, 25.75, 7.5), (14, 26.5, 8.5), STAR_WHITE)
+    for x0, x1, y0, y1 in ring_rows(C, 20.25, 6.75, 5.25, 5.25, 4.0, icy=22.25, y0=15.25, y1=24.25, step=1.5):
+        m.box("moon", (x0, y0, 6.6), (x1, y1, 9.4), MOON)
+    for x in (1.9, 14.1):
+        m.box("horn_star", (x - 0.5, 24.25, 7.5), (x + 0.5, 25.25, 8.5), STAR_WHITE, rotation=("z", 45, (x, 24.75, C)))
     return _held(m, "shovel")
 
 
 def galaxy_axe():
-    """토성 도끼: a banded ringed planet on the shaft; its ring, broad and tilted, is the blade: wide out to the -x side
-    with a silver cutting edge, narrow behind."""
+    """토성 도끼: a banded ringed planet on the shaft's top; the half of its ring in front of it, broad and flat, is the
+    axe's blade out to -x: a silver cutting edge, a gold band, a dark gap and a lilac inner band, curving like an axe's
+    bit; the ring's far side shows behind the planet (+x) as a short tapering band, a white moonlet at its end."""
     m = MModel("galaxy_axe")
     handle(m)
-    shaft(m, 16.5)
+    shaft(m, 17)
     m.group("planet")
-    pcx, pcy = 8.5, 19.5
+    pcx, pcy = 9.0, 19.75
     ball(m, "planet", pcx, pcy, C, 7, PLANET)
     m.group("ring")
-    rot = ("z", 22.5, (pcx, pcy, C))
-    # the outer ring (gold, the blade: a silver cutting edge out at -x), a dark gap, the inner ring (lilac)
-    for x0, x1, y0, y1 in ring_rows(5.5, pcy, 8.0, 4.0, 6.25, 3.0, icx=6):
-        if x0 < 2.5:
-            m.box("ring_edge", (x0 - 0.5, y0, 7.6), (x0 + 0.25, y1, 8.4), RING_EDGE, rotation=rot)
-            x0 += 0.25
-        m.box("ring", (x0, y0, 7.4), (x1, y1, 8.6), RING, rotation=rot)
-    for x0, x1, y0, y1 in ring_rows(6, pcy, 5.75, 2.75, 4.25, 1.75, icx=pcx):
-        m.box("ring_inner", (x0, y0, 7.5), (x1, y1, 8.5), EDGE, rotation=rot)
+    bands = ((9.0, 6.75, 8.25, 6.0, RING_EDGE, 7.6, 8.4), (8.25, 6.0, 6.0, 4.4, RING, 7.35, 8.65),
+             (6.0, 4.4, 3.5, 2.75, EDGE, 7.45, 8.55))
+    for i, (a, b, ia, ib, mat, z0, z1) in enumerate(bands):
+        for x0, x1, y0, y1 in ring_rows(pcx, pcy, a, b, ia, ib):
+            x1 = min(x1, pcx - 1.25 - 0.25 * i)
+            if x1 - x0 >= 0.5:
+                m.box("ring", (x0, y0, z0), (x1, y1, z1), mat)
+    m.box("ring_far", (pcx + 3, pcy - 0.75, 7.45), (pcx + 5, pcy + 0.75, 8.55), RING)
+    m.box("ring_far", (pcx + 5, pcy - 0.5, 7.6), (pcx + 6.25, pcy + 0.5, 8.4), EDGE)
+    m.box("moonlet", (pcx + 6.25, pcy - 0.6, 7.4), (pcx + 7.25, pcy + 0.6, 8.6), STAR_WHITE)
     return _held(m, "axe")
 
 
 def galaxy_hoe():
-    """별자리 지팡이: the vanilla hoe's L: a straight head out to -x from the top of the shaft, a bar of night sky with
-    three stars on it joined by a glowing constellation line (front and back), ending flat in a silver cap."""
+    """별자리 지팡이: the vanilla hoe's L: a straight bar of night sky out to -x from the top of the shaft, silver trims
+    along its top and bottom, three gold stars on it joined by a glowing constellation line (front and back); a gold
+    star crowns the shaft; the bar ends flat in a silver blade a little deeper than the bar behind a gold band."""
     m = MModel("galaxy_hoe")
     handle(m)
-    shaft(m, 20)
+    shaft(m, 20.25)
     m.group("head")
     y = 21.5
-    m.box("bar", (-2.25, y - 1, 7.3), (7, y + 1, 8.7), SPACE_PLAIN)
-    for z0, z1 in ((7.1, 7.3), (8.7, 8.9)):
-        m.box("line", (-2, y - 0.2, z0), (7, y + 0.2, z1), LINE_GLOW)
-    star(m, "star", 8, y, 6.75, 9.25, 2.75)
-    star(m, "star", 3.5, y, 6.9, 9.1, 2.25)
-    star(m, "star", -0.5, y, 7, 9, 2)
-    m.box("end", (-4, y - 1.75, 6.75), (-2.25, y + 1.75, 9.25), SILVER)
-    m.box("end_star", (-4.25, y - 0.6, 7.4), (-4, y + 0.6, 8.6), STAR)
+    m.box("bar", (-0.5, y - 1.375, 6.875), (9.25, y + 1.375, 9.125), SPACE_PLAIN)
+    for y0 in (y + 1.125, y - 1.625):
+        m.box("trim", (-0.25, y0, 6.75), (9.0, y0 + 0.5, 9.25), SILVER_LIGHT)
+    for z0, z1 in ((6.72, 6.875), (9.125, 9.28)):
+        m.box("line", (0.5, y - 0.2, z0), (6.25, y + 0.2, z1), LINE_GLOW)
+    star(m, "star", 6.25, y, 6.5, 9.5, 1.6)
+    star(m, "star", 3.25, y, 6.55, 9.45, 1.4)
+    star(m, "star", 0.5, y, 6.6, 9.4, 1.25)
+    round_y(m, "crown", 6.5, 9.5, 6.5, 9.5, y + 1.375, y + 2.125, GOLD, 0.75)
+    m.box("crown_star", (7.5, y + 2.125, 7.5), (8.5, y + 3.5, 8.5), STAR_WHITE)
+    m.box("crown_star", (7, y + 2.4, 7.55), (9, y + 3.0, 8.45), STAR)
+    m.box("band", (-1, y - 1.75, 6.6), (-0.5, y + 1.75, 9.4), GOLD)
+    m.box("blade", (-3, y - 2.25, 6.9), (-1, y + 1.5, 9.1), SILVER)
+    m.box("blade_edge", (-3.6, y - 2.0, 7.15), (-3, y + 1.25, 8.85), RING_EDGE)
     return _held(m, "hoe")
 
 
-DIPPER = (8.5, 11.75, 15, 18.25, 21.5, 24.75, 27.75)      # 북두칠성: seven stars up the rod
+DIPPER = (12.25, 15.25, 18.25, 21.25, 24.0, 26.75)      # 북두칠성: six stars up the rod, the seventh at its tip
 
 
 def _rod(name, cast):
     m = MModel(name)
     handle(m)
     m.group("reel")
-    m.box("reel_foot", (9, 7.75, 7.5), (10, 9.25, 8.5), SILVER_DARK)
-    round_z(m, "reel", 10, 14, 6.5, 10.5, 6.75, 9.25, SILVER, 1)
-    m.box("reel_hub", (11.25, 7.75, 6.25), (12.75, 9.25, 9.75), VELVET)
-    m.box("crank", (11.5, 8, 9.75), (12.5, 11.25, 10.25), SILVER_LIGHT)
-    stud(m, 12, 11.5, 10, 10.75, 1.1)
+    m.box("reel_foot", (9, 7.75, 7.5), (10.25, 9.25, 8.5), SILVER_DARK)
+    round_z(m, "reel", 10.25, 14.75, 6.25, 10.75, 6.9, 9.1, SILVER, 1.25)
+    round_z(m, "reel_face", 11.0, 14.0, 7.0, 10.0, 6.65, 9.35, SPACE_PLAIN, 0.75)
+    m.box("reel_hub", (12.0, 8.0, 6.4), (13.0, 9.0, 9.6), STAR)
+    m.box("crank", (12.25, 8.25, 9.6), (12.75, 11.75, 10.1), SILVER_LIGHT)
+    m.box("crank_knob", (12.0, 11.75, 9.5), (13.0, 12.75, 10.5), STAR_WHITE)
     m.group("rod")
     round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 14, SPACE_PLAIN, 0.5)
     m.box("rod", (7.125, 14, 7.125), (8.875, 22, 8.875), SPACE_PLAIN)
     m.box("rod", (7.375, 22, 7.375), (8.625, 29.5, 8.625), SPACE_PLAIN)
-    m.box("ferrule", (6.75, 13.5, 6.75), (9.25, 14.5, 9.25), SILVER)
+    for y0 in (10.5, 13.25):
+        m.box("winding", (6.7, y0, 6.7), (9.3, y0 + 0.5, 9.3), GOLD)
+    m.box("ferrule", (6.75, 13.75, 6.75), (9.25, 14.5, 9.25), SILVER)
     m.box("ferrule", (7, 21.5, 7), (9, 22.5, 9), SILVER)
     m.group("dipper")
-    # the seven stars: guides on the +x side, where the line runs; the last at the tip the biggest
+    # six stars as the line guides on the +x side, each on a silver stem; the seventh, the biggest, at the tip
     for i, y in enumerate(DIPPER):
-        s = 0.8 if i < 6 else 1.1
-        x = 9.1 + (0.25 if i < 2 else 0) + s
-        m.box("dipper_line", (8.6 if y > 22 else 8.85 if y > 14 else 9.1, y - 0.15, 7.85), (x, y + 0.15, 8.15), LINE)
-        stud(m, x, y, 7.4, 8.6, s)
+        s = 0.85 - i * 0.04
+        r = 8.875 if y < 22 else 8.625
+        x = r + 0.35 + s
+        m.box("guide", (r - 0.1, y - 0.2, 7.8), (x - s * 0.36, y + 0.2, 8.2), SILVER_LIGHT)
+        stud(m, x, y, 7.45, 8.55, s)
     star(m, "tip_star", C, 30.5, 7.25, 8.75, 1.5)
     if not cast:
         m.group("line")

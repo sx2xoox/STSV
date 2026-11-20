@@ -153,13 +153,78 @@ EYE = DMat(lambda x, y, w, h, f: (EYES, 1), bevel=None, glow=True)
 LINE = Mat("feather", "plain", 2, bevel=None, noise=0)
 
 
+EDGES = [(120, 214, 200), (176, 244, 230), (226, 255, 248), (255, 255, 255)]
+
+
+def _big_scales(r, b, line, line_i):
+    """Big carved scales for broad faces: rows four texels high, scales four wide, every other row offset by two; a
+    dark arc round each scale's foot, a bright lip on its crown."""
+    def p(x, y, w, h, f):
+        row = y // 4
+        cx, cy = (x + (2 if row % 2 else 0)) % 4, y % 4
+        if (cy == 3 and cx in (1, 2)) or (cy == 2 and cx in (0, 3)):
+            return line, line_i
+        if cy == 0 and cx in (1, 2):
+            return r, b + 2
+        if cy == 0 or (cy == 1 and cx in (1, 2)):
+            return r, b + 1
+        return r, b
+    return p
+
+
+def _honed(x, y, w, h, f):
+    """A glowing honed edge: white hot down its middle, jade towards both sides."""
+    return EDGES, 2 if (y + x) % 5 else 3
+
+
+def _blade(x, y, w, h, f):
+    """The glaive's polished jade: long diagonal sheen streaks and a darker band near the back."""
+    if (x + y) % 9 == 0:
+        return JADE, 4
+    return JADE, 3 if (x + y) % 9 in (1, 8) else 2
+
+
+JADE_BIG = DMat(_big_scales(JADE, 2, AZURE, 2))
+EDGE_GLOW = DMat(_honed, bevel=None, glow=True)
+BLADE = DMat(_blade, bevel=None)
+IVORY_TIP = DMat(_plain(IVORY, 3))
+GOLD_PLAIN = GOLD(bevel=None)
+GOLD_BRIGHT = GOLD_LIGHT(bevel=None)
+
+
 # ================================================================================================
 # Shared parts
 # ================================================================================================
 
+def cull(m):
+    """Drop every face of an unrotated box that other unrotated boxes cover completely from outside (the same test as
+    Model.validate's: a removed face must be hidden), so the detail goes into what shows and not into the face count."""
+    plain = [e for e in m.elements if not e["rotation"]]
+    for e in plain:
+        for f in list(e["faces"]):
+            ax, sign = m._AXIS[f]
+            p = e["to"][ax] if sign > 0 else e["from"][ax]
+            a1, a2 = [a for a in range(3) if a != ax]
+            ok = True
+            for step in (0.25, 0.1):        # validate's own grid, and a finer one
+                u = e["from"][a1] + step / 2
+                while ok and u < e["to"][a1]:
+                    v = e["from"][a2] + step / 2
+                    while v < e["to"][a2]:
+                        if not any(m._occupies_beyond(o, ax, sign, p, a1, u, a2, v) for o in plain if o is not e):
+                            ok = False
+                            break
+                        v += step
+                    u += step
+            if ok:
+                del e["faces"][f]
+                e["uv"].pop(f, None)
+    return m
+
+
 def pearl(m, cx, cy, _unused, half, cz=(7, 9), d=0.5):
     """A pearl set into a part: a square of side 2*half about (cx, cy), standing d proud of both faces along z
-    (from cz - depth to cz + depth given as cz=(z0, z1))."""
+    (from cz - depth to cz + depth given as cz=(z0, z1)), a rounder cross of it in front."""
     z0, z1 = cz
     m.box("pearl", (cx - half, cy - half, z0 - d), (cx + half, cy + half, z1 + d), PEARL)
     m.box("pearl", (cx - half + 0.5, cy - half - 0.5, z0 - d + 0.25), (cx + half - 0.5, cy + half + 0.5, z1 + d - 0.25), PEARL)
@@ -177,17 +242,14 @@ def handle(m):
     round_y(m, "collar", 6, 10, 6, 10, 5.25, 6.5, GOLD_CLOUD, 1)
 
 
-def shaft(m, top):
-    """A lacquered azure shaft with small scales, a gold band two thirds up."""
+def shaft(m, top, band=True):
+    """A lacquered azure shaft with small scales, a gold band about half way up."""
     m.group("shaft")
     round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, AZURE_SCALE, 0.5)
-    mid = 6.5 + (top - 6.5) * 0.55
-    round_y(m, "shaft_band", 6.625, 9.375, 6.625, 9.375, mid, mid + 0.75, GOLD_LIGHT, 0.5)
+    if band:
+        mid = 6.5 + (top - 6.5) * 0.5
+        round_y(m, "shaft_band", 6.625, 9.375, 6.625, 9.375, mid, mid + 0.75, GOLD_LIGHT, 0.5)
 
-
-# ================================================================================================
-# The tools
-# ================================================================================================
 
 class KModel(MModel):
     """A model built in toy units and shrunk by k about the grip point (8, GRIP_Y, 8) as its boxes are added, so a piece
@@ -235,15 +297,6 @@ def _seg_l(m, name, pivot, length, half, z0, z1, angle, mat):
     return px - length * math.cos(a), py + length * math.sin(a)
 
 
-# the glaive's blade, bottom to tip: (y0, y1, back x, edge x). The edge (+x) swells out into a crescent and the tip
-# sweeps back (-x), like a 언월도's
-GLAIVE = ((11, 13, 6.5, 10), (13, 15, 6.5, 10.75), (15, 17, 6.5, 11.5), (17, 19, 6.5, 12), (19, 21, 6.5, 12.5),
-          (21, 23, 6.5, 12.75), (23, 25, 6.25, 13), (25, 27, 6, 13), (27, 29, 5.75, 12.75), (29, 31, 5.5, 12.5),
-          (31, 33, 5, 12), (33, 35, 4.5, 11.25), (35, 37, 3.75, 10.25), (37, 38.5, 3, 9), (38.5, 40, 2.25, 7.5),
-          (40, 41.25, 1.5, 5.75), (41.25, 42.25, 0.75, 3.5))
-K_SWORD = 0.74
-
-
 def _mirror_x(m):
     """Mirror every box of a model across the handle's axis (x about C): the faces east and west swap, rotations about
     y and z turn the other way."""
@@ -264,42 +317,62 @@ def _mirror_x(m):
     return m
 
 
+# ================================================================================================
+# The tools
+# ================================================================================================
+
+# the glaive's blade, bottom to tip: (y0, y1, back x, edge x). The edge (+x while built) swells out into a crescent and
+# the tip sweeps back (-x), like a 언월도's
+GLAIVE = ((11, 14, 6.5, 10.5), (14, 17, 6.5, 11.5), (17, 20, 6.5, 12.25), (20, 23, 6.5, 12.75), (23, 26, 6.25, 13),
+          (26, 29, 5.75, 12.85), (29, 32, 5.25, 12.25), (32, 34.5, 4.5, 11.25), (34.5, 36.5, 3.75, 10),
+          (36.5, 38.5, 3, 8.75), (38.5, 40.25, 2, 7), (40.25, 41.5, 1, 4.75), (41.5, 42.25, 0.25, 2.5))
+K_SWORD = 0.74
+
+
 def dragon_sword():
-    """청룡언월도: a long crescent glaive blade (1.6 x the toy sword's), jade under azure scales with a pale edge that swells
-    out and a tip that sweeps back, a gold back with a notch; it comes out of a dragon head's open mouth (the guard):
-    jade skull, gold lips holding the blade, glowing eyes, gold horns swept back, a jade beard. Built in toy units and
-    shrunk to fit the box limit (KModel)."""
+    """청룡언월도: a long crescent glaive blade, polished jade with a glowing honed edge that swells out and a tip that
+    sweeps back, a gold back with a spur and an azure fuller with a pearl; it comes out of the open mouth of a big dragon
+    head (the guard): scaled jade skull, gold brow and lips, glowing eyes, ivory fangs, gold horns swept back, a jade
+    beard under the snout. Built in toy units and shrunk to fit the box limit (KModel)."""
     m = KModel("dragon_sword", K_SWORD)
     handle(m)
     m.group("blade")
-    face = DMat(lambda x, y, w, h, f: (JADE, 2 if (x + y) % 7 else 3), bevel=None)
-    edge = DMat(lambda x, y, w, h, f: (JADE, 4), bevel=None)
-    back = (GOLD(bevel=None), GOLD_LIGHT(bevel=None))
+    n = len(GLAIVE)
     for i, (y0, y1, bx, ex) in enumerate(GLAIVE):
-        last = i == len(GLAIVE) - 1
-        m.box("blade", (bx + (0 if last else 0.75), y0, 7), (ex - 1, y1, 9), edge if last else face)
-        m.box("blade_edge", (ex - 1, y0, 7.35), (ex, y1, 8.65), edge)
-        if not last:
-            m.box("blade_back", (bx, y0, 7.2), (bx + 0.75, y1, 8.8), back[1 if i % 5 == 0 else 0])
-    # the spur on the back (a 언월도's notch), a dark azure groove along the blade, a pearl set in it
+        tip = i >= n - 2
+        if tip:
+            m.box("blade_tip", (bx, y0, 7.35), (ex, y1, 8.65), EDGE_GLOW)
+            continue
+        m.box("blade", (bx + 0.75, y0, 7), (ex - 1, y1, 9), BLADE)
+        m.box("blade_edge", (ex - 1, y0, 7.35), (ex, y1, 8.65), EDGE_GLOW)
+        m.box("blade_back", (bx, y0, 7.2), (bx + 0.75, y1, 8.8), GOLD_BRIGHT if i % 2 else GOLD_PLAIN)
+    # the spur on the back (a 언월도's notch), an azure fuller along the blade, a pearl set in it near the mouth
     m.box("spur", (4.5, 21, 7.4), (6.5, 22.5, 8.6), GOLD_LIGHT)
-    m.box("spur", (3.75, 22.5, 7.55), (5.25, 23.75, 8.45), GOLD_LIGHT)
-    m.box("groove", (7.5, 13, 6.85), (8.5, 31, 9.15), AZURE_PLAIN)
-    pearl(m, 9.25, 16.1, 8, 0.9, cz=(7, 9), d=0.4)
+    m.box("spur", (3.5, 22.5, 7.55), (5.25, 24, 8.45), GOLD_LIGHT)
+    m.box("fuller", (7.5, 16.5, 6.85), (8.5, 31, 9.15), AZURE_PLAIN)
+    m.box("fuller_cap", (7.25, 31, 6.9), (8.75, 31.75, 9.1), GOLD_LIGHT)
+    pearl(m, 8, 14.5, 8, 1.0, cz=(7, 9), d=0.4)
     m.group("dragon_head")
-    m.box("skull", (4.75, 6.5, 6), (11.25, 10.25, 10), JADE_SCALE)
-    m.box("brow", (4.5, 9.25, 5.85), (8, 10.15, 10.15), GOLD_CLOUD)
-    m.box("eye", (5.5, 7.9, 5.8), (7, 9.1, 10.2), EYE)
-    m.box("snout", (9, 6.75, 5.85), (11, 9, 10.15), JADE_POLISH)
-    m.box("lip", (5.25, 10.25, 6.2), (10.75, 12.5, 6.9), GOLD_LIGHT)
-    m.box("lip", (5.25, 10.25, 9.1), (10.75, 12.5, 9.8), GOLD_LIGHT)
-    for x in (5.75, 8, 10):
-        m.box("fang", (x, 12.5, 6.3), (x + 0.6, 13.5, 6.9), IVORY_M)
-        m.box("fang", (x, 12.5, 9.1), (x + 0.6, 13.5, 9.7), IVORY_M)
-    p = _seg_l(m, "horn", (5, 9.5), 4.0, 0.7, 7.25, 8.75, 22.5, GOLD)
-    _seg_l(m, "horn_tip", (p[0] + 0.3, p[1]), 2.0, 0.5, 7.4, 8.6, 45, JADE_EDGE)
-    m.box("beard", (11.25, 6.5, 7.3), (12.75, 9.5, 8.7), JADE_EDGE)
-    m.box("beard", (12.75, 7, 7.5), (13.75, 8.75, 8.5), JADE_EDGE)
+    m.box("skull", (4, 6.5, 5.75), (11.5, 11, 10.25), JADE_SCALE)
+    m.box("brow", (3.75, 9.75, 5.6), (7.5, 11.25, 10.4), GOLD_CLOUD)
+    m.box("eye", (5, 8.25, 5.5), (6.75, 9.75, 10.5), EYE)
+    m.box("snout", (11.5, 7, 6.25), (14, 10, 9.75), JADE_SCALE)
+    m.box("nose", (14, 8.5, 6.75), (14.75, 10, 9.25), GOLD_LIGHT)
+    m.box("lip", (4.5, 11, 5.9), (12, 12.5, 6.75), GOLD_LIGHT)
+    m.box("lip", (4.5, 11, 9.25), (12, 12.5, 10.1), GOLD_LIGHT)
+    for x in (6, 10):
+        m.box("fang", (x, 12.5, 6), (x + 0.75, 13.75, 6.75), IVORY_TIP)
+        m.box("fang", (x, 12.5, 9.25), (x + 0.75, 13.75, 10), IVORY_TIP)
+    m.box("jaw", (11.5, 5.75, 6.75), (13.5, 7, 9.25), JADE_DARK)
+    m.box("beard", (12, 3.75, 7.25), (13.25, 5.75, 8.75), JADE_EDGE)
+    m.box("beard", (12.25, 2.5, 7.5), (13, 3.75, 8.5), JADE_EDGE)
+    p = _seg_l(m, "horn", (4.5, 10.25), 4.5, 0.75, 6.25, 7.5, 22.5, GOLD)
+    _seg_l(m, "horn_tip", (p[0] + 0.3, p[1]), 2.5, 0.5, 6.4, 7.35, 45, JADE_EDGE)
+    p = _seg_l(m, "horn", (4.5, 10.25), 4.5, 0.75, 8.5, 9.75, 22.5, GOLD)
+    _seg_l(m, "horn_tip", (p[0] + 0.3, p[1]), 2.5, 0.5, 8.65, 9.6, 45, JADE_EDGE)
+    m.box("mane", (3, 6.75, 7.1), (4, 9.75, 8.9), JADE_EDGE)
+    m.box("mane", (2.25, 7.25, 7.35), (3, 9, 8.65), JADE_EDGE)
+    cull(m)
     # built with the edge towards +x; mirrored so the swelling edge faces the way a vanilla sword strikes (forward and
     # down in the hand, away from the player) and the gold back with its spur faces up
     _mirror_x(m)
@@ -307,116 +380,129 @@ def dragon_sword():
 
 
 def dragon_pickaxe():
-    """용 발톱: a dragon's foot on the shaft: a gold cuff, a scaled jade palm holding a pearl and three hooked ivory talons,
-    two hooking down to either side (the pick's arms) and one curling over the top."""
+    """용 발톱: a dragon's foot on the shaft: a gold cuff, a broad scaled jade palm with a pearl set in it, gold rings at
+    the knuckles and three hooked ivory talons, two sweeping out and down to either side (the pick's arms) and a short
+    one curling over the top."""
     m = MModel("dragon_pickaxe")
     handle(m)
-    shaft(m, 15.25)
+    shaft(m, 15.5)
     m.group("claw")
-    round_y(m, "cuff", 6.25, 9.75, 6.25, 9.75, 15.25, 16.5, GOLD_CLOUD, 0.75)
-    m.box("palm", (5.5, 16.5, 6.5), (10.5, 20, 9.5), JADE_SCALE)
-    pearl(m, 8, 18.25, 8, 0.875, cz=(6.5, 9.5), d=0.35)
+    round_y(m, "cuff", 6.25, 9.75, 6.25, 9.75, 15.5, 16.75, GOLD_CLOUD, 0.75)
+    m.box("palm", (5, 16.75, 6.5), (11, 21, 9.5), JADE_SCALE)
+    m.box("palm_ridge", (5.5, 21, 7), (10.5, 21.5, 9), JADE_DARK)
+    pearl(m, 8, 18.875, 8, 1.0, cz=(6.5, 9.5), d=0.35)
     for side in (1, -1):
         seg = _seg if side > 0 else _seg_l
-        p = seg(m, "finger", (C + side * 2.25, 18.5), 2.75, 1.25, 6.9, 9.1, 0, JADE_SCALE)
-        m.box("knuckle", (p[0] - 0.6, 17, 6.75), (p[0] + 0.6, 20, 9.25), GOLD_LIGHT)
-        p = (p[0] + side * 0.4, p[1])
-        p = seg(m, "talon", p, 3.5, 1.1, 7.1, 8.9, -22.5, IVORY_M)
-        p = seg(m, "talon", (p[0] - side * 0.3, p[1] + 0.1), 3.0, 0.8, 7.25, 8.75, -45, IVORY_M)
-        seg(m, "talon_point", (p[0] - side * 0.3, p[1] + 0.25), 1.75, 0.45, 7.45, 8.55, -45, IVORY_M)
-    m.box("finger_up", (7, 20, 6.9), (9, 22, 9.1), JADE_SCALE)
-    m.box("knuckle_up", (6.75, 22, 6.75), (9.25, 22.75, 9.25), GOLD_LIGHT)
-    m.box("talon_up", (7.1, 22.75, 7.1), (8.9, 24.75, 8.9), IVORY_M)
-    p = _seg(m, "talon_up", (7.6, 24.4), 2.75, 0.8, 7.25, 8.75, 22.5, IVORY_M)
-    _seg(m, "talon_point", (p[0] - 0.3, p[1] - 0.1), 1.5, 0.45, 7.45, 8.55, -22.5, IVORY_M)
+        kx = C + side * 3.0
+        m.box("knuckle", (min(kx, kx + side * 0.9), 17, 6.75), (max(kx, kx + side * 0.9), 20.75, 9.25), GOLD_LIGHT)
+        m.box("knuckle", (min(kx + side * 0.9, kx + side * 1.6), 17.5, 7.0), (max(kx + side * 0.9, kx + side * 1.6), 20.25, 9.0), JADE_SCALE)
+        p = (kx + side * 1.4, 18.9)
+        p = seg(m, "talon", p, 3.5, 1.3, 7.05, 8.95, -22.5, IVORY_M)
+        p = seg(m, "talon", (p[0] - side * 0.35, p[1] + 0.15), 3.0, 1.0, 7.2, 8.8, -45, IVORY_M)
+        seg(m, "talon_point", (p[0] - side * 0.3, p[1] + 0.25), 2.25, 0.55, 7.4, 8.6, -45, IVORY_TIP)
+    m.box("finger_up", (7, 21.5, 7), (9, 22.75, 9), JADE_SCALE)
+    m.box("knuckle_up", (6.75, 22.75, 6.75), (9.25, 23.5, 9.25), GOLD_LIGHT)
+    m.box("talon_up", (7.15, 23.5, 7.15), (8.85, 25, 8.85), IVORY_M)
+    p = _seg(m, "talon_up", (7.6, 24.6), 2.5, 0.75, 7.3, 8.7, 22.5, IVORY_M)
+    _seg(m, "talon_point", (p[0] - 0.3, p[1] - 0.1), 1.5, 0.45, 7.45, 8.55, -22.5, IVORY_TIP)
+    cull(m)
     return _held(m, "pickaxe")
 
 
 def dragon_shovel():
-    """용 비늘 방패 삽: the blade is one big dragon scale made a shield: a gold rim, a scaled jade face, a dark azure ring
-    and a pearl boss in its middle, pointed at the top; a gold socket under it."""
+    """용 비늘 방패 삽: a broad spade blade shaped like one great dragon scale made a shield: a gold rim, a face of big
+    carved jade scales, a gold spine up its middle with a pearl at its foot, a glowing honed point; a gold socket with two
+    small gold claws gripping the blade's shoulders."""
     m = MModel("dragon_shovel")
     handle(m)
     shaft(m, 15.5)
-    m.group("shield")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, GOLD_CLOUD, 0.75)
-    rim = ((17, 18, 3), (18, 19.5, 4.5), (19.5, 24.5, 5), (24.5, 26.25, 4.5), (26.25, 27.75, 3.5), (27.75, 29, 2.25), (29, 30, 1))
+    m.group("blade")
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17.25, GOLD_CLOUD, 0.75)
+    rim = ((17, 17.75, 3.75), (17.75, 18.75, 5), (18.75, 25, 5.5), (25, 26.5, 5), (26.5, 27.75, 4.25), (27.75, 28.75, 3.25))
     for y0, y1, hw in rim:
-        m.box("rim", (C - hw, y0, 7.25), (C + hw, y1, 8.75), GOLD)
-    face = ((17.75, 19, 2.9), (19, 25, 4), (25, 26.5, 3.4), (26.5, 27.7, 2.5), (27.7, 28.75, 1.25))
+        m.box("rim", (C - hw, y0, 7.3), (C + hw, y1, 8.7), GOLD)
+    for y0, y1, hw in ((28.75, 29.75, 2.25), (29.75, 30.5, 1.25)):
+        m.box("point", (C - hw, y0, 7.3), (C + hw, y1, 8.7), EDGE_GLOW)
+    face = ((17.75, 18.75, 3.75), (18.75, 25.25, 4.5), (25.25, 26.75, 3.75), (26.75, 27.75, 3.0), (27.75, 28.5, 2.0))
     for y0, y1, hw in face:
-        m.box("face", (C - hw, y0, 6.9), (C + hw, y1, 9.1), JADE_SCALE)
-    ring = ((19.5, 20.5, 2), (20.5, 24, 2.75), (24, 25, 2))
-    for y0, y1, hw in ring:
-        m.box("ring", (C - hw, y0, 6.6), (C + hw, y1, 9.4), AZURE_SCALE)
-    m.box("boss", (6.75, 21, 6.25), (9.25, 23.5, 9.75), PEARL)
-    m.box("boss", (7.25, 20.5, 6.4), (8.75, 24, 9.6), PEARL)
-    m.box("crest", (7.5, 25.5, 6.75), (8.5, 28, 9.25), GOLD_LIGHT)
+        m.box("face", (C - hw, y0, 6.95), (C + hw, y1, 9.05), JADE_BIG)
+    m.box("spine", (7.4, 20.25, 6.7), (8.6, 27.5, 9.3), GOLD_LIGHT)
+    m.box("spine_tip", (7.6, 27.5, 6.8), (8.4, 28.75, 9.2), GOLD_LIGHT)
+    pearl(m, 8, 19.0, 8, 1.0, cz=(6.95, 9.05), d=0.4)
+    for side in (1, -1):
+        x0 = C + side * 2.25
+        m.box("shoulder_claw", (min(x0, x0 + side * 1.0), 16.25, 6.85), (max(x0, x0 + side * 1.0), 18.25, 9.15), GOLD_LIGHT)
+    cull(m)
     return _held(m, "shovel")
 
 
 def dragon_axe():
-    """용머리 도끼: a dragon's head on the shaft, its open mouth towards -x, and the axe's broad pale jade blade coming out
-    of the mouth between gold-lipped jaws with ivory fangs; glowing eye, a pearl on the brow, gold horns and a jade mane
-    swept back."""
+    """용머리 도끼: a big dragon's head on the shaft, its open mouth towards -x, and a broad crescent blade of carved jade
+    coming out of the mouth between gold lips and ivory fangs, its honed edge glowing; glowing eye, gold brow, a pearl
+    on the cheek, gold horns and a jade mane swept back over the poll."""
     m = MModel("dragon_axe")
     handle(m)
-    shaft(m, 16)
+    shaft(m, 16.5)
     m.group("head")
-    m.box("skull", (6.25, 16, 6.25), (10.75, 21.5, 9.75), JADE_SCALE)
-    m.box("upper_jaw", (3, 19, 6.6), (6.25, 21, 9.4), JADE_SCALE)
-    m.box("nose", (2.4, 19.5, 6.9), (3, 20.75, 9.1), JADE_EDGE)
-    m.box("lower_jaw", (3.75, 15, 6.6), (6.25, 16.75, 9.4), JADE_DARK)
-    m.box("lip", (3, 18.6, 6.45), (6.3, 19.1, 9.55), GOLD_LIGHT)
-    m.box("lip", (3.75, 16.75, 6.45), (6.3, 17.15, 9.55), GOLD_LIGHT)
-    for x in (3.25, 4.75):
-        m.box("fang", (x, 17.9, 6.5), (x + 0.6, 18.6, 7.1), IVORY_M)
-        m.box("fang", (x, 17.9, 8.9), (x + 0.6, 18.6, 9.5), IVORY_M)
-    m.box("eye", (7, 19.75, 6.1), (8, 20.5, 9.9), EYE)
-    pearl(m, 9.25, 18, 8, 0.75, cz=(6.25, 9.75), d=0.3)
-    p = _seg(m, "horn", (9.5, 21.75), 3.5, 0.6, 7.3, 8.7, 22.5, GOLD)
-    _seg(m, "horn_tip", (p[0] - 0.3, p[1]), 1.5, 0.45, 7.45, 8.55, 45, JADE_EDGE)
-    m.box("mane", (10.75, 17, 7.4), (11.75, 21, 8.6), JADE_EDGE)
-    m.box("mane", (11.75, 17.75, 7.55), (12.5, 20, 8.45), JADE_EDGE)
-    m.box("chin", (4.25, 13.75, 7.5), (5.25, 15, 8.5), JADE_EDGE)
+    m.box("neck", (6.5, 16.5, 6.5), (10.5, 17.5, 9.5), GOLD_CLOUD)
+    m.box("skull", (6, 17.5, 6.25), (11, 23, 9.75), JADE_SCALE)
+    m.box("brow", (5.5, 21.75, 6.1), (9, 23.25, 9.9), GOLD_CLOUD)
+    m.box("eye", (6.5, 20.25, 6.0), (8, 21.5, 10.0), EYE)
+    m.box("upper_jaw", (2.75, 20.5, 6.6), (6, 22.5, 9.4), JADE_SCALE)
+    m.box("nose", (2.0, 21.25, 6.9), (2.75, 22.5, 9.1), GOLD_LIGHT)
+    m.box("lower_jaw", (3.5, 17, 6.6), (6, 18.5, 9.4), JADE_DARK)
+    m.box("lip", (2.75, 20.0, 6.45), (6.25, 20.5, 9.55), GOLD_LIGHT)
+    m.box("lip", (3.5, 18.5, 6.45), (6.25, 19.0, 9.55), GOLD_LIGHT)
+    for x in (3.25, 5.0):
+        m.box("fang", (x, 19.25, 6.5), (x + 0.6, 20.0, 7.1), IVORY_TIP)
+        m.box("fang", (x, 19.25, 8.9), (x + 0.6, 20.0, 9.5), IVORY_TIP)
+    m.box("beard", (4.0, 15.75, 7.4), (5.25, 17, 8.6), JADE_EDGE)
+    pearl(m, 9.5, 19.25, 8, 0.75, cz=(6.25, 9.75), d=0.3)
+    p = _seg(m, "horn", (9.75, 23), 3.75, 0.65, 7.25, 8.75, 22.5, GOLD)
+    _seg(m, "horn_tip", (p[0] - 0.3, p[1]), 2.0, 0.45, 7.4, 8.6, 45, JADE_EDGE)
+    for y0, y1, x1 in ((18, 22, 12), (18.75, 21.25, 13)):
+        m.box("mane", (11 if x1 == 12 else 12, y0, 7.35 if x1 == 12 else 7.55), (x1, y1, 8.65 if x1 == 12 else 8.45), JADE_EDGE)
     m.group("blade")
-    m.box("blade", (1.5, 16.25, 7.3), (5, 19.5, 8.7), JADE_POLISH)
-    m.box("blade", (-0.5, 14, 7.4), (1.5, 21.75, 8.6), JADE_POLISH)
-    m.box("blade", (-2, 12.5, 7.45), (-0.5, 23.25, 8.55), JADE_POLISH)
-    m.box("blade_edge", (-2.75, 13, 7.6), (-2, 22.75, 8.4), JADE_EDGE)
-    m.box("blade_edge", (-2.5, 11.75, 7.6), (-1.25, 12.5, 8.4), JADE_EDGE)
-    m.box("blade_edge", (-2.5, 23.25, 7.6), (-1.25, 24, 8.4), JADE_EDGE)
-    m.box("blade_vein", (-1.5, 17.5, 7.35), (2, 18.25, 8.65), AZURE_PLAIN)
+    # columns from the mouth out to the edge: (x0, x1, y0, y1)
+    for x0, x1, y0, y1, mat in ((0.75, 3.5, 17.25, 21.25, JADE_BIG), (-1, 0.75, 15.75, 22.75, JADE_BIG),
+                                (-2.5, -1, 14.25, 24.25, JADE_BIG), (-3.5, -2.5, 13.0, 25.5, BLADE)):
+        m.box("blade", (x0, y0, 7.3), (x1, y1, 8.7), mat)
+    m.box("blade_edge", (-4.25, 13.5, 7.45), (-3.5, 25.0, 8.55), EDGE_GLOW)
+    m.box("blade_horn", (-3.25, 11.75, 7.45), (-1.75, 13.0, 8.55), EDGE_GLOW)
+    m.box("blade_horn", (-3.25, 25.5, 7.45), (-1.75, 26.75, 8.55), EDGE_GLOW)
+    m.box("blade_rib", (-2.25, 18.75, 7.15), (2.75, 19.5, 8.85), GOLD_LIGHT)
+    cull(m)
     return _held(m, "axe")
 
 
 def dragon_hoe():
-    """여의주 지팡이: a jade dragon coiling up the azure shaft to its head at the top; the straight ㄱ head is a gold bar
-    with cloud scrolls out to -x, ending in a big glowing 여의주 held in gold claws."""
+    """여의주 지팡이: a staff crowned with a big glowing 여의주 held in four gold claws; under it the straight ㄱ head
+    stands out to -x: a scaled jade dragon body with gold dorsal fins and a gold belly, a gold band, then a wider jade
+    blade block ending flat in a glowing honed edge. Nothing droops or hooks."""
     m = MModel("dragon_hoe")
     handle(m)
-    shaft(m, 19.5)
-    m.group("dragon")
-    faces = (((6.5, 9.2), (9.5, 9.9)), ((9.2, 6.5), (9.9, 9.5)), ((6.5, 6.1), (9.5, 6.8)), ((6.1, 6.5), (6.8, 9.5)))
-    for i in range(7):
-        y = 7.5 + i * 1.5
-        (x0, z0), (x1, z1) = faces[i % 4]
-        m.box("coil", (x0, y, z0), (x1, y + 2.25, z1), JADE_SCALE if i % 2 == 0 else JADE_DEEP)
-    m.box("dragon_head", (6, 19.5, 6.4), (10.25, 22.75, 9.6), JADE_SCALE)
-    m.box("eye", (6.75, 21.25, 6.25), (7.75, 22, 9.75), EYE)
-    m.box("horn", (8.5, 22.75, 7.3), (9.5, 24.25, 8.7), GOLD_LIGHT)
-    m.box("horn_tip", (9.5, 23.5, 7.45), (10.5, 24.25, 8.55), GOLD_LIGHT)
-    m.box("mane", (10.25, 19.75, 7.4), (11.25, 22.25, 8.6), JADE_EDGE)
+    shaft(m, 19.75)
     m.group("head")
-    m.box("bar", (1.5, 20, 6.85), (6, 22.25, 9.15), GOLD_CLOUD)
-    m.box("bar_band", (3.25, 19.75, 6.7), (4, 22.5, 9.3), GOLD_LIGHT)
-    round_z(m, "orb", -2.75, 1.5, 18.75, 23.5, 5.75, 10.25, PEARL, 1)
-    for y0, y1 in ((18.5, 19.25), (23, 23.75)):
-        m.box("orb_claw", (0.5, y0, 7.4), (1.75, y1, 8.6), GOLD_LIGHT)
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 19.5, 22.75, GOLD_CLOUD, 0.75)
+    m.box("bar", (0.5, 20.0, 6.75), (6.25, 22.5, 9.25), JADE_SCALE)
+    m.box("belly", (0.75, 19.5, 7.25), (6.25, 20.0, 8.75), GOLD_LIGHT)
+    for x in (1.5, 3.25, 5.0):
+        m.box("fin", (x, 22.5, 7.5), (x + 1.0, 23.25, 8.5), GOLD_LIGHT)
+        m.box("fin", (x + 0.25, 23.25, 7.7), (x + 0.75, 23.75, 8.3), GOLD_LIGHT)
+    m.box("bar_end", (9.75, 20.25, 7.25), (10.25, 22.25, 8.75), GOLD_LIGHT)
+    m.box("band", (0, 19.5, 6.5), (0.5, 23.0, 9.5), GOLD_LIGHT)
+    m.box("blade", (-2, 19.75, 6.25), (0, 22.75, 9.75), JADE_POLISH)
+    m.box("blade_edge", (-2.75, 20.0, 6.5), (-2, 22.5, 9.5), EDGE_GLOW)
+    m.group("pearl")
+    for x0, z0 in ((6.5, 6.5), (8.75, 6.5), (6.5, 8.75), (8.75, 8.75)):
+        m.box("claw", (x0, 22.75, z0), (x0 + 0.75, 24.5, z0 + 0.75), GOLD_LIGHT)
+    round_y(m, "orb", 6.0, 10.0, 6.0, 10.0, 23.5, 27.5, PEARL, 1)
+    m.box("orb_top", (7.0, 27.5, 7.0), (9.0, 28.0, 9.0), PEARL)
+    cull(m)
     return _held(m, "hoe")
 
 
-TIP = (10.75, 26.5)      # where the line leaves the dragon's mouth (x, y)
+TIP = (12.5, 27.0)      # where the line leaves the dragon's mouth (x, y)
 
 
 def _rod(name, cast):
@@ -430,44 +516,49 @@ def _rod(name, cast):
     m.box("crank_knob", (12, 10.75, 11), (13.5, 12.25, 12.25), SILK_WRAP)
     m.group("rod")
     round_y(m, "rod", 6.625, 9.375, 6.625, 9.375, 6.5, 14, JADE_SCALE, 0.75)
-    m.box("rod", (6.875, 14, 6.875), (9.125, 20, 9.125), JADE_POLISH)
-    m.box("rod", (7.125, 20, 7.125), (8.875, 25, 8.875), JADE_POLISH)
-    for y, w in ((13.5, 1.625), (19.5, 1.375), (24.25, 1.125)):
+    m.box("rod", (6.875, 14, 6.875), (9.125, 19.5, 9.125), JADE_SCALE)
+    m.box("rod", (7.125, 19.5, 7.125), (8.875, 24.5, 8.875), JADE_POLISH)
+    for y, w in ((13.5, 1.625), (19.25, 1.375), (24.0, 1.125)):
         m.box("rod_ring", (C - w, y, C - w), (C + w, y + 0.75, C + w), GOLD_LIGHT)
     m.box("guide", (9.125, 16.5, 7.4), (10.5, 17.5, 8.6), GOLD)
-    m.box("guide", (8.875, 22, 7.4), (10.25, 23, 8.6), GOLD)
+    m.box("guide", (8.875, 21.75, 7.4), (10.25, 22.75, 8.6), GOLD)
     m.group("dragon_head")
-    m.box("neck", (6.875, 25, 6.875), (9.125, 25.75, 9.125), GOLD_CLOUD)
-    m.box("jaw", (7, 25.75, 7.1), (10.75, 26.5, 8.9), JADE_DARK)
-    m.box("head", (6.5, 26.5, 6.75), (9.75, 28.75, 9.25), JADE_SCALE)
-    m.box("snout", (9.75, 26.75, 7.1), (11.25, 28, 8.9), JADE_POLISH)
-    m.box("eye", (8.25, 27.5, 6.6), (9, 28.25, 9.4), EYE)
-    m.box("horn", (6.25, 28.75, 7.3), (7.5, 30, 8.7), GOLD_LIGHT)
-    m.box("horn", (5.25, 29.25, 7.5), (6.25, 30.5, 8.5), GOLD_LIGHT)
-    m.box("mane", (5.75, 26, 7.6), (6.5, 28.5, 8.4), JADE_EDGE)
-    # the long whiskers: from the snout, waving up and out past the rod's tip
-    p = _seg(m, "whisker", (11, 27.75), 3.0, 0.375, 7.625, 8.375, 45, GOLD_LIGHT)
-    p = _seg(m, "whisker", (p[0] - 0.2, p[1] - 0.1), 2.75, 0.375, 7.625, 8.375, 0, GOLD_LIGHT)
-    _seg(m, "whisker_tip", (p[0] - 0.2, p[1]), 1.75, 0.375, 7.625, 8.375, -45, JADE_EDGE)
-    p = _seg_l(m, "whisker", (7.25, 28.25), 3.0, 0.375, 7.625, 8.375, 45, GOLD_LIGHT)
-    _seg_l(m, "whisker_tip", (p[0] + 0.2, p[1] - 0.1), 1.75, 0.375, 7.625, 8.375, 0, JADE_EDGE)
+    m.box("neck", (6.75, 24.75, 6.75), (9.25, 25.75, 9.25), GOLD_CLOUD)
+    m.box("head", (6.25, 25.75, 6.5), (10.25, 29.25, 9.5), JADE_SCALE)
+    m.box("brow", (6.0, 28.5, 6.4), (9.0, 29.5, 9.6), GOLD_CLOUD)
+    m.box("eye", (7.75, 27.25, 6.3), (8.75, 28.25, 9.7), EYE)
+    m.box("snout", (10.25, 27.25, 6.9), (12.5, 29.0, 9.1), JADE_SCALE)
+    m.box("nose", (12.5, 28.0, 7.2), (13.0, 29.0, 8.8), GOLD_LIGHT)
+    m.box("jaw", (10.25, 25.75, 7.1), (12.0, 26.5, 8.9), JADE_DARK)
+    m.box("mouth_pearl", (11.0, 26.5, 7.25), (12.25, 27.25, 8.75), PEARL)
+    m.box("horn", (6.5, 29.5, 7.3), (7.5, 30.5, 8.7), GOLD_LIGHT)
+    m.box("horn", (5.5, 30.0, 7.45), (6.5, 31.25, 8.55), GOLD_LIGHT)
+    m.box("mane", (5.25, 26.0, 7.4), (6.25, 28.75, 8.6), JADE_EDGE)
+    m.box("mane", (4.5, 26.5, 7.6), (5.25, 28.0, 8.4), JADE_EDGE)
+    # the long whiskers: from the snout's sides, sweeping out forward and curling down, glowing at their ends
+    for z0, z1, ang, ln in ((6.5, 7.0, 22.5, 3.5), (9.0, 9.5, 0, 3.0)):
+        p = _seg(m, "whisker", (12.25, 28.25), ln, 0.3, z0, z1, ang, GOLD_LIGHT)
+        p = _seg(m, "whisker", (p[0] - 0.2, p[1]), 2.75, 0.3, z0, z1, -22.5, GOLD_LIGHT)
+        _seg(m, "whisker_tip", (p[0] - 0.2, p[1]), 2.0, 0.3, z0, z1, -45, EDGE_GLOW)
     if not cast:
         m.group("line")
         top = (TIP[0], TIP[1], C)
         rot = ("z", 45, top)
         x = TIP[0]
-        m.box("line", (x - 0.375, 16.5, 7.625), (x + 0.375, TIP[1], 8.375), LINE, rotation=rot)
-        m.box("float_eye", (x - 0.5, 15.75, 7.5), (x + 0.5, 16.5, 8.5), GOLD_LIGHT, rotation=rot)
-        m.box("float_pearl", (x - 1.5, 13, 6.5), (x + 1.5, 15.75, 9.5), PEARL, rotation=rot)
-        m.box("float_pearl", (x - 1, 12.5, 7), (x + 1, 16.25, 9), PEARL, rotation=rot)
-        m.box("float_cup", (x - 2, 11.5, 6), (x + 2, 13, 10), GOLD_CLOUD, rotation=rot)
-        m.box("float_cup", (x - 1, 10.75, 7), (x + 1, 11.5, 9), GOLD, rotation=rot)
+        m.box("line", (x - 0.375, 17.0, 7.625), (x + 0.375, TIP[1], 8.375), LINE, rotation=rot)
+        m.box("float_eye", (x - 0.5, 16.25, 7.5), (x + 0.5, 17.0, 8.5), GOLD_LIGHT, rotation=rot)
+        m.box("float_pearl", (x - 1.5, 13.5, 6.5), (x + 1.5, 16.25, 9.5), PEARL, rotation=rot)
+        m.box("float_pearl", (x - 1, 13.0, 7), (x + 1, 16.75, 9), PEARL, rotation=rot)
+        m.box("float_cup", (x - 2, 12.0, 6), (x + 2, 13.5, 10), GOLD_CLOUD, rotation=rot)
+        m.box("float_cup", (x - 1, 11.25, 7), (x + 1, 12.0, 9), GOLD, rotation=rot)
+    cull(m)
     return _held(m, "rod")
 
 
 def dragon_fishing_rod():
-    """용 수염 낚싯대: a jade rod with gold rings and a gold reel, a dragon's head at the tip whose two long gold whiskers
-    wave up past it; the line hangs from its mouth with a pearl float in a gold cloud cup."""
+    """용 수염 낚싯대: a scaled jade rod with gold rings and a gold reel, a dragon's head at the tip holding a pearl in
+    its jaws, two long gold whiskers sweeping out from its snout and curling down to glowing ends; the line hangs from
+    its mouth with a pearl float in a gold cloud cup."""
     return _rod("dragon_fishing_rod", False)
 
 
