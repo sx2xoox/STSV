@@ -20,8 +20,8 @@ import zlib
 
 from PIL import Image
 
-from economy_machines import MModel, Mat, cyl
-from models.toys import C, GRIP_Y, STICKER, STICKER_UV, _arm, _held, round_y  # noqa: F401
+from economy_machines import MModel, Mat, _face_size, cyl
+from models.toys import C, GRIP, GRIP_Y, STICKER, STICKER_UV, _arm, _held, round_y, round_z  # noqa: F401
 from stsv_assets import presets
 from stsv_assets import textures as T
 
@@ -225,175 +225,244 @@ def shaft(m, top, mat=FROST):
 
 
 # ================================================================================================
-# The tools
+# A model built bigger than the -16..32 box allows: shrunk about the grip as it is built, the held views enlarged back
 # ================================================================================================
 
+G = (C, GRIP_Y, C)
+
+
+class Shrunk(MModel):
+    """Every box is placed k times as far from the grip point (8, GRIP_Y, 8) as given, so a greatsword fits the model
+    box; its faces keep the texel size of the size given (one texel a given unit, like every other piece). _big() then
+    enlarges the held views by 1 / k about the grip, so in the hand it is the size it was drawn."""
+
+    def __init__(self, name, k):
+        super().__init__(name)
+        self.k = k
+
+    def _p(self, p):
+        return tuple(G[i] + self.k * (p[i] - G[i]) for i in range(3))
+
+    def box(self, name, frm, to, tex, faces=None, full_uv=(), glow=False, rotation=None, uv=None, side_v=None, shade=True):
+        fs = {f: tex for f in ("north", "east", "south", "west", "up", "down")}
+        fs.update(faces or {})
+        uv = dict(uv or {})
+        for f, t in list(fs.items()):
+            if isinstance(t, Mat):
+                w, h = _face_size(f, frm, to)
+                key, region = t.face(w, h, f, zlib.crc32(f"{round(w, 2)}x{round(h, 2)}/{f}".encode()))
+                fs[f] = key
+                if region and f not in uv:
+                    uv[f] = region
+        if rotation:
+            axis, angle, o = rotation
+            rotation = (axis, angle, self._p(o))
+        return super().box(name, self._p(frm), self._p(to), tex, faces=fs, full_uv=full_uv, glow=glow, rotation=rotation,
+                           uv=uv, side_v=side_v, shade=shade)
+
+
+def _big(m, kind):
+    _held(m, kind)
+    held = ("thirdperson_righthand", "thirdperson_lefthand", "firstperson_righthand", "firstperson_lefthand")
+    m.display = presets.enlarged(m.display, 1 / m.k, GRIP, held)
+    for ctx in held:
+        m.display[ctx]["translation"] = [v + 0.0 for v in m.display[ctx]["translation"]]
+    return m
+
+
+# ================================================================================================
+# The tools: each one an icy thing standing in for the tool
+# ================================================================================================
+
+SWORD_K = 0.75      # 고드름 대검 is drawn 1.6 times the toy sword's blade above the grip, then shrunk to fit the box
+
+
 def frost_sword():
-    """서리 수정 검: a faceted ice blade with a deep core and pale edges, shards at its foot, a snowflake guard, icicles."""
-    m = MModel("frost_sword")
+    """고드름 대검: a huge icicle for a blade (1.6 times the toy sword's above the grip), tapering in drips, each drip a pale
+    ring, a white point; a snow crust at its root, smaller icicles growing beside it, a frost crossguard with the emblem."""
+    m = Shrunk("frost_sword", SWORD_K)
     handle(m)
     m.group("guard")
-    m.box("guard", (2.5, 6.75, 7), (13.5, 8.25, 9), FROST)
+    m.box("guard", (1.75, 6.75, 7), (14.25, 8.5, 9), FROST)
     m.box("guard_hub", (5.25, 6.5, 6.5), (10.75, 11.25, 9.5), FROST)
     emblem(m, 5.75, 6.625, 6.25, 9.75)
-    for x in (2.25, 13.75):     # ice diamonds at the ends: boxes turned 45 degrees about their middle
-        m.box("guard_gem", (x - 1, 6.5, 7.25), (x + 1, 8.5, 8.75), ICE, rotation=("z", 45, (x, 7.5, C)))
+    for x in (1.5, 14.5):
+        m.box("guard_gem", (x - 1.125, 6.5, 7.25), (x + 1.125, 8.75, 8.75), ICE, rotation=("z", 45, (x, 7.625, C)))
     for x, ln in ((2.75, 2.5), (3.75, 1.5), (11.5, 1.5), (12.5, 2.5)):
         icicle(m, x, 6.75, ln)
     m.group("blade")
-    m.box("blade", (5.5, 10.75, 7), (10.5, 22.5, 9), ICE)
-    m.box("blade_edge", (4.75, 11.5, 7.5), (5.5, 21.75, 8.5), ICE_LIGHT)
-    m.box("blade_edge", (10.5, 11.5, 7.5), (11.25, 21.75, 8.5), ICE_LIGHT)
-    m.box("blade_core", (7.5, 11.5, 6.75), (8.5, 21, 9.25), ICE_DEEP)
-    m.box("blade_tip", (6.25, 22.5, 7.125), (9.75, 24, 8.875), ICE)
-    m.box("blade_tip", (7, 24, 7.25), (9, 25.5, 8.75), ICE_LIGHT)
-    m.box("blade_tip", (7.5, 25.5, 7.5), (8.5, 26.75, 8.5), WHITE)
+    round_y(m, "snow", 4.5, 11.5, 6.25, 9.75, 11.25, 12.5, FUR, 1)
+    # the icicle: (y0, y1, half width, material); its depth is two thirds of its width (a blade from the side)
+    rows = ((12.5, 19, 3.25, ICE), (19, 20, 3.5, ICE_LIGHT), (20, 27, 2.75, ICE), (27, 33, 2.25, ICE),
+            (33, 34, 2.5, ICE_LIGHT), (34, 37.5, 1.75, ICE), (37.5, 39.5, 1.25, ICE_LIGHT), (39.5, 41, 0.75, ICE_LIGHT))
+    for y0, y1, hw, mat in rows:
+        hz = max(0.5, round(hw * 0.65 * 4) / 4)
+        cut = 0.5 if hw >= 2 else 0.25 if hw > 1 else 0
+        if cut:
+            round_y(m, "icicle_blade", C - hw, C + hw, C - hz, C + hz, y0, y1, mat, cut)
+        else:
+            m.box("icicle_blade", (C - hw, y0, C - hz), (C + hw, y1, C + hz), mat)
+    m.box("blade_point", (7.625, 41, 7.625), (8.375, 41.75, 8.375), WHITE)
     m.group("shards")
-    shard(m, "shard", 3.75, 10.25, 5.5, 14.5, 7.25, 8.75, 22.5)
-    shard(m, "shard", 4.25, 13.75, 5.5, 16, 7.375, 8.625, 22.5, ICE_LIGHT)
-    shard(m, "shard", 10.5, 10.25, 12.25, 13.5, 7.25, 8.75, -22.5)
-    shard(m, "shard", 10.5, 16.5, 11.75, 18.75, 7.375, 8.625, -22.5, ICE_LIGHT)
-    return _held(m, "sword")
+    shard(m, "side_icicle", 3.5, 11.75, 5.0, 17.5, 7.25, 8.75, 22.5)
+    shard(m, "side_icicle", 3.875, 17.5, 4.625, 19.5, 7.5, 8.5, 22.5, ICE_LIGHT, pivot=(4.25, 11.75, C))
+    shard(m, "side_icicle", 11.0, 11.75, 12.5, 15.75, 7.25, 8.75, -22.5)
+    shard(m, "side_icicle", 11.375, 15.75, 12.125, 17.25, 7.5, 8.5, -22.5, ICE_LIGHT, pivot=(11.75, 11.75, C))
+    return _big(m, "sword")
 
 
 def frost_pickaxe():
-    """서리 수정 곡괭이: a frost head with the emblem, two curved ice arms with pale points, a crystal crown, icicles."""
+    """눈송이 곡괭이: a snowflake on the shaft: a frost hub with the emblem, two long crystal branches out to the sides (their
+    outer halves bending down into points: the pick's arms), each with a V of side branches, three short branches above."""
     m = MModel("frost_pickaxe")
     handle(m)
-    shaft(m, 16)
-    m.group("head")
-    m.box("head", (5, 15.25, 6.5), (11, 20.75, 9.5), FROST)
+    shaft(m, 15.5)
+    m.group("hub")
+    round_z(m, "hub", 5, 11, 15, 21, 6.5, 9.5, FROST, 1.25)
     emblem(m, 5.75, 15.75, 6.25, 9.75)
-    m.box("crown", (7.125, 20.75, 7.125), (8.875, 23, 8.875), ICE)
-    m.box("crown", (7.5, 23, 7.5), (8.5, 24, 8.5), ICE_LIGHT)
-    shard(m, "crown_shard", 5.5, 20.25, 6.75, 22.5, 7.25, 8.75, 22.5)
-    shard(m, "crown_shard", 9.25, 20.25, 10.5, 22.5, 7.25, 8.75, -22.5)
+    m.group("branches")
     for side in (1, -1):
-        p = (C + side * 3, 18.25)
-        p = _arm(m, "arm_a", side, p, 4.5, 1.75, 6.875, 9.125, 22.5, ICE)
-        p = _arm(m, "arm_b", side, p, 4.0, 1.375, 7.125, 8.875, 45, ICE)
-        a = math.radians(45)
+        x0 = C + side * 3
+        lo, hi = (x0, x0 + side * 4.5) if side > 0 else (x0 + side * 4.5, x0)
+        m.box("branch", (lo, 17.25, 7), (hi, 18.75, 9), ICE)
+        # the V: two twigs from the branch's middle, out and up, out and down
+        tx = x0 + side * 2.5
+        tlo, thi = (tx, tx + 3) if side > 0 else (tx - 3, tx)
+        m.box("twig", (tlo, 17.5, 7.25), (thi, 18.5, 8.75), ICE_LIGHT, rotation=("z", 45 * side, (tx, 18, C)))
+        m.box("twig", (tlo, 17.5, 7.25), (thi, 18.5, 8.75), ICE_LIGHT, rotation=("z", -45 * side, (tx, 18, C)))
+        p = _arm(m, "arm", side, (x0 + side * 4.5, 18), 4.5, 0.875, 7.125, 8.875, 22.5, ICE)
         px, py = p
-        if side > 0:
-            frm, to = (px + 0.5, py - 0.75, 7.375), (px + 2.5, py + 0.75, 8.625)
-        else:
-            frm, to = (px - 2.5, py - 0.75, 7.375), (px - 0.5, py + 0.75, 8.625)
-        m.box("arm_tip", frm, to, ICE_LIGHT, rotation=("z", -45 * side, (px, py, C)))
-    for x, ln in ((5.25, 2), (10, 1.5)):
-        icicle(m, x, 15.25, ln)
+        frm, to = ((px + 0.5, py - 0.5, 7.375), (px + 2.25, py + 0.5, 8.625)) if side > 0 else \
+            ((px - 2.25, py - 0.5, 7.375), (px - 0.5, py + 0.5, 8.625))
+        m.box("arm_point", frm, to, WHITE, rotation=("z", -22.5 * side, (px, py, C)))
+        # a short branch up and out from the hub's shoulder
+        sx = C + side * 2
+        slo, shi = (sx, sx + 3.5) if side > 0 else (sx - 3.5, sx)
+        m.box("crown", (slo, 19.5, 7.25), (shi, 20.75, 8.75), ICE, rotation=("z", 45 * side, (sx, 20.125, C)))
+    m.box("crown", (7.25, 21, 7.25), (8.75, 24, 8.75), ICE)
+    m.box("crown_point", (7.625, 24, 7.625), (8.375, 25, 8.375), WHITE)
+    m.box("crown_twig", (6, 22.25, 7.5), (10, 23, 8.5), ICE_LIGHT)
     return _held(m, "pickaxe")
 
 
 def frost_shovel():
-    """서리 수정 삽: an ice spade with pale rims and a deep spine, shards at its shoulders, on a frost socket."""
+    """눈썰매 삽: a little sled for a scoop: cyan slats over a deep blue bed, silver runners standing proud down both sides
+    and curling over at the top, a pull cord between them, the emblem on the slats."""
     m = MModel("frost_shovel")
     handle(m)
     shaft(m, 15.5)
-    m.group("blade")
+    m.group("sled")
     round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, FROST, 0.75)
-    rows = ((17, 18, 3.75, 7, 9), (18, 23.5, 4.5, 7, 9), (23.5, 25.5, 3.75, 7, 9), (25.5, 27, 2.75, 7.2, 8.8))
-    for y0, y1, hw, z0, z1 in rows:
-        m.box("blade", (C - hw, y0, z0), (C + hw, y1, z1), ICE)
-        m.box("rim", (C - hw, y0, z1), (C - hw + 1, y1, z1 + 0.4), ICE_LIGHT)
-        m.box("rim", (C + hw - 1, y0, z1), (C + hw, y1, z1 + 0.4), ICE_LIGHT)
-    m.box("point", (6.5, 27, 7.2), (9.5, 28.25, 8.8), ICE_LIGHT)
-    m.box("point", (7.25, 28.25, 7.4), (8.75, 29, 8.6), WHITE)
-    m.box("spine", (7.25, 17, 6.6), (8.75, 25, 7), ICE_DEEP)
-    emblem(m, 5.75, 18.25, 6.75, 9.5)
-    m.group("shards")
-    shard(m, "shard", 2.5, 17.5, 3.75, 20, 7.25, 8.75, 22.5, ICE_LIGHT)
-    shard(m, "shard", 12.25, 17.5, 13.5, 20, 7.25, 8.75, -22.5, ICE_LIGHT)
-    for x, ln in ((4.75, 1.5), (10.5, 1.5)):
-        icicle(m, x, 17, ln)
+    m.box("bed", (4.5, 17, 7), (11.5, 27, 7.75), ICE_DEEP)
+    for y0, y1 in ((17.25, 19.75), (20.5, 23), (23.75, 26.25)):
+        m.box("slat", (4.75, y0, 7.75), (11.25, y1, 8.75), ICE)
+    m.box("lip", (4, 16.25, 7.25), (12, 17.25, 9.25), FROST)
+    for x0, x1 in ((3.25, 4.5), (11.5, 12.75)):
+        m.box("runner", (x0, 16.25, 9.25), (x1, 27, 10.25), FROST)
+        m.box("runner_post", (x0 + 0.25, 18, 7.25), (x1 - 0.25, 19, 9.25), FROST_DIM)
+        m.box("runner_post", (x0 + 0.25, 24, 7.25), (x1 - 0.25, 25, 9.25), FROST_DIM)
+        # the curl: up, over towards the back, down a little
+        m.box("runner_curl", (x0, 27, 8.75), (x1, 28.25, 10), FROST)
+        m.box("runner_curl", (x0, 28.25, 7.5), (x1, 29.25, 9.5), FROST)
+        m.box("runner_curl", (x0, 27.5, 6.5), (x1, 28.75, 7.5), FROST)
+    m.box("cord", (4.5, 28.25, 8.25), (11.5, 28.75, 8.75), ICE_DEEP)
+    m.box("snow", (5.5, 26.25, 7.75), (10, 27, 8.75), FUR)
+    emblem(m, 5.75, 20, 6.75, 9)
     return _held(m, "shovel")
 
 
 def frost_axe():
-    """서리 수정 도끼: a wide faceted ice blade (towards -x) on a frost head with the emblem, a crystal spike behind."""
+    """빙하 도끼: a rough chunk of glacier for a head: blocky ice stacked out of line, deep blue cracks, snow lying on its top
+    ledges, a jagged pale edge towards -x, icicles under it, a small chunk behind; the emblem where it meets the shaft."""
     m = MModel("frost_axe")
     handle(m)
-    shaft(m, 21.5)
-    m.group("head")
-    round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 21.5, 22.5, FROST, 0.75)
-    m.box("shaft_point", (7.25, 22.5, 7.25), (8.75, 24, 8.75), ICE_LIGHT)
-    m.box("head", (4.5, 14, 6.5), (10, 20.5, 9.5), FROST)
-    emblem(m, 5, 15, 6.25, 9.75)
-    m.box("blade", (2, 13, 6.875), (4.5, 21.5, 9.125), ICE)
-    m.box("blade", (0, 12, 7.25), (2, 22.5, 8.75), ICE)
-    m.box("blade_core", (1.25, 14, 7), (3.25, 20.5, 9), ICE_DEEP)
-    m.box("blade_edge", (-1.25, 12.5, 7.5), (0, 22, 8.5), ICE_LIGHT)
-    m.box("blade_edge", (-0.75, 11.25, 7.5), (0, 12.5, 8.5), WHITE)
-    m.box("blade_edge", (-0.75, 22, 7.5), (0, 23.25, 8.5), WHITE)
-    shard(m, "shard", 1, 22.25, 2.5, 24.5, 7.375, 8.625, 22.5, ICE_LIGHT)
-    m.box("poll", (10, 15.25, 7), (11.75, 19.25, 9), ICE)
-    m.box("poll", (11.75, 16.25, 7.25), (13.25, 18.25, 8.75), ICE_LIGHT)
-    for x, y, ln in ((2.75, 13, 2), (0.5, 12, 1.25), (5.25, 14, 1.25)):
+    shaft(m, 21)
+    m.group("glacier")
+    m.box("chunk", (1, 13.5, 6.25), (9.75, 21, 9.75), ICE)
+    m.box("chunk", (-1.25, 15, 6.75), (1, 22.25, 9.25), ICE)
+    m.box("chunk", (-0.5, 12, 7), (3.75, 13.5, 9), ICE_DEEP)
+    m.box("edge", (-2.75, 14, 7.25), (-1.25, 21, 8.75), ICE_LIGHT)
+    m.box("edge", (-3.5, 16, 7.5), (-2.75, 19.25, 8.5), WHITE)
+    m.box("edge", (-2.25, 12.75, 7.5), (-0.5, 14, 8.5), ICE_LIGHT)
+    m.box("crack", (2.75, 14.75, 9.75), (3.5, 19.5, 10), ICE_DEEP)
+    m.box("crack", (3.5, 17, 9.75), (4.5, 17.75, 10), ICE_DEEP)
+    m.box("snow", (1.25, 21, 6.5), (9.5, 21.875, 9.5), FUR)
+    m.box("snow", (-1.5, 22.25, 7), (1.5, 23, 9), FUR)
+    round_y(m, "cap", 6.5, 9.5, 6.5, 9.5, 21.875, 23, FROST, 0.75)
+    emblem(m, 5, 15, 6, 10)
+    m.box("chunk_back", (9.75, 15, 7), (11.75, 19.25, 9), ICE_LIGHT)
+    m.box("chunk_back", (11.75, 16, 7.25), (12.75, 18, 8.75), ICE)
+    for x, y, ln in ((-0.25, 12, 2), (1.75, 12, 1.25), (5.5, 13.5, 1.5)):
         icicle(m, x, y, ln)
     return _held(m, "axe")
 
 
 def frost_hoe():
-    """서리 수정 괭이: the vanilla hoe's L: a straight ice blade sticking out to one side (-x) at the shaft's top, ending in
-    a flat pale edge, on a frost socket with the emblem; small shards on top, icicles hanging under it."""
+    """스케이트날 괭이: an ice skate's runner for the straight head: a white sole out to one side of a frost hub (the emblem
+    on it), two silver posts under it holding a long steel blade with a bright edge, every end cut flat."""
     m = MModel("frost_hoe")
     handle(m)
-    shaft(m, 18.5)
-    m.group("head")
-    m.box("socket", (6.25, 18.5, 6.25), (10.5, 23.5, 9.75), FROST)
-    emblem(m, 6.125, 18.75, 6, 10)
-    round_y(m, "socket_cap", 6.75, 10, 6.75, 9.25, 23.5, 24.25, FROST, 0.5)
-    m.box("blade", (-1.5, 19.75, 6.875), (6.25, 22.75, 9.125), ICE)
-    m.box("blade_core", (-0.75, 20.75, 6.625), (6.25, 21.75, 9.375), ICE_DEEP)
-    m.box("blade_edge", (-2.75, 19.75, 7.125), (-1.5, 22.75, 8.875), ICE_LIGHT)
-    m.box("blade_edge", (-3.25, 20, 7.375), (-2.75, 22.5, 8.625), WHITE)
-    shard(m, "shard", -0.75, 22.75, 0.5, 24.5, 7.25, 8.75, 22.5, ICE_LIGHT)
-    shard(m, "shard", 2.5, 22.75, 3.5, 24, 7.375, 8.625, -22.5, ICE_LIGHT)
-    for x, ln in ((-1.75, 1.75), (0.75, 1.25), (3, 2), (5, 1.25)):
-        icicle(m, x, 19.75, ln)
+    shaft(m, 21)
+    m.group("skate")
+    m.box("hub", (5.5, 21, 6.5), (10.5, 25.75, 9.5), FROST)
+    emblem(m, 5.75, 21.125, 6.25, 9.75)
+    m.box("sole", (-2.25, 22, 6.75), (5.5, 24.25, 9.25), WHITE)
+    m.box("sole_rim", (-2.5, 21.5, 7), (5.5, 22, 9), FROST_DIM)
+    for x in (-1.25, 2.5):
+        m.box("post", (x, 20.25, 7.25), (x + 1.25, 21.5, 8.75), FROST)
+    m.box("runner", (-2.75, 18.75, 7.625), (5.25, 20.25, 8.375), ICE_DEEP)
+    m.box("runner_edge", (-2.75, 18.25, 7.75), (5.25, 18.75, 8.25), WHITE)
+    for x in (-1, 1.25, 3.5):     # laces across the sole's top
+        m.box("lace", (x, 24.25, 7.25), (x + 0.75, 24.75, 8.75), ICE_LIGHT)
     return _held(m, "hoe")
 
 
 def _rod(name, cast):
+    """얼음낚시 대: a short ice-fishing rod: the series' grip, a small frost reel, a short ice rod with frost rings and a
+    crystal bead at its tip, a little ice-hole charm (a white ice disc round a dark blue hole) hanging from the collar."""
     m = MModel(name)
     handle(m)
     m.group("reel")
     m.box("reel_foot", (9, 7.5, 7.5), (10, 9.5, 8.5), FROST_DIM)
-    cyl(m, "reel", "z", (12, 8.5), 4, 6.75, 9.25, FROST, cap=FROST)
-    m.box("reel_hub", (11.25, 7.75, 6.25), (12.75, 9.25, 9.75), ICE)
-    m.box("crank", (11.5, 8.25, 9.75), (12.25, 11, 10.25), FROST)
-    m.box("crank_knob", (11.25, 10.5, 10.25), (12.5, 11.75, 11.25), ICE_LIGHT)
+    cyl(m, "reel", "z", (12, 8.75), 5, 6.5, 9.5, FROST, cap=FROST)
+    m.box("reel_hub", (11.25, 8, 6), (12.75, 9.5, 10), ICE)
+    m.box("crank", (11.5, 8.5, 10), (12.25, 11.5, 10.5), FROST)
+    m.box("crank_knob", (11.25, 11, 10.5), (12.5, 12.25, 11.5), ICE_LIGHT)
+    m.group("charm")
+    m.box("charm_chain", (11.5, 3.5, 7.75), (12, 5.5, 8.25), FROST_DIM)
+    cyl(m, "charm", "z", (11.75, 1.5), 4, 7.25, 8.25, WHITE, cap=WHITE)
+    cyl(m, "charm_hole", "z", (11.75, 1.5), 2, 8.25, 8.5, ICE_DEEP, cap=ICE_DEEP)
     m.group("rod")
-    round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 13.5, ICE, 0.5)
-    m.box("rod", (7.125, 13.5, 7.125), (8.875, 23, 8.875), ICE)
-    m.box("rod", (7.375, 23, 7.375), (8.625, 29.25, 8.625), ICE_LIGHT)
-    for y, r in ((13, 1.375), (18, 1.125), (23, 1.125), (26.5, 0.875)):
+    round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 10.5, ICE, 0.5)
+    m.box("rod", (7.25, 10.5, 7.25), (8.75, 19.5, 8.75), ICE)
+    m.box("rod", (7.5, 19.5, 7.5), (8.5, 24.5, 8.5), ICE_LIGHT)
+    for y, r in ((12, 1.125), (17, 1.0), (21.5, 0.875)):
         m.box("rod_ring", (C - r, y, C - r), (C + r, y + 0.75, C + r), FROST)
-    m.box("guide", (8.875, 20, 7.5), (10, 21, 8.5), FROST_DIM)
-    m.box("guide", (8.625, 27.5, 7.5), (9.5, 28.5, 8.5), FROST_DIM)
-    # the crystal tip: a diamond (turned 45 degrees about y) and a white point
-    m.box("rod_tip", (7.125, 29.25, 7.125), (8.875, 30.75, 8.875), ICE, rotation=("y", 45, (C, 30, C)))
-    m.box("rod_tip", (7.5, 30.75, 7.5), (8.5, 31.75, 8.5), WHITE)
+    m.box("guide", (8.75, 14.5, 7.625), (9.75, 15.5, 8.375), FROST_DIM)
+    m.box("guide", (8.5, 22.5, 7.625), (9.25, 23.25, 8.375), FROST_DIM)
+    m.box("rod_tip", (7.25, 24.5, 7.25), (8.75, 25.75, 8.75), ICE, rotation=("y", 45, (C, 25, C)))
+    m.box("rod_tip", (7.625, 25.75, 7.625), (8.375, 26.5, 8.375), WHITE)
     if not cast:
         m.group("line")
-        top = (8.5, 31, C)
+        top = (8.25, 26, C)
         rot = ("z", 45, top)
-        m.box("line", (8.125, 19.5, 7.625), (8.875, 31, 8.375), LINE, rotation=rot)
-        # a little ice crystal float: a pale top, a frost band, a deep point under it
-        m.box("float_top", (7.75, 18.75, 7.75), (9.25, 19.5, 9.25), ICE_LIGHT, rotation=rot)
-        m.box("float", (6.75, 16.5, 6.75), (10.25, 18.75, 10.25), ICE, rotation=rot)
-        m.box("float_band", (6.5, 15.75, 6.5), (10.5, 16.5, 10.5), FROST, rotation=rot)
-        m.box("float_low", (7.25, 14.5, 7.25), (9.75, 15.75, 9.75), ICE_DEEP, rotation=rot)
-        m.box("float_point", (8, 13.5, 8), (9, 14.5, 9), ICE_DEEP, rotation=rot)
+        m.box("line", (7.875, 16.5, 7.625), (8.625, 26, 8.375), LINE, rotation=rot)
+        # a small ice jig: a pale top, a frost band, a deep point
+        m.box("jig_top", (7.5, 15.75, 7.5), (9, 16.5, 9), ICE_LIGHT, rotation=rot)
+        m.box("jig", (6.75, 13.75, 6.75), (9.75, 15.75, 9.75), ICE, rotation=rot)
+        m.box("jig_band", (6.5, 13, 6.5), (10, 13.75, 10), FROST, rotation=rot)
+        m.box("jig_low", (7.25, 11.75, 7.25), (9.25, 13, 9.25), ICE_DEEP, rotation=rot)
+        m.box("jig_point", (7.75, 10.75, 7.75), (8.75, 11.75, 8.75), ICE_DEEP, rotation=rot)
     return _held(m, "rod")
 
 
 def frost_fishing_rod():
-    """서리 수정 낚싯대: a slender ice rod with frost rings and a crystal tip, a small frost reel, an ice crystal float."""
+    """얼음낚시 대 (with its jig on the line)."""
     return _rod("frost_fishing_rod", False)
 
 
 def frost_fishing_rod_cast():
-    """The rod while its float is out: the same without the line and the float."""
+    """The rod while its float is out: the same without the line and the jig."""
     m = _rod("frost_fishing_rod_cast", True)
     m.display = frost_fishing_rod().display
     return m
@@ -426,8 +495,8 @@ def frost_bobber():
 ALL = {f.__name__: f for f in (frost_sword, frost_pickaxe, frost_shovel, frost_axe, frost_hoe, frost_fishing_rod,
                                frost_fishing_rod_cast, frost_bobber)}
 
-ROWS = [("frost_sword", "서리 수정 검"), ("frost_pickaxe", "서리 수정 곡괭이"), ("frost_shovel", "서리 수정 삽"),
-        ("frost_axe", "서리 수정 도끼"), ("frost_hoe", "서리 수정 괭이"), ("frost_fishing_rod", "서리 수정 낚싯대"),
+ROWS = [("frost_sword", "고드름 대검"), ("frost_pickaxe", "눈송이 곡괭이"), ("frost_shovel", "눈썰매 삽"),
+        ("frost_axe", "빙하 도끼"), ("frost_hoe", "스케이트날 괭이"), ("frost_fishing_rod", "얼음낚시 대"),
         ("frost_fishing_rod_cast", "낚싯대 (던진 뒤)"), ("frost_bobber", "서리 수정 찌 (찌에 태우는 모델)")]
 
 TITLE = "서리 수정 시리즈 (도구 스킨)"

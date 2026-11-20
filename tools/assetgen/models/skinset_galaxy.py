@@ -1,23 +1,21 @@
 """
 은하수 시리즈 (galaxy tool skins): a donation set of held-tool looks that matches the 은하수 cosmetic set
-(models/cosmetics_galaxy.py): deep indigo-violet "space crystal" with a twinkling starfield and a faint pink-cyan
-nebula, silver constellations inlaid in it, pale-gold crescent moons, gold star studs, silver grips wrapped in dark
-velvet.
+(models/cosmetics_galaxy.py). Every tool is a night-sky object standing in for the tool: deep indigo-violet space
+crystal with twinkling stars, pale-gold crescent moons with craters, glowing gold stars, a banded ringed planet, a comet;
+silver grips wrapped in dark velvet.
 
-    galaxy_sword  galaxy_pickaxe  galaxy_shovel  galaxy_axe  galaxy_hoe  galaxy_fishing_rod (+ galaxy_fishing_rod_cast)
-    galaxy_bobber
+    galaxy_sword    별빛 광선검   a long blade of light (1.3 x the toy sword's) out of a crescent-moon guard
+    galaxy_pickaxe  혜성 곡괭이   a comet: its nucleus on the shaft, its two tails drooping out as the arms
+    galaxy_shovel   초승달 삽     a crescent moon lying horns up as the scoop, a star resting in it
+    galaxy_axe      토성 도끼     a ringed planet whose broad tilted ring is the blade
+    galaxy_hoe      별자리 지팡이 the vanilla L: a straight head of stars joined by constellation lines, ending flat
+    galaxy_fishing_rod (+ _cast)  북두칠성 낚싯대: seven stars up a night-sky rod, a star lure
+    galaxy_bobber   the star lure on the water
 
 Same frame, sizes and display transforms as the toy series (models/toys.py: built upright, the grip at GRIP_Y on the
-axis x = z = 8, _held() puts the vanilla tilt into the transforms). Painted by the donation rules (premium_art.py: 32
-texels a block, ramp colours and their in-between steps): the crystal is its own HMat (SpaceCrystal) whose stars
-twinkle in turn (8 frames) and which can carry a constellation, drawn on its front and back.
-
-    sword    a crystal blade with a constellation, a crescent-moon guard, a star at the guard's heart
-    pickaxe  crystal arms drooping in two bends, each ending in a four-point gold star
-    shovel   a crystal spade with a silver rim and a constellation, a star at its neck
-    axe      a crescent-moon head of crystal with a silver edge, a silver poll with a star
-    hoe      an L like the vanilla hoe: a straight crystal head out to one side, ending flat; a ringed planet at the joint
-    rod      a slim silver rod with star guides, a small silver reel, a crescent moon at the tip; the float a tiny planet
+axis x = z = 8, _held() puts the vanilla tilt into the transforms); the sword is built in bigger units and shrunk into
+the model box (Scaled), its held views enlarged back. Painted by the donation rules (premium_art.py: 32 texels a block,
+ramp colours and their in-between steps); the glowing parts are emissive and some shimmer (8 frames).
 """
 
 import math
@@ -144,35 +142,130 @@ class SpaceCrystal(HMat):
 
 CONST_INK = shade("feather", 3)         # a constellation's star: pure white, never painted over by the twinkles
 
-# constellations (u, v on the face, v down)
-CONST_BLADE = [(0.35, 0.12), (0.62, 0.26), (0.42, 0.44), (0.66, 0.6), (0.4, 0.82), None, (0.42, 0.44), (0.3, 0.58)]
-CONST_SPADE = [(0.3, 0.2), (0.62, 0.32), (0.5, 0.58), (0.72, 0.78), None, (0.5, 0.58), (0.28, 0.72)]
-CONST_PLATE = [(0.1, 0.65), (0.35, 0.3), (0.62, 0.6), (0.9, 0.35)]
 
-SPACE = SpaceCrystal(1.0)
 SPACE_PLAIN = SpaceCrystal(1.0, density=0.8)
-SPACE_BLADE = SpaceCrystal(1.0, const=CONST_BLADE)
-SPACE_SPADE = SpaceCrystal(1.0, const=CONST_SPADE)
-SPACE_PLATE = SpaceCrystal(1.0, const=CONST_PLATE)
 
 # ================================================================================================
 # The other materials
 # ================================================================================================
 
-EDGE = HMat("crystal", "gem", 3.3)                  # the crystal's light lilac edges and points
+class BeamMat(HMat):
+    """The light blade: a white-hot core, cyan round it, violet at the rims, a lilac edge texel; sparkles drifting up the
+    beam (8 frames). Drawn at full light."""
+
+    def __init__(self):
+        super().__init__("aurora", "smooth", 3.0, glow=True, anim=8)
+
+    def _beam(self, pw, ph, face, seed, k):
+        rnd = random.Random(seed)
+        im = hd_canvas()
+        px = im.load()
+        side = face in ("north", "south")
+        for y in range(HS):
+            for x in range(HS):
+                xx, yy = min(x, pw - 1), min(y, ph - 1)
+                u = (xx + 0.5) / pw
+                d = abs(u - 0.5) * 2 if side else 0.75
+                if face in ("up", "down"):
+                    d = 0.5
+                if d < 0.26:
+                    c = shade("ice", 3)
+                elif d < 0.42:
+                    c = shade("glow_cyan", 2.6)
+                elif d < 0.7:
+                    c = shade("aurora", 3.0 - (d - 0.42) * 2.5)
+                else:
+                    c = shade("magic", 2.3 - (d - 0.7))
+                if side and (xx == 0 or xx == pw - 1):
+                    c = shade("crystal", 4)
+                px[x, y] = c
+        if side:
+            for i in range(max(2, ph // 3)):
+                sx = rnd.randrange(pw)
+                sy = (rnd.randrange(ph) - k * 2) % ph
+                d = abs((sx + 0.5) / pw - 0.5) * 2
+                px[sx, sy] = shade("glow_amber", 3) if d < 0.4 else shade("feather", 3)
+        return im
+
+    def face(self, w, h, face, seed):
+        pw, ph = max(1, math.ceil(w * D - 1e-6)), max(1, math.ceil(h * D - 1e-6))
+        big = pw > HS or ph > HS
+        if big:
+            pw, ph = min(pw, HS), min(ph, HS)
+        frames = [self._beam(pw, ph, face, seed, k) for k in range(8)]
+        key = "hd_" + format(zlib.crc32(b"".join(f.tobytes() for f in frames)), "08x")
+        if key not in T.SURFACES:
+            first = frames[0]
+            T.SURFACES[key] = (lambda img=first: img.copy())
+            T.ANIMATED[key] = (lambda fs=frames: [f.copy() for f in fs], 2)
+        return key, [0, 0, pw, ph] if not big else [0, 0, HS, HS]
+
+
+class MoonMat(HMat):
+    """Pale gold moon with a few soft grey-gold craters."""
+
+    CRATERS = ((0.3, 0.35, 0.16), (0.68, 0.6, 0.12), (0.45, 0.78, 0.09), (0.8, 0.22, 0.08))
+
+    def _value(self, x, y, pw, ph, face, rnd):
+        b = super()._value(x, y, pw, ph, face, rnd)
+        if pw >= 4 and ph >= 4:
+            u, v = (x + 0.5) / pw, (y + 0.5) / ph
+            for cu, cv, r in self.CRATERS:
+                dd = math.hypot((u - cu) * pw, (v - cv) * ph) / max(1.0, r * max(pw, ph))
+                if dd < 1:
+                    b -= 0.7 if dd > 0.55 else 0.45
+        return b
+
+
+class PlanetMat(HMat):
+    """A gas giant: soft horizontal bands of violet, cyan, rose and lilac, lit from the top left."""
+
+    BANDS = (("crystal", 2.2), ("aurora", 2.4), ("crystal", 1.4), ("sakura", 1.2), ("aurora", 1.6), ("magic", 1.4))
+
+    def _paint(self, pw, ph, face, seed, sweep=None):
+        rnd = random.Random(seed)
+        im = hd_canvas()
+        px = im.load()
+        lit = FACE_LIGHT.get(face, 0)
+        for y in range(HS):
+            for x in range(HS):
+                xx, yy = min(x, pw - 1), min(y, ph - 1)
+                u, v = (xx + 0.5) / pw, (yy + 0.5) / ph
+                if face in ("up", "down"):
+                    name, b = self.BANDS[0] if face == "up" else self.BANDS[-1]
+                else:
+                    wob = 0.05 * math.sin(u * 7 + seed % 5)
+                    name, b = self.BANDS[min(len(self.BANDS) - 1, int((v + wob) * len(self.BANDS)))]
+                b += lit * 0.8 + 0.4 * (0.5 - u) + (rnd.random() - 0.5) * 0.2
+                if yy == 0 and ph > 2:
+                    b += 0.5
+                elif xx == pw - 1 and pw > 2:
+                    b -= 0.4
+                px[x, y] = shade(name, b)
+        return im
+
+
+BEAM = BeamMat()
+BEAM_EDGE = HMat("crystal", "smooth", 3.6, glow=True, ao=False)
+EDGE = HMat("crystal", "gem", 3.3)                  # light lilac edges and points
 SILVER = HMat("blade", "metal", 1.9)
 SILVER_LIGHT = HMat("blade", "metal", 2.6)
 SILVER_DARK = HMat("fish_silver", "metal", 2.2)
 VELVET = HMat("aubergine", "horn", 1.5)             # the grip's dark violet velvet wrap
-MOON = HMat("lamp", "smooth", 2.55)                  # pale gold crescents
+MOON = MoonMat("lamp", "smooth", 2.55)               # pale gold crescents with craters
 MOON_DARK = HMat("gold", "smooth", 2.2)
 GOLD = HMat("gold", "metal", 2.2)
-STAR = HMat("glow_amber", "gem", 2.4, glow=True)     # gold star studs: lit like little lamps
+STAR = HMat("glow_amber", "gem", 2.4, glow=True)     # gold stars: lit like little lamps
 STAR_WHITE = HMat("ice", "gem", 2.9, glow=True)
-PLANET = HMat("aurora", "smooth", 1.9)
-PLANET_BAND = HMat("magic", "smooth", 1.6)
+NUCLEUS = HMat("glow_amber", "gem", 2.9, glow=True, anim=8)
+TAIL_A = HMat("glow_cyan", "smooth", 2.4, glow=True, anim=8)
+TAIL_B = HMat("aurora", "smooth", 2.2, glow=True)
+TAIL_C = HMat("magic", "smooth", 1.8, glow=True)
+PLANET = PlanetMat("aurora", "smooth", 2.0)
 RING = HMat("gold", "metal", 2.7)
+RING_EDGE = HMat("blade", "metal", 3.0)
 LINE = HMat("blade", "smooth", 2.8, ao=False)
+LINE_GLOW = HMat("ice", "smooth", 2.6, glow=True, ao=False)
 
 
 # ================================================================================================
@@ -186,9 +279,16 @@ def stud(m, x, y, z0, z1, s=1.0, mat=STAR):
     m.box("stud", (x - s, y - h, z0 + 0.05), (x + s, y + h, z1 - 0.05), mat)
 
 
+def star(m, name, x, y, z0, z1, s, core=STAR, tips=STAR_WHITE):
+    """A bigger four-point star: a gold core and two crossed tapering bars with white points."""
+    m.box(name, (x - s * 0.36, y - s * 0.36, z0), (x + s * 0.36, y + s * 0.36, z1), core)
+    m.box(name, (x - s * 0.18, y - s, z0 + 0.1), (x + s * 0.18, y + s, z1 - 0.1), tips)
+    m.box(name, (x - s, y - s * 0.18, z0 + 0.15), (x + s, y + s * 0.18, z1 - 0.15), tips)
+
+
 def handle(m):
     """Every piece's handle (y -4 .. 6.5, like the toys'): a silver pommel with a gold star under it, a grip of dark velvet
-    with three silver wraps, a silver collar with a gold stud front and back."""
+    with three silver wraps, a silver collar."""
     m.group("handle")
     m.box("pommel_star", (7.5, -4.75, 7.5), (8.5, -3.25, 8.5), STAR)
     m.box("pommel_star", (6.75, -4.25, 7.55), (9.25, -3.75, 8.45), STAR)
@@ -204,13 +304,6 @@ def shaft(m, top):
     round_y(m, "shaft", 6.875, 9.125, 6.875, 9.125, 6.5, top, SILVER_DARK, 0.5)
 
 
-def slab(m, name, x0, x1, z0, z1, y0, y1, cut, mat, rotation=None):
-    """A flat octagon (a round_y with its corners cut) that can be tilted: three boxes."""
-    m.box(name, (x0, y0, z0 + cut), (x1, y1, z1 - cut), mat, rotation=rotation)
-    m.box(name, (x0 + cut, y0, z0), (x1 - cut, y1, z0 + cut), mat, rotation=rotation)
-    m.box(name, (x0 + cut, y0, z1 - cut), (x1 - cut, y1, z1), mat, rotation=rotation)
-
-
 def disc(m, name, axis, c, d, lo, hi, mat):
     """A round disc of diameter d (stepped, like economy_machines.cyl) along y or z between lo and hi; c its centre on
     the two other axes ((x, z) for y, (x, y) for z). The HD materials need it: cyl repaints its side as a plain Mat."""
@@ -221,229 +314,248 @@ def disc(m, name, axis, c, d, lo, hi, mat):
             m.box(name, (c[0] - hw, c[1] + a, lo), (c[0] + hw, c[1] + b, hi), mat)
 
 
-def planet(m, cx, cy, cz, d, ring_w, tilt=22.5):
-    """A ringed planet: a round ball (discs along z, smaller to the front and back) with a violet band round its middle,
-    and a flat gold ring through it, tilted about z (Saturn seen a little from above)."""
-    m.group("planet")
+def ball(m, name, cx, cy, cz, d, mat):
+    """A round ball: a disc along z, a smaller one in front and behind."""
     r = d / 2
-    disc(m, "planet", "z", (cx, cy), d, cz - r + 1, cz + r - 1, PLANET)
-    disc(m, "planet", "z", (cx, cy), d - 2, cz - r, cz - r + 1, PLANET)
-    disc(m, "planet", "z", (cx, cy), d - 2, cz + r - 1, cz + r, PLANET)
-    m.box("planet_band", (cx - r - 0.01, cy - 0.75, cz - r + 1.5), (cx + r + 0.01, cy + 0.25, cz + r - 1.5), PLANET_BAND)
-    hw = r + ring_w
-    slab(m, "ring", cx - hw, cx + hw, cz - hw * 0.7, cz + hw * 0.7, cy - 0.25, cy + 0.25, hw * 0.35, RING, rotation=("z", tilt, (cx, cy, cz)))
+    disc(m, name, "z", (cx, cy), d, cz - r + 1, cz + r - 1, mat)
+    disc(m, name, "z", (cx, cy), d - 2, cz - r, cz - r + 1, mat)
+    disc(m, name, "z", (cx, cy), d - 2, cz + r - 1, cz + r, mat)
+
+
+def _snap(v):
+    return round(v * 4) / 4
+
+
+def ring_rows(cx, cy, a, b, ia=0.0, ib=0.0, icx=None, icy=None, y0=None, y1=None, step=1.0):
+    """The rows of an ellipse (semi-axes a, b about cx, cy) less an inner one (ia, ib about icx, icy): a list of
+    (x0, x1, y0, y1) spans, one unit high, snapped to quarter units."""
+    icx = cx if icx is None else icx
+    icy = cy if icy is None else icy
+    y0 = cy - b if y0 is None else y0
+    y1 = cy + b if y1 is None else y1
+    out = []
+    y = y0
+    while y < y1 - 1e-6:
+        top = min(y + step, y1)
+        ym = (y + top) / 2
+        t = 1 - ((ym - cy) / b) ** 2
+        if t > 0:
+            h = a * math.sqrt(t)
+            spans = [(cx - h, cx + h)]
+            if ia and ib and abs(ym - icy) < ib:
+                ih = ia * math.sqrt(1 - ((ym - icy) / ib) ** 2)
+                lo, hi = icx - ih, icx + ih
+                spans = [(s0, min(s1, lo)) for s0, s1 in spans if s0 < lo] + [(max(s0, hi), s1) for s0, s1 in spans if s1 > hi]
+            for s0, s1 in spans:
+                s0, s1 = _snap(s0), _snap(s1)
+                if s1 - s0 >= 0.5:
+                    out.append((s0, s1, y, top))
+        y = top
+    return out
+
+
+class Scaled(MModel):
+    """A model built in bigger units than it is stored in: every box is shrunk by k about the grip, and _scaled_held()
+    makes the held views k times bigger again, so a blade longer than the -16 .. 32 box allows still fits."""
+
+    def __init__(self, name, k):
+        super().__init__(name)
+        self.k = k
+
+    def _p(self, p):
+        k = self.k
+        return (C + (p[0] - C) * k, GRIP_Y + (p[1] - GRIP_Y) * k, C + (p[2] - C) * k)
+
+    def box(self, name, frm, to, tex, rotation=None, **kw):
+        if rotation:
+            rotation = (rotation[0], rotation[1], self._p(rotation[2]))
+        return super().box(name, self._p(frm), self._p(to), tex, rotation=rotation, **kw)
+
+
+def _scaled_held(m, kind):
+    _held(m, kind)
+    f = 1 / m.k
+    held = presets.enlarged({c: m.display[c] for c in ("thirdperson_righthand", "thirdperson_lefthand", "firstperson_righthand",
+                                                       "firstperson_lefthand")}, f, (0.0, GRIP_Y - 8.0, 0.0))
+    m.display.update(held)
+    return m
 
 
 # ================================================================================================
 # The tools
 # ================================================================================================
 
+SWORD_K = 0.875
+
+
 def galaxy_sword():
-    """은하수 검: a space-crystal blade with a constellation and lilac edges, a pale-gold crescent-moon guard (horns up),
-    a gold star at the guard's heart."""
-    m = MModel("galaxy_sword")
+    """별빛 광선검: a long blade of light (a white core, cyan, violet rims, sparkles drifting up it), 1.3 times the toy
+    sword's, rising out of a pale-gold crescent moon with craters (horns up) for a guard, a gold star on the moon.
+    Built in units 1 / 0.875 of the stored ones (Scaled), so the long blade fits the model box."""
+    m = Scaled("galaxy_sword", SWORD_K)
     handle(m)
     m.group("guard")
-    m.box("moon", (5, 6.5, 6.75), (11, 8.25, 9.25), MOON)
-    for side in (1, -1):
-        def bx(x0, x1, y0, y1, z0=6.75, z1=9.25, mat=MOON):
-            a, b = (x0, x1) if side > 0 else (16 - x1, 16 - x0)
-            m.box("moon", (a, y0, z0), (b, y1, z1), mat)
-        bx(11, 12.5, 7, 9)
-        bx(12.5, 13.5, 8, 10.25, 7, 9)
-        bx(12.25, 13.25, 10.25, 11.75, 7.25, 8.75, MOON_DARK)
-    stud(m, 8, 7.4, 6.4, 9.6, 1.1)
+    round_y(m, "guard_socket", 6.5, 9.5, 6.5, 9.5, 6.5, 8, SILVER, 0.75)
+    for x0, x1, y0, y1 in ring_rows(C, 11.5, 6, 5, 4.75, 4.5, icy=13.5, y0=6.5, y1=12.5):
+        m.box("moon", (x0, y0, 6.75), (x1, y1, 9.25), MOON)
+    stud(m, C, 8.4, 6.4, 9.6, 1.2)
     m.group("blade")
-    m.box("blade", (5.25, 8.25, 7), (10.75, 23.5, 9), SPACE_BLADE)
-    m.box("blade_edge", (4.5, 9, 7.5), (5.25, 22.75, 8.5), EDGE)
-    m.box("blade_edge", (10.75, 9, 7.5), (11.5, 22.75, 8.5), EDGE)
-    m.box("blade_tip", (6.25, 23.5, 7.25), (9.75, 25, 8.75), SPACE_PLAIN)
-    m.box("blade_tip", (7, 25, 7.5), (9, 26.25, 8.5), EDGE)
-    m.box("blade_tip", (7.5, 26.25, 7.625), (8.5, 27.25, 8.375), EDGE)
-    m.box("blade_edge", (5.2, 22.75, 7.5), (6.25, 23.75, 8.5), EDGE)
-    m.box("blade_edge", (9.75, 22.75, 7.5), (10.8, 23.75, 8.5), EDGE)
-    return _held(m, "sword")
+    m.box("blade", (5.75, 9, 7.25), (10.25, 33, 8.75), BEAM)
+    m.box("blade_rim", (5.25, 10, 7.5), (5.75, 32.25, 8.5), BEAM_EDGE)
+    m.box("blade_rim", (10.25, 10, 7.5), (10.75, 32.25, 8.5), BEAM_EDGE)
+    m.box("blade_tip", (6.5, 33, 7.4), (9.5, 34.25, 8.6), BEAM)
+    m.box("blade_tip", (7.25, 34.25, 7.55), (8.75, 35.25, 8.45), BEAM_EDGE)
+    m.box("blade_tip", (7.625, 35.25, 7.7), (8.375, 35.75, 8.3), STAR_WHITE)
+    return _scaled_held(m, "sword")
 
 
 def galaxy_pickaxe():
-    """은하수 곡괭이: crystal arms drooping in two bends with silver bands, each ending in a gold four-point star; a crystal
-    head with a silver cap and a star stud."""
+    """혜성 곡괭이: a blazing comet on the shaft: a gold-white nucleus, its two tails streaming out to the sides and drooping
+    as the pick's arms, cyan near the head, then aqua, then violet tapering to a point, a few sparks along them."""
     m = MModel("galaxy_pickaxe")
     handle(m)
     shaft(m, 16)
-    m.group("head")
-    m.box("head", (5, 15.25, 6.5), (11, 20.75, 9.5), SPACE_PLAIN)
-    m.box("head_cap", (5.5, 20.75, 6.75), (10.5, 21.5, 9.25), SILVER)
-    m.box("head_band", (4.75, 15, 6.25), (11.25, 15.75, 9.75), SILVER)
-    stud(m, 8, 18, 6.25, 9.75, 1.25)
+    m.group("comet")
+    ball(m, "nucleus", C, 18.5, C, 6, NUCLEUS)
     for side in (1, -1):
-        p = (C + side * 3, 18.25)
-        p = _arm(m, "arm_a", side, p, 4.5, 1.75, 6.75, 9.25, 22.5, SPACE)
-        p = _arm(m, "arm_b", side, p, 4.0, 1.375, 7, 9, 45, SPACE)
+        p = (C + side * 2.25, 19)
+        p = _arm(m, "tail_a", side, p, 4.25, 1.75, 6.75, 9.25, 0, TAIL_A)
+        p = _arm(m, "tail_b", side, p, 4.0, 1.25, 7, 9, 22.5, TAIL_B)
+        p = _arm(m, "tail_c", side, p, 3.25, 0.75, 7.25, 8.75, 45, TAIL_C)
         px, py = p
-        # a silver band at the bend, then the star: a cross along the last bend (an X on the sprite)
         a = math.radians(45)
-        cx, cy = px + side * 2 * math.cos(a), py - 2 * math.sin(a)
-        rot = ("z", -45 * side, (cx, cy, C))
-        m.box("arm_star", (cx - 2.5, cy - 0.5, 7.25), (cx + 2.5, cy + 0.5, 8.75), GOLD, rotation=rot)
-        m.box("arm_star", (cx - 0.5, cy - 2.5, 7.25), (cx + 0.5, cy + 2.5, 8.75), GOLD, rotation=rot)
-        m.box("arm_star", (cx - 1.1, cy - 1.1, 7), (cx + 1.1, cy + 1.1, 9), STAR, rotation=rot)
+        tx, ty = px + side * 0.9 * math.cos(a), py - 0.9 * math.sin(a)
+        m.box("tail_tip", (tx - 0.4, ty - 0.4, 7.5), (tx + 0.4, ty + 0.4, 8.5), STAR_WHITE, rotation=("z", -45 * side, (tx, ty, C)))
+        # sparks beside the tails
+        m.box("spark", (C + side * 5.5 - 0.375, 21.5, 7.625), (C + side * 5.5 + 0.375, 22.25, 8.375), STAR, rotation=("z", 45, (C + side * 5.5, 21.875, C)))
+    m.box("nucleus_glint", (6.5, 20, 4.7), (7.5, 21, 5.05), STAR_WHITE)
+    m.box("nucleus_glint", (8.5, 20, 10.95), (9.5, 21, 11.3), STAR_WHITE)
     return _held(m, "pickaxe")
 
 
 def galaxy_shovel():
-    """은하수 삽: a space-crystal spade (wide shoulders narrowing to a point) with a constellation on its face, a silver
-    rim a little proud of the face down both sides, a lilac point with a white star, a silver socket with a gold star."""
+    """초승달 삽: a pale-gold crescent moon with craters lying horns up as the scoop, a gold star resting in its hollow,
+    a silver cup where it meets the shaft."""
     m = MModel("galaxy_shovel")
     handle(m)
     shaft(m, 15.5)
-    m.group("blade")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, SILVER, 0.75)
-    stud(m, 8, 16.25, 6, 10, 1.1)
-    rows = ((17, 18, 3.5, 7.1, 8.9, SPACE_PLAIN), (18, 24, 4.5, 7, 9, SPACE_SPADE), (24, 25.5, 3.75, 7.1, 8.9, SPACE_PLAIN),
-            (25.5, 27, 2.75, 7.2, 8.8, SPACE_PLAIN))
-    for y0, y1, hw, z0, z1, mat in rows:
-        m.box("blade", (C - hw, y0, z0), (C + hw, y1, z1), mat)
-        for zz0, zz1 in ((z1, z1 + 0.4), (z0 - 0.4, z0)):
-            m.box("rim", (C - hw, y0, zz0), (C - hw + 0.75, y1, zz1), SILVER_LIGHT)
-            m.box("rim", (C + hw - 0.75, y0, zz0), (C + hw, y1, zz1), SILVER_LIGHT)
-    m.box("point", (6, 27, 7.3), (10, 28.25, 8.7), EDGE)
-    m.box("point", (6.75, 28.25, 7.45), (9.25, 29.25, 8.55), EDGE)
-    m.box("point", (7.5, 29.25, 7.6), (8.5, 30.25, 8.4), STAR_WHITE)
+    m.group("moon")
+    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15, 16.5, SILVER, 0.75)
+    for x0, x1, y0, y1 in ring_rows(C, 22, 6.5, 6.5, 5.25, 5.5, icy=25, y0=15.5, y1=26):
+        m.box("moon", (x0, y0, 6.5), (x1, y1, 9.5), MOON)
+    star(m, "star", C, 22.25, 7, 9, 2.25)
+    m.box("horn_star", (2, 25.75, 7.5), (2.75, 26.5, 8.5), STAR_WHITE)
+    m.box("horn_star", (13.25, 25.75, 7.5), (14, 26.5, 8.5), STAR_WHITE)
     return _held(m, "shovel")
 
 
 def galaxy_axe():
-    """은하수 도끼: a big crescent-moon head of space crystal: its round back is the edge (lilac), its horns reach back
-    round the shaft; a silver bar joins it to a silver socket, a silver poll with a gold star behind."""
+    """토성 도끼: a banded ringed planet on the shaft; its ring, broad and tilted, is the blade: wide out to the -x side
+    with a silver cutting edge, narrow behind."""
     m = MModel("galaxy_axe")
     handle(m)
-    shaft(m, 21.5)
-    m.group("head")
-    round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 21.5, 22.5, SILVER, 0.75)
-    m.box("socket", (6.5, 15.25, 6.5), (9.5, 20.25, 9.5), SILVER)
-    m.box("bar", (3.25, 16.25, 7.25), (6.5, 19.25, 8.75), SILVER_DARK)
-    m.box("poll", (9.5, 16, 6.75), (11.25, 19.5, 9.25), SILVER)
-    stud(m, 10.4, 17.75, 6.5, 9.5, 0.9)
-    # the crescent: columns from its edge (-x) back towards the handle, symmetric about y = 17.75
-    mid = 17.75
-
-    def pair(x0, x1, lo, hi, z0, z1, mat, name="moon"):
-        """a column from mid - hi to mid - lo and its mirror (lo = 0: one column through the middle)"""
-        if lo == 0:
-            m.box(name, (x0, mid - hi, z0), (x1, mid + hi, z1), mat)
-        else:
-            m.box(name, (x0, mid - hi, z0), (x1, mid - lo, z1), mat)
-            m.box(name, (x0, mid + lo, z0), (x1, mid + hi, z1), mat)
-    pair(-1, 0.5, 0, 4.25, 7.5, 8.5, EDGE, "edge")
-    pair(-0.25, 0.5, 4.25, 5.75, 7.5, 8.5, EDGE, "edge")
-    pair(0.5, 2.25, 0, 6.25, 7, 9, SPACE_PLAIN)
-    pair(0.5, 2.25, 6.25, 7, 7.5, 8.5, EDGE, "edge")
-    pair(2.25, 3.25, 0, 3.75, 7, 9, SPACE)
-    pair(2.25, 3.75, 3.75, 7.75, 7, 9, SPACE)
-    pair(2.25, 3.75, 7.75, 8.5, 7.5, 8.5, EDGE, "edge")
-    pair(3.75, 5.25, 6, 8.5, 7.25, 8.75, SPACE)
-    pair(5.25, 6.25, 7, 8.75, 7.5, 8.5, EDGE, "horn")
-    stud(m, 1.4, mid, 6.75, 9.25, 1.0, STAR_WHITE)
+    shaft(m, 16.5)
+    m.group("planet")
+    pcx, pcy = 8.5, 19.5
+    ball(m, "planet", pcx, pcy, C, 7, PLANET)
+    m.group("ring")
+    rot = ("z", 22.5, (pcx, pcy, C))
+    rows = ring_rows(5.5, pcy, 8.0, 4.0, 4.75, 2.25, icx=pcx)
+    for x0, x1, y0, y1 in rows:
+        edge = x0 < 2.5
+        if edge:
+            m.box("ring_edge", (x0 - 0.5, y0, 7.6), (x0 + 0.25, y1, 8.4), RING_EDGE, rotation=rot)
+            x0 += 0.25
+        m.box("ring", (x0, y0, 7.4), (x1, y1, 8.6), RING, rotation=rot)
     return _held(m, "axe")
 
 
 def galaxy_hoe():
-    """은하수 괭이: the vanilla hoe's silhouette, an L: a straight space-crystal head sticking out to -x from the top of
-    the shaft and ending flat (no droop, no hook), a constellation along it, lilac along its lower (working) edge, a
-    silver end cap; a ringed planet sits on the joint."""
+    """별자리 지팡이: the vanilla hoe's L: a straight head out to -x from the top of the shaft, made of four stars joined by
+    glowing constellation lines, the last star ending it flat with a silver cap."""
     m = MModel("galaxy_hoe")
     handle(m)
-    shaft(m, 19)
+    shaft(m, 20)
     m.group("head")
-    m.box("head", (-3, 19.75, 6.75), (6.5, 22.95, 9.25), SPACE_PLATE)
-    m.box("head_edge", (-3, 19, 7.25), (5.5, 19.75, 8.75), EDGE)
-    m.box("head_cap", (-3.75, 19.5, 6.5), (-3, 23.25, 9.5), SILVER)
-    m.box("head_band", (1.25, 19.5, 6.5), (2, 23.25, 9.5), SILVER)
-    stud(m, -1, 21.4, 6.5, 9.5, 0.9)
-    planet(m, 8.5, 21.5, 8, 5, 1.75)
+    y = 21.5
+    m.box("line", (-2, y - 0.4, 7.6), (7, y + 0.4, 8.4), LINE_GLOW)
+    star(m, "star", 8, y, 6.75, 9.25, 2.25)
+    star(m, "star", 3.75, y, 7, 9, 1.75)
+    star(m, "star", 0.25, y, 7, 9, 1.5)
+    m.box("end", (-3.5, y - 1.5, 6.75), (-2, y + 1.5, 9.25), SILVER)
+    m.box("end_star", (-3.75, y - 0.5, 7.5), (-3.5, y + 0.5, 8.5), STAR)
     return _held(m, "hoe")
+
+
+DIPPER = (8.5, 11.75, 15, 18.25, 21.5, 24.75, 27.75)      # 북두칠성: seven stars up the rod
 
 
 def _rod(name, cast):
     m = MModel(name)
     handle(m)
     m.group("reel")
-    # a small silver reel beside the rod's foot (+x, where the line hangs), a gold star for its knob
     m.box("reel_foot", (9, 7.75, 7.5), (10, 9.25, 8.5), SILVER_DARK)
     round_z(m, "reel", 10, 14, 6.5, 10.5, 6.75, 9.25, SILVER, 1)
     m.box("reel_hub", (11.25, 7.75, 6.25), (12.75, 9.25, 9.75), VELVET)
     m.box("crank", (11.5, 8, 9.75), (12.5, 11.25, 10.25), SILVER_LIGHT)
     stud(m, 12, 11.5, 10, 10.75, 1.1)
     m.group("rod")
-    round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 14, SILVER, 0.5)
-    m.box("rod", (7.125, 14, 7.125), (8.875, 23, 8.875), SILVER_LIGHT)
-    m.box("rod", (7.375, 23, 7.375), (8.625, 28, 8.625), SILVER_LIGHT)
-    # star guides: a gold four-point star round the rod at each joint
-    for y, s in ((14, 1.9), (23, 1.6)):
-        m.box("star_ring", (C - s, y - 0.35, 7.5), (C + s, y + 0.35, 8.5), GOLD)
-        m.box("star_ring", (7.5, y - 0.35, C - s), (8.5, y + 0.35, C + s), GOLD)
-        m.box("star_ring", (C - 0.6, y - 0.6, C - 0.6), (C + 0.6, y + 0.6, C + 0.6), STAR)
-    for y in (18.5, 26):
-        m.box("guide", (8.875, y - 0.75, 7.75), (10, y + 0.75, 8.25), GOLD)
-        m.box("guide", (9.25, y - 0.25, 7.5), (10.5, y + 0.25, 8.5), STAR)
-    # the crescent moon at the tip: a C open towards +x (where the line hangs), a star in its hollow
-    m.group("tip")
-    m.box("moon", (5.75, 28.75, 7.25), (7, 31, 8.75), MOON)
-    m.box("moon", (6.5, 27.75, 7.35), (8.75, 28.75, 8.65), MOON)
-    m.box("moon", (6.5, 31, 7.375), (8.75, 32, 8.625), MOON)
-    m.box("moon", (8.75, 27.75, 7.5), (9.75, 28.5, 8.5), MOON_DARK)
-    m.box("moon", (8.75, 31.25, 7.5), (9.75, 32, 8.5), MOON_DARK)
-    m.box("tip_star", (8.25, 29.5, 7.6), (9.25, 30.25, 8.4), STAR)
+    round_y(m, "rod", 6.875, 9.125, 6.875, 9.125, 6.5, 14, SPACE_PLAIN, 0.5)
+    m.box("rod", (7.125, 14, 7.125), (8.875, 22, 8.875), SPACE_PLAIN)
+    m.box("rod", (7.375, 22, 7.375), (8.625, 29.5, 8.625), SPACE_PLAIN)
+    m.box("ferrule", (6.75, 13.5, 6.75), (9.25, 14.5, 9.25), SILVER)
+    m.box("ferrule", (7, 21.5, 7), (9, 22.5, 9), SILVER)
+    m.group("dipper")
+    # the seven stars: guides on the +x side, where the line runs; the last at the tip the biggest
+    for i, y in enumerate(DIPPER):
+        s = 0.8 if i < 6 else 1.1
+        x = 9.1 + (0.25 if i < 2 else 0) + s
+        m.box("dipper_line", (8.6 if y > 22 else 8.85 if y > 14 else 9.1, y - 0.15, 7.85), (x, y + 0.15, 8.15), LINE)
+        stud(m, x, y, 7.4, 8.6, s)
+    star(m, "tip_star", C, 30.5, 7.25, 8.75, 1.5)
     if not cast:
         m.group("line")
-        top = (8.75, 29.75, C)
+        top = (8.5, 30, C)
         rot = ("z", 45, top)
-        m.box("line", (8.25, 18.5, 7.75), (8.75, 29.5, 8.25), LINE, rotation=rot)
-        # the float: a tiny ringed planet
-        m.box("float", (6.75, 15, 6.75), (10.25, 18.25, 9.25), PLANET, rotation=rot)
-        m.box("float", (7.25, 14.5, 7.25), (9.75, 18.75, 8.75), PLANET, rotation=rot)
-        m.box("float_ring", (5.25, 16.25, 6.25), (11.75, 17, 9.75), RING, rotation=rot)
-        m.box("float_top", (8, 18.75, 7.75), (9, 19.5, 8.25), STAR, rotation=rot)
+        m.box("line", (8.25, 19, 7.75), (8.75, 30, 8.25), LINE, rotation=rot)
+        # the lure: a gold star
+        m.box("lure", (7.25, 16, 7.25), (9.75, 18.5, 8.75), STAR, rotation=rot)
+        m.box("lure", (8, 14.25, 7.6), (9, 20.25, 8.4), STAR_WHITE, rotation=rot)
+        m.box("lure", (5.5, 16.75, 7.6), (11.5, 17.75, 8.4), STAR_WHITE, rotation=rot)
     return _held(m, "rod")
 
 
 def galaxy_fishing_rod():
-    """은하수 낚싯대: a slim silver rod with gold star guides, a small silver reel and a crescent moon at the tip; on its
-    line a tiny ringed planet for a float."""
+    """북두칠성 낚싯대: a slim night-sky rod with silver ferrules, the seven stars of the Big Dipper climbing it as guides,
+    a bigger star at the tip and a gold star for a lure."""
     return _rod("galaxy_fishing_rod", False)
 
 
 def galaxy_fishing_rod_cast():
-    """The rod while its float is out: the same without the line and the float."""
+    """The rod while its lure is out: the same without the line and the lure."""
     m = _rod("galaxy_fishing_rod_cast", True)
     m.display = galaxy_fishing_rod().display
     return m
 
 
-BOBBER_WATERLINE = 4.5        # the planet's gold ring lies on the water's surface (model y)
+BOBBER_WATERLINE = 4.0        # the star's four side points lie on the water's surface (model y)
 
 
 def galaxy_bobber():
-    """은하수 찌: a tiny ringed planet riding the hook: a round cyan-violet planet with a violet band, its flat gold ring on
-    the water's surface, a gold star on top. The same from every side. Stands on y = 0 about x = z = 8."""
+    """은하수 찌: the star lure riding the hook: a glowing gold star with six points (up, down and four round it), the four
+    side points on the water, white tips. The same from every side. Stands on y = 0 about x = z = 8."""
     m = MModel("galaxy_bobber")
-    m.group("float")
-    m.box("weight", (7, 0, 7), (9, 1, 9), SILVER_DARK)
-    disc(m, "planet", "y", (C, C), 4, 1, 2, PLANET)
-    disc(m, "planet", "y", (C, C), 6, 2, 3, PLANET)
-    disc(m, "planet", "y", (C, C), 7, 3, 4, PLANET)
-    disc(m, "planet_band", "y", (C, C), 7.2, 4, 5, PLANET_BAND)
-    disc(m, "planet", "y", (C, C), 7, 5, 6, PLANET)
-    disc(m, "planet", "y", (C, C), 6, 6, 7.25, PLANET)
-    disc(m, "planet", "y", (C, C), 4, 7.25, 8.25, PLANET)
-    m.group("ring")
-    disc(m, "ring", "y", (C, C), 12, 4.25, 4.75, RING)
     m.group("star")
-    m.box("stem", (7.5, 8.25, 7.5), (8.5, 9.25, 8.5), SILVER)
-    m.box("star", (7.5, 9.25, 7.5), (8.5, 11.75, 8.5), STAR)
-    m.box("star", (6.75, 10, 7.5), (9.25, 11, 8.5), STAR)
-    m.box("star", (7.5, 10, 6.75), (8.5, 11, 9.25), STAR)
+    w = BOBBER_WATERLINE
+    m.box("core", (6.25, w - 1.75, 6.25), (9.75, w + 1.75, 9.75), STAR)
+    m.box("point_y", (7, 0, 7), (9, w + 4, 9), STAR)
+    m.box("point_y", (7.5, w + 4, 7.5), (8.5, w + 5.5, 8.5), STAR_WHITE)
+    m.box("point_x", (2.5, w - 1, 7.05), (13.5, w + 1, 8.95), STAR)
+    m.box("point_x", (1, w - 0.5, 7.55), (2.5, w + 0.5, 8.45), STAR_WHITE)
+    m.box("point_x", (13.5, w - 0.5, 7.55), (15, w + 0.5, 8.45), STAR_WHITE)
+    m.box("point_z", (7.1, w - 0.9, 2.5), (8.9, w + 0.9, 13.5), STAR)
+    m.box("point_z", (7.6, w - 0.45, 1), (8.4, w + 0.45, 2.5), STAR_WHITE)
+    m.box("point_z", (7.6, w - 0.45, 13.5), (8.4, w + 0.45, 15), STAR_WHITE)
     m.display = presets.furniture(gui_scale=1.3, gui_translation=(0, 3.25, 0))
     m.kind = "bobber"
     return m
@@ -453,9 +565,9 @@ ALL = {f.__name__: f for f in (galaxy_sword, galaxy_pickaxe, galaxy_shovel, gala
                                galaxy_fishing_rod_cast, galaxy_bobber)}
 
 ROWS = [
-    ("galaxy_sword", "은하수 검"), ("galaxy_pickaxe", "은하수 곡괭이"), ("galaxy_shovel", "은하수 삽"), ("galaxy_axe", "은하수 도끼"),
-    ("galaxy_hoe", "은하수 괭이"), ("galaxy_fishing_rod", "은하수 낚싯대"), ("galaxy_fishing_rod_cast", "낚싯대 (던진 뒤)"),
-    ("galaxy_bobber", "은하수 찌 (찌에 태우는 모델)"),
+    ("galaxy_sword", "별빛 광선검"), ("galaxy_pickaxe", "혜성 곡괭이"), ("galaxy_shovel", "초승달 삽"), ("galaxy_axe", "토성 도끼"),
+    ("galaxy_hoe", "별자리 지팡이"), ("galaxy_fishing_rod", "북두칠성 낚싯대"), ("galaxy_fishing_rod_cast", "낚싯대 (던진 뒤)"),
+    ("galaxy_bobber", "별 찌 (찌에 태우는 모델)"),
 ]
 
 

@@ -19,7 +19,7 @@ import math
 from PIL import Image
 
 import economy_models  # noqa: F401  (registers the shared surfaces)
-from economy_machines import MModel, Mat, cyl
+from economy_machines import MModel, Mat, bands, cyl
 from stsv_assets import presets
 from stsv_assets import textures as T
 from stsv_assets.color import oklch_to_rgb
@@ -194,6 +194,134 @@ T.SURFACES["nj_strip_black"] = _inlay(STRIP, ("nj_black", 1))
 T.SURFACES["nj_dots_black"] = _dots(("nj_black", 1))
 T.SURFACES["nj_reel_cap"] = _reel_cap
 
+# ---- the redesign's pictures ------------------------------------------------------------------
+
+BRANCH_TALL = ("..ww....",
+               ".nnnn...",
+               ".ngnn...",
+               ".nnnn.b.",
+               "..nn.b..",
+               "....b...",
+               "...b..ww",
+               "..b..nnn",
+               "..b..ngn",
+               "...b.nnn",
+               "....b.n.",
+               ".ww..b..",
+               "nnnn..b.",
+               "ngnn..b.",
+               ".nn..b..")
+
+
+def _line(px, a, b, col):
+    (x0, y0), (x1, y1) = a, b
+    n = max(abs(x1 - x0), abs(y1 - y0))
+    for i in range(n + 1):
+        px[round(x0 + (x1 - x0) * i / n), round(y0 + (y1 - y0) * i / n)] = col
+
+
+def _sain():
+    """사인검's blade face: polished steel, a darker fuller down the middle (texels 6 .. 9 = the blade, x 6 .. 10) and in it
+    a constellation inlaid in gold: stars joined by fine lines, stretched over the whole blade."""
+    im = Image.new("RGBA", (16, 16), ramp("nj_steel", 3))
+    px = im.load()
+    for y in range(16):
+        for x in range(6, 10):
+            px[x, y] = ramp("nj_steel", 2)
+        px[6, y] = ramp("nj_steel", 3)
+    stars = [(7, 1), (8, 3), (7, 5), (8, 7), (8, 9), (7, 11), (8, 13), (7, 15)]
+    for a, b in zip(stars, stars[1:]):
+        _line(px, a, b, ramp("nj_gold", 1))
+    for s in stars:
+        px[s] = ramp("nj_gold", 4)
+    return im
+
+
+def _rosette(bg):
+    """A round medallion: lacquer of ramp bg, a gold rim, a nacre plum blossom (the reel's face, the hairpins' boss)."""
+    def make():
+        name, i = bg
+        im = Image.new("RGBA", (16, 16), ramp(name, i))
+        px = im.load()
+        for y in range(16):
+            for x in range(16):
+                if math.hypot(x - 7.5, y - 7.5) > 6.3:
+                    px[x, y] = ramp("nj_gold", 3)
+        big = _inlay(PLUM, bg)()
+        for y in range(3, 13):
+            for x in range(3, 13):
+                if math.hypot(x - 7.5, y - 7.5) < 5.6:
+                    px[x, y] = big.getpixel((x, y))
+        return im
+    return make
+
+
+# the fan: a half disc of radius FAN_R left of its pivot (x <= FAN_C[0]); its picture covers that box
+FAN_C = (6.25, 17.5)
+FAN_R = 7.0
+FAN_BOX = (FAN_C[0] - FAN_R, FAN_C[1] - FAN_R, FAN_C[0], FAN_C[1] + FAN_R)    # x0, y0, x1, y1
+BLOSSOMS = ((1.9, 21.2), (2.6, 14.2), (3.9, 23.0))
+TWIG = ((4.6, 18.6), (1.9, 21.2), (3.0, 20.1), (3.9, 23.0), (3.0, 20.1), (4.6, 18.6), (2.6, 14.2))
+
+
+def _seg_dist(p, a, b):
+    ax, ay = a
+    bx, by = b
+    dx, dy = bx - ax, by - ay
+    t = max(0.0, min(1.0, ((p[0] - ax) * dx + (p[1] - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(p[0] - ax - t * dx, p[1] - ay - t * dy)
+
+
+def _fan():
+    """The opened 합죽선: hanji folds alternating light and shade between the ribs, a gold rim, the ribs' lacquer at the
+    pivot with nacre, a red plum branch painted across it. Texel (u, v) <- model (x, y) over FAN_BOX."""
+    x0, y0, x1, y1 = FAN_BOX
+    im = Image.new("RGBA", (16, 16))
+    px = im.load()
+    for v in range(16):
+        for u in range(16):
+            x = x0 + (u + 0.5) / 16 * (x1 - x0)
+            y = y1 - (v + 0.5) / 16 * (y1 - y0)
+            r = math.hypot(x - FAN_C[0], y - FAN_C[1])
+            ang = math.degrees(math.atan2(y - FAN_C[1], FAN_C[0] - x))      # -90 .. 90
+            fold = int((ang + 90) // 15) % 2
+            col = ramp("paper", 2) if fold else ramp("nj_jade", 3)
+            if (ang + 90) % 15 < 2.2 and r > 2.4:
+                col = ramp("paper", 0)
+            if r > FAN_R - 0.9:
+                col = ramp("nj_gold", 3)
+            elif r < 2.4:
+                col = _sheen(u, v) if int((ang + 90) // 15) % 2 else ramp("nj_black", 1)
+            else:
+                if min(_seg_dist((x, y), a, b) for a, b in zip(TWIG, TWIG[1:])) < 0.3:
+                    col = ramp("nj_black", 0)
+                for bx, by in BLOSSOMS:
+                    d = math.hypot(x - bx, y - by)
+                    if d < 1.0:
+                        col = ramp("nj_gold", 4) if d < 0.35 else ramp("nj_knot_red", 3 if d < 0.65 else 2)
+            px[u, v] = col
+    return im
+
+
+def _flute():
+    """퉁소's front: black lacquer, a column of finger holes ringed in gold in its upper part (texels 7 .. 8 = x 7 .. 9)."""
+    im = Image.new("RGBA", (16, 16), ramp("nj_black", 1))
+    px = im.load()
+    for y in range(16):
+        px[6, y] = ramp("nj_black", 2)
+    for y in (1, 4, 7, 10):
+        for x in (7, 8):
+            px[x, y] = ramp("nj_gold", 3)
+            px[x, y + 1] = ramp("roe", 0)
+    return im
+
+
+T.SURFACES["nj_branch_tall_red"] = _inlay(BRANCH_TALL, ("nj_shu", 2))
+T.SURFACES["nj_sain"] = _sain
+T.SURFACES["nj_rosette_black"] = _rosette(("nj_black", 1))
+T.SURFACES["nj_fan"] = _fan
+T.SURFACES["nj_flute"] = _flute
+
 NACRE = "nj_nacre"
 
 
@@ -256,103 +384,114 @@ def shaft(m, top, bands=()):
 # ================================================================================================
 
 def najeon_sword():
-    """자개 검: a bright steel blade with a jade ridge, a gold habaki, a lacquer guard with nacre and gold ends, a plum
-    blossom inlaid in the guard's middle."""
+    """사인검 (자개 장검): a long straight double-edged Joseon ceremonial sword. Polished steel with a gold constellation
+    inlaid down its fuller (the 28 lunar mansions of a real 사인검), a small round gold guard on a lacquer plate, a gold
+    habaki; the series' lacquer grip with nacre bands, the gold pommel, the blue knot and the red tassel. The blade is
+    1.3 times the toy sword's (23.75 units from the habaki to the tip)."""
     m = MModel("najeon_sword")
     handle(m)
     m.group("guard")
-    inlaid(m, "guard", (3.25, 6.5, 6.75), (12.75, 8.5, 9.25), BLACK, "nj_strip_black")
-    for x0, x1 in ((1.75, 3.25), (12.75, 14.25)):
-        m.box("guard_end", (x0, 6.25, 6.5), (x1, 8.75, 9.5), GOLD)
-    inlaid(m, "guard_plate", (5.75, 5.75, 6), (10.25, 10.25, 10), BLACK, "nj_plum_black")
-    for x0, x1 in ((5.5, 5.75), (10.25, 10.5)):
-        m.box("guard_plate_rim", (x0, 5.75, 6), (x1, 10.25, 10), GOLD_DARK)
+    round_y(m, "guard", 4.75, 11.25, 5.5, 10.5, 6.5, 7.25, GOLD, 1)
+    round_y(m, "guard_plate", 5.5, 10.5, 6.25, 9.75, 7.25, 7.75, BLACK_FLAT, 0.75)
+    m.box("habaki", (6.25, 7.75, 7), (9.75, 8.75, 9), GOLD)
     m.group("blade")
-    m.box("habaki", (6, 10.25, 7), (10, 11.25, 9), GOLD)
-    m.box("blade", (5.5, 11.25, 7.25), (10.5, 23.5, 8.75), STEEL)
-    m.box("blade_edge", (4.75, 11.75, 7.625), (5.5, 22.75, 8.375), STEEL_EDGE)
-    m.box("blade_edge", (10.5, 11.75, 7.625), (11.25, 22.75, 8.375), STEEL_EDGE)
-    m.box("blade_ridge", (7.25, 11.25, 7), (8.75, 22.25, 9), JADE)
-    m.box("blade_tip", (6.25, 23.5, 7.375), (9.75, 25, 8.625), STEEL)
-    m.box("blade_tip", (7, 25, 7.5), (9, 26.25, 8.5), STEEL_EDGE)
-    m.box("blade_tip", (7.5, 26.25, 7.625), (8.5, 27, 8.375), STEEL_EDGE)
+    m.box("blade", (6, 8.75, 7.25), (10, 30, 8.75), STEEL, faces={"north": "nj_sain", "south": "nj_sain"})
+    m.box("blade_edge", (5.375, 9.25, 7.625), (6, 29.5, 8.375), STEEL_EDGE)
+    m.box("blade_edge", (10, 9.25, 7.625), (10.625, 29.5, 8.375), STEEL_EDGE)
+    m.box("blade_tip", (6.5, 30, 7.375), (9.5, 31, 8.625), STEEL)
+    m.box("blade_tip", (7.25, 31, 7.5), (8.75, 32, 8.5), STEEL_EDGE)
     return _held(m, "sword")
 
 
 def najeon_pickaxe():
-    """자개 곡괭이: a lacquer head with a plum blossom and gold caps, steel arms drooping in two bends from gold sockets."""
+    """비녀 곡괭이: two jade hairpins (비녀) for arms, drooping in two bends to gold points, their gold heads meeting in a round
+    lacquer boss with a nacre plum blossom and a gold rim."""
     m = MModel("najeon_pickaxe")
     handle(m)
-    shaft(m, 15.25, bands=(10.5,))
+    shaft(m, 16, bands=(10.5,))
     m.group("head")
-    m.box("head_band", (4.75, 15.25, 6.75), (11.25, 16, 9.25), GOLD)
-    inlaid(m, "head", (4.5, 16, 6.5), (11.5, 20.75, 9.5), BLACK, "nj_plum_black")
-    m.box("head_cap", (5.25, 20.75, 6.75), (10.75, 21.5, 9.25), GOLD)
     for side in (1, -1):
-        x0 = C + side * 3.5
-        m.box("socket", (min(x0, x0 + side * 0.75), 16.5, 6.75), (max(x0, x0 + side * 0.75), 20.25, 9.25), GOLD)
-        p = (C + side * 4.25, 18.25)
-        p = _arm(m, "arm_a", side, p, 4.0, 1.625, 7, 9, 22.5, STEEL)
-        p = _arm(m, "arm_b", side, p, 4.0, 1.25, 7.25, 8.75, 45, STEEL)
+        x0 = C + side * 2.5
+        m.box("pin_head", (min(x0, x0 + side * 2), 16.75, 6.875), (max(x0, x0 + side * 2), 20.25, 9.125), GOLD)
+        m.box("pin_bead", (min(x0 + side * 2, x0 + side * 2.75), 17.5, 7.25), (max(x0 + side * 2, x0 + side * 2.75), 19.5, 8.75),
+              NACRE)
+        p = (C + side * 5.25, 18.5)
+        p = _arm(m, "pin", side, p, 4.5, 1.0, 7.25, 8.75, 22.5, JADE)
+        p = _arm(m, "pin", side, p, 4.0, 0.75, 7.375, 8.625, 45, JADE)
         px, py = p
         if side > 0:
-            frm, to = (px + 0.5, py - 0.875, 7.5), (px + 2.25, py + 0.875, 8.5)
+            frm, to = (px + 0.5, py - 0.5, 7.5), (px + 2.25, py + 0.5, 8.5)
         else:
-            frm, to = (px - 2.25, py - 0.875, 7.5), (px - 0.5, py + 0.875, 8.5)
-        m.box("arm_tip", frm, to, STEEL_EDGE, rotation=("z", -45 * side, (px, py, C)))
+            frm, to = (px - 2.25, py - 0.5, 7.5), (px - 0.5, py + 0.5, 8.5)
+        m.box("pin_point", frm, to, GOLD, rotation=("z", -45 * side, (px, py, C)))
+    cyl(m, "boss", "z", (C, 18.5), 6, 6.5, 9.5, GOLD_DARK, cap="nj_rosette_black")
     return _held(m, "pickaxe")
 
 
 def najeon_shovel():
-    """자개 삽: a red lacquer (주칠) spade with a gold rim and a nacre plum blossom on both faces, a steel point."""
+    """노 삽: a lacquered boat oar: a long slim red (주칠) paddle with a nacre plum branch on both faces, a gold rim down its
+    front, a gold-capped tip, a gold binding where the loom meets the blade."""
     m = MModel("najeon_shovel")
     handle(m)
-    shaft(m, 15.5, bands=(10.5,))
+    shaft(m, 14.5, bands=(10.5,))
     m.group("blade")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15.5, 17, GOLD, 0.75)
-    rows = ((17, 18, 3.5), (18, 23.5, 4.5), (23.5, 25.5, 3.75), (25.5, 26.75, 2.75))
+    round_y(m, "binding", 6.5, 9.5, 6.5, 9.5, 14.5, 15.75, GOLD, 0.75)
+    rows = ((15.75, 16.75, 1.75), (16.75, 17.75, 2.5), (17.75, 28.25, 3), (28.25, 29.5, 2.5))
     for y0, y1, hw in rows:
-        if hw == 4.5:
-            inlaid(m, "blade", (C - hw, y0, 7), (C + hw, y1, 9), SHU, "nj_plum_red")
+        if hw == 3:
+            inlaid(m, "blade", (C - hw, y0, 7.125), (C + hw, y1, 8.875), SHU, "nj_branch_tall_red")
         else:
-            m.box("blade", (C - hw, y0, 7), (C + hw, y1, 9), SHU_FLAT)
-        m.box("rim", (C - hw, y0, 9), (C - hw + 0.75, y1, 9.3), GOLD_DARK)
-        m.box("rim", (C + hw - 0.75, y0, 9), (C + hw, y1, 9.3), GOLD_DARK)
-    m.box("point", (6.25, 26.75, 7.2), (9.75, 28, 8.8), STEEL)
-    m.box("point", (7.25, 28, 7.4), (8.75, 28.75, 8.6), STEEL_EDGE)
+            m.box("blade", (C - hw, y0, 7.125), (C + hw, y1, 8.875), SHU_FLAT)
+        if hw > 1.75:
+            m.box("rim", (C - hw, y0, 8.875), (C - hw + 0.625, y1, 9.125), GOLD_DARK)
+            m.box("rim", (C + hw - 0.625, y0, 8.875), (C + hw, y1, 9.125), GOLD_DARK)
+    m.box("tip", (6, 29.5, 7.25), (10, 30.25, 8.75), GOLD)
+    m.box("tip", (7, 30.25, 7.375), (9, 30.75, 8.625), GOLD_DARK)
     return _held(m, "shovel")
 
 
 def najeon_axe():
-    """자개 도끼: a lacquer head with a nacre plum branch on both cheeks, a gold seam, a steel blade, a gold poll."""
+    """합죽선 도끼: an opened folding fan for a blade: a half disc of hanji folds with a red plum branch painted on it and
+    a gold rim, its lacquered guard stick along the shaft, a gold rivet at the pivot."""
     m = MModel("najeon_axe")
     handle(m)
-    shaft(m, 21.5, bands=(10.5,))
-    m.group("head")
-    round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 21.5, 22.5, GOLD, 0.75)
-    inlaid(m, "head", (4.5, 14, 6.5), (10.5, 20.75, 9.5), BLACK, "nj_branch_black")
-    m.box("seam", (3.75, 13.5, 6.75), (4.5, 21.25, 9.25), GOLD)
-    m.box("blade", (2, 13, 7), (3.75, 21.75, 9), STEEL)
-    m.box("blade", (0, 12, 7.25), (2, 22.75, 8.75), STEEL)
-    m.box("blade_edge", (-1.25, 12.5, 7.5), (0, 22.25, 8.5), STEEL_EDGE)
-    m.box("blade_edge", (-0.75, 11.5, 7.5), (0, 12.5, 8.5), STEEL_EDGE)
-    m.box("blade_edge", (-0.75, 22.25, 7.5), (0, 23.25, 8.5), STEEL_EDGE)
-    m.box("poll", (10.5, 15, 6.75), (12, 19.75, 9.25), GOLD)
+    shaft(m, 25.5, bands=(10.5,))
+    round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 25.5, 26.25, GOLD, 0.75)
+    m.group("fan")
+    x0, y0, x1, y1 = FAN_BOX
+    U = lambda x: round((x - x0) / (x1 - x0) * 16, 4)
+    V = lambda y: round((y1 - y) / (y1 - y0) * 16, 4)
+    cx, cy = FAN_C
+    for a, b, hw in bands(2 * FAN_R):
+        fx, ty, by = cx - hw, cy + b, cy + a
+        uv = {"south": [U(fx), V(ty), U(cx + 0.375), V(by)], "north": [U(cx + 0.375), V(ty), U(fx), V(by)]}
+        m.box("leaf", (fx, by, 7.625), (cx + 0.375, ty, 8.375), Mat("paper", "plain", 1, bevel=None, noise=0),
+              faces={"south": "nj_fan", "north": "nj_fan"}, uv=uv)
+    m.box("guard_stick", (5.875, cy - FAN_R - 0.25, 7.25), (6.875, cy + FAN_R + 0.25, 8.75), "nj_dots_black")
+    cyl(m, "rivet", "z", (6.375, cy), 2, 6.75, 9.25, GOLD, cap=GOLD)
     return _held(m, "axe")
 
 
 def najeon_hoe():
-    """자개 괭이: a straight head out to one side at the top of the shaft (an L, like the vanilla hoe): a lacquer bar with
-    a nacre strip, a gold band, then a pale jade blade in line with it, ending flat in a gold edge. Nothing droops."""
+    """붓 괭이: a calligraphy brush laid sideways on top of the shaft (the vanilla hoe's straight ㄱ): a black lacquer barrel
+    with nacre bands, a gold mount on the shaft, a gold ferrule, a cream hair tuft dipped in ink, ending flat.
+    The barrel is red lacquer (주칠): black would vanish against the shaft."""
     m = MModel("najeon_hoe")
     handle(m)
-    shaft(m, 19.75, bands=(10.5, 15))
-    m.group("head")
-    inlaid(m, "bar", (3, 19.75, 6.75), (9.75, 22.25, 9.25), BLACK, "nj_strip_black")
-    round_y(m, "bar_cap", 6.5, 9.5, 6.5, 9.5, 22.25, 23, GOLD, 0.75)
-    m.box("bar_band", (2.25, 19.5, 6.5), (3, 22.5, 9.5), GOLD)
-    m.box("blade", (-1.25, 19.25, 6), (2.25, 22.75, 10), JADE)
-    m.box("blade_edge", (-2, 19.5, 6.25), (-1.25, 22.5, 9.75), GOLD_DARK)
+    shaft(m, 20.25, bands=(10.5, 15.5))
+    m.group("brush")
+    cy = (21.25, C)
+    for x0, x1, mat in ((2.5, 3.75, SHU_FLAT), (3.75, 4.25, NACRE), (4.25, 5.5, SHU_FLAT), (5.5, 6, NACRE), (6, 7, SHU_FLAT),
+                        (9, 9.75, SHU_FLAT)):
+        cyl(m, "barrel", "x", cy, 2.5, x0, x1, mat)
+    cyl(m, "mount", "x", cy, 3, 7, 9, GOLD, cap=GOLD)
+    cyl(m, "end_cap", "x", cy, 2, 9.75, 10.5, GOLD, cap=GOLD)
+    cyl(m, "ferrule", "x", cy, 3, 1.75, 2.5, GOLD, cap=GOLD)
+    hair = Mat("rice", "plain", 1, bevel=(0, -1), noise=0)
+    cyl(m, "hair", "x", cy, 3.5, -0.25, 1.75, hair, cap=hair)
+    cyl(m, "hair", "x", cy, 3, -1.25, -0.25, hair, cap=hair)
+    cyl(m, "ink", "x", cy, 2.5, -2.25, -1.25, BLACK_FLAT, cap=BLACK_FLAT)
+    cyl(m, "ink", "x", cy, 1.5, -2.75, -2.25, BLACK_FLAT, cap=BLACK_FLAT)
     return _held(m, "hoe")
 
 
@@ -369,22 +508,26 @@ def _rod(name, cast):
     m = MModel(name)
     handle(m)
     m.group("reel")
-    m.box("reel_foot", (9, 7.5, 7.25), (10, 9.5, 8.75), GOLD_DARK)
+    m.box("reel_foot", (9.375, 7.5, 7.25), (10, 9.5, 8.75), GOLD_DARK)
     cyl(m, "reel", "z", (12.75, 8.5), 6, 6.25, 9.75, SHU_FLAT, cap="nj_reel_cap")
     m.box("reel_hub", (12, 7.75, 6), (13.5, 9.25, 10), GOLD)
     m.box("crank", (12.25, 8.5, 9.75), (13.25, 11.25, 10.5), GOLD)
     m.box("crank_knob", (12, 10.5, 10.5), (13.5, 12, 11.75), JADE)
-    m.group("rod")
-    # black lacquered bamboo: three lengths, a ring (nacre or gold) at each node
-    round_y(m, "rod", 6.625, 9.375, 6.625, 9.375, 6.5, 14, BLACK, 0.75)
-    m.box("rod", (6.875, 14, 6.875), (9.125, 23, 9.125), BLACK)
-    m.box("rod", (7.125, 23, 7.125), (8.875, 30.25, 8.875), BLACK)
-    for y, w, mat in ((10, 3.25, NACRE), (13.5, 3.25, GOLD), (18.25, 2.75, NACRE), (22.5, 2.75, GOLD), (26.75, 2.25, NACRE)):
-        m.box("node", (C - w / 2, y, C - w / 2), (C + w / 2, y + (0.75 if mat is NACRE else 1), C + w / 2), mat)
-    m.box("rod_tip", (7, 30.25, 7), (9, 31.5, 9), GOLD)
-    m.box("rod_tip", (7.375, 31.5, 7.375), (8.625, 32, 8.625), GOLD_DARK)
-    m.box("guide", (9.125, 16, 7.375), (10.5, 17.25, 8.625), GOLD_DARK)
-    m.box("guide", (8.875, 25, 7.375), (10.25, 26.25, 8.625), GOLD_DARK)
+    m.group("flute")
+    # 퉁소: a fat black lacquered bamboo flute is the rod, finger holes ringed in gold down its front, nacre nodes, a
+    # gold mouthpiece with its notch; a thin brass tip carries the line on
+    m.box("flute", (6.625, 6.5, 6.625), (9.375, 24.5, 9.375), BLACK_FLAT, faces={"north": "nj_flute", "south": "nj_flute"})
+    for y in (9.5, 13.75):
+        m.box("node", (6.375, y, 6.375), (9.625, y + 0.75, 9.625), NACRE)
+    m.box("mouth", (6.375, 24.5, 6.375), (9.625, 25.5, 9.625), GOLD, faces={"up": GOLD_DARK})
+    m.box("notch", (7.5, 25.5, 6.375), (8.5, 25.75, 7.25), GOLD_DARK)
+    m.box("tip", (7.375, 25.5, 7.375), (8.625, 30.75, 8.625), GOLD)
+    m.box("tip", (7.25, 30.75, 7.25), (8.75, 31.5, 8.75), GOLD_DARK)
+    m.box("guide", (9.375, 18.5, 7.5), (10.5, 19.5, 8.5), GOLD_DARK)
+    m.box("guide", (8.625, 27.5, 7.625), (9.75, 28.5, 8.375), GOLD_DARK)
+    m.group("tassel")
+    m.box("flute_knot", (9.375, 22.5, 7.5), (10.375, 23.5, 8.5), KNOT_BLUE)
+    m.box("flute_tassel", (9.625, 20.5, 7.625), (10.375, 22.5, 8.375), KNOT_RED)
     if not cast:
         m.group("line")
         top = (8.5, 31, C)
@@ -395,7 +538,8 @@ def _rod(name, cast):
 
 
 def najeon_fishing_rod():
-    """자개 낚싯대: black lacquered bamboo with nacre and gold nodes, a gold tip, a red lacquer reel, a gourd float."""
+    """퉁소 낚싯대: a black lacquered bamboo flute (퉁소) for a rod, with gold-ringed finger holes, nacre nodes, a little
+    tassel, a red lacquer reel and a gourd float on the line."""
     return _rod("najeon_fishing_rod", False)
 
 
@@ -434,8 +578,8 @@ def najeon_bobber():
 ALL = {f.__name__: f for f in (najeon_sword, najeon_pickaxe, najeon_shovel, najeon_axe, najeon_hoe, najeon_fishing_rod,
                                najeon_fishing_rod_cast, najeon_bobber)}
 
-ROWS = [("najeon_sword", "자개 검"), ("najeon_pickaxe", "자개 곡괭이"), ("najeon_shovel", "자개 삽"), ("najeon_axe", "자개 도끼"),
-        ("najeon_hoe", "자개 괭이"), ("najeon_fishing_rod", "자개 낚싯대"), ("najeon_fishing_rod_cast", "낚싯대 (던진 뒤)"),
+ROWS = [("najeon_sword", "자개 사인검"), ("najeon_pickaxe", "자개 비녀 곡괭이"), ("najeon_shovel", "자개 노 삽"), ("najeon_axe", "자개 합죽선 도끼"),
+        ("najeon_hoe", "자개 붓 괭이"), ("najeon_fishing_rod", "자개 퉁소 낚싯대"), ("najeon_fishing_rod_cast", "낚싯대 (던진 뒤)"),
         ("najeon_bobber", "자개 찌 (찌에 태우는 모델)")]
 
 TITLE = "자개 시리즈 (도구 스킨)"
