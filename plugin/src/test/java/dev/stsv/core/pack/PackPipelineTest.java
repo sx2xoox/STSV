@@ -122,6 +122,9 @@ class PackPipelineTest {
             // the duck and the bull: octagonal sections whose corners are boxes turned 45 degrees (smooth round forms), the
             // stand's lever
             "kickboard", "skateboard", "banana_boat", "segway", "sled", "balloon_chair_balloons", "rodeo_bull_bull", "toy_duck", "rodeo_bull",
+            "classic_roadster", "concept_ev", "muscle_car", "sidecar_bike",   // 후원 차: raked windscreens, the bike's fork
+            "dragon_axe", "dragon_fishing_rod", "dragon_fishing_rod_cast", "dragon_pickaxe", "dragon_sword",
+            "galaxy_axe", "galaxy_fishing_rod", "galaxy_pickaxe", "magma_fishing_rod",
             // 도구 스킨 세트: slanted blades, crossed straps, the rods' tilted reels and guides (22.5 or 45 degrees)
             "camping_fishing_rod", "camping_pickaxe", "camping_shovel", "camping_sword", "candy_fishing_rod", "candy_pickaxe", "candy_shovel", "frost_fishing_rod", "frost_fishing_rod_cast", "frost_pickaxe", "frost_sword", "kitchen_fishing_rod", "kitchen_pickaxe", "kitchen_sword", "najeon_fishing_rod", "najeon_pickaxe", "pirate_axe", "pirate_fishing_rod", "pirate_hoe", "pirate_pickaxe", "pirate_shovel", "woodcraft_axe", "woodcraft_fishing_rod", "woodcraft_fishing_rod_cast", "woodcraft_hoe", "woodcraft_pickaxe", "woodcraft_shovel", "woodcraft_sword");
 

@@ -347,7 +347,7 @@ class DonationTest {
         double floatScale = books.getDouble("toy_fishing_rod_skin.skin.bobber.scale"), floatLift = books.getDouble("toy_fishing_rod_skin.skin.bobber.lift");
         assertTrue(floatScale >= 0.6 && floatScale <= 1.5, "as large as the game's float or larger, to cover it: " + floatScale);
         assertTrue(floatLift < 0 && floatLift > -0.5, "let down from the hook's top to the water: " + floatLift);
-        for (String id : books.getKeys(false)) if (!id.equals("toy_fishing_rod_skin")) assertFalse(books.contains(id + ".skin.bobber"), id + ": only a rod has a float");
+        for (String id : books.getKeys(false)) assertEquals(id.endsWith("_fishing_rod_skin"), books.contains(id + ".skin.bobber"), id + ": every rod has its float, nothing else does");
         assertEquals("donation:confirm", menu.getString("donation_buy.buttons.Y.action"));
     }
 
