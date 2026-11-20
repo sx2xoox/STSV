@@ -191,6 +191,8 @@ public final class STSVPlugin extends JavaPlugin {
             else sender.sendMessage(dev.stsv.core.util.Lang.msg("common.players-only"));
             return true;
         });
+        PluginCommand brag = getCommand("자랑");
+        if (brag != null) brag.setExecutor(new dev.stsv.core.command.Brag());
         PluginCommand trash = getCommand("ㅆ");
         if (trash != null) {
             dev.stsv.core.command.TrashCan can = new dev.stsv.core.command.TrashCan(this);

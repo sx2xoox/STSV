@@ -534,6 +534,10 @@ tuning:
   shop-none: "<gray>튜닝샵이 없습니다. <dark_gray>(/관리자 튜닝샵 설치 <이름>)"
   shop-entry: "<gray>{number}. <white>{world}</white> {x}, {y}, {z} <dark_gray>· <gray>반경 {radius}칸"
 
+brag:
+  line: "<gold>✦</gold> <white>{player}</white><gray>님이 </gray>{item}<gray> 을(를) 자랑합니다!"
+  empty: "<red>손에 든 아이템이 없습니다."
+  wait: "<gray>{seconds}초 뒤에 다시 자랑할 수 있습니다."
 trash:
   title: "<dark_gray>쓰레기통 <gray>· 닫으면 사라집니다"
   thrown: "<gray>아이템 <white>{count}개</white>를 버렸습니다."

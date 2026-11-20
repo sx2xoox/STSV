@@ -101,6 +101,11 @@ commands:
     aliases: [랜덤이동, 랜덤]
     usage: /rtp
     permission: stsv.travel
+  자랑:
+    description: 손에 든 아이템을 채팅에 자랑 (이름에 마우스를 대면 아이템 설명이 보임)
+    aliases: [자랑하기, brag]
+    usage: /자랑
+    permission: stsv.brag
   ㅆ:
     description: 쓰레기통 열기 (넣고 닫으면 사라짐. 탈것·지게는 돌려줌)
     aliases: [쓰레기통, trash]
@@ -209,6 +214,9 @@ permissions:
     default: true
   stsv.trash:
     description: /ㅆ (쓰레기통)
+    default: true
+  stsv.brag:
+    description: /자랑 (손에 든 아이템 자랑)
     default: true
   stsv.minigame:
     description: 미니게임 (/미니게임, /서킷)
