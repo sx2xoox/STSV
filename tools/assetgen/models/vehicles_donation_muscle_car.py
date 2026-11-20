@@ -58,7 +58,7 @@ _ramp("mc_rim", 250, 0.010, 0.30, 0.30, 6, False)      # dark graphite rims
 _ramp("mc_led", 210, 0.050, 0.92, 0.12, 3, True)       # the headlamps' halo rings
 _ramp("mc_tail", 24, 0.235, 0.52, 0.34, 5, True)       # the tail lamp band
 _ramp("mc_amber", 62, 0.170, 0.74, 0.20, 3, True)      # side markers
-_ramp("mc_vinyl", 30, 0.012, 0.24, 0.20, 5, False)     # black vinyl cabin
+_ramp("mc_vinyl", 30, 0.014, 0.31, 0.28, 5, False)     # black vinyl cabin
 _ramp("mc_wood", 55, 0.080, 0.42, 0.26, 4, False)      # the pistol grip
 _ramp("mc_caliper", 30, 0.190, 0.52, 0.22, 3, True)    # brake callipers
 
@@ -757,7 +757,7 @@ def _cabin(m, ctx):
             if lx < 3 and math.floor(z) % 2 == 0:
                 return tone(TR, 0.15)
         return tone(TR, 0.55 if c.face == "up" else 0.35)
-    seat = Paint(TR, 2, noise=0, grad=0, rim=0.5, decal=vinyl)
+    seat = Paint(TR, 2, noise=0, grad=0, rim=0.5, ao=0.35, decal=vinyl)
     for sx in (-10.9, 10.9):
         m.box("cushion", (sx - 5, FLOOR, -6), (sx + 5, 8.5, 9), seat)
         m.box("bolster", (sx - 6.5, FLOOR, -5), (sx - 5, 10.5, 9), seat)
@@ -777,7 +777,7 @@ def _cabin(m, ctx):
         if c.face == "south" and abs(y - 23.5) < 0.5:
             return tone("mc_chrome", 0.8)                              # a bright strip across the dash
         return tone(TR, 0.3)
-    m.box("dash", (-26, 17.3, ZS0 - 0.5), (26, 29.6, -25), Paint(TR, 1, noise=0, grad=0, rim=0.3, decal=dash))
+    m.box("dash", (-26, 17.3, ZS0 - 0.5), (26, 29.6, -25), Paint(TR, 1, noise=0, grad=0, rim=0.3, ao=0.35, decal=dash))
     m.box("binnacle", (-19, 29, -26.5), (-3, 30.5, -24), Paint(TR, 1, noise=0, rim=0.4))
 
     def dial(cx, cy, rad):

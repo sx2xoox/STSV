@@ -822,8 +822,8 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
         ytop = tank_dims(zc)[1] + tank_dims(zc)[2] - 0.7
         cyl(m, "filler_cap", (cx, zc), 2.6, ytop, ytop + 1.1, chrome_r("y", cx, zc))
     # the hand-shift lever up the tank's left side, a black knob on it
-    rod(m, "shift_lever", (25.0, -1.6), (31.2, -6.6), 0.9, chrome, x=(BX - 7.8, BX - 6.9))
-    m.box("shift_knob", (BX - 8.5, 31.0, -8.3), (BX - 6.2, 33.4, -6.0), M.paint(("lit", "sc_black", "gloss")))
+    rod(m, "shift_lever", (25.0, -1.6), (29.6, -5.4), 0.9, chrome, x=(BX - 7.8, BX - 6.9))
+    m.box("shift_knob", (BX - 8.5, 29.2, -6.8), (BX - 6.2, 31.4, -4.6), M.paint(("lit", "sc_black", "gloss")))
     m.box("shift_gate", (BX - 7.6, 24.0, -4.0), (BX - 5.8, 25.6, 1.0), chrome)
 
     m.group("frame")
@@ -869,8 +869,8 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
         if c.face == "up" and abs(x - BX) < 1.6 and 3 < z < 11 and math.floor(z) % 3 == 0:
             return ("lit", M.m["leather"][0], "matte")
         return "leather"
-    sculpt(m, "saddle", saddle_f, (BX - 9, SADDLE - 3, -1), (BX + 9, SADDLE + 2, 15),
-           M.paint(saddle, normal=field_normal(saddle_f)))
+    sculpt(m, "saddle", saddle_f, (BX - 9, SADDLE - 4, -1), (BX + 9, SADDLE + 2, 15),
+           M.paint(saddle, normal=field_normal(saddle_f)), label=lambda p: None if tank_f(*p) < 0 else "s")
     m.box("saddle_pivot", (BX - 1.2, 27.4, -0.4), (BX + 1.2, SADDLE - 2.6, 1.6), chrome)
     for s in (-1, 1):
         def spring(c):
@@ -908,7 +908,8 @@ def _engine(m, M, chrome, black, rubber, chrome_r):
 
     def gear_f(x, y, z):
         return (abs(x - BX) / 3.8) ** 4 + abs((y - 11.0) / 4.6) ** 3 + abs((z - 9.0) / 4.0) ** 3 - 1
-    sculpt(m, "gearbox", gear_f, (BX - 4, 6, 4), (BX + 4, 16, 14), M.paint("alloy", normal=field_normal(gear_f)))
+    sculpt(m, "gearbox", gear_f, (BX - 4, 6, 4), (BX + 4, 16, 14), M.paint("alloy", normal=field_normal(gear_f)),
+           label=lambda p: None if case_f(*p) < 0 else "s")
 
     # the primary cover on the left: a long chrome teardrop from the crank to the gearbox
     def prim_f(x, y, z):
@@ -961,6 +962,7 @@ def _engine(m, M, chrome, black, rubber, chrome_r):
 
     # the exhausts: from each cylinder's port down the left side, two pipes to stacked fishtail mufflers
     ex = BX - 6.6
+    fishes = []
     for i, (port, low) in enumerate(((V_BASE["front"], 6.2), (V_BASE["rear"], 10.4))):
         y0, z0 = port
         if i == 0:
@@ -968,7 +970,7 @@ def _engine(m, M, chrome, black, rubber, chrome_r):
             py, pz = y0 + 7.0, z0 - 4.6
             rod(m, "header", (py, pz), (py - 2.0, pz - 3.2), 2.2, chrome, x=(BX - 3.6, BX - 1.4))
             rod(m, "header", (py - 1.4, pz - 3.4), (low + 1.0, pz - 6.4), 2.2, chrome, x=(BX - 3.6, BX - 1.4))
-            m.box("header", (ex - 1.1, low - 1.1, pz - 7.4), (BX - 1.4, low + 1.1, pz - 5.2), chrome_r("x", low, pz - 6.3))
+            m.box("header", (ex - 0.9, low - 0.95, pz - 7.3), (BX - 1.4, low + 0.95, pz - 5.2), chrome_r("x", low, pz - 6.3))
             z_start = pz - 7.4
         else:
             # rear port: back out of the head, out to the left and down beside the gearbox
@@ -993,7 +995,9 @@ def _engine(m, M, chrome, black, rubber, chrome_r):
             if c.face == "south" and abs(c.p[1] - low) < 1.6 and abs(c.p[0] - ex) < 0.8:
                 return ("sc_rubber", 0)
             return "chrome"
-        sculpt(m, "fishtail", fish_f, (ex - 3, low - 4, 30), (ex + 3, low + 4, 38), M.paint(fish, normal=field_normal(fish_f)))
+        sculpt(m, "fishtail", fish_f, (ex - 3, low - 4, 30), (ex + 3, low + 4, 38), M.paint(fish, normal=field_normal(fish_f)),
+               label=lambda p, prev=list(fishes): None if any(f(*p) < 0 for f in prev) else "s")
+        fishes.append(fish_f)
     m.box("muffler_clamp", (ex - 1.0, 6.2, 24.0), (ex + 1.0, 10.4, 25.2), black)
     m.box("muffler_hanger", (ex + 1.0, 8.0, 24.0), (BX - 4.6, 9.2, 25.2), black)
 
@@ -1075,19 +1079,19 @@ def _rear(m, M, chrome, black, rubber, chrome_r):
     def bag_f(x, y, z):
         if not (BX - 12.2 <= x <= BX - 6.2):
             return 1.0
-        return ((z - 28.0) / 6.0) ** 4 + ((y - 16.0) / 5.0) ** 4 - 1
+        return ((z - 26.5) / 5.6) ** 4 + ((y - 17.6) / 4.8) ** 4 - 1
 
     def bag(c):
         x, y, z = c.p
-        if abs(z - 25.6) < 0.6 or abs(z - 30.4) < 0.6:
-            if c.face == "west" and abs(y - 17.4) < 0.7:
+        if abs(z - 24.2) < 0.6 or abs(z - 28.8) < 0.6:
+            if c.face == "west" and abs(y - 19.0) < 0.7:
                 return ("lit", "sc_chrome", "chrome")     # the buckles
             return "dark"                                 # the straps
-        if c.face == "west" and abs(y - 18.0) < 0.5:
+        if c.face == "west" and abs(y - 19.6) < 0.5:
             return "dark"                                 # the flap's edge
         return "leather"
     sculpt(m, "saddlebag", bag_f, (BX - 13, 10, 21), (BX - 6, 22, 35), M.paint(bag, normal=field_normal(bag_f)))
-    m.box("bag_rail", (BX - 6.4, 19.0, 21.4), (BX - 5.0, 20.2, 34.6), black)
+    m.box("bag_rail", (BX - 6.4, 20.6, 21.4), (BX - 5.0, 21.8, 32.6), black)
 
 
 # ------------------------------------------------------------------------------------------------
@@ -1171,22 +1175,25 @@ def _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall):
         x, y = c.p[0] - SX, c.p[1] - SCREEN_Y
         if abs(x) > SCREEN_HW - 0.7 or y > H - 0.7:
             return ("lit", "sc_chrome", "chrome")
-        k = math.floor(x * 0.7 + y * 1.2) % 13
-        if k in (0, 1):
-            return ("sc_glass", 2.6)
-        if k == 4:
-            return ("sc_glass", 1.4)
+        k = math.floor(x * 0.55 + y * 1.1) % 15
+        if k in (0, 1, 2):
+            return ("sc_glass", 2.4 if k == 1 else 1.6)       # a broad reflection across the glass
+        if k == 6:
+            return ("sc_glass", 1.0)                          # a thin one
+        if y < 1.2:
+            return ("sc_glass", 0.6)                          # a tint along its foot
         return ("raw", (0, 0, 0, 0))
     s.box("screen_glass", (SX - SCREEN_HW, SCREEN_Y + 0.6, SCREEN_Z - 0.2), (SX + SCREEN_HW, SCREEN_Y + H, SCREEN_Z + 0.2),
           M.paint(pane), rotation=rot)
-    s.box("screen_frame", (SX - SCREEN_HW - 0.4, SCREEN_Y + H - 0.2, SCREEN_Z - 0.5), (SX + SCREEN_HW + 0.4, SCREEN_Y + H + 0.7, SCREEN_Z + 0.5),
-          chrome, rotation=rot)
+    frame = M.paint(lambda c: ("sc_chrome", 7.0 if c.face == "up" else 5.6 if c.face in ("north", "west") else 4.0))
+    s.box("screen_frame", (SX - SCREEN_HW - 0.4, SCREEN_Y + H - 0.2, SCREEN_Z - 0.4), (SX + SCREEN_HW + 0.4, SCREEN_Y + H + 0.5, SCREEN_Z + 0.4),
+          frame, rotation=rot)
     for sx in (-1, 1):
         lo, hi = sorted((SX + sx * (SCREEN_HW - 0.2), SX + sx * (SCREEN_HW + 0.6)))
-        s.box("screen_frame", (lo, SCREEN_Y + 0.2, SCREEN_Z - 0.5), (hi, SCREEN_Y + H - 0.2, SCREEN_Z + 0.5), chrome, rotation=rot)
+        s.box("screen_frame", (lo, SCREEN_Y + 0.2, SCREEN_Z - 0.4), (hi, SCREEN_Y + H - 0.2, SCREEN_Z + 0.4), frame, rotation=rot)
         lo, hi = sorted((SX + sx * (SCREEN_HW - 1.6), SX + sx * (SCREEN_HW - 0.2)))
         s.box("screen_foot", (lo, SCREEN_Y - 0.6, SCREEN_Z - 1.4), (hi, SCREEN_Y + 1.6, SCREEN_Z + 1.4), black)
-    s.box("screen_frame", (SX - SCREEN_HW, SCREEN_Y - 0.1, SCREEN_Z - 0.5), (SX + SCREEN_HW, SCREEN_Y + 0.6, SCREEN_Z + 0.5), chrome, rotation=rot)
+    s.box("screen_frame", (SX - SCREEN_HW, SCREEN_Y - 0.1, SCREEN_Z - 0.4), (SX + SCREEN_HW, SCREEN_Y + 0.6, SCREEN_Z + 0.4), frame, rotation=rot)
 
     # the luggage rack on the tail deck: two chrome rails on legs, cross bars, a leather case strapped on it
     ry = 28.6
@@ -1195,21 +1202,24 @@ def _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall):
         m.box("rack_rail", (x - 0.5, ry, 16.0), (x + 0.5, ry + 1.0, 30.0), chrome_r("z", x, ry + 0.5))
         for z in (17.0, 28.6):
             m.box("rack_leg", (x - 0.4, tub_top(z, x) - 0.8, z - 0.4), (x + 0.4, ry, z + 0.4), chrome)
-    for z in (16.0, 20.4, 24.8, 29.0):
-        m.box("rack_bar", (SX - 6.5, ry + 0.1, z), (SX + 6.5, ry + 0.9, z + 1.0), chrome_r("x", ry + 0.5, z + 0.5))
+    for z in (16.3, 20.4, 24.6, 28.7):
+        m.box("rack_bar", (SX - 6.3, ry + 0.1, z), (SX + 6.3, ry + 0.9, z + 0.9), chrome_r("x", ry + 0.5, z + 0.45))
 
     def case(c):
         x, y, z = c.p
         if abs(x - (SX - 3.0)) < 0.6 or abs(x - (SX + 3.0)) < 0.6:
             if c.face == "up" or c.face == "south":
                 return "dark"                               # the straps
-        if c.face in ("north", "south") and abs(y - 33.4) < 0.4:
+        if c.face in ("north", "south") and abs(y - 33.0) < 0.4:
             return "dark"                                   # the lid's seam
         if c.face == "up" and abs(x - SX) < 1.0 and abs(z - 23.0) < 0.6:
             return ("lit", "sc_chrome", "chrome")            # the handle's clasp
         return "leather"
-    m.box("case", (SX - 7.5, ry + 1.0, 18.0), (SX + 7.5, ry + 6.4, 28.0), M.paint(case))
-    m.box("case_handle", (SX - 1.6, ry + 6.4, 22.6), (SX + 1.6, ry + 7.2, 23.4), M.paint("dark"))
+    m.box("case", (SX - 6.5, ry + 1.0, 18.6), (SX + 6.5, ry + 5.6, 27.4), M.paint(case))
+    m.box("case_handle", (SX - 1.6, ry + 5.6, 22.6), (SX + 1.6, ry + 6.4, 23.4), M.paint("dark"))
+    for cx in (SX - 6.5, SX + 5.7):
+        for cz in (18.4, 26.8):
+            m.box("case_corner", (cx - 0.2, ry + 4.8, cz), (cx + 1.0, ry + 5.8, cz + 0.8), M.paint(("lit", "sc_chrome", "chrome")))
 
     # the spare wheel standing on the tail, facing back: the same tyre, a rim, spokes, a hub, on a bracket
     sy, sz = SPARE
@@ -1240,8 +1250,8 @@ def _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall):
           Paint("sc_chrome", 4, noise=0, light=False, decal=sspokes))
     cyl(m, "spare_hub", (SX, sy), 6.0, sz - 2.2, sz + 2.2, M.paint("alloy", normal=radial("z", SX, sy)), axis="z")
     cyl(m, "spare_cap", (SX, sy), 3.0, sz + 2.2, sz + 2.8, chrome_r("z", SX, sy), axis="z")
-    m.box("spare_bracket", (SX - 1.0, sy - 1.0, 27.0), (SX + 1.0, sy + 1.0, sz - 2.2), black)
-    m.box("spare_bracket", (SX - 1.0, 12.0, 30.0), (SX + 1.0, sy - 2.0, 31.8), black)
+    m.box("spare_bracket", (SX - 0.9, sy - 0.9, 27.0), (SX + 0.9, sy + 0.9, sz - 2.2), black)
+    m.box("spare_bracket", (SX - 0.9, 12.1, 30.1), (SX + 0.9, sy - 1.9, 31.7), black)
 
     # the sidecar wheel's mudguard, its stays, a running lamp on top
     gf = fender_f(WY, SWZ, SWX, 3.4, 13.2, 1.6, -70, 82)
@@ -1253,7 +1263,7 @@ def _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall):
         return "paint"
     sculpt(m, "sidecar_fender", gf, (SWX - 4, 0, SWZ - 16), (SWX + 4, WY + 16, SWZ + 16), M.paint(guard, normal=field_normal(gf)))
     for z in (SWZ - 6.0, SWZ + 6.0):
-        m.box("fender_stay", (tub_dims(z)[0] + SX - 1.5, 20.0, z - 0.5), (SWX - 3.0, 21.0, z + 0.5), chrome)
+        m.box("fender_stay", (tub_dims(z)[0] + SX - 1.5, 20.1, z - 0.45), (SWX - 3.1, 20.9, z + 0.45), chrome)
     # its red tail lamp on the mudguard's back
     ly, lz = TUB_LAMP
     m.box("guard_lamp", (SWX - 1.5, ly - 1.5, lz - 3.2), (SWX + 1.5, ly + 1.5, lz - 0.4), chrome)
@@ -1269,9 +1279,9 @@ def _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall):
     fb = M.paint("black")
     for x in (SX - 6.0, SX + 6.0):
         m.box("chassis_rail", (x - 0.9, 5.0, -20.0), (x + 0.9, 6.8, 22.0), fb)
-    m.box("chassis_cross", (BX + 4.4, 5.0, -16.0), (SX + 6.9, 6.8, -14.2), fb)
-    m.box("chassis_cross", (BX + 4.4, 5.0, 16.0), (SX + 6.9, 6.8, 17.8), fb)
-    m.box("axle_tube", (SX + 6.9, WY - 1.0, SWZ - 1.0), (SWX - 2.4, WY + 1.0, SWZ + 1.0), fb)
+    m.box("chassis_cross", (BX + 4.4, 5.2, -16.0), (SX + 6.7, 6.6, -14.2), fb)
+    m.box("chassis_cross", (BX + 4.4, 5.2, 16.0), (SX + 6.7, 6.6, 17.8), fb)
+    m.box("axle_tube", (SX + 6.9, WY - 0.9, SWZ - 0.9), (SWX - 2.4, WY + 0.9, SWZ + 0.9), fb)
     m.box("axle_brace", (SX + 6.0, 6.0, SWZ - 0.8), (SX + 8.0, WY, SWZ + 0.8), fb)
     for z in (-12.0, 8.0):
         m.box("tub_mount", (SX - 6.6, 6.8, z - 0.8), (SX - 5.4, 9.6, z + 0.8), fb)
@@ -1280,7 +1290,7 @@ def _sidecar(m, kit, M, chrome, black, rubber, chrome_r, whitewall):
     for z, x0 in ((-11.0, BX + 3.0), (12.0, BX + 1.0)):
         xi = SX - tub_dims(z)[0] * 0.92
         m.box("strut", (x0, 18.2, z - 0.9), (xi + 1.0, 20.0, z + 0.9), fb)
-        m.box("strut_clamp", (xi - 0.6, 17.6, z - 1.3), (xi + 1.0, 20.6, z + 1.3), chrome)
+        m.box("strut_clamp", (xi - 0.6, 17.6, z - 1.3), (xi + 1.2, 20.6, z + 1.3), chrome)
 
 
 def _part(name):

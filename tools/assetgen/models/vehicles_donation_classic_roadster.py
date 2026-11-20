@@ -148,7 +148,7 @@ def hood(z, ax):
     if z < NOSE + 4:
         h -= (NOSE + 4 - z) ** 1.5 * 0.3
     h += 1.1 * smooth(1 - ax / 7)                        # the central power bulge
-    h -= 1.6 * (ax / 16) ** 2                            # falling to the valleys beside the fenders
+    h -= 1.0 if ax > 12 else 0                           # falling to the valleys beside the fenders
     return h
 
 
@@ -234,7 +234,7 @@ def fender_top(top, lo, hi, ax, out_drop, in_drop):
 def inside(x, y, z):
     """Is the cell centre (x, y, z) inside the body's shell?"""
     ax = abs(x)
-    if y < bottom(z) or z < NOSE + max(0.0, 12 - y) * 0.45 or z > TAIL - max(0.0, 10 - y) * 0.45:
+    if y < bottom(z) or z < NOSE + max(0.0, 10 - y) * 0.6 or z > TAIL:
         return False                                     # the chin and the tail tucked under
     t = tuck(y)
     if ax <= hull_w(z) - t and y < hull_top(z, ax):
@@ -357,14 +357,18 @@ def _cells():
                 f = front(x, y) if face < 0 else back(x, y)
                 if r < r_out and f is not None:
                     cols[(x, y)] = (f, r)
-        zp = (min(f for f, _ in cols.values()) - 1) if face < 0 else (max(f for f, _ in cols.values()) + 1)
+        # faired in: the bezel's face where the body's surface stands on average there, a pixel proud
+        mean = sum(f for f, _ in cols.values()) / len(cols)
+        zp = int(round(mean)) + face
         for (x, y), (f, r) in cols.items():
-            if r < r_in:
-                fill(x, y, zp - face, f, label)
-                cells.pop((x, y, zp), None)
-                group.pop((x, y, zp), None)
-            else:
-                fill(x, y, zp, f, "bezel")
+            lens = r < r_in
+            stop = zp - face if lens else zp
+            # whatever stands out past the bezel's (or the lens') face goes
+            for z in range(min(f, stop), max(f, stop) + 1):
+                if (z - stop) * face > 0:
+                    cells.pop((x, y, z), None)
+                    group.pop((x, y, z), None)
+            fill(x, y, stop, f if (f - stop) * face < 0 else stop, label if lens else "bezel")
         if key:
             lamp_z[key] = zp - face + (1 if face > 0 else 0)          # the lens' face
 
@@ -508,7 +512,7 @@ def _seats(cells, group):
                 continue
             for z in range(2, 30):
                 zc = z + 0.5
-                for y in range(FLOOR, 34):
+                for y in range(FLOOR, 38):
                     yc = y + 0.5
                     q = (x, y, z)
                     if q in cells:
@@ -517,10 +521,10 @@ def _seats(cells, group):
                     top = 11.5 + (1.0 if dx > 4.8 else 0) - max(0, 4 - (zc - 2)) * 0.6
                     cushion = 2 <= zc <= 22 and yc < top and dx < 6.6
                     # the back: reclined (it leans back 1 px every 4 up), shoulders rounded, bolsters forward
-                    lean = (yc - 10) * 0.25
+                    lean = min(3.0, max(0.0, (yc - 10) * 0.25))
                     zf = 20 + lean - (1.5 if dx > 4.8 and yc < 26 else 0)
                     zb = 25 + lean
-                    ytop = 35 - max(0.0, dx - 2.5) ** 1.8 * 0.55
+                    ytop = 37 - max(0.0, dx - 2.5) ** 1.8 * 0.55
                     backrest = zf <= zc <= zb and yc < ytop and dx < 6.8 and yc > 9
                     if (cushion or backrest) and zc < CK1 + 3:
                         cells[q] = "seat"
@@ -540,7 +544,7 @@ def _soft_top(cells, group):
             base = _top_of(cells, x, z)
             if base is None:
                 continue
-            h = 4.6 * (1 - u ** 4) ** 0.5 * (1 - v ** 3) ** 0.5
+            h = 3.8 * (1 - u ** 6) ** 0.5 * (1 - v ** 4) ** 0.5
             ytop = deck(zc) - 1.2 * (abs(xc) / 18) ** 2 + h
             for y in range(base, int(math.ceil(ytop))):
                 if y + 0.5 < ytop:
@@ -586,6 +590,21 @@ class Field:
         q = self.idx(p)
         return float(self.n[0][q]), float(self.n[1][q]), float(self.n[2][q])
 
+    def normal_at(self, p):
+        """The normal at a point (drawn px), blended from the 8 cells round it: smooth across the 1 px steps."""
+        u = [p[0] - 0.5 - X0 + 4, p[1] - 0.5 - Y0 + 4, p[2] - 0.5 - Z0 + 4]
+        i0 = [min(max(int(math.floor(v)), 0), self.b.shape[k] - 2) for k, v in enumerate(u)]
+        f = [min(max(u[k] - i0[k], 0.0), 1.0) for k in range(3)]
+        out = [0.0, 0.0, 0.0]
+        for dx in (0, 1):
+            for dy in (0, 1):
+                for dz in (0, 1):
+                    w = (f[0] if dx else 1 - f[0]) * (f[1] if dy else 1 - f[1]) * (f[2] if dz else 1 - f[2])
+                    q = (i0[0] + dx, i0[1] + dy, i0[2] + dz)
+                    for k in range(3):
+                        out[k] += w * float(self.n[k][q])
+        return tuple(out)
+
     def occ(self, p):
         return float(self.b[self.idx(p)])
 
@@ -598,14 +617,23 @@ def _lit(fields, groups, everything, c, flat=0.12):
     """(normal, diffuse, occlusion) of a texel: its solid's smoothed normal, a little of the face's own."""
     fn = FACE_N[c.face]
     g = groups.get(c.i)
-    n = fields[g].normal(c.i) if g in fields else fn
+    n = fields[g].normal_at(c.p) if g in fields else fn
     n = tuple(n[k] * (1 - flat) + fn[k] * flat for k in range(3))
     ln = math.sqrt(sum(v * v for v in n)) or 1
     n = tuple(v / ln for v in n)
     dif = max(0.0, abs(n[0]) * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2])     # lit alike on both sides
     out = (c.i[0] + fn[0], c.i[1] + fn[1], c.i[2] + fn[2])
     ao = max(0.0, everything.occ(out) - 0.3)
-    return n, dif, ao
+    return n, dif + _dither(c), ao
+
+
+BAYER = ((0, 2), (3, 1))
+
+
+def _dither(c):
+    """An ordered 2 x 2 dither (a quarter of a colour step either way), so the painted gradients do not band."""
+    a, b = [math.floor(c.p[k]) for k in range(3) if FACE_N[c.face][k] == 0]
+    return (BAYER[a % 2][b % 2] - 1.5) / 1.5 * 0.09
 
 
 def _paint_t(n, dif, ao):
@@ -705,11 +733,11 @@ def roadster_kit(colour="rd_green", lower=None, leather="rd_tan", soft="rd_canva
                 return col("rd_chrome", 0.3)
             gx, gy = ix % 3, iy % 3
             if gx == 0 and gy == 0:
-                return col("rd_chrome", 0.95)
+                return col("rd_chrome", 0.85)
             if gy == 0:
-                return col("rd_chrome", 0.8)
+                return col("rd_chrome", 0.7)
             if gx == 0:
-                return col("rd_chrome", 0.55 if gy == 1 else 0.68)
+                return col("rd_chrome", 0.45 if gy == 1 else 0.58)
             return col("rd_dark", 0.0 if gy == 2 else 0.25)       # the holes, shadowed under each bar
         if lab in ("lens", "amber", "tail"):
             return _lens(lab, c)
@@ -945,7 +973,10 @@ def _dash_parts(m):
     for cx, cy, d in ((-15.0, 21.0, 7), (-6.8, 21.0, 7), (-1.6, 22.8, 3.6), (1.6, 22.8, 3.6), (-1.6, 18.6, 3.6), (1.6, 18.6, 3.6)):
         big = d > 5
         p = Paint("rd_chrome", 5, noise=0, light=False, decal=lambda c, cx=cx, cy=cy, d=d, big=big: _gauge(c, cx, cy, d / 2, big))
-        cyl(m, "gauge", (cx, cy), d, face, face + 0.45, p, axis="z")
+        if big:
+            cyl(m, "gauge", (cx, cy), d, face, face + 0.45, p, axis="z")
+        else:
+            m.box("gauge", (cx - d / 2, cy - d / 2, face), (cx + d / 2, cy + d / 2, face + 0.35), p)
 
 
 def _steering(m, leather):
@@ -958,11 +989,11 @@ def _steering(m, leather):
         g = math.floor((x + y) * 1.3) % 3
         return col("rd_wood", 0.75 if c.face == "up" or (c.face == "south" and y > cy) else 0.45 + 0.08 * g)
     rim = Paint("rd_wood", 3, noise=0, light=False, decal=wood)
-    R, n = 6.4, 22
+    R, n = 6.4, 16
     for k in range(n):
         a = 2 * math.pi * k / n
         x, y = cx + R * math.sin(a), cy + R * math.cos(a)
-        m.box("wheel_rim", (x - 0.75, y - 0.75, cz - 0.6), (x + 0.75, y + 0.75, cz + 0.6), rim, rotation=tilt)
+        m.box("wheel_rim", (x - 1.05, y - 1.05, cz - 0.6), (x + 1.05, y + 1.05, cz + 0.6), rim, rotation=tilt)
     spoke = Paint("rd_chrome", 5, noise=0, light=False, decal=lambda c: col("rd_chrome", 0.95 if c.face in ("up", "south") else 0.5))
     for s in (1, -1):
         for dy in (-0.45, 0.45):
@@ -1122,9 +1153,9 @@ def wheel_classic():
     hp = Paint("rd_chrome", 5, noise=0, light=False, decal=hub)
     for s in (1, -1):
         a, b = sorted((s * (w2 + 0.35), s * (w2 + 1.4)))
-        cyl(m, "hub", (0, 0), 4.6, a, b, hp, axis="x")
+        cyl(m, "hub", (0, 0), 4.0, a, b, hp, axis="x")
         a, b = sorted((s * (w2 + 1.4), s * (w2 + 2.4)))
-        cyl(m, "spinner", (0, 0), 2.6, a, b, hp, axis="x")
+        m.box("spinner", (a, -1.2, -1.2), (b, 1.2, 1.2), hp)
         a, b = sorted((s * (w2 + 1.5), s * (w2 + 2.2)))
         m.box("spinner_ear", (a, -0.55, -3.6), (b, 0.55, 3.6), hp)
         a, b = sorted((s * (w2 + 1.45), s * (w2 + 2.6)))
