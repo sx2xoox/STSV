@@ -50,16 +50,16 @@ roofs:
   surf:      { name: "서핑보드 두 장",      color: "#3fd0c0", price: 120000 }
   basket:    { name: "짐바구니",            color: "#6b4a2b", price: 100000 }
   # 이상한 것
-  salmon:      { name: "연어 초밥",         color: "#ff8a4c", price: 200000 }
-  tamago:      { name: "계란 초밥",         color: "#f9d33c", price: 200000 }
-  shrimp:      { name: "새우 초밥",         color: "#ff6f5a", price: 250000 }
-  kimbap:      { name: "김밥 한 줄",        color: "#2f4a3a", price: 250000 }
-  bungeoppang: { name: "붕어빵",            color: "#c98a3c", price: 200000 }
-  duck:        { name: "거대 고무 오리",    color: "#ffd23c", price: 300000 }
+  salmon:      { name: "연어 초밥",         color: "#ff8a4c", price: 180000 }
+  tamago:      { name: "계란 초밥",         color: "#f9d33c", price: 150000 }
+  shrimp:      { name: "새우 초밥",         color: "#ff6f5a", price: 180000 }
+  kimbap:      { name: "김밥 한 줄",        color: "#2f4a3a", price: 200000 }
+  bungeoppang: { name: "붕어빵",            color: "#c98a3c", price: 220000 }
+  duck:        { name: "거대 고무 오리",    color: "#ffd23c", price: 250000 }
   cat:         { name: "식빵 고양이",       color: "#e09a4c", price: 300000 }
-  watermelon:  { name: "수박 반 통",        color: "#3fa34d", price: 150000 }
-  mattress:    { name: "이사 가는 날",      color: "#d8d0c0", price: 200000 }
-  tree:        { name: "크리스마스 트리",   color: "#1f7a3a", price: 300000 }
+  watermelon:  { name: "수박 반 통",        color: "#3fa34d", price: 200000 }
+  mattress:    { name: "이사 가는 날",      color: "#d8d0c0", price: 230000 }
+  tree:        { name: "크리스마스 트리",   color: "#1f7a3a", price: 280000 }
 
 # 언더글로우 네온: 차 밑 바닥에 깔리는 빛 (밤낮 없이 밝음)
 underglows:

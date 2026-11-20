@@ -367,13 +367,22 @@ CHROME = _chrome()
 BLACK = Paint("sc_black", 1, noise=0, grad=0, rim=0.3, ao=0.5)
 
 
-def _glass(tint, alpha, frame):
-    """A see-through pane, painted in world space: frame(c) -> None (glass) or a colour (pillars, seals)."""
+def _inner(c):
+    """A side pane's face towards the cabin (what the riders look through)."""
+    return (c.face == "east" and c.p[0] < 0) or (c.face == "west" and c.p[0] > 0)
+
+
+def _glass(tint, alpha, frame, inside=None):
+    """A see-through pane, painted in world space: frame(c) -> None (glass) or a colour (pillars, seals).
+    inside: the alpha of its face towards the cabin (lighter than outside, no sky streaks: the riders' view stays
+    clean; from outside only the outer face is seen through, so the van's look does not change)."""
     def d(c):
         x, y, z = c.p
         got = frame(c)
         if got is not None:
             return got if got[0] == "raw" else ("raw", _rgb(got))
+        if inside is not None and _inner(c):
+            return ("raw", (*tint, inside))
         if (math.floor(z) + math.floor(y)) % 23 in (0, 1):
             return ("raw", (150, 168, 196, min(255, alpha + 30)))       # a streak of sky
         if y > GLASS_TOP - 3:
@@ -699,8 +708,10 @@ def _glasshouse(m, kit, ctx):
     C, TR = ctx["C"], ctx["TR"]
     ang = P["angled"]
     # the screen and its black pillars
+    # (its face towards the cabin, "down": lighter and without the sky's streak, so the driver sees out cleanly)
     pane = Paint("sc_black", 1, noise=0, light=False,
                  decal=lambda c: ("raw", (26, 28, 34, 255)) if c.v in (0, c.nv - 1) or c.u in (0, c.nu - 1) else
+                 ("raw", (40, 50, 64, 56)) if c.face == "down" else
                  ("raw", (200, 214, 236, 120)) if (c.u + c.v) % 29 in (9, 10, 11) else ("raw", (40, 50, 64, 120)))
     plank(m, "screen", "x", (ZS0 + 0.25, BELT), (ZS1 + 0.25, ROOF), (-(W - 2), W - 2), 0.5, pane)
     pil = Paint("sc_black", 1, noise=0, grad=0, rim=0.4, ao=0,
@@ -729,11 +740,12 @@ def _glasshouse(m, kit, ctx):
             return ("sc_black", 0.5)                # the C pillar
         if z >= RZ1 - 4:
             return ("sc_black", 0.8)                # the D pillar, wrapping round to the tailgate glass
-        if ZS0 <= z < D0 + 2:
+        if ZS0 <= z < D0 + 2 and not _inner(c):
             return ("sc_black", 1)                  # the black quarter-light triangle in front of the door glass
+                                                    # (outside only: from the driver's seat it is glass)
         return None
-    light = Paint("sc_black", 1, noise=0, light=False, decal=_glass((36, 44, 58), 150, frame))
-    dark = Paint("sc_black", 1, noise=0, light=False, decal=_glass((20, 23, 30), 225, frame))
+    light = Paint("sc_black", 1, noise=0, light=False, decal=_glass((36, 44, 58), 150, frame, inside=84))
+    dark = Paint("sc_black", 1, noise=0, light=False, decal=_glass((20, 23, 30), 225, frame, inside=128))
     for s in (-1, 1):
         door = kit["door_l" if s < 0 else "door_r"]
         slide = kit["slide_l" if s < 0 else "slide_r"]

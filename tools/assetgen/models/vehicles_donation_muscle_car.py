@@ -360,8 +360,9 @@ def _glass_decal(shape, frame=None):
             return CLEAR
         if got != "glass":
             return ("raw", _rgb(got)) if got[0] != "raw" else got
-        if (math.floor(z) + math.floor(y)) % 21 in (0, 1):
-            return ("raw", (214, 226, 246, 90))
+        inside = (c.face == "east" and x < 0) or (c.face == "west" and x > 0)
+        if (math.floor(z) + math.floor(y)) % 21 in (0, 1) and not inside:
+            return ("raw", (214, 226, 246, 90))                  # (outside only: from the seats the glass is clear)
         return CLEAR
     return d
 
@@ -698,7 +699,8 @@ def _glass(m, kit, ctx):
     # the screen and its pillars
     pane = Paint("mc_black", 1, noise=0, light=False,
                  decal=lambda c: ("raw", (30, 34, 44, 255)) if c.v in (0, c.nv - 1) or c.u in (0, c.nu - 1) else
-                 ("raw", (214, 226, 246, 70)) if (c.u + c.v) % 26 in (9, 10) else CLEAR)
+                 ("raw", (214, 226, 246, 70)) if (c.u + c.v) % 26 in (9, 10) and c.face != "down" else CLEAR)
+    # (the streak only on its outer face: from the seats the screen is clear)
     plank(m, "screen", "x", (ZS0 + 0.25, BELT), (ZS1 + 0.25, ROOF), (-(CAB - 1), CAB - 1), 0.5, pane)
     pillar = lambda c: tone(C, 0.82) if c.face == "up" else tone(C, 0.5) if c.face in ("east", "west") else tone(C, 0.4)
     for s in (-1, 1):

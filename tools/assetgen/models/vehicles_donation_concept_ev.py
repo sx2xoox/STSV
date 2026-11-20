@@ -636,7 +636,8 @@ def _canopy(m, kit, ctx):
         if y < BELT + 0.6:
             return raw(R, 0.05)                                   # the seal along the belt
         if inner:
-            return raw(R, 0.15)
+            return raw(R, 0.15, 110)                              # from inside: tinted, seen through (the driver's
+                                                                  # side view; the outer face keeps the black glass)
         if 18 <= y < 19:
             return raw("ev_steel", 0.42)                          # the horizon's reflection: a clean band along it
         if 19 <= y < 19.6:
