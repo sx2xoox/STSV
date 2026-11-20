@@ -69,9 +69,9 @@ categories:
                set_duck_family, sleepy_duckling, duckling_wings, peeking_duckling, duck_bib,
                duck_float_ring, duckling_parade, puddle_trail, rubber_duck_aura, duck_squeak]
   fun:
-    name: "놀잇감"
+    name: "놀잇감 · 편의"
     icon: "stsv:party_firework"
-    products: [infinite_firework]
+    products: [infinite_firework, scarecrow]
 
 products:
   hyper_car:
@@ -261,6 +261,13 @@ products:
     icon: "stsv:toy_fishing_rod"
 
   # 놀잇감
+  scarecrow:
+    name: "허수아비"
+    price: 100          # 10,000원
+    description:
+      - "<gray>세운 청크의 작물이 아무도 없어도 자람"
+      - "<white>한 청크에 하나 <gray>· 내 땅에만"
+    item: stsv:scarecrow
   infinite_firework:
     name: "무한 폭죽"
     price: 60           # 6,000원

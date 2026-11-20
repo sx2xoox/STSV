@@ -161,7 +161,19 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
      * Finds: gems in ores (drops by block), or the chance of a rare or legend bite (the fish themselves are in
      * fish.yml), with a doubling from a level.
      */
-    public record Finds(Range chance, double outsider, Map<String, List<String>> drops, int doubleLevel, Set<String> doubleItems) {
+    public record Finds(Range chance, double outsider, Map<String, List<String>> drops, int doubleLevel, Set<String> doubleItems,
+                        Map<String, Double> weights) {
+        public Finds(Range chance, double outsider, Map<String, List<String>> drops, int doubleLevel, Set<String> doubleItems) {
+            this(chance, outsider, drops, doubleLevel, doubleItems, Map.of());
+        }
+
+        /** How much of the find chance this block gives (finds.weights: a common ore finds less; 1 when not listed). */
+        public double weight(String key) {
+            Double w = weights.get(key);
+            if (w == null && key.startsWith("minecraft:")) w = weights.get(key.substring(10));
+            return w == null ? 1 : w;
+        }
+
 
         public List<String> drops(String key) {
             List<String> v = drops.get(key);
@@ -323,8 +335,11 @@ public record JobSpec(int maxLevel, double a, double b, ChangeCost changeCost, i
                     if (ds != null) for (String k : ds.getKeys(false)) drops.put(k.toLowerCase(Locale.ROOT), ds.getStringList(k).stream().map(JobSpec::norm).toList());
                     Set<String> dbl = new LinkedHashSet<>(fs.getStringList("double.items").stream().map(JobSpec::norm).toList());
                     Range chance = range(fs, "chance");
+                    Map<String, Double> weights = new LinkedHashMap<>();
+                    ConfigurationSection ws = fs.getConfigurationSection("weights");
+                    if (ws != null) for (String k : ws.getKeys(false)) weights.put(k.toLowerCase(Locale.ROOT), Math.max(0, ws.getDouble(k)));
                     finds = new Finds(chance == null ? new Range(0, 0) : chance, fs.getDouble("outsider", 0), drops,
-                            fs.getInt("double.level", Integer.MAX_VALUE), dbl);
+                            fs.getInt("double.level", Integer.MAX_VALUE), dbl, Map.copyOf(weights));
                 }
                 Bonus growth = j.isConfigurationSection("growth")
                         ? new Bonus(j.getInt("growth.level", 1), j.getDouble("growth.chance", 0)) : null;

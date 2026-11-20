@@ -54,8 +54,9 @@ jobs:
     description:   # 메뉴에서: "# 제목" = 묶음 제목, "@10 효과" = Lv10 에 열림(✔), "{5~80}" = 내 레벨의 값 (Lv1 ~ Lv30 사이 고르게)
       - "# 채광"
       - "광석 추가 드롭 {5~80}%"
-      - "보석 원석 발견 {3~12}%"
+      - "보석 원석 발견 {4~15}%"
       - "운철·수정 원석이 자주 나옴"
+      - "돌·심층암을 캐도 경험치"
       - "# 세공대"
       - "@10 결과 +1 확률 15%"
       - "@20 재료 아낌 15%"
@@ -67,8 +68,13 @@ jobs:
       - "@50 결과 +1 확률 +5% · 칭호 [광부 명인]"
     extra: [0.05, 0.80]          # 광석 드롭 +1 확률
     finds:
-      chance: [0.03, 0.12]       # 원석 발견 확률
+      chance: [0.04, 0.15]       # 원석 발견 확률
       outsider: 0.01             # 다른 직업일 때
+      weights:                   # 흔한 광석은 발견 확률을 이만큼만 (적지 않은 광석은 1)
+        coal_ore: 0.5
+        deepslate_coal_ore: 0.5
+        copper_ore: 0.5
+        deepslate_copper_ore: 0.5
       drops:                     # 광석 -> 나올 수 있는 원석
         redstone_ore: [economy:rough_ruby]
         deepslate_redstone_ore: [economy:rough_ruby]
@@ -78,6 +84,14 @@ jobs:
         deepslate_lapis_ore: [economy:rough_sapphire]
         diamond_ore: [economy:rough_sapphire]
         deepslate_diamond_ore: [economy:rough_sapphire]
+        gold_ore: [economy:rough_ruby]
+        deepslate_gold_ore: [economy:rough_ruby]
+        emerald_ore: [economy:rough_sapphire]
+        deepslate_emerald_ore: [economy:rough_sapphire]
+        copper_ore: [economy:rough_ruby, economy:rough_sapphire]
+        deepslate_copper_ore: [economy:rough_ruby, economy:rough_sapphire]
+        coal_ore: [economy:rough_ruby, economy:rough_sapphire]
+        deepslate_coal_ore: [economy:rough_ruby, economy:rough_sapphire]
     promotion-item: economy:gem_dust       # 승급 재료 (4세대, 3강 기계부터)
     promotion-special: economy:meteoric_iron
     milestones: { 40: { special-boost: 1.2 } }
@@ -90,6 +104,7 @@ jobs:
                gold_ore: 3, deepslate_gold_ore: 3, redstone_ore: 2, deepslate_redstone_ore: 2, lapis_ore: 3, deepslate_lapis_ore: 3,
                diamond_ore: 10, deepslate_diamond_ore: 10, emerald_ore: 10, deepslate_emerald_ore: 10,
                nether_gold_ore: 1, nether_quartz_ore: 1, ancient_debris: 20 }
+      rock: { stone: 0.1, deepslate: 0.1 }   # 굴을 파며 캔 돌 (직접 놓은 돌은 안 침)
       find: 5
 
   farmer:

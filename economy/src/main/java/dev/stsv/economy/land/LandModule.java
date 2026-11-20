@@ -100,6 +100,11 @@ public final class LandModule extends EcoModule implements DailyListener {
             Land home = store.index().home(owner);
             return home != null && home.allows(player);
         });
+        // 허수아비: works only on land its owner owns or lives in (a land that changes hands leaves it idle)
+        if (core.crops() != null && core.crops().scarecrows() != null) core.crops().scarecrows().rule(sc -> {
+            Land l = store.index().at(new ChunkPos(sc.world(), sc.cx(), sc.cz()));
+            return l != null && !l.server() && l.allows(sc.owner());
+        });
         eco.calendar().onDaily(this);
         eco.onReset(store::reset);
         // once: the chunks every owner has now count as claimed by them (the land achievements count only those)
@@ -1049,5 +1054,16 @@ public final class LandModule extends EcoModule implements DailyListener {
             HudModule.flash(e.getPlayer(), c != null ? Lang.mm("land.enter", "owner", ownerName(c))
                     : kind(e.getTo()) == WorldRules.Kind.BUILD ? Lang.mm("land.leave-build") : Lang.mm("land.leave"));
         }
+    }
+
+    /** 허수아비: only on land the player owns or lives in (it keeps that land's crops growing). */
+    @org.bukkit.event.EventHandler(priority = org.bukkit.event.EventPriority.HIGH, ignoreCancelled = true)
+    public void onScarecrow(dev.stsv.core.furniture.FurniturePlaceEvent e) {
+        if (!e.getFurniture().item().key().asString().equals(dev.stsv.core.crop.Scarecrows.ITEM)) return;
+        org.bukkit.Location at = e.getFurniture().location();
+        Land l = store.index().at(new ChunkPos(at.getWorld().getName(), at.getBlockX() >> 4, at.getBlockZ() >> 4));
+        if (l != null && !l.server() && l.allows(e.getPlayer().getUniqueId())) return;
+        e.setCancelled(true);
+        dev.stsv.core.hud.HudModule.flash(e.getPlayer(), Lang.mm("land.scarecrow-own"));
     }
 }

@@ -128,6 +128,10 @@ public final class CropModule implements StsvModule, Listener {
     private boolean running;
     /** view distance and culling box of the crop displays (config display.*) */
     private DisplayView.Settings view;
+    /** 허수아비: crops in their chunks grow with nobody near */
+    private Scarecrows scarecrows;
+    /** a crop's growth speed when its chunk was last loaded (a scarecrow's crop grows on with it while unloaded) */
+    private final Map<Long, Double> lastSpeed = new HashMap<>();
 
     @Override
     public String id() {
@@ -156,6 +160,8 @@ public final class CropModule implements StsvModule, Listener {
             nextId = Math.max(nextId, s.id + 1);
         }
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        scarecrows = new Scarecrows(plugin);
+        Bukkit.getPluginManager().registerEvents(scarecrows, plugin);
         if (render == Render.BLOCKS) {
             tripwire = new CropTripwire(this, plugin, CropBlocks.Stray.of(plugin.getConfig().getString("crops.stray-tripwire")));
             tripwire.start();
@@ -355,17 +361,49 @@ public final class CropModule implements StsvModule, Listener {
                 continue;
             }
             if (spec.ripe(s.age)) continue;
-            // random ticks only reach chunks within the simulation distance of a player
-            if (w.getChunkAt(s.x >> 4, s.z >> 4).getLoadLevel() != Chunk.LoadLevel.ENTITY_TICKING) continue;
+            // random ticks only reach chunks within the simulation distance of a player (or a 허수아비's chunk)
+            if (w.getChunkAt(s.x >> 4, s.z >> 4).getLoadLevel() != Chunk.LoadLevel.ENTITY_TICKING
+                    && scarecrows.at(s.world, s.x >> 4, s.z >> 4) == null) continue;
             int n = CropGrowth.randomTicks(ticks, speeds.computeIfAbsent(s.world, k -> randomTickSpeed(w)), r);
             if (n == 0 || light(w.getBlockAt(s.x, s.y, s.z)) < 9) continue;
             int before = s.age;
-            s.age = CropGrowth.grow(s.age, spec.maxAge(), n, CropGrowth.chance(speed(s, w)), r);
+            double speed = speed(s, w);
+            lastSpeed.put(s.id, speed);
+            s.age = CropGrowth.grow(s.age, spec.maxAge(), n, CropGrowth.chance(speed), r);
             if (s.age == before) continue;
             s.grown += s.age - before;
             dirty.add(s.id);
             if (spec.stageOf(s.age) != spec.stageOf(before)) refresh(s);
         }
+        growUnderScarecrows(ticks, speeds, r);
+    }
+
+    /**
+     * A 허수아비's chunk that is not loaded: its custom crops grow on in the plugin's state (no block is touched, nothing is
+     * loaded), at the speed they had when the chunk was last loaded; they show their stage when it loads again.
+     */
+    private void growUnderScarecrows(long ticks, Map<String, Integer> speeds, ThreadLocalRandom r) {
+        for (Scarecrows.Scarecrow sc : scarecrows.all()) {
+            World w = Bukkit.getWorld(sc.world());
+            if (w == null || w.isChunkLoaded(sc.cx(), sc.cz()) || scarecrows.at(sc.world(), sc.cx(), sc.cz()) == null) continue;
+            for (Long id : byChunk.getOrDefault(chunkKey(sc.world(), sc.cx(), sc.cz()), Set.of())) {
+                CropState s = crops.get(id);
+                CropSpec spec = s == null ? null : specs.get(s.crop);
+                if (spec == null || spec.ripe(s.age)) continue;
+                int n = CropGrowth.randomTicks(ticks, speeds.computeIfAbsent(sc.world(), k -> randomTickSpeed(w)), r);
+                if (n == 0) continue;
+                int before = s.age;
+                s.age = CropGrowth.grow(s.age, spec.maxAge(), n, CropGrowth.chance(lastSpeed.getOrDefault(id, 2.0)), r);
+                if (s.age == before) continue;
+                s.grown += s.age - before;
+                dirty.add(s.id);
+            }
+        }
+    }
+
+    /** 허수아비 (the economy sets where one may work: its owner's land). */
+    public Scarecrows scarecrows() {
+        return scarecrows;
     }
 
     private boolean soilOk(CropState s, CropSpec spec, World w) {

@@ -637,6 +637,8 @@ tpa:
   block-off: "<green>이제 텔레포트 요청을 받습니다."
 
 crop:
+  scarecrow-placed: "<gold>허수아비</gold><gray>가 이 청크의 작물을 지킵니다 (아무도 없어도 자람)"
+  scarecrow-one: "<red>이 청크에는 이미 허수아비가 있습니다."
   wrong-soil: "<red>이 씨앗은 경작지 위에 심어야 합니다."
   status: "<white>{crop}</white> <gray>{stage}/{stages}단계 ({pct}%){notes}"
   note-dark: " · <red>어두워서 자라지 않음</red> <dark_gray>(빛 9 이상)"

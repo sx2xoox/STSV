@@ -504,7 +504,12 @@ public final class JobModule extends EcoModule {
 
     private static boolean tracked(Material m) {
         return m.name().endsWith("_ORE") || m == Material.MELON || m == Material.PUMPKIN
-                || m == Material.ANCIENT_DEBRIS || m == Material.AMETHYST_CLUSTER;
+                || m == Material.ANCIENT_DEBRIS || m == Material.AMETHYST_CLUSTER || rock(m);
+    }
+
+    /** Bare rock a miner tunnels through (광부 "rock" XP: jobs.yml xp.rock); no ore bonus, gem or special from it. */
+    private static boolean rock(Material m) {
+        return m == Material.STONE || m == Material.DEEPSLATE;
     }
 
     private static int pack(Block b) {
@@ -590,7 +595,7 @@ public final class JobModule extends EcoModule {
     }
 
     private static boolean ore(Material m) {
-        return tracked(m) && m != Material.MELON && m != Material.PUMPKIN;
+        return tracked(m) && m != Material.MELON && m != Material.PUMPKIN && !rock(m);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -604,6 +609,7 @@ public final class JobModule extends EcoModule {
         boolean crop = mature(b.getState());
         if (!wasPlaced) {
             if (ore(m)) reward(p, "break", key, 1);
+            else if (rock(m)) reward(p, "rock", key, 1);
             else if (crop || m == Material.MELON || m == Material.PUMPKIN) reward(p, "harvest", key, 1);
             accessories(p, b, m, crop);
         }
@@ -660,7 +666,7 @@ public final class JobModule extends EcoModule {
             }
             JobSpec.Job miner = spec.jobs().get("miner");
             List<String> gems = miner == null || miner.finds() == null ? List.of() : miner.finds().drops(key);
-            if (!silk && !gems.isEmpty() && r.nextDouble() < findChance(u, miner)) {
+            if (!silk && !gems.isEmpty() && r.nextDouble() < findChance(u, miner) * miner.finds().weight(key)) {
                 Items.create(gems.get(r.nextInt(gems.size())), 1).ifPresent(g -> {
                     e.getBlock().getWorld().dropItemNaturally(e.getBlock().getLocation().add(0.5, 0.5, 0.5), g);
                     HudModule.flash(p, Lang.mm("job.found", "item", Items.mmName(g)));

@@ -1,0 +1,17 @@
+# 농장 가구. 허수아비: 세운 청크의 작물이 아무도 없어도 자람 (CropModule · Scarecrows: 커스텀 작물은 그대로 자라고,
+# 바닐라 작물은 청크가 다시 열릴 때 비운 시간만큼(최대 12시간) 자람). 한 청크에 하나, 내 땅(또는 내가 사는 땅)에만.
+# 후원 상점 (donation_shop.yml scarecrow)
+
+scarecrow:
+  material: paper
+  name: "<#e8c66a>허수아비"
+  lore:
+    - "<gold>후원</gold> <gray>· 세운 청크의 작물이 아무도 없어도 자람"
+    - "<gray>커스텀 작물은 계속 · 바닐라 작물은 돌아오면 밀린 만큼 (최대 12시간)"
+    - "<dark_gray>한 청크에 하나 · 내 땅(또는 내가 사는 땅)에만"
+  model: scarecrow
+  icon: scarecrow_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+    solid: false
