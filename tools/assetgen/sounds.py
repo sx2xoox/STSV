@@ -49,7 +49,7 @@ VEHICLES = ("police_car", "light_truck", "golf_cart", "fishing_boat")
 # more vehicles' sounds, each module with NAMES [(vehicle, kind)] and clips() -> {(vehicle, kind): (samples, ogg quality)}:
 # written and listed in sounds.json with these (sounds_farm.py: the ox cart, the power tiller, the tractor; sounds_feel.py:
 # engine start / stop and the reverse beep, content/stsv/vehicle_feel.yml)
-EXTRA = ("sounds_farm", "sounds_feel", "sounds_fun")
+EXTRA = ("sounds_farm", "sounds_feel", "sounds_fun", "sounds_donation")
 
 
 def _extra():

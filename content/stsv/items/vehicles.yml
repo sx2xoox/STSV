@@ -557,9 +557,9 @@ classic_roadster:
     plates:
       - { at: [0, 0.28, 2.32], width: 0.5, height: 0.1 }
       - { at: [0, 0.47, -2.19], back: true, width: 0.45, height: 0.1 }
-    horn: { sound: stsv:vehicle.grand_sedan.horn, release: stsv:vehicle.grand_sedan.horn_end, volume: 1.4,
+    horn: { sound: stsv:vehicle.classic_roadster.horn, release: stsv:vehicle.classic_roadster.horn_end, volume: 1.4,
             vanilla: block.note_block.didgeridoo, pitch: 1.2, times: 2, gap: 3 }
-    engine: { sound: stsv:vehicle.grand_sedan.engine, volume: 0.4, idle-volume: 0.16, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }
+    engine: { sound: stsv:vehicle.classic_roadster.engine, volume: 0.4, idle-volume: 0.16, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }
 
 # 후원 · 레트로 캠핑밴: 민트·크림 투톤에 물결 줄무늬, 접힌 팝업 텐트 지붕 위 서핑보드, 오른쪽 미닫이 문. 6인승(앞 2 + 벤치 두 줄).
 # 느리고 부드러움 (드리프트 없음). 모델: tools/assetgen/models/vehicles_donation_retro_camper.py
@@ -612,9 +612,9 @@ retro_camper:
     plates:
       - { at: [0, 0.406, 2.3438], width: 0.5, height: 0.15 }
       - { at: [0, 0.406, -2.3438], back: true, width: 0.5, height: 0.15 }
-    horn: { sound: stsv:vehicle.cargo_van.horn, release: stsv:vehicle.cargo_van.horn_end, volume: 1.3,
+    horn: { sound: stsv:vehicle.retro_camper.horn, release: stsv:vehicle.retro_camper.horn_end, volume: 1.3,
             vanilla: block.note_block.didgeridoo, pitch: 1.3, times: 2, gap: 3 }
-    engine: { sound: stsv:vehicle.cargo_van.engine, volume: 0.4, idle-volume: 0.2, idle-pitch: 0.6, top-pitch: 1.3, segment-ticks: 10 }
+    engine: { sound: stsv:vehicle.retro_camper.engine, volume: 0.4, idle-volume: 0.2, idle-pitch: 0.6, top-pitch: 1.3, segment-ticks: 10 }
 
 # 후원 · 사이드카 오토바이: 클래식 투어링 오토바이 오른쪽에 총알 모양 사이드카. 세 바퀴(사이드카 바퀴 포함), 2인승 (운전자는 오토바이에 걸터앉고, 동승자는 사이드카에)
 sidecar_bike:
@@ -654,9 +654,9 @@ sidecar_bike:
       - { at: [0.4375, 0.76, -0.21875] }         # 동승자: 사이드카 안
     plates:
       - { at: [-0.40625, 0.578, -1.2656], back: true, width: 0.26, height: 0.12 }
-    horn: { sound: stsv:vehicle.delivery_scooter.horn, release: stsv:vehicle.delivery_scooter.horn_end, volume: 1.5,
+    horn: { sound: stsv:vehicle.sidecar_bike.horn, release: stsv:vehicle.sidecar_bike.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 1.3, times: 2, gap: 3 }
-    engine: { sound: stsv:vehicle.atv.engine, volume: 0.45, idle-volume: 0.2, idle-pitch: 0.5, top-pitch: 1.3, segment-ticks: 10 }
+    engine: { sound: stsv:vehicle.sidecar_bike.engine, volume: 0.45, idle-volume: 0.2, idle-pitch: 0.5, top-pitch: 1.3, segment-ticks: 10 }
 
 # 후원 · 머슬카: 긴 보닛에 에어 스쿠프, 패스트백 꽁무니의 2인승 쿠페 (원래 디자인, 실제 차종 없음). 레이싱 줄무늬, 크롬 범퍼.
 # 하이퍼카보다 느리지만(12블록/초) 드리프트가 더 헐거움 (더 크게 돌아가고 더 오래 미끄러짐)
@@ -704,9 +704,9 @@ muscle_car:
     plates:
       - { at: [0, 0.328, 2.486], width: 0.45, height: 0.11 }
       - { at: [0, 0.53, -2.38], back: true, width: 0.45, height: 0.12 }
-    horn: { sound: stsv:vehicle.sports_car.horn, release: stsv:vehicle.sports_car.horn_end, volume: 1.5,
+    horn: { sound: stsv:vehicle.muscle_car.horn, release: stsv:vehicle.muscle_car.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 1.0, times: 1 }
-    engine: { sound: stsv:vehicle.sports_car.engine, volume: 0.6, idle-volume: 0.26, idle-pitch: 0.5, top-pitch: 1.7, segment-ticks: 10 }
+    engine: { sound: stsv:vehicle.muscle_car.engine, volume: 0.6, idle-volume: 0.26, idle-pitch: 0.5, top-pitch: 1.7, segment-ticks: 10 }
 
 # 후원 · 콘셉트 EV: 매끈한 조약돌 모양의 4인승 전기 콘셉트카. 앞뒤 끝까지 이어진 빛 띠, 통유리 캐노피, 위로 열리는 걸윙 도어
 concept_ev:
@@ -755,6 +755,6 @@ concept_ev:
     plates:
       - { at: [0, 0.25, 2.4375], width: 0.5, height: 0.1 }
       - { at: [0, 0.5, -2.4375], back: true, width: 0.6, height: 0.11 }
-    horn: { sound: stsv:vehicle.grand_sedan.horn, release: stsv:vehicle.grand_sedan.horn_end, volume: 1.4,
+    horn: { sound: stsv:vehicle.concept_ev.horn, release: stsv:vehicle.concept_ev.horn_end, volume: 1.4,
             vanilla: block.note_block.bit, pitch: 1.4, times: 1 }
-    engine: { sound: stsv:vehicle.golf_cart.engine, volume: 0.4, idle-volume: 0.08, idle-pitch: 0.7, top-pitch: 1.9, segment-ticks: 10 }
+    engine: { sound: stsv:vehicle.concept_ev.engine, volume: 0.4, idle-volume: 0.08, idle-pitch: 0.7, top-pitch: 1.9, segment-ticks: 10 }

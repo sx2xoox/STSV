@@ -684,5 +684,180 @@
         "name": "stsv:vehicle/common_slide_whistle"
       }
     ]
+  },
+  "vehicle.muscle_car.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/muscle_car_horn"
+      }
+    ]
+  },
+  "vehicle.muscle_car.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/muscle_car_horn_end"
+      }
+    ]
+  },
+  "vehicle.muscle_car.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/muscle_car_engine"
+      }
+    ]
+  },
+  "vehicle.muscle_car.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/muscle_car_engine_start"
+      }
+    ]
+  },
+  "vehicle.muscle_car.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/muscle_car_engine_stop"
+      }
+    ]
+  },
+  "vehicle.concept_ev.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/concept_ev_horn"
+      }
+    ]
+  },
+  "vehicle.concept_ev.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/concept_ev_horn_end"
+      }
+    ]
+  },
+  "vehicle.concept_ev.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/concept_ev_engine"
+      }
+    ]
+  },
+  "vehicle.concept_ev.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/concept_ev_engine_start"
+      }
+    ]
+  },
+  "vehicle.concept_ev.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/concept_ev_engine_stop"
+      }
+    ]
+  },
+  "vehicle.retro_camper.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/retro_camper_horn"
+      }
+    ]
+  },
+  "vehicle.retro_camper.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/retro_camper_horn_end"
+      }
+    ]
+  },
+  "vehicle.retro_camper.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/retro_camper_engine"
+      }
+    ]
+  },
+  "vehicle.retro_camper.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/retro_camper_engine_start"
+      }
+    ]
+  },
+  "vehicle.retro_camper.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/retro_camper_engine_stop"
+      }
+    ]
+  },
+  "vehicle.classic_roadster.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/classic_roadster_horn"
+      }
+    ]
+  },
+  "vehicle.classic_roadster.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/classic_roadster_horn_end"
+      }
+    ]
+  },
+  "vehicle.classic_roadster.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/classic_roadster_engine"
+      }
+    ]
+  },
+  "vehicle.classic_roadster.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/classic_roadster_engine_start"
+      }
+    ]
+  },
+  "vehicle.classic_roadster.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/classic_roadster_engine_stop"
+      }
+    ]
+  },
+  "vehicle.sidecar_bike.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sidecar_bike_horn"
+      }
+    ]
+  },
+  "vehicle.sidecar_bike.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sidecar_bike_horn_end"
+      }
+    ]
+  },
+  "vehicle.sidecar_bike.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sidecar_bike_engine"
+      }
+    ]
+  },
+  "vehicle.sidecar_bike.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sidecar_bike_engine_start"
+      }
+    ]
+  },
+  "vehicle.sidecar_bike.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sidecar_bike_engine_stop"
+      }
+    ]
   }
 }
