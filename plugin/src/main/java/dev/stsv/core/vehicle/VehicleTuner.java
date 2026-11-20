@@ -202,6 +202,9 @@ final class VehicleTuner {
         return v.item.key().getKey();
     }
 
+    /** The look a vehicle comes with before anyone tunes it (검은 세단 · 요원 K: blue underglow from the start). */
+    static final java.util.Map<String, Custom> FACTORY = java.util.Map.of("agent_sedan", Custom.decode("underglows=blue"));
+
     /** A vehicle that appears (or whose item file was read again) takes the look it was given. */
     void adopt(LiveVehicle v) {
         if (v.temporary) {   // a race's kart: the paint it was given when it was made (VehicleModule#spawnTemporary)
@@ -210,7 +213,7 @@ final class VehicleTuner {
         }
         boolean tried = false;
         for (Trying t : trying.values()) tried |= t.vehicle == v.id;
-        if (!tried) v.custom = catalogue.valid(id(v), saved.getOrDefault(v.id, Custom.NONE));
+        if (!tried) v.custom = catalogue.valid(id(v), saved.getOrDefault(v.id, FACTORY.getOrDefault(id(v), Custom.NONE)));
         else v.custom = catalogue.valid(id(v), v.custom);
     }
 

@@ -272,6 +272,7 @@ public final class RankModule extends EcoModule implements WeeklyListener {
         core.cosmetics().cosmetics().stream()
                 .filter(c -> c.cosmetic().rarity() == dev.stsv.core.content.CustomItem.Rarity.LEGENDARY)
                 .map(c -> c.key().asString()).sorted()
+                .filter(id -> !id.startsWith("stsv:agent_"))   // 마을버스 비밀 의뢰 보상: 그 의뢰로만
                 .filter(id -> !list.contains(id)).forEach(list::add);
         java.util.Set<String> owned = core.cosmetics().owned(winner);
         for (int k = 0; k < list.size(); k++) {
