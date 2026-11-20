@@ -122,6 +122,31 @@ talk-cooldown: 60
 gift-chance: 0.35
 gift-mood: 90
 
+# 줄 서기 · 기다리는 동작: 손님은 온 순서대로 줄을 섬 (맨 앞 = 버스 문 쪽, 베이와 대기소 사이에 gap 칸 간격 · 비 오면 지붕 밑),
+# 버스가 notice 칸 안에 오면 다 같이 버스를 봄. 그 전에는 idle-every 틱마다 종류별 동작 (idle: 손님 종류 -> 동작):
+#   sit 의자에 앉음 (앉은 자리는 줄 순서 그대로) · phone 고개 숙여 폰 · fidget 길 쪽을 힐끔, 몸을 들썩, 시계 봄 · hop 콩콩 뜀
+#   (없는 종류는 가끔 두리번)
+queue:
+  gap: 0.8
+  notice: 24
+  idle-every: 30
+  idle: {grandma: sit, haenyeo: sit, student: phone, nurse: phone, couple: phone, office: fidget, courier: fidget, kinder: hop}
+# 기다림 짜증: grace 분 넘게 기다린 손님은 탈 때 기분이 낮음 (full 분이면 floor 까지, 사이는 고르게; 원래는 mood.start).
+# every 초마다 give-up 분 넘게 기다린 손님 가운데 가장 오래 기다린 한 명이 give-up-chance 확률로 걸어감 (talk give-up)
+patience:
+  grace: 3
+  full: 15
+  floor: 55
+  give-up: 20
+  give-up-chance: 0.25
+  every: 20
+# 버스 도착 안내판 (표지판: 노선마다 이쪽으로 오는 가장 가까운 버스 · 약 몇 분 (도로 거리 ÷ fare.on-time-speed) · 기사) 과
+# 노선도 판 (대기소 뒷벽: 지나는 노선의 정류장 차례, 이 정류장 앞뒤 around 곳씩). refresh 초마다, 불러와진 정류장만
+board:
+  refresh: 3
+  lines: 4
+  around: 2
+
 # 손님 종류: weight 비율, fare 운임 배수, mood 감점 배수, slow 타고 내리는 시간 배수,
 # far 먼 곳만 감(블록), tip-mood 이 기분 아래면 팁 없음, rush 출퇴근 시간 가중치 배수, late 늦으면 기분 감점(분당)
 # tags: 정류장 특성별 비율 배수 (여러 특성이면 가장 큰 것), hours: [from, to] 이 시간(한국 시각)에만 나옴,
@@ -150,6 +175,7 @@ types:
       jolt: ["으악!", "기사님 살살요~"]
       late: ["선생님한테 혼나겠다…", "지각이다 지각!"]
       smooth: ["오 부드럽다"]
+      give-up: ["엄마한테 데리러 오라고 해야지…"]
       view: ["우와~"]
     skins: ["economy:entity/bus/student_1", "economy:entity/bus/student_2 slim", "economy:entity/bus/student_3"]
   grandma:
@@ -167,6 +193,8 @@ types:
       jolt: ["아이고 기사양반 천천히 가요", "아이고 허리야…"]
       bump: ["에구머니나!"]
       smooth: ["기사양반 운전 참 잘하네", "아이 편하다"]
+      waited: ["아이고 한참 기다렸네…", "버스가 왜 이리 안 와"]
+      give-up: ["아이고 다리야, 그냥 걸어가야겠네"]
       thanks: ["고마워요~ 이거 먹어요", "수고해요 기사양반"]
     skins: ["economy:entity/bus/grandma_1 slim", "economy:entity/bus/grandma_2 slim", "economy:entity/bus/grandma_3 slim"]
   office:
@@ -181,6 +209,8 @@ types:
       jolt: ["커피 쏟았잖아요!", "아 진짜…"]
       late: ["지각이다 지각…", "팀장님 전화 온다…"]
       smooth: ["오늘은 좀 괜찮네"]
+      waited: ["배차 간격 실화냐…", "아 늦었다 늦었어"]
+      give-up: ["안 되겠다, 택시 타야지"]
     skins: ["economy:entity/bus/office_1", "economy:entity/bus/office_2 slim", "economy:entity/bus/office_3"]
   tourist:
     name: 관광객
@@ -317,6 +347,7 @@ types:
       jolt: ["으앙!", "무서워~"]
       bump: ["으아앙!"]
       smooth: ["기사 아저씨 최고!"]
+      waited: ["버스 너무 늦게 와요!"]
       view: ["우와 강아지다!", "구름 봐 구름!"]
       doze-missed: ["엄마아…"]
       thanks: ["고맙습니다아!"]
@@ -395,3 +426,5 @@ talk:
   bell: ["내릴게요~"]
   thanks: ["고맙습니다~", "수고하세요~"]
   transfer: ["환승할게요~"]
+  waited: ["왜 이렇게 늦게 와요…", "한참 기다렸네", "아이고 드디어 왔다"]
+  give-up: ["에이, 걸어가야지", "버스 안 오네… 그냥 가자"]

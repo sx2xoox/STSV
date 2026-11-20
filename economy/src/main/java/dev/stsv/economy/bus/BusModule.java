@@ -111,6 +111,12 @@ public final class BusModule extends EcoModule {
         boolean transfer;
         /** a couple's other half (boards and gets off with this one) */
         Waiter partner;
+        /** when they came to the stop (millis: the longer, the crosser when they board) */
+        long since = System.currentTimeMillis();
+        /** where they stand in the line (a hop comes back here), and the bench seat they sit on (or null) */
+        Location home;
+        Entity seat;
+        int seatAt = -1;
 
         Waiter(Mannequin m, BusSpec.Type type, String face) {
             this.m = m;
@@ -125,7 +131,18 @@ public final class BusModule extends EcoModule {
     static final class Shown {
         final List<Waiter> waiters = new ArrayList<>();
         long lastNear;
+        /** the driver near (they look at the bus once it is within queue.notice), the line to be placed again, in the rain */
+        UUID driver;
+        boolean dirty = true, rain;
     }
+
+    /** stop id -> when each of its waiting passengers came (in memory, like the shown ones) */
+    private final Map<Integer, StopQueue> queues = new HashMap<>();
+    /** stop id -> the arrival board's rows on the sign (refreshed every board.refresh seconds) and what its 노선도 shows */
+    private final Map<Integer, String> bisRows = new HashMap<>();
+    private final Map<Integer, Integer> boardShown = new HashMap<>();
+    /** stop id -> whether its ceiling lamp was last lit (set again only when day and night turn) */
+    private final Map<Integer, Boolean> lampShown = new HashMap<>();
 
     /** A passenger on a bus. */
     static final class Rider {
@@ -199,6 +216,7 @@ public final class BusModule extends EcoModule {
         readStops();
         every(1L, this::tick);
         every(20L, this::second);
+        every(spec.queue().idleEvery(), this::idle);
         core.hud().overlay("eco-bus", this::overlayRows);
         Bukkit.getScheduler().runTaskLater(eco, this::rebuildNets, 40L);   // after the roads have loaded
     }
@@ -217,7 +235,7 @@ public final class BusModule extends EcoModule {
         VehicleModule vm = core == null ? null : core.vehicles();
         if (vm != null) for (long[] r : rentals.values()) vm.removeTemporary(r[0]);
         rentals.clear();
-        for (Shown s : shown.values()) for (Waiter w : s.waiters) w.m.remove();
+        for (Shown s : shown.values()) for (Waiter w : s.waiters) gone(w);
         shown.clear();
     }
 
@@ -391,7 +409,7 @@ public final class BusModule extends EcoModule {
         if (whyA == null) tries.add(simple(a));
         if (whyB == null) tries.add(simple(b));
         for (BusStop t : tries) {
-            Map<Block, BlockData> plan = StopBuilder.plan(w, t, cfg, eco.roads().surfaceBlock());
+            Map<Block, BlockData> plan = StopBuilder.plan(w, t, cfg, eco.roads().surfaceBlock(), StopBuilder.theme(detectTags(w, t)));
             int[] bad = StopBuilder.blocked(plan, (x, z) -> eco.roads().guardAt(w.getName(), x, z) != null);
             if (bad != null || (t.bay() && StopBuilder.overVoid(w, t, cfg))) continue;
             try {
@@ -431,6 +449,7 @@ public final class BusModule extends EcoModule {
         if (s == null) return "<red>없는 정류장: " + name;
         World w = Bukkit.getWorld(s.world());
         hide(s.id());
+        if (w != null) unboard(w, s);
         boolean undone = false;
         if (w != null) {
             try {
@@ -453,6 +472,7 @@ public final class BusModule extends EcoModule {
         World w = Bukkit.getWorld(s.world());
         if (w == null) return "<red>월드가 없어요: " + s.world();
         hide(s.id());
+        unboard(w, s);
         try {
             builder.undo(w, s);
         } catch (IOException e) {
@@ -592,6 +612,7 @@ public final class BusModule extends EcoModule {
         int node = routes.attach(at.getX(), at.getZ());
         if (node < 0) return "<red>국도에서 " + (int) BusRoutes.ATTACH + "칸 안에 서서 쓰세요";
         hide(s.id());
+        unboard(at.getWorld(), s);
         try {
             builder.undo(at.getWorld(), s);
         } catch (IOException e) {
@@ -835,11 +856,12 @@ public final class BusModule extends EcoModule {
             return;
         }
         sh.waiters.remove(w);
+        sh.dirty = true;   // the rest move up the line
         if (!board(p, run, d, vm, here, line, w, dest, free.getFirst())) return;
         if (w.partner != null && sh.waiters.remove(w.partner)) {
             List<Integer> left = vm.freeSeats(d.id());
             if (!left.isEmpty()) board(p, run, d, vm, here, line, w.partner, dest, left.getFirst());
-            else w.partner.m.remove();
+            else gone(w.partner);
         }
         run.busy = (int) (cfg.boardTicks() * w.type.slow());
         remember(p.getUniqueId(), here.id(), dest);
@@ -847,14 +869,24 @@ public final class BusModule extends EcoModule {
 
     /** One passenger gets on: seated, counted off the stop, told to the driver. False when they could not sit. */
     private boolean board(Player p, Run run, VehicleModule.Driven d, VehicleModule vm, BusStop here, BusLine line, Waiter w, int dest, int seat) {
+        if (w.seat != null) {   // up off the bench first
+            w.m.leaveVehicle();
+            w.seat.remove();
+            w.seat = null;
+        }
         if (!w.m.isValid() || !vm.seatGuest(d.id(), seat, w.m)) {
             if (w.m.isValid()) eco.getLogger().warning("[버스] 손님을 " + seat + "번 자리에 앉히지 못함 (" + here.name() + ")");
             w.m.remove();
             return false;
         }
         waiting.merge(here.id(), -1.0, (a, b) -> Math.max(0, a + b));
+        StopQueue q = queues.get(here.id());
+        if (q != null) q.take(w.since);
+        // 기다림 짜증: a long wait, a crosser passenger
+        double waited = (System.currentTimeMillis() - w.since) / 60000.0, start = spec.mood().start();
+        double mood = spec.patience().mood(start, waited);
         double road = line.between(line.at(here.id()), line.at(dest));
-        Rider r = new Rider(w.m, w.type, here.id(), dest, road, spec.mood().start());
+        Rider r = new Rider(w.m, w.type, here.id(), dest, road, mood);
         r.face = w.face;
         r.transfer = w.transfer;
         run.riders.add(r);
@@ -866,7 +898,7 @@ public final class BusModule extends EcoModule {
         } else {
             HudModule.flash(p, Lang.mm("bus.boarded", "type", typeTag(w.type), "dest", destName, "km", km(r.road)), 2000);
         }
-        talk(run, r.m, r.type, w.transfer ? "transfer" : "board", false);
+        talk(run, r.m, r.type, w.transfer ? "transfer" : mood <= start - 5 ? "waited" : "board", mood <= start - 5);
         if (w.type.announce()) Bukkit.broadcast(Lang.msg("bus.vip", "player", p.getName(), "dest", destName));
         return true;
     }
@@ -1158,6 +1190,15 @@ public final class BusModule extends EcoModule {
             waiting.merge(s.id(), minutes * rate, (a, b) -> a >= s.size() ? a : Math.min(s.size(), a + b));
         }
         dayEvents();
+        // who came when (the line's order, how long each has waited); now and then the one waiting longest gives up
+        boolean giveUps = ticks % (spec.patience().every() * 20L) < 20;
+        for (BusStop s : stops.values()) {
+            StopQueue q = queues.computeIfAbsent(s.id(), k -> new StopQueue());
+            q.sync((int) Math.floor(waiting.getOrDefault(s.id(), 0.0)), now);
+            if (giveUps) giveUp(s, q, now);
+        }
+        boolean bisNow = ticks % (spec.board().refresh() * 20L) < 20, lampNow = ticks % 200 < 20;
+        Map<Run, int[]> runAt = new HashMap<>();
         // a bus near a stop: its passengers stand in the shelter
         for (BusStop s : stops.values()) {
             World w = Bukkit.getWorld(s.world());
@@ -1172,14 +1213,22 @@ public final class BusModule extends EcoModule {
                 }
             }
             Shown sh = shown.computeIfAbsent(s.id(), k -> new Shown());
-            sh.waiters.removeIf(x -> !x.m.isValid());
+            if (sh.waiters.removeIf(x -> {
+                if (x.m.isValid()) return false;
+                gone(x);
+                return true;
+            })) sh.dirty = true;
             if (nearDriver != null) {
                 sh.lastNear = now;
+                sh.driver = nearDriver.getUniqueId();
                 int want = (int) Math.floor(waiting.getOrDefault(s.id(), 0.0));
+                StopQueue q = queues.computeIfAbsent(s.id(), k -> new StopQueue());
                 while (sh.waiters.size() < want) {
                     Waiter x = spawnWaiter(w, s, sh.waiters.size(), want, nearDriver.getUniqueId());
                     if (x == null) break;
+                    x.since = q.at(sh.waiters.size(), now);
                     sh.waiters.add(x);
+                    sh.dirty = true;
                     if (x.type.pair() && sh.waiters.size() < want + 1) {   // a couple: the other half beside them
                         Waiter y = spawnWaiter(w, s, sh.waiters.size(), want + 1, nearDriver.getUniqueId(), x.type);
                         if (y != null) {
@@ -1187,14 +1236,17 @@ public final class BusModule extends EcoModule {
                             y.partner = x;
                             sh.waiters.add(y);
                             waiting.merge(s.id(), 1.0, Double::sum);
+                            q.since.add(x.since);   // came together
+                            y.since = x.since;
                         }
                     }
                 }
-                // they look down the road at the bus coming
-                for (Waiter x : sh.waiters) {
-                    Location from = x.m.getLocation();
-                    float yaw = (float) Math.toDegrees(Math.atan2(-(nearDriver.getX() - from.getX()), nearDriver.getZ() - from.getZ()));
-                    x.m.setRotation(yaw, 0);
+                // in a line in the order they came (under the roof in the rain)
+                boolean rain = w.hasStorm();
+                if (sh.dirty || rain != sh.rain) {
+                    sh.rain = rain;
+                    sh.dirty = false;
+                    arrange(w, s, sh);
                 }
             } else if (!sh.waiters.isEmpty() && now - sh.lastNear > spec.stops().hideAfter() * 1000L) {
                 hide(s.id());
@@ -1207,10 +1259,27 @@ public final class BusModule extends EcoModule {
             String words = tagWords(s);
             if (!words.isEmpty()) nos = nos.isEmpty() ? "<gray>" + words : nos + " <gray>" + words;
             if (marketHere(s)) nos += " <#ff9e5c>장날";
-            if (comingBus(s, w) != null) nos += "\n<#ffd166><b>곧 도착</b>";
+            boolean loaded = w.isChunkLoaded((int) Math.floor(s.x()) >> 4, (int) Math.floor(s.z()) >> 4);
+            // 버스 도착 안내판: every line through it, the nearest bus coming its way and when (every few seconds, loaded stops only)
+            if (loaded && (bisNow || !bisRows.containsKey(s.id()))) {
+                bisRows.put(s.id(), arrivals(s, w, runAt));
+                routeBoard(w, s);
+            }
+            // the ceiling lamp: lit from dusk to dawn (only when it turns, loaded stops only)
+            if (loaded && lampNow) {
+                boolean night = StopBuilder.night(w.getTime());
+                Boolean lit = lampShown.get(s.id());
+                if (lit == null || lit != night) {
+                    StopBuilder.setLamp(w, s, spec.stops(), night);
+                    lampShown.put(s.id(), night);
+                }
+            }
+            String rows = bisRows.getOrDefault(s.id(), "");
+            if (!rows.isEmpty()) nos = nos.isEmpty() ? rows.substring(1) : nos + rows;
+            else if (comingBus(s, w) != null) nos += "\n<#ffd166><b>곧 도착</b>";   // a bus on no line yet
             int key = signN * 31 + nos.hashCode();
             Integer had = signShown.get(s.id());
-            if ((had == null || had != key) && w.isChunkLoaded((int) Math.floor(s.x()) >> 4, (int) Math.floor(s.z()) >> 4)) {
+            if ((had == null || had != key) && loaded) {
                 builder.sign(w, s, signN, nos, spec.stops());
                 signShown.put(s.id(), key);
             }
@@ -1642,9 +1711,272 @@ public final class BusModule extends EcoModule {
         return ids.getLast();
     }
 
+    // ------------------------------------------------------------------------------------------
+    // Waiting: the line, what they do while they wait, giving up; the arrival board and the route map
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Places a stop's shown passengers: in a line in the order they came, front first by the bus's door (StopQueue.line; in
+     * the rain under the roof), those who sit (할머니) on the bench. Only when the line changed or the rain came or went.
+     */
+    private void arrange(World w, BusStop s, Shown sh) {
+        BusSpec.Stops cfg = spec.stops();
+        double out0 = s.shelterOut(cfg.bayWidth());
+        int n = sh.waiters.size();
+        boolean[] sits = new boolean[n];
+        for (int i = 0; i < n; i++) sits[i] = "sit".equals(spec.queue().idleOf(sh.waiters.get(i).type.id()));
+        List<StopQueue.Spot> bench = StopQueue.bench(s.side(), out0);
+        List<StopQueue.Spot> line = StopQueue.line(n, s.side(), s.bay(), sh.rain, out0, spec.queue().gap(), cfg.bayLength());
+        int[] where = StopQueue.assign(sits, bench.size());
+        float face = s.facingRoad();
+        for (int i = 0; i < n; i++) {
+            Waiter x = sh.waiters.get(i);
+            if (where[i] < 0) {   // on the bench: sat on a seat of their own (a display under them)
+                int k = -1 - where[i];
+                if (x.seat != null && x.seatAt == k && x.seat.isValid()) continue;
+                StopQueue.Spot sp = bench.get(k);
+                double[] p = s.at(sp.along(), sp.out());
+                Location at = new Location(w, p[0], s.y() + 1.5, p[1], face, 0);
+                if (x.seat != null) {
+                    x.m.leaveVehicle();
+                    x.seat.remove();
+                }
+                x.m.teleport(at);
+                x.home = at;
+                x.seat = w.spawn(at, org.bukkit.entity.ItemDisplay.class, d -> {
+                    d.setPersistent(false);
+                    d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+                });
+                x.seatAt = k;
+                if (!x.seat.addPassenger(x.m)) {   // could not sit: stands on the bench's spot
+                    x.seat.remove();
+                    x.seat = null;
+                    x.seatAt = -1;
+                }
+                continue;
+            }
+            StopQueue.Spot sp = line.get(Math.min(where[i], line.size() - 1));
+            double[] p = s.at(sp.along(), sp.out());
+            Double y = sp.roofed() && sp.out() > out0 ? Double.valueOf(s.y() + 1) : standY(w, p[0], p[1], s.y());
+            if (y == null) {   // no ground on the strip by the bay (a dip, water): inside instead
+                double[] in = s.at((s.side() >= 0 ? 1 : -1) * (1.2 - 0.8 * (where[i] % 4)), out0 + 0.5);
+                p = in;
+                y = (double) (s.y() + 1);
+            }
+            Location at = new Location(w, p[0], y, p[1], face, 0);
+            if (x.seat != null) {
+                x.m.leaveVehicle();
+                x.seat.remove();
+                x.seat = null;
+                x.seatAt = -1;
+            }
+            x.home = at;
+            if (x.m.getLocation().distanceSquared(at) > 0.01) x.m.teleport(at);
+        }
+    }
+
+    /** Where someone stands on this column (the top of its ground within a block of the floor), or null (no ground there). */
+    private static Double standY(World w, double x, double z, int y) {
+        int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
+        for (int yy = y + 1; yy >= y - 1; yy--) {
+            Block below = w.getBlockAt(bx, yy - 1, bz), at = w.getBlockAt(bx, yy, bz);
+            if (!below.isSolid() || at.isSolid()) continue;
+            double top = 0;
+            for (var bb : below.getCollisionShape().getBoundingBoxes()) top = Math.max(top, bb.getMaxY());
+            return below.getY() + (top <= 0 ? 1 : top);
+        }
+        return null;
+    }
+
+    /**
+     * Every second or so (queue.idle-every ticks), the shown waiting passengers: once the bus is near (queue.notice) they
+     * all look at it; till then each passes the time as their kind does (bus.yml queue.idle): sit (on the bench), phone
+     * (looks down at it), fidget (glances down the road, checks the time), hop (little jumps); the rest look about now
+     * and then. Only stops with someone shown: a few mannequins, nothing heavy.
+     */
+    private void idle() {
+        if (shown.isEmpty()) return;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        for (Map.Entry<Integer, Shown> e : shown.entrySet()) {
+            Shown sh = e.getValue();
+            BusStop s = stops.get(e.getKey());
+            if (s == null || sh.waiters.isEmpty()) continue;
+            Player bus = sh.driver == null ? null : Bukkit.getPlayer(sh.driver);
+            boolean notice = bus != null && bus.getWorld().getName().equals(s.world())
+                    && Math.hypot(bus.getX() - s.x(), bus.getZ() - s.z()) <= spec.queue().notice();
+            float face = s.facingRoad();
+            // down the road where the bus comes from (upstream on the stop's side)
+            double[] up = s.at(-(s.side() >= 0 ? 1 : -1) * 30, BusStop.ROAD_HALF);
+            for (Waiter x : sh.waiters) {
+                if (!x.m.isValid()) continue;
+                Location at = x.m.getLocation();
+                if (notice) {   // the bus: everyone looks at it
+                    x.m.setRotation(yawTo(at, bus.getX(), bus.getZ()), 0);
+                    continue;
+                }
+                switch (spec.queue().idleOf(x.type.id())) {
+                    case "sit" -> {
+                        if (rnd.nextDouble() < 0.3) x.m.setRotation(face + (float) rnd.nextDouble(-25, 25), (float) rnd.nextDouble(0, 15));
+                    }
+                    case "phone" -> {   // head down at the phone, now and then a look up
+                        boolean look = rnd.nextDouble() < 0.12;
+                        x.m.setRotation(face + (float) rnd.nextDouble(-10, 10), look ? 0 : 40 + (float) rnd.nextDouble(0, 10));
+                    }
+                    case "fidget" -> {   // glances down the road, shifts about, looks at the watch
+                        double r = rnd.nextDouble();
+                        if (r < 0.4) x.m.setRotation(yawTo(at, up[0], up[1]) + (float) rnd.nextDouble(-8, 8), 0);
+                        else if (r < 0.75) x.m.setRotation(face + (float) rnd.nextDouble(-35, 35), (float) rnd.nextDouble(-5, 10));
+                        if (rnd.nextDouble() < 0.15) x.m.swingMainHand();
+                    }
+                    case "hop" -> {
+                        x.m.setRotation(face + (float) rnd.nextDouble(-60, 60), 0);
+                        if (x.seat == null && x.home != null && rnd.nextDouble() < 0.45) {
+                            Location home = x.home.clone();
+                            home.setYaw(x.m.getLocation().getYaw());
+                            x.m.teleport(home.clone().add(0, 0.35, 0));
+                            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                                if (x.m.isValid() && x.seat == null) x.m.teleport(home);
+                            }, 4L);
+                        }
+                    }
+                    default -> {
+                        if (rnd.nextDouble() < 0.2) x.m.setRotation(face + (float) rnd.nextDouble(-30, 30), 0);
+                    }
+                }
+            }
+        }
+    }
+
+    private static float yawTo(Location from, double x, double z) {
+        return (float) Math.toDegrees(Math.atan2(-(x - from.getX()), z - from.getZ()));
+    }
+
+    /**
+     * 기다림 짜증: the passenger waiting longest at a stop, past patience.give-up minutes, walks off with patience's chance
+     * ("에이, 걸어가야지" when shown). Not while a picnic or a transfer is queued there.
+     */
+    private void giveUp(BusStop s, StopQueue q, long now) {
+        long oldest = q.oldest();
+        if (oldest < 0 || !spec.patience().fedUp((now - oldest) / 60000.0)) return;
+        Deque<Forced> f = forced.get(s.id());
+        if (f != null && !f.isEmpty()) return;
+        if (ThreadLocalRandom.current().nextDouble() >= spec.patience().chance()) return;
+        Shown sh = shown.get(s.id());
+        if (sh != null && !sh.waiters.isEmpty()) {
+            Waiter who = null;
+            for (Waiter x : sh.waiters) {
+                if (x.forcedLine != null || x.partner != null) continue;
+                if (who == null || x.since < who.since) who = x;
+            }
+            if (who == null) return;
+            sh.waiters.remove(who);
+            sh.dirty = true;
+            q.take(who.since);
+            List<String> lines = spec.lines(who.type, "give-up");
+            if (lines != null) say(who.m, lines.get(ThreadLocalRandom.current().nextInt(lines.size())));
+            Waiter leaving = who;
+            leaving.m.setDescription(Component.empty());
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (leaving.m.isValid()) leaving.m.getWorld().spawnParticle(Particle.POOF, leaving.m.getLocation().add(0, 1, 0), 6, 0.2, 0.4, 0.2, 0.01);
+                gone(leaving);
+            }, 50L);
+        } else {
+            q.take(oldest);
+        }
+        waiting.merge(s.id(), -1.0, (a, b) -> Math.max(0, a + b));
+    }
+
+    /**
+     * 버스 도착 안내판: for every line through the stop (bus.yml board.lines at most), the nearest bus driven on it that
+     * is coming this way, with how long till it comes (its road distance at fare.on-time-speed), else 운행 버스 없음.
+     * Each bus's place on its line is worked out once a round (runAt).
+     */
+    private String arrivals(BusStop s, World w, Map<Run, int[]> runAt) {
+        Net n = nets.get(s.world());
+        if (n == null) return "";
+        StringBuilder out = new StringBuilder();
+        int shownLines = 0;
+        for (BusLine l : n.linesOf(s.id())) {
+            if (shownLines++ >= spec.board().lines()) break;
+            int si = l.at(s.id());
+            double best = Double.MAX_VALUE;
+            Player who = null;
+            for (Run r : runs.values()) {
+                if (r.line != l.number) continue;
+                Player p = Bukkit.getPlayer(r.driver);
+                if (p == null || !p.getWorld().equals(w)) continue;
+                int[] ix = runAt.computeIfAbsent(r, k -> {
+                    double[] off = new double[1];
+                    int i = l.nearest(p.getX(), p.getZ(), off);
+                    return new int[]{i, off[0] > 40 ? 1 : 0};
+                });
+                if (ix[1] == 1 || r.dir * (si - ix[0]) < 0) continue;   // off its road, or gone past
+                double d = l.between(ix[0], si);
+                if (d < best) {
+                    best = d;
+                    who = p;
+                }
+            }
+            String line = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(l.name());
+            if (who == null) out.append("\n").append(Lang.raw("bus.bis-none", "line", line));
+            else if (best <= 12) out.append("\n").append(Lang.raw("bus.bis-here", "line", line, "driver", who.getName()));
+            else if (best <= 200) out.append("\n").append(Lang.raw("bus.bis-soon", "line", line, "driver", who.getName()));
+            else {
+                long min = Math.max(1, Math.round(best / Math.max(0.1, spec.fare().onTimeSpeed()) / 60));
+                out.append("\n").append(Lang.raw("bus.bis-eta", "line", line, "min", min, "driver", who.getName()));
+            }
+        }
+        return out.toString();
+    }
+
+    /** 노선도: the stops of every line through this stop on its shelter's back wall (made again only when it changes). */
+    private void routeBoard(World w, BusStop s) {
+        Net n = nets.get(s.world());
+        if (n == null) return;
+        List<BusLine> ls = n.linesOf(s.id());
+        if (ls.isEmpty()) return;
+        var mm = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage();
+        StringBuilder text = new StringBuilder(Lang.raw("bus.map-head"));
+        for (BusLine l : ls.subList(0, Math.min(3, ls.size()))) {
+            List<String> names = new ArrayList<>();
+            int here = -1;
+            for (int id : l.stops()) {
+                BusStop t = stops.get(id);
+                if (t == null) continue;
+                if (id == s.id()) here = names.size();
+                names.add(mm.escapeTags(t.name()));
+            }
+            BusStop end = stops.get(l.stops().getLast());
+            text.append("\n").append(Lang.raw("bus.map-line", "line", mm.escapeTags(l.name()), "end", end == null ? "" : mm.escapeTags(end.name())))
+                    .append("\n").append(StopBoard.row(names, here, spec.board().around()));
+        }
+        String t = text.toString();
+        Integer had = boardShown.get(s.id());
+        if (had != null && had == t.hashCode()) return;
+        StopBoard.show(w, s, spec.stops(), dev.stsv.core.util.Text.mm(t));
+        if (StopBoard.find(w, s) != null) boardShown.put(s.id(), t.hashCode());
+    }
+
+    /** A stop's route map taken away (the stop removed, moved or built again: it is made again with its sign). */
+    private void unboard(World w, BusStop s) {
+        StopBoard.remove(w, s);
+        boardShown.remove(s.id());
+        lampShown.remove(s.id());
+        bisRows.remove(s.id());
+        signShown.remove(s.id());
+        queues.remove(s.id());
+    }
+
     private void hide(int stop) {
         Shown sh = shown.remove(stop);
-        if (sh != null) for (Waiter w : sh.waiters) w.m.remove();
+        if (sh != null) for (Waiter w : sh.waiters) gone(w);
+    }
+
+    /** A waiting passenger taken away (and the bench seat they sat on). */
+    private static void gone(Waiter w) {
+        if (w.seat != null) w.seat.remove();
+        w.seat = null;
+        w.m.remove();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -1698,7 +2030,12 @@ public final class BusModule extends EcoModule {
     /** A passenger left behind (the server stopped while a chunk held one): gone. */
     @EventHandler
     public void onEntitiesLoad(EntitiesLoadEvent e) {
-        for (Entity x : e.getEntities()) if (x instanceof Mannequin && x.getPersistentDataContainer().has(GUEST)) x.remove();
+        for (Entity x : e.getEntities()) {
+            if (x instanceof Mannequin && x.getPersistentDataContainer().has(GUEST)) x.remove();
+            // a route map whose stop is gone (removed while its place was not loaded)
+            Integer board = x.getPersistentDataContainer().get(StopBoard.BOARD, PersistentDataType.INTEGER);
+            if (board != null && !stops.isEmpty() && !stops.containsKey(board)) x.remove();
+        }
     }
 
     /** No snow on a bay or in a shelter. */

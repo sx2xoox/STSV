@@ -1236,6 +1236,14 @@ bus:
   market: "<#ff9e5c>🧺 오늘은 장날!</#ff9e5c> <gray>{stops} 정류장에 할머니 · 농부 손님이 많아요"
   picnic: "<#7cc4ff>🎒 소풍날!</#7cc4ff> <gray>{stop} 정류장에 학생 {n}명이 단체로 기다려요"
   waiter-tag: "<gray>{lines} 기다리는 중"
+  # 버스 도착 안내판 (정류장 표지판, 노선마다 다가오는 가장 가까운 버스)
+  bis-none: "<gray>{line} · <dark_gray>운행 버스 없음"
+  bis-eta: "<white>{line} <gray>· <#7cffb2>약 {min}분 <gray>· <white>{driver}"
+  bis-soon: "<white>{line} <gray>· <#ffd166><b>곧 도착</b> <gray>· <white>{driver}"
+  bis-here: "<white>{line} <gray>· <#7cffb2><b>도착</b> <gray>· <white>{driver}"
+  # 노선도 판 (대기소 뒷벽)
+  map-head: "<white><b>노선도</b>"
+  map-line: "<#ffd166>{line} <gray>(→ {end})"
   stops-lines: " · <#ffd166>{lines}"
   list-row: " <gray>{i}.</gray> {type} <gray>→</gray> <white>{dest}</white> <gray>· {km} · 남은 {left} · 기분 {mood}"
   rider-tag: "<gray>→ <white>{dest}</white> · {left} · 기분 {mood}"

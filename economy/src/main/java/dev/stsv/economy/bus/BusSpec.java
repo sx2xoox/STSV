@@ -9,7 +9,40 @@ import java.util.Map;
 import java.util.Set;
 
 /** bus.yml: fares, moods, stops and passenger types of the 마을버스 (README "마을버스"). Pure (unit-tested). */
-public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, Map<String, Type> types, Extra extra, Rental rental) {
+public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, Map<String, Type> types, Extra extra, Rental rental,
+                      Queue queue, Patience patience, Board board) {
+
+    /**
+     * How waiting passengers stand and pass the time: `gap` blocks apart in their line, they notice a bus within `notice`
+     * blocks (and look at it), else every `idleEvery` ticks each does what their kind does (`idle`: type id -> sit, phone,
+     * fidget, hop; others look about now and then).
+     */
+    public record Queue(double gap, int notice, int idleEvery, Map<String, String> idle) {
+        public String idleOf(String type) {
+            return idle.getOrDefault(type, "");
+        }
+    }
+
+    /**
+     * 기다림 짜증: a passenger who waited longer than `grace` minutes boards in a worse mood, down to `floor` at `full`
+     * minutes; every `every` seconds, the one waiting longest past `giveUp` minutes walks off with `chance`.
+     */
+    public record Patience(double grace, double full, double floor, double giveUp, double chance, int every) {
+        /** The mood a passenger boards in after waiting this many minutes (the start mood when they did not wait long). */
+        public double mood(double start, double minutes) {
+            if (minutes <= grace || floor >= start) return start;
+            if (minutes >= full || full <= grace) return floor;
+            return start + (floor - start) * (minutes - grace) / (full - grace);
+        }
+
+        /** Whether someone waiting this many minutes may give up. */
+        public boolean fedUp(double minutes) {
+            return giveUp > 0 && minutes >= giveUp;
+        }
+    }
+
+    /** 버스 도착 안내판 and 노선도: refreshed every `refresh` seconds, at most `lines` lines on the sign, `around` stops each side. */
+    public record Board(int refresh, int lines, int around) {}
 
     /**
      * 버스 렌트 (for beginners): the server's bus of this kind lent at a stop within `range` blocks; the driver keeps `share`
@@ -145,7 +178,18 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                 Math.max(5, rn.getInt("return-after", 60)), Math.max(4, rn.getInt("range", 20)));
         Set<String> vehicles = Set.copyOf(c.getStringList("vehicles"));
         if (!rental.vehicle().isEmpty() && !vehicles.contains(rental.vehicle())) problems.add("rental.vehicle 이 vehicles 에 없음: " + rental.vehicle());
-        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental);
+        ConfigurationSection q = section(c, "queue"), pt = section(c, "patience"), bd = section(c, "board");
+        Map<String, String> idle = new LinkedHashMap<>();
+        ConfigurationSection id = q.getConfigurationSection("idle");
+        if (id != null) for (String k : id.getKeys(false)) {
+            idle.put(k, id.getString(k, ""));
+            if (!types.containsKey(k)) problems.add("queue.idle: 없는 손님 종류 " + k);
+        }
+        Queue queue = new Queue(Math.max(0.5, q.getDouble("gap", 0.8)), q.getInt("notice", 24), Math.max(10, q.getInt("idle-every", 30)), idle);
+        Patience patience = new Patience(pt.getDouble("grace", 3), pt.getDouble("full", 15), pt.getDouble("floor", 55),
+                pt.getDouble("give-up", 20), Math.clamp(pt.getDouble("give-up-chance", 0.25), 0, 1), Math.max(5, pt.getInt("every", 20)));
+        Board board = new Board(Math.max(1, bd.getInt("refresh", 3)), Math.max(1, bd.getInt("lines", 4)), Math.max(1, bd.getInt("around", 2)));
+        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board);
     }
 
     private static Map<String, List<String>> talk(ConfigurationSection t) {

@@ -8,6 +8,8 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.Lightable;
+import org.bukkit.block.data.Orientable;
 import org.bukkit.block.data.type.Slab;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
@@ -43,8 +45,13 @@ final class StopBuilder {
         this.undoDir = undoDir;
     }
 
-    /** The blocks the stop changes: block -> what it becomes (in build order: ground, then the shelter). */
+    /** The blocks a country stop changes (the shape, and so what it digs, is the same for every theme). */
     static Map<Block, BlockData> plan(World w, BusStop s, BusSpec.Stops cfg, Material surface) {
+        return plan(w, s, cfg, surface, Theme.COUNTRY);
+    }
+
+    /** The blocks the stop changes: block -> what it becomes (in build order: ground, then the shelter, dressed by its theme). */
+    static Map<Block, BlockData> plan(World w, BusStop s, BusSpec.Stops cfg, Material surface, Theme theme) {
         Map<Block, BlockData> out = new LinkedHashMap<>();
         int y = s.y();
         Material edge = Material.YELLOW_CONCRETE;
@@ -85,14 +92,19 @@ final class StopBuilder {
                 }
             }
         }
-        // the shelter, a country bus stop: 5 along, 3 out, behind the bay. Walls of whitewashed cement (white terracotta) on a
-        // cobblestone footing at the back and the sides, a little window in the back, log posts at the open front, a lean-to
-        // roof of old tin (weathered copper, waxed: it rusts no further) sloping to the road, a wooden bench, a lantern under
-        // the roof; a hay bale with a flower pot beside it, and the sign on a wooden pole by it
+        // the shelter, 5 along, 3 out, behind the bay; how it looks follows the stop's theme (the same shape for every theme).
+        // The country stop: walls of whitewashed cement (white terracotta) on a cobblestone footing at the back and the sides,
+        // a little window in the back, log posts at the open front, a lean-to roof of old tin (weathered copper, waxed: it
+        // rusts no further) sloping to the road, a wooden bench, a copper bulb in the ceiling over it (lit at night: setLamp);
+        // a hay bale with a flower pot beside it, and the sign on a wooden pole by it
+        Look k = theme.look();
         int fy = y + 1;
         double out0 = s.shelterOut(cfg.bayWidth());
         BlockFace toRoad = face(-(-s.hz() * s.side()), -(s.hx() * s.side()));
         BlockFace away = toRoad.getOppositeFace();
+        BlockFace along = face(s.hx(), s.hz());
+        org.bukkit.Axis alongAxis = along.getModX() != 0 ? org.bukkit.Axis.X : org.bukkit.Axis.Z;
+        org.bukkit.Axis acrossAxis = alongAxis == org.bukkit.Axis.X ? org.bukkit.Axis.Z : org.bukkit.Axis.X;
         for (int a = -3; a <= 3; a++) {
             for (int o = -1; o <= 2; o++) {
                 double[] p = s.at(a, out0 + o + 0.5);
@@ -100,48 +112,66 @@ final class StopBuilder {
                 boolean inside = Math.abs(a) <= 2 && o >= 0;
                 boolean hay = a == 3 && o == 1, pole = a == -3 && o == 0;
                 if (inside || hay || pole) {
-                    if (inside) out.put(w.getBlockAt(bx, fy - 1, bz), Material.SMOOTH_STONE.createBlockData());
+                    if (inside) out.put(w.getBlockAt(bx, fy - 1, bz), k.floor().createBlockData());
                     for (int down = inside ? 2 : 1; down <= 7; down++) {   // down to the ground, never left hanging
                         Block b = w.getBlockAt(bx, fy - down, bz);
                         if (b.getType().isSolid()) break;
                         out.put(b, Material.STONE.createBlockData());
                     }
                 }
-                if (hay) {
-                    out.put(w.getBlockAt(bx, fy, bz), Material.HAY_BLOCK.createBlockData());
-                    out.put(w.getBlockAt(bx, fy + 1, bz), Material.POTTED_POPPY.createBlockData());
+                if (hay) {   // the prop beside it (a hay bale, barrels, a woodpile ...) with something on top
+                    BlockData lo = k.propLow().createBlockData(), hi = k.propHigh().createBlockData();
+                    if (theme == Theme.MOUNTAIN) {   // a woodpile: the logs' ends to the road
+                        lo = axis(lo, acrossAxis);
+                        hi = axis(hi, acrossAxis);
+                    }
+                    out.put(w.getBlockAt(bx, fy, bz), lo);
+                    out.put(w.getBlockAt(bx, fy + 1, bz), hi);
+                    if (k.propTop() != null) out.put(w.getBlockAt(bx, fy + 2, bz), k.propTop().createBlockData());
                     continue;
                 }
                 if (pole) {
-                    for (int up = 0; up <= 2; up++) out.put(w.getBlockAt(bx, fy + up, bz), Material.SPRUCE_FENCE.createBlockData());
+                    for (int up = 0; up <= 2; up++) out.put(w.getBlockAt(bx, fy + up, bz), k.pole().createBlockData());
                     continue;
                 }
                 if (Math.abs(a) > 2) continue;
                 if (o == -1) {   // the eave over the front, lowest
-                    out.put(w.getBlockAt(bx, fy + 3, bz), stairs(TIN_STAIRS, away));
+                    out.put(w.getBlockAt(bx, fy + 3, bz), stairs(k.roofStairs(), away));
                     continue;
                 }
                 boolean side = Math.abs(a) == 2, back = o == 2;
                 for (int up = 0; up <= 3; up++) {
                     Material m;
-                    if (side && o == 0) m = up <= 2 ? Material.SPRUCE_LOG : TIN;                  // the front posts
+                    if (side && o == 0) m = up <= 2 ? k.post() : k.roof();                       // the front posts
                     else if (side || back) {
-                        if (o == 0 && up == 3) m = TIN;
-                        else m = up == 0 ? Material.COBBLESTONE : back && a == 0 && up == 2 ? Material.GLASS_PANE : Material.WHITE_TERRACOTTA;
-                    } else if (o == 0 && up == 3) m = TIN;                                       // under the roof's front step
+                        if (o == 0 && up == 3) m = k.roof();
+                        else if (up == 0) m = k.footing();
+                        else if (back && !side && (k.wideWindow() ? up <= 2 : a == 0 && up == 2)) m = k.window();
+                        else m = up == 3 ? k.trim() : k.wall();
+                    } else if (o == 0 && up == 3) m = k.roof();                                   // under the roof's front step
                     else m = Material.AIR;
-                    out.put(w.getBlockAt(bx, fy + up, bz), m.createBlockData());
-                }
-                // the roof: one step up behind the eave, flat over the back
-                out.put(w.getBlockAt(bx, fy + 4, bz), o == 0 ? stairs(TIN_STAIRS, away) : TIN.createBlockData());
-                if (o == 1 && !side) {
-                    if (a == 0) {
-                        BlockData lamp = Material.LANTERN.createBlockData();
-                        if (lamp instanceof org.bukkit.block.data.type.Lantern l) l.setHanging(true);
-                        out.put(w.getBlockAt(bx, fy + 3, bz), lamp);
+                    BlockData d = m.createBlockData();
+                    if (theme != Theme.COUNTRY) {
+                        // logs lie along their wall (a log cabin), panes and bars join their neighbours in the wall
+                        boolean wallLog = (side || back) && !(side && o == 0) && (m.name().endsWith("_LOG") || m.name().endsWith("_WOOD"));
+                        if (wallLog) d = axis(d, side && !back ? acrossAxis : alongAxis);
+                        if (m == k.window() && d instanceof org.bukkit.block.data.MultipleFacing f) {
+                            if (f.getAllowedFaces().contains(along)) f.setFace(along, true);
+                            if (f.getAllowedFaces().contains(along.getOppositeFace())) f.setFace(along.getOppositeFace(), true);
+                        }
                     }
-                    out.put(w.getBlockAt(bx, fy, bz), stairs(Material.SPRUCE_STAIRS, away));   // the bench, its back to the wall
+                    out.put(w.getBlockAt(bx, fy + up, bz), d);
                 }
+                // the roof: one step up behind the eave, flat over the back; the lamp in it over the bench
+                BlockData roof;
+                if (o == 0) roof = stairs(k.roofStairs(), away);
+                else if (o == 1 && a == 0) {
+                    roof = LAMP.createBlockData();
+                    if (roof instanceof Lightable l) l.setLit(night(w.getTime()));
+                } else roof = k.roof().createBlockData();
+                out.put(w.getBlockAt(bx, fy + 4, bz), roof);
+                if (k.roofMoss() && o >= 1 && (side || back) && (a + o) % 2 != 0) out.put(w.getBlockAt(bx, fy + 5, bz), Material.MOSS_CARPET.createBlockData());
+                if (o == 1 && !side) out.put(w.getBlockAt(bx, fy, bz), stairs(k.bench(), away));   // the bench, its back to the wall
             }
         }
         // dug out of a hillside: nothing over the shelter, round it a block, up to DIG high (a notch in the slope, like the road's cuts)
@@ -179,6 +209,103 @@ final class StopBuilder {
 
     /** Old tin: weathered copper, waxed so it rusts no further. */
     static final Material TIN = Material.WAXED_WEATHERED_CUT_COPPER, TIN_STAIRS = Material.WAXED_WEATHERED_CUT_COPPER_STAIRS;
+
+    /** The ceiling lamp over the bench: a copper bulb (waxed: it keeps its colour), lit at night. */
+    static final Material LAMP = Material.WAXED_WEATHERED_COPPER_BULB;
+
+    /**
+     * What a shelter looks like, by its stop's traits (README "마을버스"): the country stop, or one dressed for the sea, a
+     * mountain pass, the fields, a forest, a port or a village. The shape is the same; only the blocks and the props change.
+     */
+    enum Theme {
+        COUNTRY(new Look(Material.SMOOTH_STONE, Material.COBBLESTONE, Material.WHITE_TERRACOTTA, Material.WHITE_TERRACOTTA,
+                Material.GLASS_PANE, false, Material.SPRUCE_LOG, TIN, TIN_STAIRS, Material.SPRUCE_STAIRS,
+                Material.HAY_BLOCK, Material.POTTED_POPPY, null, Material.SPRUCE_FENCE, false)),
+        /** 갈매기 쉼터: white and sea-blue painted walls, a sea-green copper roof, a barrel with a harbour lantern. */
+        SEA(new Look(Material.SMOOTH_SANDSTONE, Material.CYAN_TERRACOTTA, Material.WHITE_CONCRETE, Material.LIGHT_BLUE_TERRACOTTA,
+                Material.GLASS_PANE, false, Material.STRIPPED_BIRCH_LOG, Material.WAXED_OXIDIZED_CUT_COPPER,
+                Material.WAXED_OXIDIZED_CUT_COPPER_STAIRS, Material.BIRCH_STAIRS, Material.BARREL, Material.LANTERN, null,
+                Material.BIRCH_FENCE, false)),
+        /** 다람쥐 고개: a log cabin on a stone footing under a slate roof, a woodpile beside it. */
+        MOUNTAIN(new Look(Material.SPRUCE_PLANKS, Material.STONE_BRICKS, Material.STRIPPED_SPRUCE_LOG, Material.SPRUCE_LOG,
+                Material.GLASS_PANE, false, Material.SPRUCE_LOG, Material.DEEPSLATE_TILES, Material.DEEPSLATE_TILE_STAIRS,
+                Material.SPRUCE_STAIRS, Material.SPRUCE_LOG, Material.SPRUCE_LOG, null, Material.DARK_OAK_FENCE, false)),
+        /** 허수아비 앞: a 원두막 of bamboo and oak under a thatch of hay, a hay bale with a pumpkin on it. */
+        FIELD(new Look(Material.OAK_PLANKS, Material.MUD_BRICKS, Material.STRIPPED_BAMBOO_BLOCK, Material.BAMBOO_BLOCK,
+                Material.BAMBOO_FENCE, false, Material.OAK_LOG, Material.HAY_BLOCK, Material.BAMBOO_MOSAIC_STAIRS,
+                Material.OAK_STAIRS, Material.HAY_BLOCK, Material.PUMPKIN, null, Material.OAK_FENCE, false)),
+        /** 도토리 숲길: mangrove and dark oak on a mossy footing, moss on the roof, a stump with a potted mushroom. */
+        FOREST(new Look(Material.SPRUCE_PLANKS, Material.MOSSY_COBBLESTONE, Material.MANGROVE_PLANKS, Material.DARK_OAK_LOG,
+                Material.GLASS_PANE, false, Material.DARK_OAK_LOG, Material.DARK_OAK_PLANKS, Material.DARK_OAK_STAIRS,
+                Material.SPRUCE_STAIRS, Material.OAK_LOG, Material.POTTED_RED_MUSHROOM, null, Material.DARK_OAK_FENCE, true)),
+        /** 등대 앞: a shipping container (orange, blue trim) with a barred window, stacked barrels beside it. */
+        PORT(new Look(Material.SMOOTH_STONE, Material.GRAY_CONCRETE, Material.ORANGE_CONCRETE, Material.BLUE_CONCRETE,
+                Material.IRON_BARS, false, Material.GRAY_CONCRETE, Material.POLISHED_DEEPSLATE, Material.POLISHED_DEEPSLATE_STAIRS,
+                Material.SPRUCE_STAIRS, Material.BARREL, Material.BARREL, null, Material.DARK_OAK_FENCE, false)),
+        /** 느티나무 아래: a town stop of grey cement with a glass back, a red vending machine with a flower pot on it. */
+        VILLAGE(new Look(Material.SMOOTH_STONE, Material.GRAY_CONCRETE, Material.LIGHT_GRAY_CONCRETE, Material.WHITE_CONCRETE,
+                Material.GLASS, true, Material.WHITE_CONCRETE, Material.POLISHED_ANDESITE, Material.POLISHED_ANDESITE_STAIRS,
+                Material.BIRCH_STAIRS, Material.RED_CONCRETE, Material.RED_STAINED_GLASS, Material.POTTED_RED_TULIP,
+                Material.IRON_BARS, false));
+
+        private final Look look;
+
+        Theme(Look look) {
+            this.look = look;
+        }
+
+        Look look() {
+            return look;
+        }
+    }
+
+    /**
+     * A theme's blocks: the floor, the walls' footing, the walls, their top row (trim), the back window (wideWindow: the
+     * whole middle of the back), the front posts, the roof and its steps, the bench, the prop beside the shelter (low, high,
+     * on top: may be null), the sign's pole, and moss on the roof.
+     */
+    record Look(Material floor, Material footing, Material wall, Material trim, Material window, boolean wideWindow,
+                Material post, Material roof, Material roofStairs, Material bench, Material propLow, Material propHigh,
+                Material propTop, Material pole, boolean roofMoss) {
+    }
+
+    /** The theme for a stop of these traits: port, sea, mountain, forest, field, village in that order; else the country stop. */
+    static Theme theme(java.util.Collection<String> traits) {
+        if (traits == null) return Theme.COUNTRY;
+        for (Theme t : new Theme[]{Theme.PORT, Theme.SEA, Theme.MOUNTAIN, Theme.FOREST, Theme.FIELD, Theme.VILLAGE}) {
+            if (traits.contains(t.name().toLowerCase(java.util.Locale.ROOT))) return t;
+        }
+        return Theme.COUNTRY;
+    }
+
+    /** Whether the stop's lamp is lit at this world time (dusk to dawn). */
+    static boolean night(long time) {
+        long t = Math.floorMod(time, 24000L);
+        return t >= 12500 && t < 23500;
+    }
+
+    /** The block the stop's ceiling lamp is in (over the middle of the bench). */
+    static Block lampAt(World w, BusStop s, BusSpec.Stops cfg) {
+        double[] p = s.at(0, s.shelterOut(cfg.bayWidth()) + 1 + 0.5);
+        return w.getBlockAt((int) Math.floor(p[0]), s.y() + 1 + 4, (int) Math.floor(p[1]));
+    }
+
+    /** Lights the stop's ceiling lamp, or puts it out; nothing when its place is not loaded or the lamp is gone (an old stop). */
+    static void setLamp(World w, BusStop s, BusSpec.Stops cfg, boolean on) {
+        double[] p = s.at(0, s.shelterOut(cfg.bayWidth()) + 1 + 0.5);
+        if (!w.isChunkLoaded((int) Math.floor(p[0]) >> 4, (int) Math.floor(p[1]) >> 4)) return;
+        Block b = lampAt(w, s, cfg);
+        if (!b.getType().name().endsWith("COPPER_BULB")) return;
+        if (b.getBlockData() instanceof Lightable l && l.isLit() != on) {
+            l.setLit(on);
+            b.setBlockData(l, false);
+        }
+    }
+
+    private static BlockData axis(BlockData d, org.bukkit.Axis axis) {
+        if (d instanceof Orientable or && or.getAxes().contains(axis)) or.setAxis(axis);
+        return d;
+    }
 
     private static BlockData stairs(Material m, BlockFace facing) {
         BlockData d = m.createBlockData();
