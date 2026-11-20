@@ -291,15 +291,15 @@ def magma_sword():
             m.box("edge", (x0, y0 + 0.25 if y0 > 9.5 else y0, C - 0.5), (x1, y1, C + 0.5), LAVA_DEEP)
     m.box("point", (C - 1.0, 40, C - 0.5), (C + 1.0, 41.0, C + 0.5), LAVA_DEEP)
     m.box("point", (C - 0.5, 41.0, C - 0.375), (C + 0.5, 41.75, C + 0.375), LAVA)
-    # serrations: hooked teeth leaning up out of both edges, a yellow-hot tip
-    for y in (12, 17.5, 23, 28.5):
+    # serrations: three big hooked teeth biting out of each edge, red-hot
+    for y in (12.5, 19.5, 26.5):
         hw = next(r[2] for r in rows if r[0] <= y < r[1])
         for side in (1, -1):
-            yy = y + (2.5 if side < 0 else 0)
+            yy = y + (3.5 if side < 0 else 0)
             x0, x1 = _lr(side, hw + 0.75, hw + 1.5)
-            m.box("tooth", (x0, yy, C - 0.375), (x1, yy + 1.75, C + 0.375), LAVA_RED)
+            m.box("tooth", (x0, yy, C - 0.375), (x1, yy + 2.0, C + 0.375), LAVA_RED)
             x0, x1 = _lr(side, hw + 1.5, hw + 2.0)
-            m.box("tooth_tip", (x0, yy + 1.0, C - 0.25), (x1, yy + 1.75, C + 0.25), LAVA)
+            m.box("tooth_tip", (x0, yy + 1.0, C - 0.25), (x1, yy + 2.0, C + 0.25), LAVA_RED)
     # the fissure: a white-hot zigzag up the middle, proud of both faces
     segs = ((7.5, 8.5, 9.5, 14, 1.375), (7.0, 8.0, 14, 18.5, 1.375), (7.75, 8.75, 18.5, 23, 1.375),
             (7.25, 8.25, 23, 27.5, 1.375), (7.75, 8.75, 27.5, 31.75, 1.375), (7.375, 8.375, 31.75, 36.5, 1.25))
@@ -336,7 +336,8 @@ def magma_pickaxe():
             m.box("arm_hot", (px - 1.75, py - 1.125, 7.125), (px - 0.25, py + 1.125, 8.875), LAVA_DEEP, rotation=rot)
             m.box("arm_tip", (px - 2.75, py - 0.625, 7.375), (px - 1.75, py + 0.625, 8.625), LAVA, rotation=rot)
     m.group("volcano")
-    m.box("cone", (C - 2.75, 19.25, C - 1.5), (C + 2.75, 20.75, C + 1.5), ROCK_COLD)
+    m.box("cone_foot", (C - 3.125, 19.25, C - 1.875), (C + 3.125, 19.625, C + 1.875), EMBER)
+    m.box("cone", (C - 2.75, 19.625, C - 1.5), (C + 2.75, 20.75, C + 1.5), ROCK_COLD)
     m.box("cone", (C - 2.0, 20.75, C - 1.125), (C + 2.0, 22.0, C + 1.125), ROCK_COLD)
     m.box("crater", (C - 1.25, 22.0, C - 0.75), (C + 1.25, 22.5, C + 0.75), LAVA)
     m.box("crater_rim", (C - 2.0, 22.0, C - 1.125), (C - 1.25, 22.75, C + 1.125), ROCK_COLD)
@@ -357,7 +358,7 @@ def magma_pickaxe():
 
 def magma_shovel():
     """마그마 국자 삽: a basalt spade dished like a ladle: a raised crust rim round its face holds a pool of glowing magma,
-    a cooled floe and white-hot bubbles on it, magma spilling over both shoulders in drips; a molten point, a basalt
+    hotter towards its middle with a white-hot bubble, magma spilling over both shoulders in drips; a molten point, a basalt
     spine on the back, a steel socket."""
     m = MagmaModel("magma_shovel")
     handle(m)
@@ -538,6 +539,9 @@ def magma_bobber():
     cyl(m, "belly", "y", (C, C), 6, 2, 3.5, ROCK_COLD)
     cyl(m, "band", "y", (C, C), 6, 3.5, 4.5, LAVA, cap=LAVA)
     cyl(m, "top", "y", (C, C), 6, 4.5, 7, ROCK_COLD)
+    for frm, to in (((7.5, 4.5, 11), (8.5, 7, 11.2)), ((6.75, 4.5, 4.8), (7.75, 6.25, 5)),
+                    ((11, 4.5, 8.0), (11.2, 6.5, 9.0)), ((4.8, 4.5, 7.25), (5, 6.75, 8.25))):
+        m.box("crack", frm, to, LAVA_DEEP)
     cyl(m, "top", "y", (C, C), 4, 7, 8.25, ROCK_COLD)
     m.box("crown", (7, 8.25, 7), (9, 9, 9), LAVA)
     m.box("eye", (7.25, 9, 7.625), (8.75, 10, 8.375), STEEL_LIGHT)
