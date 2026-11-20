@@ -165,12 +165,12 @@ def scarecrow():
     # the face (column 0 at the viewer's left, x 12..13; rows from y 26 down): S thread, T a stitch across it,
     # P a rosy cheek (the eyes are buttons standing out of it)
     face = ["..........",   # y 26
-            "..........",   # y 25  eyes (buttons, set low and wide: a baby face)
+            "..........",   # y 25  eyes (buttons, wide apart: a baby face)
             "..........",   # y 24  eyes
             "..........",   # y 23  eyes
-            "...S.S....",   # y 22  a small sewn smile
-            ".PP.S..PP.",   # y 21  rosy cheeks under the eyes
-            "..........",   # y 20
+            ".PP....PP.",   # y 22  rosy cheeks right under the eyes
+            "...S..S...",   # y 21  a small sewn smile, centred between the eyes
+            "....SS....",   # y 20
             ]
     art = {(12 - col, 26 - row): ch for row, line in enumerate(face) for col, ch in enumerate(line) if ch != "."}
 
@@ -196,7 +196,7 @@ def scarecrow():
             return ("porcelain", 2)
         return None
     for x in (10, 4):
-        m.box("eye", (x, 22, 2.5), (x + 2, 25, 3), Paint("rubber", 1, noise=0, decal=glint, ao=0, rim=0))
+        m.box("eye", (x, 23, 2.5), (x + 2, 26, 3), Paint("rubber", 1, noise=0, decal=glint, ao=0, rim=0))
 
     # --- the straw hat, cocked to one side ------------------------------------------------------------
     m.group("hat")
