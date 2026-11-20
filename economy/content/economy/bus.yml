@@ -130,7 +130,8 @@ queue:
   gap: 0.8
   notice: 24
   idle-every: 30
-  idle: {grandma: sit, haenyeo: sit, student: phone, nurse: phone, couple: phone, office: fidget, courier: fidget, kinder: hop}
+  idle: {grandma: sit, haenyeo: sit, student: phone, nurse: phone, couple: phone, office: fidget, courier: fidget, kinder: hop,
+         mom: sit, youtuber: phone, rider: fidget, chatty: fidget}
 # 기다림 짜증: grace 분 넘게 기다린 손님은 탈 때 기분이 낮음 (full 분이면 floor 까지, 사이는 고르게; 원래는 mood.start).
 # every 초마다 give-up 분 넘게 기다린 손님 가운데 가장 오래 기다린 한 명이 give-up-chance 확률로 걸어감 (talk give-up)
 patience:
@@ -557,6 +558,189 @@ types:
       smooth: ["이대로 잠들 것 같아…"]
       doze-missed: ["헉! 내려야 되는데!"]
       thanks: ["안전운전 감사해요~"]
+
+  # ── 3차 손님 10종 (README "마을버스" 손님 28종). 새 항목:
+  # chatter 이 초마다 수다 말풍선 (talk.chat), chatter-mood 그때마다 다른 손님 기분 · mood-floor 기분이 이 아래로 안 내려감
+  # sick-at 기분이 이 이하면 "웁…" 하고 다음에 서는 정류장에서 내림 (탄 거리만큼 운임)
+  # baby-cry 급정거 · 부딪힘 때 탄 손님 모두 기분 더하기 (talk.cry) · baby-smile 부드럽게 서면 모두 (talk.smile)
+  # seats 자리 수 (2 = 강아지가 옆자리에, pet: wolf) · months 이 달에만 · peak-days 이 날 peak 배
+  # ghost 반투명(투명 + 빛나는 테두리) · token 내릴 때 유령 승차권 조각 (10개 = 칭호 economy:night_driver)
+  # on-time 정해진 시간 배수 · late-hit 늦으면 한 번 기분 · bless 내린 뒤 다음 손님 n명 팁 × bless-tip
+  # review 이 기분 넘게 내리면 전체 공지 "★5 리뷰" (기사마다 하루 한 번) · gift-chance · gift-mood 이 종류만의 선물 확률 · 기분
+  # tags-only 특성 정류장에서만 나옴
+  chatty:
+    name: 수다쟁이 아줌마
+    color: "#ff9ecb"
+    weight: 3
+    tip: 1.5
+    hours: [8, 21]
+    chatter: 8
+    chatter-mood: -1
+    mood-floor: 80
+    tags: {village: 2, field: 1.5}
+    skins: ["economy:entity/bus/chatty_1 slim", "economy:entity/bus/chatty_2 slim", "economy:entity/bus/chatty_3 slim"]
+    talk:
+      board: ["어머 기사님~ 오늘 날씨 좋죠~?", "아유 자리 있네~ 다행이다~"]
+      chat: ["그래서 내가 그랬지, 그 집 며느리가~", "어머 어머, 그거 알아요?", "우리 아들이 이번에~ 글쎄~", "요즘 배추값이 말도 못 해~",
+             "옆집 개가 또 짖어서 한숨도 못 잤잖아~", "기사님 결혼은 했어요?", "아유 내 정신 좀 봐~ 무슨 얘기 하다 말았지?",
+             "그 드라마 봤어요? 어제 거기서~", "호호호~ 말도 마요~"]
+      jolt: ["어머머! 기사님!", "아이고 깜짝이야~ 그래서 내가 무슨 얘기 했더라?"]
+      thanks: ["수고해요 기사님~ 다음에 또 봐요~", "어머 벌써 다 왔네~ 얘기 마저 해야 되는데~"]
+  motionsick:
+    name: 멀미하는 아저씨
+    color: "#a8d08d"
+    weight: 2
+    turn: 3.0
+    jolt: 2.0
+    sick-at: 20
+    doze: 0.1
+    skins: ["economy:entity/bus/motionsick_1", "economy:entity/bus/motionsick_2", "economy:entity/bus/motionsick_3"]
+    talk:
+      board: ["살살… 살살 부탁해요…", "버스만 타면 속이…"]
+      jolt: ["윽… 속이…", "으읍…!"]
+      turn: ["어지러워…", "윽, 커브…"]
+      smooth: ["휴… 살 것 같다"]
+      sick: ["웁…", "웁… 기사님 다음에 세워 주세요…"]
+  mom:
+    name: 애 업은 엄마
+    color: "#ffc6a5"
+    weight: 2
+    hours: [8, 20]
+    baby-cry: -3
+    baby-smile: 2
+    tags: {village: 2}
+    skins: ["economy:entity/bus/mom_1 slim", "economy:entity/bus/mom_2 slim", "economy:entity/bus/mom_3 slim"]
+    talk:
+      board: ["쉿… 아기 자요", "자리 있어요? 감사해요~"]
+      cry: ["응애~ 응애~ (아기가 울어요)", "으아앙~! 아이고 우리 아기 놀랐어?", "쉬~ 쉬~ 괜찮아 괜찮아~"]
+      smile: ["아기가 웃어요 ☺", "까르르~ (아기가 웃어요)"]
+      thanks: ["조심히 운전해 주셔서 감사해요~"]
+  dogwalker:
+    name: 강아지 데려온 할아버지
+    color: "#d9b38c"
+    weight: 2
+    hours: [6, 19]
+    fare: 1.5
+    seats: 2
+    pet: wolf
+    slow: 1.5
+    tags: {village: 1.5, field: 1.5}
+    skins: ["economy:entity/bus/dogwalker_1", "economy:entity/bus/dogwalker_2", "economy:entity/bus/dogwalker_3"]
+    talk:
+      board: ["우리 바둑이도 같이 타요~ 차비는 반 낼게", "옳지, 얌전히 앉아"]
+      jolt: ["어이쿠, 바둑아 괜찮냐?"]
+      smooth: ["바둑이가 좋아하네 허허"]
+      bark: ["멍!", "멍멍!"]
+      thanks: ["수고하시게~ 바둑아 인사해야지"]
+  santa:
+    name: 산타 할아버지
+    color: "#ff4d4d"
+    weight: 1
+    months: [12]
+    peak-days: [24, 25]
+    peak: 6
+    tip: 2.0
+    gift-chance: 1.0
+    gift-mood: 0
+    gifts: [{item: minecraft:cookie, amount: 6}, {item: minecraft:cake, amount: 1}, {item: minecraft:pumpkin_pie, amount: 2},
+            {item: minecraft:firework_rocket, amount: 4}, {item: minecraft:snowball, amount: 8}]
+    skins: ["economy:entity/bus/santa_1", "economy:entity/bus/santa_2", "economy:entity/bus/santa_3"]
+    talk:
+      board: ["허허허! 메리 크리스마스!", "썰매가 고장 나서 말이지, 허허"]
+      jolt: ["호호호! 썰매보다 거칠구먼!"]
+      view: ["눈이 오면 좋을 텐데 허허"]
+      thanks: ["착한 기사님에게 주는 선물이란다, 허허허!", "메리 크리스마스!"]
+  ghost:
+    name: 유령 손님
+    color: "#bfe6ff"
+    weight: 1.5
+    hours: [2, 4]
+    fare: 0
+    tip: 0
+    mood: 0
+    doze: 0
+    ghost: true
+    token: 1
+    skins: ["economy:entity/bus/ghost_1 slim", "economy:entity/bus/ghost_2", "economy:entity/bus/ghost_3"]
+    talk:
+      board: ["……", "…태워 줘서… 고마워…"]
+      jolt: ["……"]
+      bump: ["……!"]
+      smooth: ["…따뜻해…"]
+      view: ["…예전엔… 여기… 논이었는데…"]
+      thanks: ["…고마워… 이거… 가져가…", "……(희미하게 웃는다)"]
+  rider:
+    name: 배달 라이더
+    color: "#3fd0c9"
+    weight: 2
+    hours: [8, 23]
+    on-time: 0.6
+    tip: 2.0
+    late-hit: -20
+    tags: {village: 2}
+    skins: ["economy:entity/bus/rider_1", "economy:entity/bus/rider_2 slim", "economy:entity/bus/rider_3"]
+    talk:
+      board: ["기사님 빨리요! 콜 밀렸어요!", "오토바이 퍼져서… 급해요!"]
+      late: ["아 별점 깎인다…!", "고객님 화나셨다…"]
+      jolt: ["음식 쏟아져요!"]
+      smooth: ["오 빠르다!"]
+      thanks: ["감사합니다! 별 다섯 개 드릴게요!"]
+  monk:
+    name: 스님
+    color: "#d9a441"
+    weight: 0.6
+    tags-only: true
+    tags: {mountain: 8, forest: 2}
+    mood: 0
+    mood-floor: 80
+    bless: 5
+    bless-tip: 1.5
+    slow: 1.3
+    doze: 0.05
+    skins: ["economy:entity/bus/monk_1", "economy:entity/bus/monk_2", "economy:entity/bus/monk_3 slim"]
+    talk:
+      board: ["나무아미타불", "수고가 많으십니다"]
+      jolt: ["허허, 모든 것은 지나갑니다"]
+      bump: ["나무관세음보살…"]
+      smooth: ["마음이 고요하군요"]
+      view: ["산이 참 푸르구나"]
+      thanks: ["성불하세요", "기사님께 복이 깃들기를. 성불하세요"]
+  youtuber:
+    name: 유튜버
+    color: "#ff3b3b"
+    weight: 1.5
+    hours: [10, 24]
+    chatter: 20
+    review: 90
+    skins: ["economy:entity/bus/youtuber_1", "economy:entity/bus/youtuber_2 slim", "economy:entity/bus/youtuber_3"]
+    talk:
+      board: ["여러분 안녕하세요~ 오늘은 시골 버스 타 봅니다!", "라이브 켰어요~ 기사님 손 한번 흔들어 주세요!"]
+      chat: ["구독 좋아요 알림설정까지~!", "채팅창 반응 미쳤다~", "여러분 이 버스 승차감 실화예요?", "후원 감사합니다~!",
+             "오늘의 버스 리뷰 들어갑니다~"]
+      jolt: ["어우 방송사고!", "와 이거 클립 각이다!"]
+      smooth: ["승차감 대박~ 별 다섯 개 각!"]
+      view: ["여러분 이 뷰 보이세요?!"]
+      thanks: ["기사님 리뷰 영상 올릴게요~!"]
+  # 수상한 선글라스 남자 (README 에는 없음: docs/admin/버스_비밀_의뢰.md). 보통 손님으로는 안 나옴 (weight 0)
+  shades:
+    name: "???"
+    color: "#5a5a5a"
+    weight: 0
+    fare: 0
+    tip: 0
+    mood: 0
+    doze: 0
+    skins: ["economy:entity/bus/shades_1", "economy:entity/bus/shades_2", "economy:entity/bus/shades_3"]
+    talk:
+      board: ["……"]
+      jolt: ["……"]
+      bump: ["……"]
+      turn: ["……"]
+      smooth: ["…흠."]
+      late: ["……"]
+      view: ["……"]
+      thanks: ["……"]
+      waited: ["……"]
 
 # 상황별 기본 대사 (종류에 없을 때)
 talk:

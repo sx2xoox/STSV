@@ -59,6 +59,8 @@ public final class BusModule extends EcoModule {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private BusSpec spec;
+    /** 수상한 선글라스 남자 (SecretAgent: docs/admin/버스_비밀_의뢰.md) */
+    private SecretAgent secret;
     private final Map<Integer, BusStop> stops = new LinkedHashMap<>();
     private int nextId = 1;
     private StopBuilder builder;
@@ -176,6 +178,12 @@ public final class BusModule extends EcoModule {
         BusEvents.Kind special;
         int hits;
         double moodX = 1;
+        /** 3차 kinds: the dog in the seat beside (강아지 할아버지), when they last chattered, whether they felt sick (멀미) */
+        Entity dog;
+        long chatAt = System.currentTimeMillis();
+        boolean sick;
+        /** the 선글라스 남자 (SecretAgent: he gets off by his own rules, pays nothing as a fare) */
+        boolean secret;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -188,6 +196,7 @@ public final class BusModule extends EcoModule {
     }
 
     static final class Run {
+        long id;
         UUID driver;
         long seen;
         final List<Rider> riders = new ArrayList<>();
@@ -282,6 +291,8 @@ public final class BusModule extends EcoModule {
         builder = new StopBuilder(folder().resolve("undo"));
         load();
         readStops();
+        secret = new SecretAgent(this, eco, core);
+        Bukkit.getPluginManager().registerEvents(secret, eco);
         every(1L, this::tick);
         every(20L, this::second);
         every(spec.queue().idleEvery(), this::idle);
@@ -292,13 +303,21 @@ public final class BusModule extends EcoModule {
     @Override
     public void reload() {
         load();
+        if (secret != null) secret.load();
         rebuildNets();
     }
 
     @Override
     protected void stop() {
         if (core != null && core.hud() != null) core.hud().removeOverlay("eco-bus");
-        for (Run r : runs.values()) for (Rider x : r.riders) x.m.remove();
+        if (secret != null) {
+            secret.stop();
+            org.bukkit.event.HandlerList.unregisterAll(secret);
+        }
+        for (Run r : runs.values()) for (Rider x : r.riders) {
+            x.m.remove();
+            if (x.dog != null) x.dog.remove();
+        }
         runs.clear();
         VehicleModule vm = core == null ? null : core.vehicles();
         if (vm != null) for (long[] r : rentals.values()) vm.removeTemporary(r[0]);
@@ -737,6 +756,7 @@ public final class BusModule extends EcoModule {
             VehicleModule.Driven d = vm.drivenBy(p);
             if (d == null || !spec.vehicles().contains(d.itemKey())) continue;
             Run run = runs.computeIfAbsent(d.id(), k -> new Run());
+            run.id = d.id();
             run.driver = p.getUniqueId();
             run.seen = ticks;
             run.seats = d.seats() - 1;
@@ -744,6 +764,7 @@ public final class BusModule extends EcoModule {
             run.rented = rentedId(d.id());
             feel(p, run, d);
             if (ticks % 5 == 0) atStops(p, run, d, vm);
+            secret.drive(p, run, d);
         }
         // a bus whose driver got out (or left): its passengers go off to find another
         for (Iterator<Map.Entry<Long, Run>> it = runs.entrySet().iterator(); it.hasNext(); ) {
@@ -754,6 +775,7 @@ public final class BusModule extends EcoModule {
             for (Rider x : r.riders) {
                 vm.unseatGuest(e.getKey(), x.m);
                 x.m.remove();
+                dropDog(e.getKey(), x, false);
                 if (x.team != 0) teams.remove(x.team);   // the team went off to find another way
                 n++;
             }
@@ -800,18 +822,28 @@ public final class BusModule extends EcoModule {
         if (jolt && p.getWorld().hasStorm() && p.getLocation().getBlock().getTemperature() < 0.15) by *= spec.extra().snowJolt();
         boolean turn = key.endsWith("turn");
         if (!turn) broke(p, run);   // 안전 운행 연속: a jolt or a bump ends it; a 특급 손님 counts it
+        if (!turn) secret.hurt(p, run);
+        // 애 업은 엄마: the baby wakes and cries, everyone aboard feels it
+        Rider baby = null;
+        for (Rider r : run.riders) if (!turn && r.type.x().babyCry() != 0 && baby == null) baby = r;
         for (Rider r : run.riders) {
             double d = by * r.type.mood() * (jolt ? r.type.jolt() : 1) * (turn ? r.type.turnFactor() : 1) * r.moodX;
-            r.mood = Math.clamp(r.mood + d, 0, 100);
+            if (baby != null) d += baby.type.x().babyCry() * r.type.mood();
+            r.mood = r.type.floor(Math.clamp(r.mood + d, 0, 100));
             r.m.getWorld().spawnParticle(Particle.ANGRY_VILLAGER, r.m.getLocation().add(0, 2.1, 0), 1);
             if (r.dozing && !turn) {   // a jolt wakes a sleeper
                 r.dozing = false;
                 r.sleepThrough = false;
             }
         }
+        HudModule.flash(p, Lang.mm(key, "d", (int) Math.round(by)), 1500);
+        if (baby != null) {
+            sayLine(run, baby, spec.lines(baby.type, "cry"));
+            if (baby.m.isValid()) baby.m.getWorld().playSound(baby.m.getLocation(), Sound.ENTITY_VILLAGER_HURT, 0.6f, 1.9f);
+            return;
+        }
         Rider r = someone(run);
         if (r != null) talk(run, r.m, r.type, jolt ? "jolt" : turn ? "turn" : "bump", true);
-        HudModule.flash(p, Lang.mm(key, "d", (int) Math.round(by)), 1500);
     }
 
     /** At a stop (stopped in its bay): passengers get off, then on, one at a time. */
@@ -849,13 +881,17 @@ public final class BusModule extends EcoModule {
             d.world().playSound(d.location(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1.6f);   // 삑 (교통카드)
             boolean smooth = ticks - run.joltAt > 60;
             if (smooth && !run.riders.isEmpty()) {
-                for (Rider r : run.riders) r.mood = Math.min(100, r.mood + spec.mood().smoothStop());
-                Rider r = someone(run);
-                if (r != null && ThreadLocalRandom.current().nextDouble() < 0.4) talk(run, r.m, r.type, "smooth", false);
+                Rider baby = null;
+                for (Rider r : run.riders) if (r.type.x().babySmile() != 0 && baby == null) baby = r;
+                for (Rider r : run.riders) r.mood = Math.min(100, r.mood + spec.mood().smoothStop() + (baby == null ? 0 : baby.type.x().babySmile()));
+                Rider r = baby != null ? baby : someone(run);
+                if (baby != null) sayLine(run, baby, spec.lines(baby.type, "smile"));   // 아기가 웃어요
+                else if (r != null && ThreadLocalRandom.current().nextDouble() < 0.4) talk(run, r.m, r.type, "smooth", false);
             }
             pickLine(p, run, d, here);
             HudModule.flash(p, Lang.mm("bus.arrive", "stop", here.name()), 2000);
             arrived(p, run, here);
+            secret.arrived(p, run, d, here);
             // a wandering passenger (술 취한 아저씨) may get off here instead
             for (Rider r : run.riders) {
                 if (r.dest != here.id() && r.type.wander() > 0 && ThreadLocalRandom.current().nextDouble() < r.type.wander()) {
@@ -874,10 +910,12 @@ public final class BusModule extends EcoModule {
         // off first (a sleeper who did not wake stays on; a couple gets off together, one after the other)
         for (Iterator<Rider> it = run.riders.iterator(); it.hasNext(); ) {
             Rider r = it.next();
+            if (r.secret) continue;   // the 선글라스 남자 gets off by his own rules (SecretAgent)
             boolean off = (r.dest == here.id() && !r.sleepThrough) || r.dest == -1 || r.wanderAt == here.id();
             if (!off) continue;
             it.remove();
             vm.unseatGuest(d.id(), r.m);
+            dropDog(d.id(), r, true);
             double road = r.dest == here.id() || line == null || !line.has(r.from) ? r.road : line.between(line.at(r.from), line.at(here.id()));
             boolean atDest = r.dest == here.id();
             // a 특급 손님: its bonus, or (failed) its fare × fail-fare
@@ -895,6 +933,7 @@ public final class BusModule extends EcoModule {
             if (r.special != null) specialOff(p, run, r, here, special, why);
             if (r.team != 0) teamOff(p, run, r, here, atDest, onTime);
             maybeLose(p, run, r, here);
+            if (atDest) alightTraits(p, run, r);
             walkOff(r.m, here, d.world().hasStorm());
             maybeTransfer(n, line, here, r);
             run.busy = (int) (cfg.boardTicks() * r.type.slow());
@@ -924,6 +963,7 @@ public final class BusModule extends EcoModule {
             }
             if (x.forcedLine != null && x.forcedLine != line.number) continue;   // waiting for another line (a transfer, 출근 대란)
             if (x.partner != null && free.size() < 2) continue;
+            if (free.size() < x.type.x().seats()) continue;   // 강아지 할아버지: his dog sits beside him
             if (x.special != null && run.special) continue;   // one 특급 손님 a bus
             Team tm = x.team == 0 ? null : teams.get(x.team);
             if (x.team != 0 && tm == null) {   // its team is over: an ordinary passenger now
@@ -1056,6 +1096,8 @@ public final class BusModule extends EcoModule {
         r.face = w.face;
         r.transfer = w.transfer;
         run.riders.add(r);
+        if (w.type.x().seats() > 1) seatDog(d, vm, r);
+        secret.boarded(p, run);
         BusStop to = stops.get(dest);
         String destName = to == null ? "?" : to.name();
         if (run.riders.size() == 1 && !run.greeted) {   // the run's first passenger: the driver greets them
@@ -1187,11 +1229,18 @@ public final class BusModule extends EcoModule {
         BusSpec.Extra x = spec.extra();
         BusSpec.Bus bus = spec.bus(run.itemKey);
         double secs = (System.currentTimeMillis() - r.boarded) / 1000.0;
-        boolean onTime = secs <= spec.onTime(road);
+        boolean onTime = secs <= spec.onTime(road, r.type);
+        r.mood = r.type.floor(r.mood);
         double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1) * Math.max(0, factor);
         double base = fare * spec.moodFactor(r.mood) + r.type.luggage();
         boolean rain = p.getWorld().hasStorm();
         double tip = onTime && r.mood >= r.type.tipMood() ? fare * f.tip() * r.type.tip() * (rain ? 1 + x.rainTip() : 1) : 0;
+        int[] bless = blessed.get(p.getUniqueId());   // 스님's blessing: the next passengers tip more
+        if (bless != null && bless[0] > 0) {
+            bless[0]--;
+            if (tip > 0) tip *= bless[1] / 100.0;
+            if (bless[0] <= 0) blessed.remove(p.getUniqueId());
+        }
         String dayKey = "bus.day." + p.getUniqueId();
         String today = eco.calendar().days().date(System.currentTimeMillis()).toString();
         String[] was = eco.kv().get(dayKey, "").split(":");
@@ -1212,12 +1261,14 @@ public final class BusModule extends EcoModule {
         if (r.type.luggage() > 0) tipText += Lang.raw("bus.fare-luggage", "g", Math.round(r.type.luggage()));
         if (fee > 0) tipText += Lang.raw("bus.fare-rental", "fee", String.format("%,d", fee));
         String curve = rate < 100 ? Lang.raw("bus.fare-curve", "rate", rate) : "";
-        p.sendMessage(Lang.mm("bus.fare", "fare", String.format("%,d", paid), "type", typeTag(r.type), "mood", (int) Math.round(r.mood),
-                "tip", tipText, "curve", curve));
+        if (!r.type.x().ghost() || paid > 0) p.sendMessage(Lang.mm("bus.fare", "fare", String.format("%,d", paid), "type", typeTag(r.type),
+                "mood", (int) Math.round(r.mood), "tip", tipText, "curve", curve));
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.3f);
         if (r.mood >= 90) r.m.getWorld().spawnParticle(Particle.HEART, r.m.getLocation().add(0, 2.1, 0), 2, 0.3, 0.2, 0.3);
         // a kind passenger leaves something for the driver (할머니: 식혜, 인절미 ...)
-        if (!r.type.gifts().isEmpty() && r.mood >= x.giftMood() && ThreadLocalRandom.current().nextDouble() < x.giftChance()) {
+        double giftMood = r.type.x().giftMood() >= 0 ? r.type.x().giftMood() : x.giftMood();
+        double giftChance = r.type.x().giftChance() >= 0 ? r.type.x().giftChance() : x.giftChance();
+        if (!r.type.gifts().isEmpty() && r.mood >= giftMood && ThreadLocalRandom.current().nextDouble() < giftChance) {
             BusSpec.Gift g = r.type.gifts().get(ThreadLocalRandom.current().nextInt(r.type.gifts().size()));
             dev.stsv.economy.util.Items.create(g.item(), g.amount()).ifPresent(item -> {
                 for (org.bukkit.inventory.ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItem(p.getLocation(), left);
@@ -1476,15 +1527,16 @@ public final class BusModule extends EcoModule {
         for (Run r : runs.values()) {
             ride(r, now);
             for (Rider x : r.riders) {
-                double left = spec.onTime(x.road) - (now - x.boarded) / 1000.0;
-                if (left < 0 && x.type.late() > 0) x.mood = Math.max(0, x.mood - x.type.late() / 60.0);
+                double left = spec.onTime(x.road, x.type) - (now - x.boarded) / 1000.0;
+                if (left < 0 && x.type.late() > 0) x.mood = x.type.floor(Math.max(0, x.mood - x.type.late() / 60.0));
                 BusStop dest = stops.get(x.dest);
-                x.m.setDescription(Lang.mm("bus.rider-tag", "dest", dest == null ? "?" : dest.name(), "left", clock(timeLeft(x, now)),
-                        "mood", (int) Math.round(x.mood)));
+                x.m.setDescription(Lang.mm("bus.rider-tag", "dest", x.secret ? "???" : dest == null ? "?" : dest.name(),
+                        "left", x.secret ? "???" : clock(timeLeft(x, now)), "mood", (int) Math.round(x.mood)));
             }
             Player p = Bukkit.getPlayer(r.driver);
             if (p != null) hud(p, r);
         }
+        secret.second(now);
         if (ticks % 1200 < 20) saveStops();   // the waiting numbers now and then
     }
 
@@ -1502,11 +1554,15 @@ public final class BusModule extends EcoModule {
         int idx = line == null ? -1 : line.nearest(p.getX(), p.getZ(), off);
         if (off[0] > 40) line = null;   // off the line's road: nothing counts as passed
         BusSpec.Extra x = spec.extra();
+        traits(p, run, now);
         for (Rider r : run.riders) {
             double rode = (now - r.boarded) / 1000.0;
-            if (!r.lateSaid && rode > spec.onTime(r.road)) {
+            if (!r.lateSaid && rode > spec.onTime(r.road, r.type)) {
                 r.lateSaid = true;
-                talk(run, r.m, r.type, "late", false);
+                if (r.type.x().lateHit() != 0) {   // 배달 라이더: late is a disaster
+                    r.mood = r.type.floor(Math.clamp(r.mood + r.type.x().lateHit(), 0, 100));
+                    talk(run, r.m, r.type, "late", true);
+                } else talk(run, r.m, r.type, "late", false);
             }
             if (!r.dozeChecked && rode > x.dozeAfter()) {
                 r.dozeChecked = true;
@@ -1631,7 +1687,7 @@ public final class BusModule extends EcoModule {
      * An event reward to the driver: a rented bus keeps only rental.share of it (like its fares). Counted in today's bus
      * earnings (/버스). Returns {paid, fee}.
      */
-    private long[] bonus(Player p, Run run, long amount, String reason) {
+    long[] bonus(Player p, Run run, long amount, String reason) {
         if (amount <= 0) return new long[]{0, 0};
         long paid = amount, fee = 0;
         if (run != null && run.rented) {
@@ -1647,7 +1703,7 @@ public final class BusModule extends EcoModule {
         return new long[]{paid, fee};
     }
 
-    private static String g(long amount) {
+    static String g(long amount) {
         return String.format("%,d", amount);
     }
 
@@ -1657,7 +1713,7 @@ public final class BusModule extends EcoModule {
 
     /** Seconds a rider has left: their on-time (a 특급 손님's limit, an event team's deadline when sooner). */
     private double timeLeft(Rider x, long now) {
-        double ot = spec.onTime(x.road), lim = x.special != null && x.special.limit(ot) > 0 ? x.special.limit(ot) : ot;
+        double ot = spec.onTime(x.road, x.type), lim = x.special != null && x.special.limit(ot) > 0 ? x.special.limit(ot) : ot;
         double left = lim - (now - x.boarded) / 1000.0;
         Team t = x.team == 0 ? null : teams.get(x.team);
         if (t != null && t.deadline > 0) left = Math.min(left, (t.deadline - now) / 1000.0);
@@ -1665,7 +1721,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** A rider says one of these lines (a bubble, and beside their face on the driver's overlay). */
-    private void sayLine(Run run, Rider r, List<String> lines) {
+    void sayLine(Run run, Rider r, List<String> lines) {
         if (lines == null || lines.isEmpty() || !r.m.isValid()) return;
         String line = lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
         say(r.m, line);
@@ -2034,6 +2090,7 @@ public final class BusModule extends EcoModule {
         for (Team t : teams.values()) if (t.stop == s.id() && t.boarded < t.size) n++;
         if (n > 0) b.append("\n").append(Lang.raw("bus.team-sign", "n", n));
         if (hasSpecial(s.id())) b.append("\n").append(Lang.raw("bus.special-sign"));
+        b.append(secret.sign(s));
         return b.toString();
     }
 
@@ -2117,6 +2174,165 @@ public final class BusModule extends EcoModule {
             }
         }
         if (expired > 0) p.sendMessage(Lang.mm("bus.lost-expired", "n", expired));
+    }
+
+    // ---- 3차 손님: 수다쟁이 아줌마, 멀미하는 아저씨, 애 업은 엄마, 강아지 할아버지, 산타, 유령, 배달 라이더, 스님, 유튜버
+
+    /** 유령 승차권 조각 a driver needs for the title, and the title */
+    static final int GHOST_TOKENS = 10;
+    static final String GHOST_TITLE = "economy:night_driver";
+    /** driver -> {passengers still blessed, their tip × 100} (스님: 성불하세요; in memory) */
+    private final Map<UUID, int[]> blessed = new HashMap<>();
+
+    /**
+     * Once a second for a bus: chatter bubbles (수다쟁이 아줌마: everyone else a little crosser each time; 유튜버: 구독 좋아요~),
+     * the 멀미하는 아저씨 at his limit ("웁…": off at the next stop the bus stops at), every mood kept above its kind's floor.
+     */
+    private void traits(Player p, Run run, long now) {
+        for (Rider r : run.riders) {
+            BusSpec.Traits t = r.type.x();
+            if (t.chatter() > 0 && now - r.chatAt >= t.chatter() * 1000) {
+                r.chatAt = now;
+                sayLine(run, r, spec.lines(r.type, "chat"));
+                if (t.chatterMood() != 0) {
+                    for (Rider o : run.riders) if (o != r) o.mood = o.type.floor(Math.clamp(o.mood + t.chatterMood() * o.type.mood(), 0, 100));
+                }
+            }
+            if (t.sickAt() > 0 && !r.sick && r.mood <= t.sickAt()) {
+                r.sick = true;
+                r.dest = -1;   // off at the next stop the bus stops at (paid as far as he rode)
+                sayLine(run, r, spec.lines(r.type, "sick"));
+                HudModule.flash(p, Lang.mm("bus.sick", "type", typeTag(r.type)), 2500);
+            }
+            r.mood = r.type.floor(r.mood);
+        }
+    }
+
+    /** Got off where they were going: 유령 승차권 조각, 스님's blessing, 유튜버's ★5 review. */
+    private void alightTraits(Player p, Run run, Rider r) {
+        BusSpec.Traits t = r.type.x();
+        UUID u = p.getUniqueId();
+        if (t.token() > 0) {
+            String key = "bus.ghost." + u;
+            long had = eco.kv().getLong(key, 0), now = had + t.token();
+            eco.kv().set(key, String.valueOf(now));
+            p.sendMessage(Lang.mm("bus.ghost-token", "n", Math.min(now, GHOST_TOKENS), "max", GHOST_TOKENS));
+            p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 0.6f);
+            if (had < GHOST_TOKENS && now >= GHOST_TOKENS && core.profiles() != null) {
+                core.profiles().grantTitle(u, GHOST_TITLE);
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 0.8f);
+                Bukkit.broadcast(Lang.msg("bus.ghost-title", "player", p.getName()));
+            }
+        }
+        if (t.bless() > 0) {
+            blessed.put(u, new int[]{t.bless(), (int) Math.round(t.blessTip() * 100)});
+            p.sendMessage(Lang.mm("bus.blessed", "n", t.bless(), "x", String.format("%.1f", t.blessTip())));
+            p.getWorld().spawnParticle(Particle.END_ROD, p.getLocation().add(0, 1.5, 0), 12, 0.5, 0.6, 0.5, 0.01);
+        }
+        if (t.review() > 0 && r.mood >= t.review()) {
+            String key = "bus.review." + u, today = eco.calendar().days().date(System.currentTimeMillis()).toString();
+            if (!today.equals(eco.kv().get(key, ""))) {
+                eco.kv().set(key, today);
+                Bukkit.broadcast(Lang.msg("bus.review-all", "player", p.getName()));
+            }
+        }
+    }
+
+    /** 강아지 할아버지: his dog (a baby wolf, not saved) in the seat beside him; none when no seat is left. */
+    private void seatDog(VehicleModule.Driven d, VehicleModule vm, Rider r) {
+        if (!"wolf".equals(r.type.x().pet()) || !r.m.isValid()) return;
+        List<Integer> free = vm.freeSeats(d.id());
+        if (free.isEmpty()) return;
+        org.bukkit.entity.Wolf dog = r.m.getWorld().spawn(r.m.getLocation(), org.bukkit.entity.Wolf.class, w -> {
+            w.setPersistent(false);
+            w.setInvulnerable(true);
+            w.setSilent(true);
+            w.setAI(false);
+            w.setCollidable(false);
+            w.setRemoveWhenFarAway(false);
+            w.setBaby();
+            w.setAgeLock(true);
+            w.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+        });
+        if (!vm.seatGuest(d.id(), free.getFirst(), dog)) {
+            dog.remove();
+            return;
+        }
+        r.dog = dog;
+    }
+
+    /** The dog off the bus with its master ("멍!" and a bark when they got off at a stop), then gone. */
+    private void dropDog(long bus, Rider r, boolean bark) {
+        Entity dog = r.dog;
+        if (dog == null) return;
+        r.dog = null;
+        VehicleModule vm = core == null ? null : core.vehicles();
+        if (vm != null) vm.unseatGuest(bus, dog);
+        if (!bark || !dog.isValid()) {
+            dog.remove();
+            return;
+        }
+        dog.getWorld().playSound(dog.getLocation(), Sound.ENTITY_WOLF_AMBIENT, 1f, 1.4f);
+        List<String> lines = spec.lines(r.type, "bark");
+        say(dog, lines == null ? "멍!" : lines.get(ThreadLocalRandom.current().nextInt(lines.size())));
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (dog.isValid()) dog.getWorld().spawnParticle(Particle.POOF, dog.getLocation().add(0, 0.5, 0), 4, 0.2, 0.2, 0.2, 0.01);
+            dog.remove();
+        }, 30L);
+    }
+
+    // ---- for SecretAgent (the 선글라스 남자)
+
+    Map<Integer, BusStop> stopMap() {
+        return stops;
+    }
+
+    Net net(String world) {
+        return nets.get(world);
+    }
+
+    Map<Long, Run> runMap() {
+        return runs;
+    }
+
+    /** /버스 요원정류장 <이름> (the first to solve the bus's secret). */
+    public void agentStop(Player p, String name) {
+        secret.renameStop(p, name);
+    }
+
+    /** /관리자 버스 비밀 ... */
+    public void secretAdmin(org.bukkit.command.CommandSender s, String[] args) {
+        secret.admin(s, args);
+    }
+
+    public List<String> secretComplete(String[] args) {
+        return secret.complete(args);
+    }
+
+    /**
+     * Everyone aboard but the 선글라스 남자 gets off where the bus is (each paid as far as they rode, events as if they got
+     * off early) and fades away.
+     */
+    void dropAll(Player p, Run run, BusStop here) {
+        VehicleModule vm = core.vehicles();
+        Net n = nets.get(here.world());
+        BusLine line = n == null ? null : n.line(run.line);
+        for (Iterator<Rider> it = run.riders.iterator(); it.hasNext(); ) {
+            Rider r = it.next();
+            if (r.secret) continue;
+            it.remove();
+            if (vm != null) vm.unseatGuest(run.id, r.m);
+            dropDog(run.id, r, false);
+            boolean atDest = r.dest == here.id();
+            double road = !atDest && line != null && line.has(r.from) && line.has(here.id()) ? line.between(line.at(r.from), line.at(here.id())) : r.road;
+            pay(p, run, r, here, road, r.special != null && !atDest ? r.special.failFare() : 1);
+            if (r.special != null) specialOff(p, run, r, here, 0, Lang.raw("bus.special-why-place"));
+            if (r.team != 0) teamOff(p, run, r, here, atDest, false);
+            Mannequin m = r.m;
+            m.setDescription(Component.empty());
+            if (m.isValid()) m.getWorld().spawnParticle(Particle.SMOKE, m.getLocation().add(0, 1, 0), 12, 0.2, 0.5, 0.2, 0.01);
+            Bukkit.getScheduler().runTaskLater(eco, m::remove, 6L);
+        }
     }
 
     // ---- 내린 손님: a few steps off towards the shelter, a wave, gone (in the rain: hurrying, head down)
@@ -2305,7 +2521,7 @@ public final class BusModule extends EcoModule {
         }
     }
 
-    private void say(Mannequin m, String text) {
+    void say(Entity m, String text) {
         org.bukkit.entity.TextDisplay d = m.getWorld().spawn(m.getLocation().add(0, 2.3, 0), org.bukkit.entity.TextDisplay.class, t -> {
             t.setPersistent(false);
             t.text(dev.stsv.core.util.Text.mm("<black>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(text)));
@@ -2325,7 +2541,7 @@ public final class BusModule extends EcoModule {
         return run.riders.isEmpty() ? null : run.riders.get(ThreadLocalRandom.current().nextInt(run.riders.size()));
     }
 
-    private java.util.Set<String> tagsOf(BusStop s) {
+    java.util.Set<String> tagsOf(BusStop s) {
         return stopTags.getOrDefault(s.id(), java.util.Set.of());
     }
 
@@ -2384,7 +2600,7 @@ public final class BusModule extends EcoModule {
         Net n = nets.get(p.getWorld().getName());
         BusLine line = n == null ? null : n.line(r.line);
         List<Rider> order = new ArrayList<>(r.riders);
-        if (line != null) order.sort(Comparator.comparingInt(x -> r.dir * line.at(x.dest)));
+        if (line != null) order.sort(Comparator.comparingInt(x -> x.secret ? Integer.MAX_VALUE : r.dir * line.at(x.dest)));
         long now = System.currentTimeMillis();
         List<dev.stsv.core.hud.HudLayout.OverlayRow> out = new ArrayList<>();
         for (Rider x : order) {
@@ -2401,8 +2617,8 @@ public final class BusModule extends EcoModule {
                 continue;
             }
             out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-row", "color", color,
-                    "type", name, "dest", x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name(),
-                    "left", clock(left) + (x.dozing ? Lang.raw("bus.dozing") : ""))));
+                    "type", name, "dest", x.secret ? "???" : x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name(),
+                    "left", x.secret ? "???" : clock(left) + (x.dozing ? Lang.raw("bus.dozing") : ""))));
         }
         return out;
     }
@@ -2463,6 +2679,10 @@ public final class BusModule extends EcoModule {
                 AttributeInstance sc = x.getAttribute(Attribute.SCALE);
                 if (sc != null) sc.setBaseValue(type.scale());
             }
+            if (type.x().ghost()) {   // 유령 손님: see-through, only a pale glowing outline (and the name) shows
+                x.setInvisible(true);
+                x.setGlowing(true);
+            }
         });
         String face = null;
         if (skin != null) {
@@ -2489,7 +2709,7 @@ public final class BusModule extends EcoModule {
         double total = 0;
         Map<BusSpec.Type, Double> ws = new LinkedHashMap<>();
         for (BusSpec.Type t : spec.types().values()) {
-            double w = t.weightAt(tags, hour, weekend, market, rush);
+            double w = t.weightAt(tags, hour, weekend, market, rush, now.getMonthValue(), now.getDayOfMonth());
             if (w <= 0) continue;
             ws.put(t, w);
             total += w;
@@ -2636,7 +2856,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** Where someone stands on this column (the top of its ground within a block of the floor), or null (no ground there). */
-    private static Double standY(World w, double x, double z, int y) {
+    static Double standY(World w, double x, double z, int y) {
         int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
         for (int yy = y + 1; yy >= y - 1; yy--) {
             Block below = w.getBlockAt(bx, yy - 1, bz), at = w.getBlockAt(bx, yy, bz);
@@ -2879,7 +3099,7 @@ public final class BusModule extends EcoModule {
         for (Rider x : r.riders) {
             BusStop s = stops.get(x.dest);
             double left = timeLeft(x, now);
-            p.sendMessage(Lang.mm("bus.list-row", "i", i++, "type", typeTag(x.type), "dest", s == null ? "?" : s.name(),
+            p.sendMessage(Lang.mm("bus.list-row", "i", i++, "type", typeTag(x.type), "dest", x.secret || s == null ? "???" : s.name(),
                     "km", s == null ? "" : km(Math.hypot(s.x() - p.getX(), s.z() - p.getZ())), "left", clock(left), "mood", (int) Math.round(x.mood)));
         }
     }
@@ -2902,7 +3122,7 @@ public final class BusModule extends EcoModule {
     @EventHandler
     public void onEntitiesLoad(EntitiesLoadEvent e) {
         for (Entity x : e.getEntities()) {
-            if (x instanceof Mannequin && x.getPersistentDataContainer().has(GUEST)) x.remove();
+            if ((x instanceof Mannequin || x instanceof org.bukkit.entity.Wolf) && x.getPersistentDataContainer().has(GUEST)) x.remove();
             // a route map whose stop is gone (removed while its place was not loaded)
             Integer board = x.getPersistentDataContainer().get(StopBoard.BOARD, PersistentDataType.INTEGER);
             if (board != null && !stops.isEmpty() && !stops.containsKey(board)) x.remove();

@@ -93,10 +93,17 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     public record Type(String id, String name, String color, double weight, double fare, double mood, double slow, double jolt, double tip,
                        double far, double tipMood, double rush, double late, double scale, boolean announce, List<String> skins,
                        Map<String, Double> tags, int hourFrom, int hourTo, double weekend, double market, double luggage, boolean pair,
-                       double wander, double turnFactor, boolean toEnd, double doze, List<Gift> gifts, Map<String, List<String>> talk) {
+                       double wander, double turnFactor, boolean toEnd, double doze, List<Gift> gifts, Map<String, List<String>> talk,
+                       Traits x) {
 
         /** This kind's weight at a stop of these traits, at this hour, on a weekend or not, on its market day or not (0: not now). */
         public double weightAt(Set<String> stopTags, int hour, boolean weekendDay, boolean marketDay, boolean rush) {
+            return weightAt(stopTags, hour, weekendDay, marketDay, rush, 0, 0);
+        }
+
+        /** The same on this month (1-12) and day of the month (Korean time): a kind of some months only (산타) is 0 in others. */
+        public double weightAt(Set<String> stopTags, int hour, boolean weekendDay, boolean marketDay, boolean rush, int month, int day) {
+            if (!x.months().isEmpty() && !x.months().contains(month)) return 0;
             if (hourFrom >= 0) {
                 boolean in = hourFrom <= hourTo ? hour >= hourFrom && hour < hourTo : hour >= hourFrom || hour < hourTo;
                 if (!in) return 0;
@@ -110,7 +117,38 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                 best = any ? Math.max(best, f) : f;
                 any = true;
             }
+            if (x.tagsOnly() && !any) return 0;
+            if (x.peakDays().contains(day)) w *= x.peak();
             return w * best;
+        }
+
+        /** This kind's mood never goes below its floor (수다쟁이 아줌마, 스님). */
+        public double floor(double mood) {
+            return Math.max(mood, x.moodFloor());
+        }
+    }
+
+    /**
+     * The 3차 kinds' ways (bus.yml types.*): `chatter` seconds between their chatter bubbles (0: none), each lowering the other
+     * riders' mood by `chatterMood`; mood never below `moodFloor`; at `sickAt` mood or less they get off at the next stop
+     * (멀미); a baby aboard: everyone `babyCry` at a jolt or bump, `babySmile` at a smooth stop; `seats` seats taken (the dog: a
+     * `pet` entity in the second); only in `months`, `peak` × on `peakDays`; a `ghost` (see-through, glowing) leaving `token`
+     * 유령 승차권 조각; their on-time window × `onTime`, `lateHit` mood once late; `bless` next passengers' tips × `blessTip`
+     * after they get off (스님); a ★5 review when they get off at `review` mood or more (유튜버); their own gift chance and mood
+     * (-1: bus.yml's); `tagsOnly`: only at stops of their traits.
+     */
+    public record Traits(double chatter, double chatterMood, double moodFloor, double sickAt, double babyCry, double babySmile, int seats,
+                         String pet, Set<Integer> months, Set<Integer> peakDays, double peak, boolean ghost, int token, double onTime,
+                         double lateHit, int bless, double blessTip, double review, double giftChance, double giftMood, boolean tagsOnly) {
+        public static final Traits NONE = new Traits(0, 0, 0, 0, 0, 0, 1, "", Set.of(), Set.of(), 1, false, 0, 1, 0, 0, 1, 0, -1, -1, false);
+
+        static Traits parse(ConfigurationSection t) {
+            return new Traits(t.getDouble("chatter", 0), t.getDouble("chatter-mood", 0), t.getDouble("mood-floor", 0), t.getDouble("sick-at", 0),
+                    t.getDouble("baby-cry", 0), t.getDouble("baby-smile", 0), Math.max(1, t.getInt("seats", 1)), t.getString("pet", ""),
+                    Set.copyOf(t.getIntegerList("months")), Set.copyOf(t.getIntegerList("peak-days")), t.getDouble("peak", 1),
+                    t.getBoolean("ghost"), t.getInt("token", 0), t.getDouble("on-time", 1), t.getDouble("late-hit", 0), t.getInt("bless", 0),
+                    t.getDouble("bless-tip", 1), t.getDouble("review", 0), t.getDouble("gift-chance", -1), t.getDouble("gift-mood", -1),
+                    t.getBoolean("tags-only"));
         }
     }
 
@@ -151,7 +189,8 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                     t.getDouble("tip-mood", 0), t.getDouble("rush", 1), t.getDouble("late", 0), t.getDouble("scale", 1), t.getBoolean("announce"),
                     List.copyOf(t.getStringList("skins")), tg, when.size() == 2 ? when.get(0) : -1, when.size() == 2 ? when.get(1) : -1,
                     t.getDouble("weekend", 1), t.getDouble("market", 1), t.getDouble("luggage", 0), t.getBoolean("pair"), t.getDouble("wander", 0),
-                    t.getDouble("turn", 1), t.getBoolean("to-end"), t.getDouble("doze", 0.15), List.copyOf(gifts), talk(t.getConfigurationSection("talk"))));
+                    t.getDouble("turn", 1), t.getBoolean("to-end"), t.getDouble("doze", 0.15), List.copyOf(gifts), talk(t.getConfigurationSection("talk")),
+                    Traits.parse(t)));
         }
         if (types.isEmpty()) problems.add("types 가 비어 있음");
         ConfigurationSection mk = section(c, "market"), pc = section(c, "picnic"), dz = section(c, "doze");
@@ -269,6 +308,11 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     /** Seconds a ride of this many road blocks may take and still tip. */
     public double onTime(double roadBlocks) {
         return roadBlocks / Math.max(0.1, fare.onTimeSpeed()) + fare.onTimeGrace();
+    }
+
+    /** The same for a kind of passenger (배달 라이더: a tighter window). */
+    public double onTime(double roadBlocks, Type t) {
+        return onTime(roadBlocks) * (t == null ? 1 : t.x().onTime());
     }
 
     /**
