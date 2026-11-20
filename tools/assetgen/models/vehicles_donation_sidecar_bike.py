@@ -22,7 +22,7 @@ The bike: a springer fork (rigid rear legs, sprung front legs on a rocker at the
 the upper crown), a deep valanced front fender with the trim colour down its crown, a round chrome headlamp with a
 speedometer on top and a horn under it, wide pulled-back handlebars with ribbed grips, levers and one round mirror;
 a teardrop two-tone tank (the paint with a flash of the trim colour each side, a chrome strip down its crown, two
-filler caps, ribbed rubber knee pads, a hand-shift lever on its left); a V-twin with finned barrels and heads and
+a filler cap, ribbed rubber knee pads, a hand-shift lever on its left); a V-twin with finned barrels and heads and
 chrome rocker covers, a chrome primary cover on the left, a timing cover, a carburettor with a round chrome air
 cleaner on the right; two chrome pipes down the left side to stacked fishtail mufflers; a sprung leather solo saddle
 on two chrome coil springs; rubber footboards; a black cradle frame with plunger rear suspension; a valanced rear
@@ -649,7 +649,7 @@ TK = -3.0                     # where its sides start to narrow (z)
 
 
 def _tank_saddle(m, ctx):
-    """The teardrop tank (two-tone, chrome crown strip, filler caps, knee pads, shift lever) and the sprung saddle."""
+    """The teardrop tank (two-tone, chrome crown strip, filler cap, knee pads, shift lever) and the sprung saddle."""
     C, T, L = ctx.C, ctx.T, ctx.L
     m.group("tank")
     W1, W2 = 3.25, 1.25                     # half width ahead of TK, at the tail
@@ -693,10 +693,10 @@ def _tank_saddle(m, ctx):
               tp, decal=tank, below=s > 0, faces={"down": None, "west" if s > 0 else "east": None, "north": None})
     plank(m, "tank_tail", "x", (TZ1 - 1, TY1), (TZ1, TY1 - 1), (BX - W2 + 0.02, BX + W2 - 0.02), 0.75, tp, decal=tank)
     m.box("tank", (BX - W2, TY0 + 0.5, TZ1 - 1), (BX + W2, TY1 - 1, TZ1), tp(decal=tank))
-    # the chrome strip down the crown, two filler caps
+    # the chrome strip down the crown, a filler cap
     m.box("tank_strip", (BX - 0.3, TY1, TZ0 + 1.2), (BX + 0.3, TY1 + 0.25, TZ1 - 1.2), CHROME)
-    for s in (-1, 1):
-        m.box("filler_cap", (BX + s * 1.6 - 0.5, TY1, TZ0 + 2.0), (BX + s * 1.6 + 0.5, TY1 + 0.45, TZ0 + 3.0), CHROME)
+    m.box("filler_cap", (BX - 1.9, TY1, TZ0 + 2.0), (BX - 1.1, TY1 + 0.4, TZ0 + 2.8),
+          flat("sc_chrome", 4)(decal=lambda c: tone("sc_chrome", 0.62 if c.face == "up" else 0.45)))
     # the hand-shift lever up the tank's left side, behind the knee pad: a chrome rod, a black knob
     rod(m, "shift_lever", (11.6, 1.8), (15.2, 0.3), 0.4, CHROME, x=(BX - 2.25, BX - 1.85))
     m.box("shift_knob", (BX - 2.45, 15.0, -0.2), (BX - 1.65, 15.8, 0.6), solid("sc_black", 0.75, 0.45, 0.2))
@@ -963,6 +963,11 @@ def _sidecar(m, kit, ctx):
             return tone(C, 0.1)
         if abs(y - SPEAR) < 0.45 and c.face in ("east", "west"):
             return tone("sc_chrome", 0.87 if y > SPEAR else 0.55)
+        if c.face in ("north", "south"):
+            # the ends (the steps of the nose and tail): one even tone each, no banding across the turned chamfers
+            if y > SPEAR:
+                return tone(T, 0.62 if c.face == "north" else 0.5)
+            return tone(C, 0.46 if c.face == "north" else 0.34)
         if y > SPEAR:
             if c.face == "up" or y > TT - 0.1:
                 return tone(T, 0.8 if 1.5 < ax < 3.0 else 0.66)

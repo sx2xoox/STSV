@@ -1,19 +1,20 @@
 """
-초밥 카니발 (a donation car, content/stsv/items/vehicles.yml sushi_carnival): a Korean internet joke. A big family
+초밥 카니발 (a donation car, content/stsv/items/vehicles.yml sushi_carnival): a Korean internet meme. A big family
 minivan (the long, tall, boxy-but-modern 7-seat MPV every Korean family seems to own: an original drawing, no make,
-no badge, no lettering anywhere) carrying a roof cargo box that is a giant piece of salmon nigiri. About 5.1 x 2.0 x
-1.9 blocks for the van; the sushi on its roof rails takes it to about 2.5 blocks high.
+no badge, no lettering anywhere) with a long streamlined roof cargo box on its rails: from a distance the box sits on
+the roof like a piece of sushi, hence the name. About 5.1 x 2.0 x 1.9 blocks for the van; the box takes it to about
+2.4 blocks high.
 
 Drawn like the 머슬카 (vehicles_donation_muscle_car.py, the approved "16 px, angled panels" style; read its doc
 first): 16 px a block, the body drawn at its real size and shrunk by 2 (BModel scale 2), shown at vehicle.body-scale 2;
 the wheel a model of its own at 1. The body is a handful of big clean boxes; every slope and bevel is a flat panel
 turned 22.5 or 45 degrees about one axis (plank()): the nose's brow, the raked screen and its pillars, the shoulder's
 crease, the roof's chamfered edges, the van's four vertical corners, the arches' 45-degree corners, and on the roof the
-rice block's chamfered corners and the salmon's draped ends and rounded edges. The detail is painted on the big faces
+box's tapered nose and tail, its domed lid's shoulders and its chamfered lower edges. The detail is painted on the big faces
 (world-space decals): soft gradients, the crease's light, a sculpted line down the flank, shut lines, the sliding
-door's rail, the grille's mesh, the lamps' insides, the rice grains, the salmon's white fat lines, the nori's sheen.
+door's rail, the grille's mesh, the lamps' insides, the box's gloss, ribs and shut line.
 Only what should stand out is real 3D: the slim lamps, the chrome grille frame, bumpers, mirrors, handles, roof rails
-and cross bars, the tail lamps, the wheels and the sushi.
+and cross bars, the box and its feet and lock, the tail lamps, the wheels.
 
 Drawn coordinates: 16 px a block, the car's ground centre at (0, 0, 0), front = north (-z), +x = the car's RIGHT side;
 the driver sits on the left (-x).
@@ -28,11 +29,12 @@ Its look:
     chrome strip along the sills.
   * back: a near-upright tailgate with a big dark window, wide tail lamps on the corners joined by a thin light bar, a
     roof spoiler, a black bumper with the plate above it.
-  * roof: two silver roof rails, two black cross bars, and on them THE SUSHI: an oblong block of white rice (rice
-    grains painted on, its corners chamfered at 45 degrees), a thick slice of salmon over it (orange with diagonal
-    white fat lines, its long edges rounded off, both ends draped down over the rice), and a black nori band wrapped
-    round the middle.
-  * paint: the body colour (colour: pearl white), the cabin (trim: warm tan leather). Both are arguments.
+  * roof: two silver roof rails, two black cross bars, and clamped on them THE ROOF BOX: long and low (about two
+    thirds of the roof), a wedge nose tapering down at 22.5 degrees, a shorter tapered tail, a gently domed lid
+    (22.5-degree shoulders), two faint ribs along it and a soft gloss line down the top, a thin shut line where the
+    lid meets the base, a small lock barrel on each side, four feet clamped round the bars.
+  * paint: the body colour (colour: pearl white), the cabin (trim: warm tan leather), the roof box (box: gloss
+    graphite black "sc_box", or matte grey "sc_box_grey"). All are arguments.
   * inside: 7 seats: two front seats, two captain chairs in the middle row, a three-seat bench at the back; a dash
     with a wide screen, a steering wheel.
 
@@ -67,10 +69,8 @@ _ramp("sc_led", 210, 0.050, 0.92, 0.12, 3, True)       # the LED light lines
 _ramp("sc_tail", 22, 0.230, 0.50, 0.34, 5, True)       # tail lamps
 _ramp("sc_amber", 62, 0.170, 0.74, 0.20, 3, True)      # side repeaters
 _ramp("sc_leather", 55, 0.045, 0.46, 0.34, 5, False)   # tan leather cabin
-_ramp("sc_rice", 95, 0.014, 0.90, 0.16, 5, False)      # sushi rice
-_ramp("sc_salmon", 42, 0.165, 0.68, 0.30, 6, True)     # the salmon slice
-_ramp("sc_fat", 48, 0.050, 0.91, 0.10, 3, False)       # the salmon's white fat lines
-_ramp("sc_nori", 165, 0.030, 0.22, 0.18, 4, False)     # the nori band
+_ramp("sc_box", 255, 0.012, 0.30, 0.42, 7, False)     # the roof box: gloss graphite black
+_ramp("sc_box_grey", 245, 0.008, 0.50, 0.34, 7, False) # the roof box: matte grey (an option)
 
 
 def _n(ramp):
@@ -125,14 +125,19 @@ LAMP = (10.5, 15.25, 12, 14.25)   # the slim headlamp: |x| from, to; y from, to 
 TAILL = (9, 15.25, 18.5, 21.5)
 GATE_Y = 22                      # the tailgate's window from here up   # the tail lamps: |x| from, to; y from, to (their face at TAIL + 0.4)
 
-# the sushi (on the roof rails)
+# the roof box (on the cross bars over the roof rails)
 RAIL_Y = ROOF + 1.5            # the rails' top
-BAR_Y = RAIL_Y + 0.75          # the cross bars' top = the rice's foot
-RICE_X, RICE_Z0, RICE_Z1, RICE_TOP = 10, -15, 27, BAR_Y + 6.5
-FISH_X, FISH_T = 11, 2.75      # the salmon's half width, its thickness
-FISH_TOP = RICE_TOP + FISH_T
-NORI_Z0, NORI_Z1 = 2, 10       # the nori band (z)
-CORNER = 1.5                   # the rice's 45-degree vertical corners
+BAR_Y = RAIL_Y + 0.75          # the cross bars' top
+BX = 10                        # the box's half width
+BOX_Y0 = BAR_Y + 0.5           # its bottom (it stands on four feet on the bars)
+BOX_Y1 = BOX_Y0 + 6.5            # its crown
+CROWN = 7.5                    # the crown's half width (22.5-degree shoulders from here out to BX)
+BOX_YS = BOX_Y1 - (BX - CROWN) * T     # the sides' top (where the shoulders end)
+SHUT = BOX_Y0 + 2.5            # the shut line between the base and the lid
+BOX_Z0, BOX_ZC0, BOX_ZC1, BOX_Z1 = -15, -6, 21, 26     # the nose's tip, the crown's ends, the tail
+NOSE_DROP = (BOX_ZC0 - BOX_Z0) * T                       # how far the nose's top falls (22.5 degrees)
+TAIL_DROP = (BOX_Z1 - BOX_ZC1) * T
+CHEEK = 8.75                   # the nose's / tail's slope: full height inside this |x|, one shoulder lower outside
 
 
 def arch_at(z):
@@ -381,19 +386,19 @@ _KIT = {}
 PARTS = ("door_l", "door_r", "slide_l", "slide_r")
 
 
-def sushi_carnival(colour="sc_pearl", trim="sc_leather", name="sushi_carnival"):
-    return carnival_kit(colour, trim, name).body
+def sushi_carnival(colour="sc_pearl", trim="sc_leather", box="sc_box", name="sushi_carnival"):
+    return carnival_kit(colour, trim, box, name).body
 
 
-def carnival_kit(colour="sc_pearl", trim="sc_leather", name="sushi_carnival"):
-    key = (colour, trim, name, tuple(sorted(REMAP.items())))
+def carnival_kit(colour="sc_pearl", trim="sc_leather", box="sc_box", name="sushi_carnival"):
+    key = (colour, trim, box, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
     kit = Kit(name, PARTS)
     m = kit.body
     m.group("body")
     P = _make_paints(colour, trim)
-    ctx = dict(C=colour, TR=trim, P=P)
+    ctx = dict(C=colour, TR=trim, B=box, P=P)
     _shell(m, kit, ctx)
     _front(m, ctx)
     _rear(m, ctx)
@@ -401,7 +406,7 @@ def carnival_kit(colour="sc_pearl", trim="sc_leather", name="sushi_carnival"):
     _cabin(m, ctx)
     _door_parts(kit, ctx)
     _roof_rack(m, ctx)
-    _sushi(m, ctx)
+    _roof_box(m, ctx)
     m.display = _held_display()
     _KIT[key] = kit
     return kit
@@ -779,7 +784,7 @@ def _door_parts(kit, ctx):
 
 
 def _roof_rack(m, ctx):
-    """Two silver roof rails (on a foot at each end), two black cross bars (the sushi sits on them)."""
+    """Two silver roof rails (on a foot at each end), two black cross bars (the roof box is clamped on them)."""
     rail = _chrome(0.95, 0.75, 0.5)
     for s in (-1, 1):
         x0, x1 = 11.5, 12.75
@@ -793,123 +798,100 @@ def _roof_rack(m, ctx):
 
 
 # ================================================================================================
-# The sushi
+# The roof box
 # ================================================================================================
 
-def _rice_decal(c):
-    """Rice: cream white, 2x1 px grains in staggered rows (a lit one, a shadow between some), a soft shade low down."""
-    x, y, z = c.p
-    f = c.face
-    if f in ("east", "west"):
-        a, b = z, y
-    elif f in ("north", "south"):
-        a, b = x, y
-    else:
-        a, b = x, z
-    row = math.floor(b)
-    col = math.floor((a + (row % 2)) / 2)
-    h = _h(col, row, 7 if f in ("up", "down") else 3)
-    base = 0.62 if f != "down" else 0.3
-    if f in ("east", "west", "north", "south") and y < BAR_Y + 1:
-        base -= 0.12
-    k = h % 9
-    if k == 0:
-        return tone("sc_rice", base - 0.34)                              # a gap between the grains
-    if k in (1, 2):
-        return tone("sc_rice", base + 0.3)                               # a lit grain
-    if k == 3 and (math.floor(a) % 2 == 0):
-        return tone("sc_rice", base - 0.16)
-    return tone("sc_rice", base + 0.06)
-
-
-def _salmon_decal(c):
-    """Salmon: orange, diagonal white fat lines (world space, so they run on round the edges and the draped ends), a
-    soft gloss down the top, deeper colour at the edges."""
-    x, y, z = c.p
-    f = c.face
-    if f == "down":
-        return tone("sc_salmon", 0.25)
-    # the fat lines: bands across the slice, slanting
-    k = (z * 1.0 + x * 0.55 - (FISH_TOP - y) * 1.0) % 6.5
-    if f in ("north", "south"):
-        k = (x * 0.55 + (y - FISH_TOP) * 1.0 + (RICE_Z0 if f == "north" else RICE_Z1)) % 6.5
-    if k < 1.1:
-        return tone("sc_fat", 0.75 if f == "up" else 0.5)
-    if k < 1.6:
-        return tone("sc_salmon", 0.85)                                    # the line's soft edge
-    if f == "up":
+def _box_decal(B):
+    """The roof box's paint (world space): a soft gloss line down the crown, two faint ribs, the domed shoulders lit,
+    the sides darker towards the bottom, the thin shut line round the base, the lid's lip just over it."""
+    def d(c):
+        x, y, z = c.p
         ax = abs(x)
-        if -6 <= x < -3:
-            return tone("sc_salmon", 0.82)                               # the gloss
-        return tone("sc_salmon", 0.62 if ax < FISH_X - 2 else 0.5)
-    return tone("sc_salmon", 0.45 if y < FISH_TOP - 1.5 else 0.55)
+        f = c.face
+        if f == "down":
+            return tone(B, 0.05)
+        if f == "up":
+            if y > BOX_Y1 - 0.6 and ax < CROWN + 0.1:
+                if -4.5 <= x < -2.5:
+                    return tone(B, 0.98 if -4 <= x < -3 else 0.82)      # the gloss line
+                if math.floor(ax) == 5:
+                    return tone(B, 0.62)                                # the ribs' lit side
+                if math.floor(ax) == 6:
+                    return tone(B, 0.34)                                # their shadow
+                return tone(B, 0.5)
+            if y > BOX_YS - 0.3:
+                return tone(B, 0.68 if x < 0 else 0.56)                 # the shoulders and slopes, lit
+            return tone(B, 0.6)
+        fy = math.floor(y - BOX_Y0 + 1e-6)
+        if math.floor(y) == math.floor(SHUT):
+            return tone(B, 0.0)                                         # the shut line
+        if math.floor(y) == math.floor(SHUT) + 1:
+            return tone(B, 0.78)                                        # the lid's lip catching the light
+        if f in ("east", "west"):
+            return tone(B, 0.32 + 0.24 * smooth((y - BOX_Y0) / 6))
+        return tone(B, 0.36 + 0.26 * smooth((y - BOX_Y0) / 6))
+    return d
 
 
-def _nori_decal(c):
-    """Nori: near-black green, fine fibres along the band, a faint sheen on top."""
-    x, y, z = c.p
-    f = c.face
-    a = y if f in ("east", "west") else x
-    if math.floor(z) in (NORI_Z0, NORI_Z1 - 1):
-        return tone("sc_nori", 0.15)                                     # its torn-ish edges
-    k = _h(math.floor(z), math.floor(a / 3)) % 7
-    if f == "up":
-        return tone("sc_nori", 0.8 if k == 0 else 0.6)
-    return tone("sc_nori", 0.55 if k == 0 else 0.35)
+def _roof_box(m, ctx):
+    """A long low aerodynamic roof box on four feet clamped round the cross bars: the core (sides and domed crown),
+    the 22.5-degree nose and tail slopes, the 45-degree chin under each end and along the bottom edges, a lock barrel
+    on each side."""
+    B = ctx["B"]
+    dec = _box_decal(B)
+    bp = Paint(B, 3, noise=0, grad=0, rim=0, ao=0, decal=dec)
+    y0, y1, ys = BOX_Y0, BOX_Y1, BOX_YS
+    zc0, zc1 = BOX_ZC0, BOX_ZC1
+    # the core: the sides up to the shoulders, the crown over the middle
+    m.box("box", (-BX, y0 + 1, zc0), (BX, ys, zc1), bp)
+    m.box("box_crown", (-CROWN, ys, zc0), (CROWN, y1, zc1), bp)
+    m.box("box_floor", (-(BX - 1), y0, BOX_Z0 + 1.5), (BX - 1, y0 + 1, BOX_Z1 - 1.5), bp)
+    for s in (-1, 1):
+        # the dome: a 22.5-degree shoulder each side
+        plank(m, "box_shoulder", "z", (s * CROWN, y1), (s * BX, ys), (zc0, zc1), 1.1, bp, decal=dec)
+        # the bottom's long edges, 45 degrees
+        plank(m, "box_edge", "z", (s * (BX - 1), y0), (s * BX, y0 + 1), (BOX_Z0 + 1.5, BOX_Z1 - 1.5), 0.6, bp,
+              decal=dec, below=False)
+    # the nose: a block under a long 22.5-degree slope (full height in the middle, a shoulder lower at the cheeks)
+    nh = y1 - NOSE_DROP                                                   # the slope's foot at the tip
+    tip = 2                                                               # the tip's 45-degree corners (plan)
+    m.box("box_nose", (-(BX - tip), y0 + 1, BOX_Z0), (BX - tip, nh - (y1 - ys), BOX_Z0 + tip), bp)
+    m.box("box_nose", (-BX, y0 + 1, BOX_Z0 + tip), (BX, nh - (y1 - ys), zc0), bp)
+    m.box("box_nose", (-CHEEK, nh - (y1 - ys), BOX_Z0), (CHEEK, nh, zc0), bp)
+    plank(m, "box_nose_top", "x", (BOX_Z0, nh), (zc0, y1), (-CHEEK, CHEEK), 2.8, bp, decal=dec)
+    for s in (-1, 1):
+        plank(m, "box_nose_cheek", "x", (BOX_Z0 + tip, nh - (y1 - ys) + tip * T), (zc0, ys), _x(s, CHEEK, BX), 2.8, bp,
+              decal=dec)
+        plank(m, "box_nose_corner", "y", (BOX_Z0, s * (BX - tip)), (BOX_Z0 + tip, s * BX), (y0 + 1, nh - (y1 - ys) + tip * T),
+              0.9, bp, decal=dec, below=s > 0)
+    # the chin: 45 degrees from the nose's face back to the floor
+    plank(m, "box_chin", "x", (BOX_Z0, y0 + 1.5), (BOX_Z0 + 1.5, y0), (-(BX - 0.5), BX - 0.5), 0.8, bp, decal=dec,
+          below=False)
+    # the tail: the same, shorter
+    th = y1 - TAIL_DROP
+    m.box("box_tail", (-BX, y0 + 1, zc1), (BX, th - (y1 - ys), BOX_Z1), bp)
+    m.box("box_tail", (-CHEEK, th - (y1 - ys), zc1 + 1.5), (CHEEK, th, BOX_Z1), bp)
+    plank(m, "box_tail_top", "x", (zc1, y1), (BOX_Z1, th), (-CHEEK, CHEEK), 1.8, bp, decal=dec)
+    for s in (-1, 1):
+        plank(m, "box_tail_cheek", "x", (zc1, ys), (BOX_Z1, th - (y1 - ys)), _x(s, CHEEK, BX), 1.8, bp, decal=dec)
+    plank(m, "box_tail_chin", "x", (BOX_Z1 - 1.5, y0), (BOX_Z1, y0 + 1.5), (-(BX - 0.5), BX - 0.5), 0.8, bp, decal=dec,
+          below=False)
 
-
-def _sushi(m, ctx):
-    """The rice block (45-degree vertical corners and lower edges), the salmon over it (rounded long edges, both ends
-    draped down over the rice), the nori band round the middle."""
-    rice = Paint("sc_rice", 2, noise=0, grad=0, rim=0, ao=0, decal=_rice_decal)
-    fish = Paint("sc_salmon", 3, noise=0, grad=0, rim=0, ao=0, decal=_salmon_decal)
-    nori = Paint("sc_nori", 1, noise=0, grad=0, rim=0, ao=0, decal=_nori_decal)
-    rb = BAR_Y
-    # the rice: a core, its four vertical corners and the two long lower edges bevelled at 45 degrees
-    m.box("rice", (-RICE_X, rb + 1, RICE_Z0 + CORNER), (RICE_X, RICE_TOP, RICE_Z1 - CORNER), rice)
-    m.box("rice", (-(RICE_X - CORNER), rb + 0.5, RICE_Z0), (RICE_X - CORNER, RICE_TOP, RICE_Z1), rice)
-    m.box("rice", (-(RICE_X - 1), rb, RICE_Z0 + 0.5), (RICE_X - 1, rb + 1, RICE_Z1 - 0.5), rice)
+    # a lock barrel each side, just under the shut line near the back: a chrome ring round a dark key slot
+    def lock(c):
+        if c.face in ("east", "west"):
+            r = math.hypot(c.p[1] - (SHUT - 0.75), c.p[2] - 14.75)
+            return ("raw", (20, 20, 24, 255)) if r < 0.25 else tone("sc_chrome", 0.8)
+        return tone("sc_chrome", 0.6)
     for s in (-1, 1):
-        plank(m, "rice_edge", "z", (s * (RICE_X - 1), rb), (s * RICE_X, rb + 1), (RICE_Z0 + 0.5, RICE_Z1 - 0.5), 0.6,
-              rice, below=False, decal=_rice_decal)
-    # the corners: the core's corners cut back, a 45-degree panel over each
-    for s in (-1, 1):
-        for zc, e in ((RICE_Z0, 1), (RICE_Z1, -1)):
-            # (z, x) points along the bevel: from the end face to the side face
-            p0 = (zc, s * (RICE_X - CORNER))
-            p1 = (zc + e * CORNER, s * RICE_X)
-            # thickness inward: towards -x on the right side
-            plank(m, "rice_corner", "y", p0, p1, (rb + 0.5, RICE_TOP - 0.25), 0.9, rice,
-                  below=(s > 0), decal=_rice_decal)
-    # the salmon: a thick slab on top, its long edges rounded off with 45-degree panels
-    zf0, zf1 = RICE_Z0 + 1.0, RICE_Z1 - 1.0
-    m.box("salmon", (-(FISH_X - 1), FISH_TOP - 1, zf0), (FISH_X - 1, FISH_TOP, zf1), fish)
-    m.box("salmon", (-FISH_X, RICE_TOP, zf0), (FISH_X, FISH_TOP - 1, zf1), fish)
-    for s in (-1, 1):
-        plank(m, "salmon_edge", "z", (s * (FISH_X - 1), FISH_TOP), (s * FISH_X, FISH_TOP - 1), (zf0, zf1), 0.75, fish,
-              decal=_salmon_decal)
-    # the draped ends: a 45-degree panel over the rice's top edge, then the flap hanging down the end
-    drop = 2.5
-    for zc, e in ((zf0, -1), (zf1, 1)):
-        za = zc + e * drop
-        # the slope's outer face from the slab's top end down to (za, FISH_TOP - drop)
-        p0, p1 = (zc, FISH_TOP), (za, FISH_TOP - drop)
-        plank(m, "salmon_drape", "x", p0, p1, (-(FISH_X - 0.5), FISH_X - 0.5), FISH_T, fish, decal=_salmon_decal,
-              below=True)
-        # the flap down the end face (over the rice, a hair proud of it)
-        z0, z1 = sorted((za, za - e * FISH_T * 0.8))
-        m.box("salmon_flap", (-(FISH_X - 0.5), RICE_TOP - 3.5, z0), (FISH_X - 0.5, FISH_TOP - drop, z1), fish)
-        # a soft tip: the flap's lower edge bevelled back towards the rice
-        plank(m, "salmon_tip", "x", (za, RICE_TOP - 3.5), (za - e * 1, RICE_TOP - 4.5),
-              (-(FISH_X - 1), FISH_X - 1), 0.6, fish, decal=_salmon_decal, below=False)
-    # the nori band: round the rice's sides, over the salmon's edges and top
-    nz0, nz1 = NORI_Z0, NORI_Z1
-    m.box("nori_top", (-(FISH_X - 1), FISH_TOP, nz0), (FISH_X - 1, FISH_TOP + 0.4, nz1), nori)
-    for s in (-1, 1):
-        m.box("nori_side", _lo(s, RICE_X, FISH_X + 0.4, rb + 0.25, nz0), _hi(s, RICE_X, FISH_X + 0.4, FISH_TOP - 0.6, nz1), nori)
-        plank(m, "nori_edge", "z", (s * (FISH_X - 1), FISH_TOP + 0.4), (s * (FISH_X + 0.4), FISH_TOP - 1), (nz0, nz1), 0.4,
-              nori, decal=_nori_decal, below=True)
-    m.box("nori_under", (-(RICE_X - 1), rb - 0.3, nz0), (RICE_X - 1, rb, nz1), nori)
+        m.box("box_lock", _lo(s, BX, BX + 0.25, SHUT - 1.25, 14.25), _hi(s, BX, BX + 0.25, SHUT - 0.25, 15.25),
+              Paint("sc_chrome", 5, noise=0, rim=0.3, decal=lock))
+    # the feet: a block under the box on each bar, a clamp hooked round the bar's underside
+    foot = Paint("sc_black", 1, noise=0, grad=0, rim=0.3, ao=0.3)
+    for zb in (-9, 19):
+        for s in (-1, 1):
+            m.box("box_foot", _lo(s, 5, 7.5, BAR_Y, zb - 0.5), _hi(s, 5, 7.5, y0, zb + 2), foot)
+            m.box("box_clamp", _lo(s, 5.5, 7, RAIL_Y - 0.6, zb - 0.25), _hi(s, 5.5, 7, RAIL_Y, zb + 1.75), foot)
 
 
 def _part(name):
