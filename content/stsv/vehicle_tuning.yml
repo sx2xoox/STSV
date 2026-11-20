@@ -37,6 +37,30 @@ wheels:
   white:   { name: "랠리 화이트",      color: "#f1f3f6", price: 90000 }
   disc:    { name: "폴리시 디스크",    color: "#9db1c1", price: 80000 }
 
+# 루프 장식: 지붕 레일 위에 올리는 것 (탈것의 "_roof" 로 끝나는 부품을 바꿔 끼움. 모델 <부품>_r_<id>:
+# tools/assetgen/models/vehicle_roofs.py · vehicle_roofs_fun.py). 순정은 그 차의 기본 루프박스
+roofs:
+  # 평범한 것
+  box_black: { name: "블랙 루프박스",       color: "#1f2328", price: 80000 }
+  bars:      { name: "가로바만",            color: "#9aa3ad", price: 50000 }
+  bikes:     { name: "자전거 두 대",        color: "#3b82e0", price: 150000 }
+  ski:       { name: "스키 · 보드 캐리어",  color: "#e8eef5", price: 120000 }
+  tent:      { name: "루프탑 텐트",         color: "#5f7d4e", price: 200000 }
+  kayak:     { name: "카약",                color: "#f08020", price: 150000 }
+  surf:      { name: "서핑보드 두 장",      color: "#3fd0c0", price: 120000 }
+  basket:    { name: "짐바구니",            color: "#6b4a2b", price: 100000 }
+  # 이상한 것
+  salmon:      { name: "연어 초밥",         color: "#ff8a4c", price: 200000 }
+  tamago:      { name: "계란 초밥",         color: "#f9d33c", price: 200000 }
+  shrimp:      { name: "새우 초밥",         color: "#ff6f5a", price: 250000 }
+  kimbap:      { name: "김밥 한 줄",        color: "#2f4a3a", price: 250000 }
+  bungeoppang: { name: "붕어빵",            color: "#c98a3c", price: 200000 }
+  duck:        { name: "거대 고무 오리",    color: "#ffd23c", price: 300000 }
+  cat:         { name: "식빵 고양이",       color: "#e09a4c", price: 300000 }
+  watermelon:  { name: "수박 반 통",        color: "#3fa34d", price: 150000 }
+  mattress:    { name: "이사 가는 날",      color: "#d8d0c0", price: 200000 }
+  tree:        { name: "크리스마스 트리",   color: "#1f7a3a", price: 300000 }
+
 # 언더글로우 네온: 차 밑 바닥에 깔리는 빛 (밤낮 없이 밝음)
 underglows:
   cyan:   { name: "시안",   color: "#46e6ff", price: 150000 }
@@ -119,6 +143,7 @@ vehicles:
   hyper_car:   { paints: all, wheels: all, underglows: all, headlamps: all, skids: all, smokes: all, flames: all, crackles: all, plates: all }
   grand_sedan: { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }
   luxury_suv:  { paints: all, wheels: all, underglows: all, headlamps: all, plates: all }
+  sushi_carnival: { paints: all, roofs: all, underglows: all, plates: all }
   # 서킷 카트 (레이스 동안만 있는 탈것: 튜닝샵에는 오지 않음). 대기실에서 고르는 색 = 이 도색 (circuit/karts.yml colours)
   kart_storm:   { paints: [orange, yellow, green, blue, purple, pink, white, black] }
   kart_bubble:  { paints: [red, orange, yellow, green, purple, pink, white, black] }

@@ -2,19 +2,19 @@
 # 아래 = 지금 입혀 본 것의 값 · 결제 · 되돌리기. 옵션을 누르면 실제 차에 바로 입혀 보여 줌 (임시: 결제해야 남음).
 # 옵션 · 값 · 탈것별 목록은 contents/stsv/vehicle_tuning.yml. 종류 이름은 messages.yml 의 tuning.kind.*
 # 자리표시자: {vehicle} 탈것 이름 · {kind} 지금 탭 · {due} 결제할 값 · {tried} 입혀 본 것 수 · {balance} 내 돈
-#            {on_<종류>} 그 종류에 지금 입혀져 있는 것 (paint, wheel, underglow, headlamp, skid, smoke, flame, crackle, plate)
+#            {on_<종류>} 그 종류에 지금 입혀져 있는 것 (paint, wheel, roof, underglow, headlamp, skid, smoke, flame, crackle, plate)
 tuning:
   title: "<#f0e2b0>{vehicle} <#8f86a6>· {kind}"
   rows: 6
   background: stsv:gui/tuning
-  tabs: "ABCDEFGHJ"
+  tabs: "ABCDEFGHJR"
   layout:
     - "ABCDEFGHJ"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
     - "TTTTTTTTT"
-    - "P.UY.IX.N"
+    - "PRUY.IX.N"
   list: T
   buttons:
     A:
@@ -65,6 +65,12 @@ tuning:
       material: FIREWORK_STAR
       name: "<white>배기 팝콘 <gray>· {on_crackle}"
       lore: ["<gray>액셀에서 발을 뗄 때 터지는 소리"]
+    R:
+      action: "tuning:kind:roof"
+      icon: stsv:gui/tune_roof
+      material: CHEST
+      name: "<white>루프 장식 <gray>· {on_roof}"
+      lore: ["<gray>지붕 레일 위에 올리는 것 (루프박스 · 자전거 · 초밥…)"]
     J:
       action: "tuning:kind:plate"
       icon: stsv:gui/tune_plate

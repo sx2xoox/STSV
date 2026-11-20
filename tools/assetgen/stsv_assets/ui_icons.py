@@ -1240,6 +1240,21 @@ TUNE_GLOW = [   # 언더글로우: a car from the side, light spilling out from 
     ".nnnnnnnnnnnnnn",
 ]
 
+TUNE_ROOF = [   # 루프 장식: a car from the side with a long box on its roof bars
+    "",
+    "",
+    "....skkkkkkks",
+    "...skkkkkkkkks",
+    "....s.s...s.s",
+    ".....######",
+    "....#wwsww#s",
+    "..############",
+    ".#############s",
+    ".##tt#####tt##s",
+    "..tTTt...tTTt",
+    "...tt.....tt",
+]
+
 TUNE_LAMP = [   # 전조등 색: a lamp and its beam
     "",
     "",
@@ -1335,7 +1350,7 @@ TUNE_PLATE = [   # 번호판 글씨: a plate with letters on it
 def tuning_icons():
     """One icon a kind of tuning (VehicleTuning.Kind: tune_<word>) and its dimmed twin (tune_<word>_off), and the
     dimmed twins of the two buttons under them (pay: coins, undo: clear)."""
-    out = {"tune_paint": draw(TUNE_PAINT), "tune_wheel": draw(TUNE_WHEEL), "tune_underglow": draw(TUNE_GLOW), "tune_headlamp": draw(TUNE_LAMP),
+    out = {"tune_paint": draw(TUNE_PAINT), "tune_wheel": draw(TUNE_WHEEL), "tune_roof": draw(TUNE_ROOF), "tune_underglow": draw(TUNE_GLOW), "tune_headlamp": draw(TUNE_LAMP),
            "tune_skid": draw(TUNE_SKID), "tune_smoke": draw(TUNE_SMOKE), "tune_flame": draw(TUNE_FLAME), "tune_crackle": draw(TUNE_CRACKLE),
            "tune_plate": draw(TUNE_PLATE)}
     for name in list(out):

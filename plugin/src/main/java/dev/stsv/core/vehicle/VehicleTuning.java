@@ -35,6 +35,8 @@ public final class VehicleTuning {
         PAINT("paints"),
         /** The wheels in another design, the same size: a model each. */
         WHEEL("wheels"),
+        /** What rides on the roof rails (a roof box, bikes, a giant sushi...): the roof part's model swapped, a model each. */
+        ROOF("roofs"),
         /** A glow on the ground under the car: a model each, stretched to the car. */
         UNDERGLOW("underglows"),
         /** The headlamps in another colour (lens, glow and beam): a model each. */
@@ -139,8 +141,13 @@ public final class VehicleTuning {
      * @param marks    it leaves skid marks
      * @param sport    it shoots flames and smokes its tyres
      * @param plates   it has name plates
+     * @param roof     its roof part's model name (a static mover whose model ends in "_roof"; null: no roof to dress)
      */
-    public record Facts(String body, String wheel, String headlamp, boolean marks, boolean sport, boolean plates) {}
+    public record Facts(String body, String wheel, String headlamp, boolean marks, boolean sport, boolean plates, String roof) {
+        public Facts(String body, String wheel, String headlamp, boolean marks, boolean sport, boolean plates) {
+            this(body, wheel, headlamp, marks, sport, plates, null);
+        }
+    }
 
     /** What the reader of the file asks about the server's content. */
     public interface Content {
@@ -225,12 +232,18 @@ public final class VehicleTuning {
         return stock + "_c_" + colour;
     }
 
+    /** A roof option in place of the roof part ("sushi_carnival_roof" with "salmon": "sushi_carnival_roof_r_salmon"). */
+    public static String roof(String part, String option) {
+        return part + "_r_" + option;
+    }
+
     public static String underglow(String colour) {
         return "underglow_" + colour;
     }
 
     private static final java.util.regex.Pattern PAINTED = java.util.regex.Pattern.compile("^(.+)_p_[a-z0-9]+(_.+)?$"),
-            WHEEL = java.util.regex.Pattern.compile("^(wheel_.+)_w_[a-z0-9]+$"), HEADLAMP = java.util.regex.Pattern.compile("^(.+_lamp_head)_c_[a-z0-9]+$");
+            WHEEL = java.util.regex.Pattern.compile("^(wheel_.+)_w_[a-z0-9]+$"), HEADLAMP = java.util.regex.Pattern.compile("^(.+_lamp_head)_c_[a-z0-9]+$"),
+            ROOF = java.util.regex.Pattern.compile("^(.+_roof)_r_[a-z0-9]+$");
 
     /**
      * The model a tuning variant is another look of ("grand_sedan_p_wine_door_fl": "grand_sedan_door_fl",
@@ -243,6 +256,8 @@ public final class VehicleTuning {
         m = WHEEL.matcher(model);
         if (m.matches()) return m.group(1);
         m = HEADLAMP.matcher(model);
+        if (m.matches()) return m.group(1);
+        m = ROOF.matcher(model);
         return m.matches() ? m.group(1) : model;
     }
 
@@ -257,6 +272,7 @@ public final class VehicleTuning {
             case WHEEL -> f.wheel() == null ? "바퀴 없음" : content.model(wheel(f.wheel(), o.id())) ? null : "모델 " + wheel(f.wheel(), o.id()) + " 없음";
             case HEADLAMP -> f.headlamp() == null ? "전조등 없음"
                     : content.model(headlamp(f.headlamp(), o.id())) ? null : "모델 " + headlamp(f.headlamp(), o.id()) + " 없음";
+            case ROOF -> f.roof() == null ? "루프 자리 없음" : content.model(roof(f.roof(), o.id())) ? null : "모델 " + roof(f.roof(), o.id()) + " 없음";
             case UNDERGLOW -> content.model(underglow(o.id())) ? null : "모델 " + underglow(o.id()) + " 없음";
             case SKID -> !f.marks() ? "스키드 마크를 남기지 않는 탈것" : content.skid(o.id()) ? null : "vehicle_feel.yml skid-marks 에 " + o.id() + " 없음";
             case SMOKE, FLAME, CRACKLE -> f.sport() ? null : "배기 · 타이어 효과가 없는 탈것";

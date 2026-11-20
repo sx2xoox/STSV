@@ -16,6 +16,7 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,6 +24,23 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class VehicleTuningTest {
 
     private static final Path PACK = Path.of("..", "content", "stsv");
+
+    @Test
+    void aRoofOptionReplacesTheRoofPart() {
+        assertEquals("sushi_carnival_roof_r_salmon", VehicleTuning.roof("sushi_carnival_roof", "salmon"));
+        assertEquals("sushi_carnival_roof", VehicleTuning.stock("sushi_carnival_roof_r_salmon"), "judged as the roof part it replaces");
+        VehicleTuning.Option o = new VehicleTuning.Option("salmon", "연어 초밥", 1, -1, null, 0, 1, 1);
+        VehicleTuning.Facts with = new VehicleTuning.Facts("van", null, null, false, false, false, "van_roof"),
+                without = new VehicleTuning.Facts("car", null, null, false, false, false);
+        VehicleTuning.Content content = new VehicleTuning.Content() {
+            public VehicleTuning.Facts vehicle(String item) { return null; }
+            public boolean model(String name) { return name.equals("van_roof_r_salmon"); }
+            public boolean skid(String id) { return false; }
+        };
+        assertNull(VehicleTuning.cannot(Kind.ROOF, o, with, content));
+        assertNotNull(VehicleTuning.cannot(Kind.ROOF, o, without, content), "no roof part: no roof options");
+        assertEquals(Kind.ROOF, Kind.of("roofs"));
+    }
 
     @Test
     void aLookIsOneOptionAKind() {

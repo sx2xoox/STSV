@@ -491,6 +491,7 @@ tuning:
   kind:
     paint: "도색"
     wheel: "휠"
+    roof: "루프 장식"
     underglow: "언더글로우 네온"
     headlamp: "전조등 색"
     skid: "스키드 마크"

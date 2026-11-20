@@ -40,7 +40,9 @@ Its look:
     with a wide screen, a steering wheel.
 
 Its parts: door_l, door_r (the front doors: hinged at their front edge, they swing out about a vertical axis),
-slide_l, slide_r (the sliding doors: they slide 2 px out and back along the van: vehicles.yml movers, slide).
+slide_l, slide_r (the sliding doors: they slide 2 px out and back along the van: vehicles.yml movers, slide), roof
+(everything above the rails: the three cross bars with their clamps and the roof box; a static mover, slide [0, 0, 0],
+painted with the body; the tuning shop's roof options (models/vehicle_roofs.py, sushi_carnival_roof_r_<id>) replace it).
 """
 
 import math
@@ -385,7 +387,7 @@ def _glass(tint, alpha, frame):
 # ================================================================================================
 
 _KIT = {}
-PARTS = ("door_l", "door_r", "slide_l", "slide_r")
+PARTS = ("door_l", "door_r", "slide_l", "slide_r", "roof")
 
 
 def sushi_carnival(colour="sc_pearl", trim="sc_leather", box=None, name="sushi_carnival"):
@@ -409,8 +411,8 @@ def carnival_kit(colour="sc_pearl", trim="sc_leather", box=None, name="sushi_car
     _glasshouse(m, kit, ctx)
     _cabin(m, ctx)
     _door_parts(kit, ctx)
-    _roof_rack(m, ctx)
-    _roof_box(m, ctx)
+    _roof_rack(m, kit["roof"], ctx)
+    _roof_box(kit["roof"], ctx)
     _side_details(m, ctx)
     m.display = _held_display()
     _KIT[key] = kit
@@ -879,8 +881,9 @@ def _side_details(m, ctx):
     m.box("fuel_flap", (W, 11, 34), (W + 0.1, 14, 37), Paint(C, 4, noise=0, rim=0, decal=flap))
 
 
-def _roof_rack(m, ctx):
-    """Two silver roof rails (on a foot at each end), three black cross bars (the roof box is clamped on them)."""
+def _roof_rack(m, roof, ctx):
+    """Two silver roof rails (on a foot at each end) on the body m; three black cross bars clamped on them, on the roof
+    part (the roof box is clamped on the bars: a roof option replaces bars and box together)."""
     rail = _chrome(0.95, 0.75, 0.5)
     for s in (-1, 1):
         x0, x1 = 11.5, 12.75
@@ -892,9 +895,9 @@ def _roof_rack(m, ctx):
         plank(m, "rail_cap_nose", "x", (ZS1 + 1.5, ROOF), (ZS1 + 3, RAIL_Y), _x(s, x0, x1), 0.6, BLACK, below=False)
         plank(m, "rail_cap_tail", "x", (RZ1 - 2, RAIL_Y), (RZ1 - 0.5, ROOF), _x(s, x0, x1), 0.6, BLACK, below=False)
     for zb in BARS:
-        m.box("cross_bar", (-13, RAIL_Y, zb), (13, BAR_Y, zb + 1.5), BLACK)
+        roof.box("cross_bar", (-13, RAIL_Y, zb), (13, BAR_Y, zb + 1.5), BLACK)
         for s in (-1, 1):
-            m.box("bar_clamp", _lo(s, 11.25, 13.25, RAIL_Y - 0.5, zb - 0.25), _hi(s, 11.25, 13.25, BAR_Y + 0.25, zb + 1.75), BLACK)
+            roof.box("bar_clamp", _lo(s, 11.25, 13.25, RAIL_Y - 0.5, zb - 0.25), _hi(s, 11.25, 13.25, BAR_Y + 0.25, zb + 1.75), BLACK)
 
 
 # ================================================================================================
@@ -1077,4 +1080,5 @@ ALL = {
     "sushi_carnival_door_r": _part("sushi_carnival_door_r"),
     "sushi_carnival_slide_l": _part("sushi_carnival_slide_l"),
     "sushi_carnival_slide_r": _part("sushi_carnival_slide_r"),
+    "sushi_carnival_roof": _part("sushi_carnival_roof"),
 }

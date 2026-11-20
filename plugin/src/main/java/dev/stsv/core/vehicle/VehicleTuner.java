@@ -189,7 +189,7 @@ final class VehicleTuner {
             VehicleFeel.Spec feel = m.feel.spec(item.key().asString(), spec.pulled() ? VehicleFeel.Power.MUSCLE : VehicleFeel.Power.ENGINE);
             SportFeel.Spec sport = feel.sport();
             return new VehicleTuning.Facts(bodyModel(item), modelName(spec.wheelModel()), modelName(feel.lamps().head()),
-                    sport != null && sport.mark() != null, sport != null, !spec.extras().dress().plates().isEmpty());
+                    sport != null && sport.mark() != null, sport != null, !spec.extras().dress().plates().isEmpty(), roofPart(spec));
         }
         return null;
     }
@@ -229,8 +229,19 @@ final class VehicleTuner {
         return key == null ? v.item.create(1) : VehicleModule.model(key);
     }
 
-    /** A moving part's model: in the chosen paint when that was drawn, else as it is. */
+    /** The roof part of a vehicle: its static mover whose model ends in "_roof" (what a 루프 장식 replaces), or null. */
+    static String roofPart(VehicleSpec spec) {
+        for (VehicleSpec.Mover mv : spec.extras().dress().movers()) {
+            String name = modelName(mv.model());
+            if (name != null && name.endsWith("_roof")) return name;
+        }
+        return null;
+    }
+
+    /** A moving part's model: the chosen roof option on the roof part; else in the chosen paint when that was drawn, else as it is. */
     NamespacedKey part(LiveVehicle v, NamespacedKey stock) {
+        String roof = v.custom.get(Kind.ROOF), part = modelName(stock);
+        if (roof != null && part != null && part.endsWith("_roof")) return variant(v, VehicleTuning.roof(part, roof), stock);
         String paint = v.custom.get(Kind.PAINT), body = bodyModel(v.item), name = modelName(stock);
         return paint == null || body == null || name == null ? stock : variant(v, VehicleTuning.part(name, body, paint), stock);
     }
