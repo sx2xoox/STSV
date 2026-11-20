@@ -103,9 +103,8 @@ LAMPS = {
     "classic_roadster": dict(scale=2.0, head=lens(10.1, 13.9, 7.1, 10.9, -35.6, True),
                              tail=lens(10.6, 13.4, 5.85, 8.65, 34.5, True),
                              body=("vehicles_donation_classic_roadster", "classic_roadster")),
-    # retro_camper (drawn at 32 px a block, shrunk by 4): the big round headlamps in chrome rings set into the nose,
-    # the round tail lamps in chrome rings on the back's corners
-    "retro_camper": dict(scale=4.0, reach=2.0, head=lens(16.5, 25.5, 28.5, 37.5, -66, True), tail=lens(21.5, 28.5, 26.5, 33.5, 65.5, True),
+    # on the back's corners
+    "retro_camper": dict(scale=2.0, head=lens(8, 12, 13.5, 17.5, -33.5, True), tail=lens(9.5, 12.5, 13.5, 16.5, 33.25, True),
                          body=("vehicles_donation_retro_camper", "retro_camper")),
     # whole width of the tail panel, split in the middle
     "muscle_car": dict(scale=2.0, head=lens(5, 9, 7.75, 11.75, -37.25, True) + lens(10, 14, 8, 12, -37.55, True),
