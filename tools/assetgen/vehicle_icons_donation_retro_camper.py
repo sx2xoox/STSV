@@ -1,36 +1,39 @@
 """
 The 16x16 inventory icon of 후원 · 레트로 캠핑밴 (retro_camper): seen from its left side, front to the left, like the
-other vehicle icons (vehicle_icons.py). A tall box: the surfboard on top, the orange pop-up tent band, the cream upper
-with its windows (curtains in the back ones), the wave between cream and mint, round white-wall wheels, the spare
-wheel on the back.
+other vehicle icons (vehicle_icons.py). Short and round: the yellow surfboard on the cream lid of the pop-up tent
+(orange-and-cream striped canvas), the cream upper rolling over at the roof's ends, the windows (the cab's, then
+three with red curtains), the bright rib at the belt, the turquoise lower with a round headlamp on the nose, white-wall
+wheels with chrome caps, the bumpers, the spare wheel on the back.
 """
 
 import vehicle_icons as VI
 from vehicle_icons import icon, _draw, TIRES
+import models.vehicles_donation_retro_camper  # noqa: F401  (registers the rc_* ramps)
 
 
 @icon("retro_camper")
 def retro_camper():
     rows = ["................",
-            "...bbbbbbbbbB...",
-            "...oOoOoOoOoo...",
-            ".cccccccccccccc.",
-            ".gGgcgGgcgfgfgc.",
-            ".gGgcggGcffgffc.",
-            ".gggcgggcfgggfc.",
-            "yccccccccccccccr",
-            ".mmmsssmmmmmssmK",
-            "smmmmmmmmmmmmmmK",
-            ".mmkkkmmmmmkkkmK",
-            "sNkwhwkNNNNkwhwk",
-            "..kwHwk...kwHwk.",
-            "...kkk.....kkk..",
+            "....bbbbbbbbB...",
+            "...LLLLLLLLLLL..",
+            "....oOoOoOoOoO..",
+            "..cccccccccccc..",
+            ".cGgcrgrcrgrccc.",
+            ".cggcrgrcrgrccc.",
+            ".dcccccccccccccd",
+            ".wwwwwwwwwwwwwwK",
+            "yttttttttttttttK",
+            "YttnkkknttnkkknK",
+            "BttkwhwkttkwhwkB",
+            "...kwHwk..kwHwk.",
+            "....kkk....kkk..",
             "................",
             "................"]
-    colours = {"b": ("water", 3), "B": ("cream", 3), "o": ("fox", 3), "O": ("fox", 2), "c": ("cream", 3),
-               "g": ("tint", 2), "G": ("glass", 4), "f": ("fox", 3), "m": ("celadon", 2), "N": ("celadon", 0),
-               "s": ("fox", 3), "y": ("lamp", 5), "r": ("signal_red", 3), "K": ("rubber", 1),
-               **TIRES, "w": ("cream", 3)}
+    colours = {"b": ("rc_board", 3), "B": ("rc_chrome", 5), "L": ("rc_cream", 4), "o": ("rc_canvas", 2),
+               "O": ("rc_cream", 6), "c": ("rc_cream", 5), "d": ("rc_cream", 3), "G": ("glass", 3), "g": ("tint", 1),
+               "r": ("rc_gingham", 2), "w": ("rc_cream", 6), "t": ("rc_turq", 3), "n": ("rc_turq", 1),
+               "y": ("lamp", 4), "Y": ("rc_chrome", 4), "K": ("rc_tyre", 1),
+               **TIRES, "w": ("rc_cream", 6)}
     return _draw(rows, colours).render()
 
 

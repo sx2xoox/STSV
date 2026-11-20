@@ -50,7 +50,7 @@ def _ramp(name, *spec):
     PALETTE[name] = build_ramp(*spec)
 
 
-_ramp("mc_orange", 50, 0.185, 0.58, 0.50, 8, True)     # a deep, hot muscle-car orange
+_ramp("mc_orange", 52, 0.185, 0.68, 0.48, 8, True)     # a deep, hot muscle-car orange
 _ramp("mc_stripe", 265, 0.012, 0.22, 0.22, 6, False)   # satin black stripes
 _ramp("mc_black", 265, 0.012, 0.24, 0.26, 6, False)    # gloss black trim, grille, valance
 _ramp("mc_chrome", 235, 0.014, 0.72, 0.56, 8, False)   # bumpers, pins, tips, bezels
@@ -150,10 +150,10 @@ def half_width(z, y):
 
 def bulge(z, ax):
     """The power bulge down the middle of the hood."""
-    if not (-72 < z < ZS0 + 1):
+    if not (-71 < z < ZS0 + 1) or ax > 11.5:
         return 0.0
-    along = smooth((z + 72) / 6) * smooth((ZS0 + 1 - z) / 3)
-    return 2.4 * along * smooth((12.5 - ax) / 3.5)
+    # two crisp 1 px terraces up its sides and at its front end
+    return (1.0 if ax > 10.5 or z < -69 else 2.0)
 
 
 def top(z, ax):
@@ -321,7 +321,7 @@ def _make_paints(C, S, TR):
         if stripe_at(ax):
             return tone(S, 0.62 if 4 <= ax < 6 else 0.5)
         if (w - ax) < 1.2:
-            return tone(C, 1.0)                                       # the shoulder's sharp highlight
+            return tone(C, 0.86)                                      # the shoulder's sharp highlight
         if z < ZS0 and abs(ax - 24.5) < 0.5:
             return tone(C, 0.35)                                      # the hood's shut lines
         if ZS0 - 2 <= z < ZS0 - 1 and ax < 26:
@@ -331,10 +331,10 @@ def _make_paints(C, S, TR):
         if z > 59 and abs(ax - 27) < 0.5 and z < TAIL - 1:
             return tone(C, 0.35)
         if 12 <= ax < 15:
-            return tone(C, 0.86)                                      # a reflection band down hood, roof and deck
+            return tone(C, 0.72)                                      # a reflection band down hood, roof and deck
         if y > 40:
-            return tone(C, 0.80)
-        return tone(C, 0.74)
+            return tone(C, 0.66)
+        return tone(C, 0.62)
 
     def body_decal(c):
         x, y, z = c.p
@@ -359,6 +359,8 @@ def _make_paints(C, S, TR):
             return tone("mc_black", 0)
         if f in ("north", "south", "east", "west") and top(z, ax) - y < 1.2 and y > 20 and not (y > 32 and ax < glass_w(z, y) + 0.5 and ZS0 < z < CAB1):
             f = "up"                                                  # a riser of the stepped top: the top's colour
+        if f == "up" and y > deck(z) + 0.8 and ZS0 < z < CAB1 and y < roof(z) - 1.0 and ax > 9:
+            return tone(C, 0.56)                                      # the steps of the leaning glasshouse sides
         if f == "up":
             return up_colour(x, y, z, ax)
         if y > 32 and ZS0 < z < CAB1 and ax < plan(z) - 3:
@@ -379,7 +381,7 @@ def _make_paints(C, S, TR):
                 pass
             dk = deck(z)
             if dk - 2 <= y < dk - 1:
-                return tone(C, 0.98)                                  # the beltline's crease catching the light
+                return tone(C, 0.80)                                  # the beltline's crease catching the light
             if dk - 3 <= y < dk - 2:
                 return tone(C, 0.34)                                  # its shadow
             if scallop(z, y) or scallop(z, y + 1) and y < 21:
@@ -426,7 +428,9 @@ def _make_paints(C, S, TR):
         fx, fy = math.floor(x), math.floor(y)
         if (fx + (fy // 2) % 2) % 2 == 0 and fy % 2 == 0:
             return tone("mc_black", 0.0)
-        return tone("mc_black", 0.38 if fy > 20 else 0.26)
+        if fy % 2 == 1 and (fx + (fy // 2)) % 2 == 0:
+            return tone("mc_chrome", 0.32)                            # the honeycomb's lit edges
+        return tone("mc_black", 0.5 if fy > 20 else 0.36)
 
     def black_decal(c):
         x, y, z = c.p
@@ -461,8 +465,10 @@ def _make_paints(C, S, TR):
         x, y, z = c.p
         k = math.floor(z * 0.6 - x * 0.9) % 26
         if k in (0, 1):
-            return tone("mc_chrome", 0.5)
-        return tone("mc_black", 0.05 + 0.1 * smooth((y - 34) / 12))
+            return tone("mc_chrome", 0.55)
+        if k == 4:
+            return tone("mc_chrome", 0.3)
+        return tone("mc_chrome", 0.06 + 0.10 * smooth((y - 34) / 12))
 
     def seal_decal(c):
         return tone("mc_black", 0.15 if c.face != "up" else 0.35)
@@ -617,7 +623,7 @@ def _front(m, ctx):
     bump = _chrome()
     m.box("bumper_f", (-28.5, 10, NOSE - 2), (28.5, 13.5, NOSE + 0.5), bump)
     for sx in (-1, 1):
-        lo, hi = sorted((sx * 28.5, sx * 30.0))
+        lo, hi = sorted((sx * 28.5, sx * 30.4))
         m.box("bumper_f_end", (lo, 10, NOSE - 1.2), (hi, 13.5, NOSE + 3), bump)
         # bumperettes' rubber guards
         lo, hi = sorted((sx * 9, sx * 11))
@@ -634,9 +640,7 @@ def _hood(m, ctx):
         x, y, z = c.p
         ax = abs(x)
         if c.face == "north":
-            if c.v == 0 or c.u in (0, c.nu - 1):
-                return tone(C, 0.7)
-            return tone("mc_black", 0.0 if y < c.hi[1] - 1 else 0.25)   # the open mouth
+            return tone(C, 0.62)
         if c.face == "up":
             if S is not None and 1.5 <= ax < 8.5:
                 return tone(S, 0.6)
@@ -644,10 +648,14 @@ def _hood(m, ctx):
         if c.face == "down":
             return tone("mc_black", 0)
         return tone(C, 0.55)
-    zs0, zs1 = -66, -52
+    zs0, zs1 = -64, -48
     base = max(_top_y(body, x, z) or 0 for x in (-1, 0) for z in range(zs0, zs1))
-    m.box("scoop", (-6.5, base - 0.5, zs0), (6.5, base + 2.5, zs1), Paint(ctx["C"], 4, noise=0, grad=0, rim=0, shade=False, decal=scoop))
-    m.box("scoop_lip", (-6.5, base + 2.5, zs0), (6.5, base + 3, zs0 + 3), Paint(ctx["C"], 4, noise=0, grad=0, rim=0, decal=scoop))
+    sp = Paint(ctx["C"], 4, noise=0, grad=0, rim=0, decal=scoop)
+    m.box("scoop", (-8, base - 0.5, zs0 + 1), (8, base + 3.5, zs1), sp)
+    # the mouth: a chrome lip round a black opening, set in the scoop's face
+    m.box("scoop_mouth", (-6.5, base + 0.5, zs0 + 0.6), (6.5, base + 3, zs0 + 1), Paint("mc_black", 0, noise=0, light=False,
+          decal=lambda c: ("raw", (10, 10, 14, 255)) if c.face == "north" else tone("mc_black", 0)))
+    m.box("scoop_lip", (-8, base + 3, zs0), (8, base + 3.6, zs0 + 1.4), _chrome())
     # hood pins: a chrome pin and its cable loop on each front corner of the hood
     for sx in (-1, 1):
         x = sx * 20
@@ -702,8 +710,9 @@ def _glass(m, kit, ctx):
     length = (z1 - z0) / math.cos(math.radians(22.5))
     y0 = ROOF - 0.5 * T + 0.15
     rg = Paint("mc_black", 1, noise=0, light=False,
-               decal=lambda c: ("raw", (196, 208, 230, 120)) if math.floor(c.p[2] * 0.8 - c.p[0] * 1.1) % 24 in (0, 1)
-               else ("raw", (16, 20, 30, 150)))
+               decal=lambda c: ("raw", (214, 224, 242, 200)) if math.floor(c.p[2] * 0.8 - c.p[0] * 1.1) % 22 in (0, 1)
+               else ("raw", (150, 166, 196, 150)) if math.floor(c.p[2] * 0.8 - c.p[0] * 1.1) % 22 == 4
+               else ("raw", (40, 50, 68, 120)))
     hw = glass_w(ZR + 8, ROOF - 3) - 3.2
     m.box("rear_glass", (-hw, y0, z0), (hw, y0 + 0.5, z0 + length), rg, rotation=("x", 22.5, (0, y0, z0)))
     # the side glass
@@ -766,7 +775,7 @@ def _cabin(m, ctx):
         if c.face == "south" and abs(y - 23.5) < 0.5:
             return tone("mc_chrome", 0.8)                              # a bright strip across the dash
         return tone(TR, 0.3)
-    m.box("dash", (-26, 17, ZS0 - 1), (26, 30, -25), Paint(TR, 1, noise=0, grad=0, rim=0.3, decal=dash))
+    m.box("dash", (-26, 17, ZS0 - 0.5), (26, 29.6, -25), Paint(TR, 1, noise=0, grad=0, rim=0.3, decal=dash))
     m.box("binnacle", (-19, 29, -26.5), (-3, 30.5, -24), Paint(TR, 1, noise=0, rim=0.4))
 
     def dial(cx, cy, rad):
@@ -916,14 +925,14 @@ def wheel_muscle():
         if on:
             lit = y > 0
             edge = abs(abs(t - 0.5) - half) > arm - 0.035
-            if edge:
-                return tone("mc_chrome", 0.8 if lit else 0.55)    # the spoke's machined edge
-            return tone("mc_rim", 0.55 if lit else 0.35)
+            if edge and rr > 4:
+                return tone("mc_chrome", 0.62 if lit else 0.42)   # the spoke's machined edge
+            return tone("mc_rim", 0.38 if lit else 0.22)
         # between the spokes: the drilled disc, and the calliper over its top
         if rr > rc - 4.4 and y > 1 and abs(z) < rc * 0.6:
             return tone("mc_caliper", 0.6)
         if rr > 3.4:
-            return tone("mc_chrome", 0.45) if (math.floor(rr * 2) + math.floor(a * 7)) % 3 else tone("mc_black", 0.05)
+            return tone("mc_rim", 0.25) if (math.floor(rr * 2) + math.floor(a * 7)) % 3 else tone("mc_black", 0.0)
         return tone("mc_black", 0.0)
     p = Paint("mc_rim", 3, noise=0, rim=0.2, ao=0.3, decal=face)
     w2 = width / 2

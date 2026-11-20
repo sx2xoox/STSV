@@ -92,7 +92,7 @@ GL0, GL1 = 47, 64           # side windows: bottom, top
 CD = (-52, -26)             # the cab doors (both sides), between their seams
 SD = (-22, 8)               # the sliding door (right)
 SIDE_WINDOWS = [(-18, 5), (9, 32), (36, 52)]   # behind the B pillar (the first is in the sliding door, right)
-SEAT_Y = 30                 # the cushions' top
+SEAT_Y = 30.25              # the cushions' top
 
 
 def _sqrt(v):
@@ -103,7 +103,8 @@ def hw(y):
     """The body's half width at height y (numpy): tucked in at the sill, rolled over into the roof."""
     y = np.asarray(y, dtype=float)
     w = np.full(y.shape, float(W))
-    w = np.where(y < 12, W - (12 - y) * 0.6, w)
+    w = np.where(y < 10, W - 1.5, w)
+    w = np.where(y < 8, W - 3.5, w)
     top = W - TUMBLE + _sqrt(TUMBLE ** 2 - (y - 62) ** 2)
     w = np.where(y > 62, top, w)
     return np.where(y > ROOF, -1.0, w)
@@ -115,7 +116,8 @@ def zf(y):
     y = np.asarray(y, dtype=float)
     t = math.tan(math.radians(22.5))
     z = np.full(y.shape, float(NOSE))
-    z = np.where(y < 14, NOSE + (14 - y) * 0.6, z)
+    z = np.where(y < 10, NOSE + 1.5, z)
+    z = np.where(y < 8, NOSE + 3.5, z)
     z = np.where((y >= 30) & (y < 46), NOSE + (y - 30) * 0.12, z)
     z = np.where((y >= 46) & (y < 64), NOSE + 16 * 0.12 + (y - 46) * t, z)
     z = np.where((y >= 64) & (y < 67), -56.5, z)
@@ -126,7 +128,8 @@ def zf(y):
 def zb(y):
     y = np.asarray(y, dtype=float)
     z = np.full(y.shape, float(TAIL))
-    z = np.where(y < 14, TAIL - (14 - y) * 0.6, z)
+    z = np.where(y < 10, TAIL - 1.5, z)
+    z = np.where(y < 8, TAIL - 3.5, z)
     z = np.where(y > 58, 43 + _sqrt(441 - (y - 58) ** 2), z)
     return z
 
@@ -156,7 +159,10 @@ def field(x, y, z):
     f2 = zfront(ax, y) - z
     f3 = z - zback(ax, y)
     f4 = BOTTOM - y
-    return np.maximum(np.maximum(f1, f2), np.maximum(f3, f4))
+    k = 1.6                       # a soft max: its gradient turns smoothly round the corners (no stripes on the steps)
+    fs = np.stack([f1, f2, f3, f4])
+    mx = fs.max(axis=0)
+    return mx + k * np.log(np.exp((fs - mx) / k).sum(axis=0))
 
 
 def in_arch(x, y, z):
@@ -202,11 +208,13 @@ SCREEN = (2, 23, 47, 63)          # the windscreen's openings: |x| from, to; y f
 REAR_WIN = (17, 49, 61)           # the rear window: |x| <, y from, to
 
 
-def screen_hole(x, y):
+def screen_hole(x, y, m=0.0):
+    """In one of the windscreen's two openings (m: grown by m all round)."""
     a0, a1, y0, y1 = SCREEN
+    a0, a1, y0, y1 = a0 - m, a1 + m, y0 - m, y1 + m
     ax = abs(x)
-    return a0 <= ax <= a1 and y0 <= y <= y1 and math.hypot(max(0, ax - (a1 - 3)), max(0, y - (y1 - 3), (y0 + 3) - y)) <= 3 \
-        and not (ax < a0 + 2 and False)
+    r = 3 + m
+    return a0 <= ax <= a1 and y0 <= y <= y1 and math.hypot(max(0, ax - (a1 - r)), max(0, y - (y1 - r), (y0 + r) - y)) <= r
 
 
 def rear_hole(x, y):
@@ -227,7 +235,10 @@ def _grid():
     ys = np.arange(NY) + Y0 + 0.5
     zs = np.arange(NZ) + Z0 + 0.5
     X, Y, Z = np.meshgrid(xs, ys, zs, indexing="ij")
-    hull = inside(X, Y, Z) & ~in_arch(X, Y, Z)
+    # the roof's roll and the arches are cut in 2 px layers (half the boxes: the face budget), the rest in 1 px
+    Y2 = np.floor(Y / 2) * 2 + 1
+    Yr = np.where(Y > 58, Y2, Y)
+    hull = inside(X, Yr, Z) & ~in_arch(X, Y2, Z)
     inner = hull.copy()
     for _ in range(2):
         e = inner.copy()
@@ -235,7 +246,14 @@ def _grid():
             for s in (1, -1):
                 e &= np.roll(inner, s, axis=ax)
         inner = e
+    # the roof's roll: its inside in 2 px layers too (each pair of layers the same)
+    for j in range(60 - Y0, NY - 1, 2):
+        both = inner[:, j] & inner[:, j + 1]
+        inner[:, j], inner[:, j + 1] = both, both
     air = inner & (Y >= FLOOR)
+    # over the wheels: square tubs inside (under the seats), not round ones (fewer boxes)
+    for wz in (WF, WR):
+        air &= ~((np.abs(X) > 15) & (np.abs(Z - wz) < ARCH + 2) & (Y < 29))
     return X, Y, Z, hull, inner, air
 
 
@@ -288,12 +306,7 @@ def _cells():
                 continue
             if zc > 56 and rear_hole(xc, yc):
                 continue
-        if core:
-            label = "core"
-        elif bool(near_arch(np.array(xc), np.array(yc), np.array(zc))) and ax < 18.5 and yc < 30:
-            label = "well"
-        else:
-            label = "paint"
+        label = "paint"             # one label: the shell and the core merge into few boxes (the decal paints all)
         # doors: the outer shell between their seams
         if is_side and 9 <= y < 66 and not core:
             if CD[0] <= z < CD[1]:
@@ -315,6 +328,8 @@ def _cells():
                 continue
             if in_arch(np.array(xc), np.array(y + 0.5), np.array(zc)):
                 continue
+            if zc < -48 and abs(xc) < 25.5:
+                continue                  # the V on the face is painted (a 1 px rib stair-stepping down it looked jagged)
             side = 1 if xc > 0 else -1
             if abs(xc) > 27.5 and CD[0] <= z < CD[1]:
                 parts["door_l" if side < 0 else "door_r"][(x, y, z)] = "rib"
@@ -335,7 +350,7 @@ LIGHT = LIGHT / np.linalg.norm(LIGHT)
 
 def normal_at(p):
     x, y, z = p
-    e = 0.9
+    e = 1.4
     a = np.array([[x + e, y, z], [x - e, y, z], [x, y + e, z], [x, y - e, z], [x, y, z + e], [x, y, z - e]])
     f = field(a[:, 0], a[:, 1], a[:, 2])
     n = np.array((f[0] - f[1], f[2] - f[3], f[4] - f[5]))
@@ -376,8 +391,12 @@ def body_decal(look):
             return S("rc_tyre", 0.1)
         if is_air(probe):
             return interior(c)
-        n = normal_at((x, y, z))
         ax = abs(x)
+        # the wheel arches: dark inside, a darker lip round them on the side
+        ra = min(math.hypot(z - WF, y - WY), math.hypot(z - WR, y - WY))
+        if ra < ARCH + 0.35 and ax < W - 0.6:
+            return S("rc_tyre", 0.12)
+        n = normal_at((x, y, z))
         lit = float(n @ LIGHT)
         # the lower colour under the line, cream over it
         line = rib_y(x, z)
@@ -401,6 +420,8 @@ def body_decal(look):
                     return S(LO, 0.85)
             if side < 0 and 22 <= z < 26 and 33 <= y < 37 and ax > 29:
                 return S("rc_chrome", 0.8 if (y > 35 and z < 24) else 0.5)   # the fuel flap
+        if f == "north" and z < -46 and screen_hole(x, y, 1.2) and not screen_hole(x, y):
+            return S("rc_tyre", 0.25)                               # the windscreen's rubber seal
         if f == "north" and z < -55:
             # the vent slot in the brow
             if 64 <= y < 67 and ax < 14:
@@ -411,6 +432,8 @@ def body_decal(look):
                 return S(LO, 0.05)
         ramp = UP if upper else LO
         base = 0.48 + 0.42 * lit
+        if upper and y < line + 1.0 and z < -48 and ax < 26:
+            base += 0.25                                            # the V's bright edge
         if not upper:
             base -= 0.06 * max(0.0, (16 - y) / 10)
             # a soft reflection band low along the sides
@@ -618,7 +641,7 @@ def _windows(m, kit, look):
     sg = screen_glass()
     for s in (1, -1):
         lo, hi = sorted((s * (SCREEN[0] - 0.5), s * (SCREEN[1] + 0.5)))
-        m.box("windscreen", (lo, y0, z0), (hi, y0 + h, z0 + 0.5), sg, rotation=("x", -22.5, (0, y0, z0)))
+        m.box("windscreen", (lo, y0, z0), (hi, y0 + h, z0 + 0.5), sg, rotation=("x", 22.5, (0, y0, z0)))
     # the side glass: a pane in each window, 1 px in from the skin (the doors' panes ride with the doors)
     for s, door in ((-1, "door_l"), (1, "door_r")):
         lo, hi = sorted((s * 30.75, s * 31.25))
@@ -666,12 +689,12 @@ def _face(m, look):
     # headlamps: a chrome ring (12 across) set into the nose, the lens (9 across) standing out of it
     for s in (1, -1):
         cx = 21 * s
-        cyl(m, "lamp_ring", (cx, 33), 13, NOSE - 1.5, NOSE + 3, Paint("rc_chrome", 4, noise=0, light=False,
+        cyl(m, "lamp_ring", (cx, 33), 13, NOSE - 1.5, NOSE + 2.75, Paint("rc_chrome", 4, noise=0, light=False,
             decal=_round_lamp(21, 33, S("rc_chrome", 1), S("rc_chrome", 0.9), S("rc_chrome", 0.6), 0, "north")), axis="z")
         cyl(m, "headlamp", (cx, 33), 9, NOSE - 2, NOSE - 1.5, Paint("lamp", 3, noise=0, light=False, glow=True,
             decal=_round_lamp(21, 33, ("lamp", 3.6), ("lamp", 2.6), ("lamp", 1.6), 4.6, "north")), axis="z")
         # the indicator under it: a small round amber lens in a chrome cup
-        cyl(m, "indicator", (21 * s, 22.5), 5, NOSE - 1.25, NOSE + 2, Paint("fox", 3, noise=0, light=False, glow=True,
+        cyl(m, "indicator", (21 * s, 22.5), 5, NOSE - 1.25, NOSE + 1.75, Paint("fox", 3, noise=0, light=False, glow=True,
             decal=lambda c: ("fox", 4 if c.p[1] > 22.5 else 3) if c.face == "north" else S("rc_chrome", 0.6)), axis="z")
     # the bumper: a slim chrome blade wrapping round the corners, two overriders, brackets under it
     _bumper(m, front=True)
@@ -709,21 +732,21 @@ def _bumper(m, front):
         m.box("overrider", (xa, 7.5, za), (xb, 18.5, zb_), _chrome(0.4, 1.0))
         # brackets back to the body under it
         xa, xb = sorted((17 * s, 19 * s))
-        m.box("bracket", (xa, 10, *sorted((z_in, z_in - zs * 6))[:1]), (xb, 12, sorted((z_in, z_in - zs * 6))[1]),
+        m.box("bracket", (xa, 10.25, *sorted((z_in, z_in - zs * 6))[:1]), (xb, 12.25, sorted((z_in, z_in - zs * 6))[1]),
               Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.3)))
 
 
 def _tail(m, look):
     # round tail lamps in chrome rings on the back's corners
     for s in (1, -1):
-        cyl(m, "tail_ring", (25 * s, 30), 9, TAIL - 4, TAIL + 1, Paint("rc_chrome", 4, noise=0, light=False,
+        cyl(m, "tail_ring", (25 * s, 30), 9, TAIL - 3.75, TAIL + 1, Paint("rc_chrome", 4, noise=0, light=False,
             decal=_round_lamp(25, 30, S("rc_chrome", 1), S("rc_chrome", 0.9), S("rc_chrome", 0.6), 0, "south")), axis="z")
         cyl(m, "tail_lamp", (25 * s, 30), 7, TAIL + 1, TAIL + 1.5, Paint("signal_red", 1, noise=0, light=False, glow=True,
             decal=_round_lamp(25, 30, ("raw", (255, 96, 90, 255)), ("raw", (214, 38, 40, 255)), ("raw", (160, 22, 28, 255)), 3.6, "south")), axis="z")
     _bumper(m, front=False)
     m.box("plate", (-9, 15.5, TAIL - 1), (9, 22.5, TAIL + 1), Paint("rc_cream", 6, noise=0, light=False, decal=_plate(False)))
     # the spare wheel on the back: a white-wall tyre, a cream rim, a chrome dish in the middle, on a bracket
-    cyl(m, "spare_mount", (0, 38), 6, TAIL - 2, TAIL + 1.5, Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.3)), axis="z")
+    cyl(m, "spare_mount", (0, 38), 6, TAIL - 1.75, TAIL + 1.5, Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.3)), axis="z")
 
     def tyre_face(c):
         x, y = c.p[0], c.p[1]
@@ -756,7 +779,7 @@ def _tail(m, look):
         m.box("ladder_rail", (x0, 16, zl0), (x0 + 1, 74, zl1), rail)
         for yb in (20, 70):
             m.box("ladder_bracket", (x0, yb, TAIL - 1), (x0 + 1, yb + 1, zl0), rail)
-        m.box("ladder_top", (x0, 74, 52), (x0 + 1, 75, zl1), rail)
+        m.box("ladder_top", (x0 + 0.125, 74.25, 54.25), (x0 + 0.875, 74.75, zl1), rail)
     for y in range(22, 73, 6):
         m.box("ladder_rung", (14, y, zl0 + 0.25), (19, y + 1, zl1 - 0.25), rail)
 
@@ -832,7 +855,7 @@ def _roof(m, look):
         m.box("rack_rail", (xa, RY, -56), (xb, RY + 1, -38), rail)
         for zf_ in (-55, -40):
             ytop = float(_roof_y(18.5 * s, zf_ + 0.5))
-            m.box("rack_foot", (xa, ytop - 1.5, zf_), (xb, RY, zf_ + 1), rail)
+            m.box("rack_foot", (xa + 0.125 * s, ytop - 1.3, zf_ + 0.125), (xb + 0.125 * s, RY, zf_ + 0.875), rail)
     for zr in (-56, -39):
         m.box("rack_rail", (-18, RY, zr), (18, RY + 1, zr + 1), rail)
     for zr in (-50, -45):
@@ -906,7 +929,7 @@ def _awning(m, kit, look):
     # its two poles (another part: they slide into the side)
     p = kit["awning_poles"]
     for zp in (-24.5, 6.5):
-        p.box("pole", (68.25, 0, zp), (69, 68.75, zp + 0.75), _chrome(0.45, 0.9))
+        p.box("pole", (68.25, 0.5, zp), (69, 68.75, zp + 0.75), _chrome(0.45, 0.9))
         p.box("pole_foot", (67.5, 0, zp - 0.75), (69.75, 0.5, zp + 1.5), Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.3)))
 
 
@@ -947,7 +970,7 @@ def _cabin(m, look):
     pl = Paint(SEAT, 2, noise=0, light=False, decal=plaid)
     base = Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_tyre", 0.35))
     # the front: a seat box over the wheels, two seats, a dash with a big speedo and a radio, the steering wheel
-    m.box("seat_box", (-28, FLOOR, -46), (28, 25, -27), Paint(look.lo, 2, noise=0, light=False,
+    m.box("seat_box", (-27.75, FLOOR, -46), (27.75, 25, -27), Paint(look.lo, 2, noise=0, light=False,
           decal=lambda c: S(look.lo, 0.5 if c.face != "up" else 0.7)))
     for s in (1, -1):
         xa, xb = sorted((5 * s, 27 * s))
@@ -957,29 +980,29 @@ def _cabin(m, look):
     def dash(c):
         x, y, z = c.p
         if c.face == "south":
-            r = math.hypot(x + 16, y - 50)
+            r = math.hypot(x + 16, y - 45)
             if r < 4:
                 if r < 0.8:
                     return S("rc_tyre", 0.1)
-                if abs(math.atan2(y - 50, x + 16) - 2.2) < 0.25 and r < 3.4:
+                if abs(math.atan2(y - 45, x + 16) - 2.2) < 0.25 and r < 3.4:
                     return ("raw", (230, 70, 50, 255))             # the needle
                 return S("rc_cream", 1.0) if r < 3.3 else S("rc_chrome", 0.9)
-            if 2 <= x < 10 and 47 <= y < 50:
+            if 2 <= x < 10 and 43 <= y < 46:
                 return S("rc_chrome", 0.9) if math.floor(x) % 2 else S("rc_tyre", 0.2)   # the radio
-            return S(look.up, 0.55 if y > 52 else 0.4)
+            return S(look.lo, 0.5 if y > 47 else 0.35)
         if c.face == "up":
-            return S("rc_tyre", 0.45)                              # the padded top
-        return S(look.up, 0.45)
-    m.box("dash", (-29, 44, -60), (29, 55, -54), Paint(look.up, 3, noise=0, light=False, decal=dash))
+            return S("rc_tyre", 0.3)                               # the padded top
+        return S(look.lo, 0.35)
+    m.box("dash", (-28.75, 40, -57.75), (28.75, 49.5, -53), Paint(look.up, 3, noise=0, light=False, decal=dash))
     # the steering wheel: a big thin ring round a two-spoke hub, on a column
-    cx, cy, cz = -16, 51, -49
+    cx, cy, cz = -16, 51, -46
     rim = Paint("rc_tyre", 1, noise=0, light=False, decal=lambda c: S("rc_cream", 0.7) if c.face != "down" else S("rc_cream", 0.4))
     for k in range(16):
         ang = k * math.pi / 8
         y, x = cy + math.cos(ang) * 6.5, cx + math.sin(ang) * 6.5
         m.box("wheel", (x - 1, y - 1, cz), (x + 1, y + 1, cz + 1), rim)
     m.box("wheel_spoke", (cx - 5.5, cy - 0.5, cz + 0.25), (cx + 5.5, cy + 0.5, cz + 0.75), rim)
-    m.box("column", (cx - 1, cy - 1, -54), (cx + 1, cy + 1, cz), base)
+    m.box("column", (cx - 1, cy - 4, -53), (cx + 1, cy - 2, cz), base)
     m.box("gear", (-1, 25, -47), (1, 37, -45), base)
     m.box("gear_knob", (-1.5, 37, -47.5), (1.5, 39, -44.5), Paint("rc_cream", 4, noise=0, light=False, decal=lambda c: S("rc_cream", 0.9)))
     # two benches

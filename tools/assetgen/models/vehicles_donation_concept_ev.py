@@ -64,7 +64,7 @@ NOSE, TAIL = -78, 78           # z of the nose and the tail
 WF, WR = -50, 50               # front / rear axle (z)
 WY, WRAD = 14, 14              # wheel centre height, wheel radius (a 0.875 block wheel)
 TRACK = 22                     # the wheel's inner face (x): it stands from 22 out to 32
-GROUND = 2                     # the body's lowest cells
+GROUND = 1                     # the body's lowest cells
 W = 32                         # the body's half width
 D0, D1 = -32, 32               # the doors, between their seams (z)
 CAB0 = -48                     # the screen's foot (the hood ends here)
@@ -144,7 +144,7 @@ def roof(z):
 def glass_w(z, y):
     """The canopy's half width at y: its sides lean in at 22.5 degrees, its top edge cut off."""
     r = roof(z)
-    w = 26 - (y - belt(z)) * T
+    w = 27.5 - (y - belt(z)) * T
     if r - y < 2:
         w -= (2 - (r - y)) * 1.5
     return w
@@ -159,7 +159,7 @@ def buttress(z):
 
 def but_x(y):
     """The buttress' outer face (x) at y: it leans in like the canopy's sides."""
-    return 26.5 - (y - 27) * T
+    return 28 - (y - 27) * T
 
 
 def in_arch(z, y, ax):
@@ -235,14 +235,12 @@ def _label_lower(x, y, z, ax, t):
     w = half_width(z, y)
     skin = (w - ax) < 3 or (t - y) < 3 or y < GROUND + 2 or z < NOSE + 4 or z > TAIL - 4
     # the cabin: a tub hollowed out under the canopy
-    if -38 < z < RW - 1 and ax < w - 3.5 and y > 6.5:
+    wall = 3 if (D0 <= z < D1 and y >= SILL) else 3.5      # behind a door the door is the whole wall
+    if -38 < z < RW - 1 and ax < w - wall and y > 6.5:
         return None
     # the wheel wells: dark round the arch cuts
     if TRACK - 4 < ax < TRACK - 1.5 and near_arch(z, y, 1.2) and y < t - 2:
         return "well"
-    if near_arch(z, y, 1.2) and ax >= TRACK - 1.5 and (w - ax) < 3:
-        if not near_arch(z, y, 0.01):
-            pass
     if not skin:
         return "core"
     fy = math.floor(y)
@@ -252,15 +250,15 @@ def _label_lower(x, y, z, ax, t):
     if z < NOSE + 2 or corner_f:
         if fy == 11:
             return "led"
-        if fy in (10, 12):
-            return "frame"
+        if fy in (9, 10, 12, 13):
+            return "frame"                        # the black visor the bar sits in
         if y < 6.5:
             return "mesh" if y >= 4.5 else "satin"
     # the tail: the red bar the whole width in its black frame, the diffuser under it
     if z > TAIL - 2 or corner_r:
         if fy == 24:
             return "tail"
-        if fy in (23, 25):
+        if fy in (22, 23, 25, 26):
             return "frame"
     if y < 11 and z > TAIL - 7:
         return "satin"
@@ -558,7 +556,7 @@ def _cabin(m, A, TR):
         return None
     leather = Paint(TR, 2, noise=0, grad=0, rim=0.5, decal=seat_decal)
     base = Paint("ev_satin", 2, noise=0, rim=0.4)
-    for sz in (-9.6, 22.4):
+    for sz in (-7.0, 22.4):
         for sx in (-11, 11):
             m.box("pedestal", (sx - 2, 6, sz - 2), (sx + 2, 9, sz + 1), base)
             m.box("cushion", (sx - 5, 9, sz - 7), (sx + 5, 11.5, sz + 3), leather)
@@ -578,7 +576,7 @@ def _cabin(m, A, TR):
     m.box("column", (ycx - 0.75, ycy - 0.5, ycz - 4), (ycx + 0.75, ycy + 1, ycz), grip)
     m.box("yoke_hub", (ycx - 2, ycy - 1.5, ycz), (ycx + 2, ycy + 1.5, ycz + 1), Paint("ev_steel", 4, noise=0,
           decal=lambda c: (A, 3) if c.face == "south" and abs(c.p[0] - ycx) < 1 else None))
-    m.box("yoke_bar", (ycx - 6, ycy - 2.5, ycz), (ycx + 6, ycy - 1.5, ycz + 1), grip)
+    m.box("yoke_bar", (ycx - 5.5, ycy - 2.5, ycz), (ycx + 5.5, ycy - 1.5, ycz + 1), grip)
     for gx in (-6, 5):
         m.box("yoke_grip", (ycx + gx, ycy - 3, ycz - 0.25), (ycx + gx + 1, ycy + 3, ycz + 1.25), grip)
     # the console: a floating spine between the front seats, a light line along its top
