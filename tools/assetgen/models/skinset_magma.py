@@ -113,7 +113,12 @@ class Rock(Mat):
                     elif (j == ph - 1 and ph > 1) or (i == pw - 1 and pw > 1):
                         shade -= 1
                 col = BASALT[max(0, min(len(BASALT) - 1, shade))]
-                if self.hot:
+                if self.hot == "dim":
+                    if gap < 0.3:
+                        col = CRACK if _h("dc", self.seed, cell) < 0.25 else CRUST
+                    elif gap < 0.6:
+                        col = CRUST_DARK
+                elif self.hot:
                     if gap < 0.12:
                         col = CRACK_CORE
                     elif gap < 0.42:
@@ -176,12 +181,13 @@ def _long(m, kind):
 # Materials
 # ================================================================================================
 
-ROCK = Rock(1, hot=False, cell=9.0, seed=2)                  # the cracked basalt of blades and heads
+ROCK = Rock(1, hot="dim", cell=5.0, seed=2)                  # the cracked basalt of blades and heads
 ROCK_FINE = Rock(1, hot=True, cell=5.5, seed=7)     # smaller heads: finer cracks
 ROCK_COLD = Rock(2, hot=False, cell=3.0, seed=3)
 ROCK_RIM = Rock(3, hot=False, cell=3.0, seed=4)    # cooled crust: rims, horns, small parts
 ROCK_DARK = Rock(1, hot=False, cell=3.0, seed=5)
 LAVA = Mat("fire", "plain", 4, bevel=(1, -1), noise=0, glow=True)        # yellow-hot
+FISSURE = Mat("fire", "plain", 4, bevel=None, noise=0, glow=True)
 LAVA_DEEP = Mat("fire", "plain", 3, bevel=(1, -1), noise=0, glow=True)   # flowing orange
 LAVA_RED = Mat("fire", "plain", 2, bevel=(1, -1), noise=0, glow=True)    # cooling orange-red
 EMBER = Mat("tomato", "plain", 2, bevel=(1, -1), noise=0, glow=True)     # red-hot
@@ -298,7 +304,10 @@ def magma_sword():
     segs = ((7.5, 8.5, 9.5, 14, 1.375), (7.0, 8.0, 14, 18.5, 1.375), (7.75, 8.75, 18.5, 23, 1.375),
             (7.25, 8.25, 23, 27.5, 1.375), (7.75, 8.75, 27.5, 31.75, 1.375), (7.375, 8.375, 31.75, 36.5, 1.25))
     for x0, x1, y0, y1, hz in segs:
-        m.box("fissure", (x0, y0, C - hz), (x1, y1, C + hz), LAVA)
+        m.box("fissure", (x0, y0, C - hz), (x1, y1, C + hz), FISSURE)
+    # side cracks branching off the fissure, red-hot
+    for x0, x1, y0, y1 in ((8.5, 10.5, 16.0, 16.5), (5.25, 7.0, 21.0, 21.5), (8.75, 10.25, 26.0, 26.5), (5.75, 7.25, 30.0, 30.5)):
+        m.box("branch", (x0, y0, C - 1.3), (x1, y1, C + 1.3), LAVA_DEEP)
     m.box("fissure_glow", (7.625, 10, C - 1.5), (8.375, 13, C + 1.5), WHITE_HOT)
     return _long(m, "sword")
 
@@ -372,11 +381,13 @@ def magma_shovel():
             x0, x1 = _lr(side, hw - 1, hw)
             m.box("rim", (x0, lo, z0), (x1, y1, z1), ROCK_RIM)
     m.box("rim", (C - 1.5, 28.25, z0), (C + 1.5, 30.25, z1), ROCK_RIM)
-    m.box("pool", (C - 3.25, 19.25, 9.0), (C + 3.25, 20.0, 9.4), LAVA_RED)
-    m.box("pool", (C - 3.75, 20.0, 9.0), (C + 3.75, 22.0, 9.4), LAVA_DEEP)
-    m.box("pool_top", (C - 3.75, 22.0, 9.0), (C + 0.25, 22.75, 9.3), LAVA)
-    m.box("pool_top", (C + 0.25, 22.0, 9.0), (C + 3.75, 23.5, 9.3), LAVA)
-    m.box("bubble", (C - 1.75, 20.5, 9.4), (C - 1.0, 21.25, 9.75), WHITE_HOT)
+    # the magma filling the dish: orange inside the rim, hotter towards its middle, a bubble bursting
+    for y0, y1, hw in ((19.25, 20, 3.25), (20, 25, 3.75), (25, 26.5, 3.25), (26.5, 28.25, 2.5)):
+        m.box("pool", (C - hw, y0, 9.0), (C + hw, y1, 9.35), LAVA_DEEP)
+    m.box("pool_hot", (C - 2.5, 20.5, 9.35), (C + 2.5, 25.0, 9.5), LAVA)
+    m.box("pool_hot", (C - 1.5, 25.0, 9.35), (C + 1.5, 26.75, 9.5), LAVA)
+    m.box("bubble", (C - 1.25, 22.0, 9.5), (C - 0.25, 23.0, 9.8), WHITE_HOT)
+    m.box("crust", (C + 0.75, 23.5, 9.5), (C + 2.25, 24.25, 9.65), LAVA_RED)
     # spilling over the shoulders and dripping
     for side, big in ((1, True), (-1, False)):
         x0, x1 = _lr(side, 3.75, 4.5)
@@ -409,7 +420,10 @@ def magma_axe():
     for k, (x0, x1, y0, y1, mat) in enumerate(cols):
         dz = 0.25 * k
         m.box("blade", (x0, y0, 6.75 + dz), (x1, y1, 9.25 - dz), mat)
-    m.box("edge", (-1.875, 12.0, 7.75), (-1.25, 24.5, 8.25), LAVA)
+    # the cutting edge scalloped into feather tips
+    for y0, y1, xe in ((11.5, 14.0, -1.75), (14.25, 16.75, -2.0), (17.0, 19.5, -2.125), (19.75, 22.25, -2.0),
+                       (22.5, 25.0, -1.75)):
+        m.box("edge", (xe, y0, 7.625), (-1.25, y1, 8.375), LAVA)
     m.box("edge_tip", (-1.75, 25.0, 7.625), (-0.75, 26.0, 8.375), LAVA)
     m.box("edge_tip", (-1.75, 10.75, 7.625), (-0.75, 11.5, 8.375), LAVA)
     for x0, x1, y, mat in ((3.0, 4.25, 13.5, EMBER), (1.5, 2.5, 12.75, LAVA_RED), (0.0, 1.0, 12.0, LAVA_DEEP)):

@@ -2,13 +2,13 @@
 은하수 시리즈 (galaxy tool skins): a donation set of held-tool looks that matches the 은하수 cosmetic set
 (models/cosmetics_galaxy.py). Every tool is a night-sky object standing in for the tool: deep indigo-violet space
 crystal with twinkling stars, pale-gold crescent moons with craters, glowing gold stars, a banded ringed planet, a comet;
-silver grips wrapped in dark velvet.
+silver grips wrapped in dark velvet, night-sky shafts with silver bands.
 
     galaxy_sword    별빛 광선검   a long blade of light (1.3 x the toy sword's) out of a crescent-moon guard
-    galaxy_pickaxe  혜성 곡괭이   a comet: its nucleus on the shaft, its two tails drooping out as the arms
-    galaxy_shovel   초승달 삽     a crescent moon lying horns up as the scoop, a star resting in it
-    galaxy_axe      토성 도끼     a ringed planet whose broad tilted ring is the blade
-    galaxy_hoe      별자리 지팡이 the vanilla L: a straight head of stars joined by constellation lines, ending flat
+    galaxy_pickaxe  혜성 곡괭이   a night-sky head with a comet nucleus star through it, its two tails drooping out as the arms
+    galaxy_shovel   초승달 삽     a night-sky spade with a constellation, cupped in a crescent moon lying horns up
+    galaxy_axe      토성 도끼     a ringed planet whose ring's near half is the axe's curved blade
+    galaxy_hoe      별자리 지팡이 the vanilla L: a night-sky bar of stars joined by a constellation line, a silver blade end
     galaxy_fishing_rod (+ _cast)  북두칠성 낚싯대: seven stars up a night-sky rod, a star lure
     galaxy_bobber   the star lure on the water
 
