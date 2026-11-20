@@ -766,7 +766,7 @@ concept_ev:
             vanilla: block.note_block.bit, pitch: 1.4, times: 1 }
     engine: { sound: stsv:vehicle.concept_ev.engine, volume: 0.4, idle-volume: 0.08, idle-pitch: 0.7, top-pitch: 1.9, segment-ticks: 10 }
 
-# 후원 · 초밥 카니발: 크고 길쭉한 7인승 가족 미니밴 (원래 디자인, 로고·배지·글자 없음) 지붕에 거대한 연어 초밥 루프박스.
+# 후원 · 초밥 카니발: 크고 길쭉한 7인승 가족 미니밴 (원래 디자인, 로고·배지·글자 없음) 지붕에 길쭉한 루프박스 (초밥처럼 생겼다고 "초밥 카니발").
 # 크롬 테 큰 그릴, 가는 LED 헤드램프, 검은 필러의 긴 짙은 유리, 양쪽 미닫이 문(타면 뒤로 밀려 열림), 앞문은 경첩,
 # 루프레일 위에 밥알 결이 보이는 하얀 밥 + 흰 지방 줄무늬 연어 + 가운데 김 띠. 7인승 (앞 2 + 캡틴 시트 2 + 뒤 벤치 3).
 # 16px/블록 (BModel scale 2, body-scale 2): 경사·모서리는 22.5°/45° 기울인 판, 디테일은 텍스처.
@@ -775,7 +775,7 @@ sushi_carnival:
   material: paper
   name: "<gradient:#ff8a4c:#fff4e6:#2f4a3a>초밥 카니발"
   lore:
-    - "<gold>후원 한정</gold> <gray>· 7인승 가족 미니밴 + 연어 초밥 루프박스"
+    - "<gold>후원 한정</gold> <gray>· 7인승 가족 미니밴 + 지붕 루프박스"
     - "<white>9블록/초 <gray>· 느긋함 · 짐칸 없음"
     - "<dark_gray>양쪽 미닫이 문 · 지붕엔 거대한 연어 초밥"
     - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"

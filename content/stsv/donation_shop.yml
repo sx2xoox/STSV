@@ -114,7 +114,7 @@ products:
     name: "초밥 카니발"
     price: 100          # 10,000원
     description:
-      - "<gray>7인승 미니밴 · 연어 초밥 루프박스 · 미닫이 문"
+      - "<gray>7인승 미니밴 · 지붕 루프박스 · 미닫이 문"
       - "<white>9블록/초 <gray>· 온 가족 탑승 · 짐칸 없음"
     item: stsv:sushi_carnival
   sidecar_bike:
