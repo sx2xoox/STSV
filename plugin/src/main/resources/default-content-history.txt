@@ -772,6 +772,7 @@ ef2faf247a7e808d9d3d7611cfbd0c57ffeeafb7 stsv/items/vehicles_road.yml
 af39a6a6fc2364a5d5ddf5b7c8559e1eb3362fae stsv/menus/achievements.yml
 72eb0610e22afc3df4f197854c505523b65e2a10 stsv/menus/circuit.yml
 f99596d07e7c1a34a10aef5babfd9f6e28df833b stsv/menus/circuit.yml
+74177980a97f307af8bd0e36a44ae107c05b7e0a stsv/menus/donation.yml
 af1474cac5a3f6c6a68ed81591d6dcc4214a6b5c stsv/menus/donation.yml
 df9991ce23145ae96f29c771c30af278c8363aa0 stsv/menus/donation.yml
 211b2235c7edf7bae8c61b8819ed27fa56a65f78 stsv/menus/emote_wheel.yml
