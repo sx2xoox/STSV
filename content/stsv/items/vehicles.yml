@@ -538,25 +538,25 @@ classic_roadster:
     turn-rate: 64
     turn-speed: 3
     step-height: 1.0
-    size: [4.5, 1.9, 1.2]
+    size: [4.8, 2.0, 1.3]
     click-height: 0.9
     wheel: wheel_classic
-    wheel-radius: 0.375
+    wheel-radius: 0.4
     wheels:
-      - { at: [-0.75, 0.375, 1.3125], steer: true }
-      - { at: [0.75, 0.375, 1.3125], steer: true }
-      - { at: [-0.75, 0.375, -1.3125] }
-      - { at: [0.75, 0.375, -1.3125] }
+      - { at: [-0.75, 0.4, 1.34375], steer: true }
+      - { at: [0.75, 0.4, 1.34375], steer: true }
+      - { at: [-0.75, 0.4, -1.1875] }
+      - { at: [0.75, 0.4, -1.1875] }
     seats:
-      - { at: [-0.34, 0.3, -0.0625] }
-      - { at: [0.34, 0.3, -0.0625] }
+      - { at: [-0.34, 0.3, -0.5] }
+      - { at: [0.34, 0.3, -0.5] }
     movers:
       # 문 둘: 앞 모서리가 경첩이라 바깥으로 열림
-      - { model: classic_roadster_door_l, hinge: [-0.90625, 0.5, 0.6875], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
-      - { model: classic_roadster_door_r, hinge: [0.90625, 0.5, 0.6875], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+      - { model: classic_roadster_door_l, hinge: [-0.96875, 0.5, 0.4375], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: classic_roadster_door_r, hinge: [0.96875, 0.5, 0.4375], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
     plates:
-      - { at: [0, 0.28, 2.32], width: 0.5, height: 0.1 }
-      - { at: [0, 0.47, -2.19], back: true, width: 0.45, height: 0.1 }
+      - { at: [0, 0.28, 2.35], width: 0.5, height: 0.1 }
+      - { at: [0, 0.39, -2.13], back: true, width: 0.5, height: 0.1 }
     horn: { sound: stsv:vehicle.classic_roadster.horn, release: stsv:vehicle.classic_roadster.horn_end, volume: 1.4,
             vanilla: block.note_block.didgeridoo, pitch: 1.2, times: 2, gap: 3 }
     engine: { sound: stsv:vehicle.classic_roadster.engine, volume: 0.4, idle-volume: 0.16, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }
@@ -565,10 +565,11 @@ classic_roadster:
 # 느리고 부드러움 (드리프트 없음). 모델: tools/assetgen/models/vehicles_donation_retro_camper.py
 retro_camper:
   material: paper
-  name: "<#8fd1b0>레트로 캠핑밴"
+  name: "<#3fb8c4>레트로 캠핑밴"
   lore:
     - "<gold>후원 한정</gold> <gray>· 6인승 레트로 캠핑밴"
     - "<white>8블록/초 <gray>· 느긋함 · 짐칸 없음"
+    - "<dark_gray>세워 두면 차양이 펼쳐짐 · 시동을 걸면 접힘"
     - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
     - "<dark_gray>스페이스: 경적"
     - "<yellow>우클릭: 세우기 · 타기"
@@ -583,35 +584,38 @@ retro_camper:
     acceleration: 2.6
     brake: 9
     coast: 1.8
-    turn-rate: 56
+    turn-rate: 60
     turn-speed: 3
     step-height: 1.0
-    size: [4.7, 2.1, 2.8]
+    size: [4.35, 2.1, 2.5]
     click-height: 1.3
     wheel: wheel_retro_camper
     wheel-radius: 0.375
     wheels:
-      - { at: [-0.84375, 0.375, 1.5625], steer: true }
-      - { at: [0.84375, 0.375, 1.5625], steer: true }
-      - { at: [-0.84375, 0.375, -1.4375] }
-      - { at: [0.84375, 0.375, -1.4375] }
-    # 운전석(왼쪽 앞)·조수석, 그 뒤로 벤치 두 줄에 두 자리씩
+      - { at: [-0.78125, 0.375, 1.1875], steer: true }
+      - { at: [0.78125, 0.375, 1.1875], steer: true }
+      - { at: [-0.78125, 0.375, -1.1875] }
+      - { at: [0.78125, 0.375, -1.1875] }
+    # 운전석(왼쪽 앞)·조수석 (앞바퀴 위), 그 뒤로 벤치 두 줄에 두 자리씩
     seats:
-      - { at: [-0.46875, 1.04, 1.125] }
-      - { at: [0.46875, 1.04, 1.125] }
-      - { at: [-0.4375, 1.04, 0] }
-      - { at: [0.4375, 1.04, 0] }
-      - { at: [-0.4375, 1.04, -1.0625] }
-      - { at: [0.4375, 1.04, -1.0625] }
+      - { at: [-0.5, 1.07, 1.0625] }
+      - { at: [0.5, 1.07, 1.0625] }
+      - { at: [-0.4375, 1.07, -0.0625] }
+      - { at: [0.4375, 1.07, -0.0625] }
+      - { at: [-0.4375, 1.07, -1.0] }
+      - { at: [0.4375, 1.07, -1.0] }
     movers:
       # 앞문 둘: 앞 모서리를 축으로 바깥으로 열림
-      - { model: retro_camper_door_l, hinge: [-1.0, 1.25, 2.03125], axis: [0, 1, 0], turn: -70, when: door, seats: [0], ticks: 10 }
-      - { model: retro_camper_door_r, hinge: [1.0, 1.25, 2.03125], axis: [0, 1, 0], turn: 70, when: door, seats: [1], ticks: 10 }
-      # 오른쪽 미닫이 문: 1픽셀 바깥으로 나오며 뒤로 밀려 열림 (뒷자리 넷)
-      - { model: retro_camper_slide_door, slide: [0.0625, 0, -0.75], when: door, seats: [2, 3, 4, 5], ticks: 12 }
+      - { model: retro_camper_door_l, hinge: [-1.0, 1.2, 1.625], axis: [0, 1, 0], turn: -70, when: door, seats: [0], ticks: 10 }
+      - { model: retro_camper_door_r, hinge: [1.0, 1.2, 1.625], axis: [0, 1, 0], turn: 70, when: door, seats: [1], ticks: 10 }
+      # 오른쪽 미닫이 문: 2px 바깥으로 나오며 뒤로 밀려 열림 (뒷자리 넷)
+      - { model: retro_camper_slide_door, slide: [0.0625, 0, -0.9375], when: door, seats: [2, 3, 4, 5], ticks: 12 }
+      # 차양: 세워 둘 때(시동 꺼짐) 펼쳐져 있고, 시동이 걸리면 말림대를 축으로 내려가 옆벽 안쪽에 접힘. 기둥 둘은 옆벽 속으로 밀려 들어감
+      - { model: retro_camper_awning, hinge: [0.96875, 2.15625, 0], axis: [0, 0, 1], turn: 90, when: engine, ticks: 16 }
+      - { model: retro_camper_awning_poles, slide: [-1.171875, 0, 0], when: engine, ticks: 8 }
     plates:
-      - { at: [0, 0.406, 2.3438], width: 0.5, height: 0.15 }
-      - { at: [0, 0.406, -2.3438], back: true, width: 0.5, height: 0.15 }
+      - { at: [0, 0.59375, 2.03125], width: 0.5, height: 0.11 }
+      - { at: [0, 0.59375, -2.03125], back: true, width: 0.5, height: 0.11 }
     horn: { sound: stsv:vehicle.retro_camper.horn, release: stsv:vehicle.retro_camper.horn_end, volume: 1.3,
             vanilla: block.note_block.didgeridoo, pitch: 1.3, times: 2, gap: 3 }
     engine: { sound: stsv:vehicle.retro_camper.engine, volume: 0.4, idle-volume: 0.2, idle-pitch: 0.6, top-pitch: 1.3, segment-ticks: 10 }
@@ -641,19 +645,22 @@ sidecar_bike:
     turn-rate: 75
     turn-speed: 3
     step-height: 1.0
-    size: [2.5, 1.9, 1.5]
+    size: [2.55, 1.95, 1.5]
     click-height: 1.0
     wheel: wheel_sidecar
     wheel-radius: 0.375
     wheels:
-      - { at: [-0.40625, 0.375, 0.8125], steer: true }
-      - { at: [-0.40625, 0.375, -0.8125] }
-      - { at: [0.890625, 0.375, -0.3125] }       # 사이드카 바퀴
+      - { at: [-0.46875, 0.375, 0.8125], steer: true }
+      - { at: [-0.46875, 0.375, -0.8125] }
+      - { at: [0.90625, 0.375, -0.3125] }        # 사이드카 바퀴
     seats:
-      - { at: [-0.40625, 1.12, -0.1875] }        # 운전자: 안장에 걸터앉음 (배달 오토바이와 같은 높이)
-      - { at: [0.4375, 0.76, -0.21875] }         # 동승자: 사이드카 안
+      - { at: [-0.46875, 1.12, -0.25] }          # 운전자: 스프링 안장에 걸터앉음 (배달 오토바이와 같은 높이)
+      - { at: [0.375, 0.6, -0.21875] }           # 동승자: 사이드카 안 방석 위 (깊이 앉아 가슴부터 보임)
+    # 움직이는 부품: 동승자가 타고 내릴 때 사이드카 앞유리가 밑동을 축으로 앞으로 젖혀짐
+    movers:
+      - { model: sidecar_bike_screen, hinge: [0.375, 0.890625, 0.25], axis: [1, 0, 0], turn: -55, when: door, seats: [1], ticks: 8 }
     plates:
-      - { at: [-0.40625, 0.578, -1.2656], back: true, width: 0.26, height: 0.12 }
+      - { at: [-0.46875, 0.44375, -1.35], back: true, width: 0.32, height: 0.16 }
     horn: { sound: stsv:vehicle.sidecar_bike.horn, release: stsv:vehicle.sidecar_bike.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 1.3, times: 2, gap: 3 }
     engine: { sound: stsv:vehicle.sidecar_bike.engine, volume: 0.45, idle-volume: 0.2, idle-pitch: 0.5, top-pitch: 1.3, segment-ticks: 10 }
@@ -685,25 +692,25 @@ muscle_car:
     turn-rate: 76
     turn-speed: 4
     step-height: 1.0
-    size: [4.8, 2.1, 1.55]
+    size: [4.95, 2.1, 1.5]
     click-height: 1.0
     wheel: wheel_muscle
     wheel-radius: 0.40625
     wheels:
-      - { at: [-0.78125, 0.40625, 1.4375], steer: true }
-      - { at: [0.78125, 0.40625, 1.4375], steer: true }
-      - { at: [-0.84375, 0.40625, -1.4375] }     # 뒷바퀴는 1픽셀 더 바깥 (넓은 뒤 트레드, 부푼 뒤 펜더)
+      - { at: [-0.78125, 0.40625, 1.46875], steer: true }
+      - { at: [0.78125, 0.40625, 1.46875], steer: true }
+      - { at: [-0.84375, 0.40625, -1.4375] }     # 뒷바퀴는 2픽셀(1/16블록) 더 바깥 (넓은 뒤 트레드, 부푼 뒤 펜더)
       - { at: [0.84375, 0.40625, -1.4375] }
     seats:
-      - { at: [-0.42, 0.26, -0.1875] }
-      - { at: [0.42, 0.26, -0.1875] }
+      - { at: [-0.34, 0.15, -0.125] }
+      - { at: [0.34, 0.15, -0.125] }
     movers:
       # 문 둘: 앞 모서리가 경첩, 바깥으로 열림
-      - { model: muscle_car_door_l, hinge: [-0.96875, 0.6, 0.875], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
-      - { model: muscle_car_door_r, hinge: [0.96875, 0.6, 0.875], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
+      - { model: muscle_car_door_l, hinge: [-0.96875, 0.6, 0.9375], axis: [0, 1, 0], turn: -65, when: door, seats: [0], ticks: 10 }
+      - { model: muscle_car_door_r, hinge: [0.96875, 0.6, 0.9375], axis: [0, 1, 0], turn: 65, when: door, seats: [1], ticks: 10 }
     plates:
-      - { at: [0, 0.328, 2.486], width: 0.45, height: 0.11 }
-      - { at: [0, 0.53, -2.38], back: true, width: 0.45, height: 0.12 }
+      - { at: [0, 0.23, 2.43], width: 0.45, height: 0.11 }
+      - { at: [0, 0.516, -2.385], back: true, width: 0.45, height: 0.11 }
     horn: { sound: stsv:vehicle.muscle_car.horn, release: stsv:vehicle.muscle_car.horn_end, volume: 1.5,
             vanilla: block.note_block.didgeridoo, pitch: 1.0, times: 1 }
     engine: { sound: stsv:vehicle.muscle_car.engine, volume: 0.6, idle-volume: 0.26, idle-pitch: 0.5, top-pitch: 1.7, segment-ticks: 10 }
@@ -734,8 +741,8 @@ concept_ev:
     turn-rate: 72
     turn-speed: 3.5
     step-height: 1.0
-    size: [4.9, 2.0, 1.75]
-    click-height: 1.0
+    size: [4.9, 2.0, 1.5]
+    click-height: 0.8
     wheel: wheel_concept
     wheel-radius: 0.4375
     wheels:
@@ -744,17 +751,17 @@ concept_ev:
       - { at: [-0.84375, 0.4375, -1.5625] }
       - { at: [0.84375, 0.4375, -1.5625] }
     seats:
-      - { at: [-0.34, 0.3, 0.4375] }
-      - { at: [0.34, 0.3, 0.4375] }
-      - { at: [-0.34, 0.3, -0.625] }
-      - { at: [0.34, 0.3, -0.625] }
+      - { at: [-0.34, 0.15, 0.22] }
+      - { at: [0.34, 0.15, 0.22] }
+      - { at: [-0.34, 0.15, -0.7] }
+      - { at: [0.34, 0.15, -0.7] }
     movers:
       # 걸윙 도어: 지붕 가장자리를 축으로 위로 열림 (한쪽 문 하나로 앞뒤 좌석이 함께 타고 내림)
-      - { model: concept_ev_door_l, hinge: [-0.8125, 1.656, 0], axis: [0, 0, 1], turn: 75, when: door, seats: [0, 2], ticks: 12 }
-      - { model: concept_ev_door_r, hinge: [0.8125, 1.656, 0], axis: [0, 0, 1], turn: -75, when: door, seats: [1, 3], ticks: 12 }
+      - { model: concept_ev_door_l, hinge: [-0.54, 1.4375, 0], axis: [0, 0, 1], turn: 75, when: door, seats: [0, 2], ticks: 12 }
+      - { model: concept_ev_door_r, hinge: [0.54, 1.4375, 0], axis: [0, 0, 1], turn: -75, when: door, seats: [1, 3], ticks: 12 }
     plates:
-      - { at: [0, 0.25, 2.4375], width: 0.5, height: 0.1 }
-      - { at: [0, 0.5, -2.4375], back: true, width: 0.6, height: 0.11 }
+      - { at: [0, 0.25, 2.44], width: 0.5, height: 0.1 }
+      - { at: [0, 0.47, -2.44], back: true, width: 0.6, height: 0.11 }
     horn: { sound: stsv:vehicle.concept_ev.horn, release: stsv:vehicle.concept_ev.horn_end, volume: 1.4,
             vanilla: block.note_block.bit, pitch: 1.4, times: 1 }
     engine: { sound: stsv:vehicle.concept_ev.engine, volume: 0.4, idle-volume: 0.08, idle-pitch: 0.7, top-pitch: 1.9, segment-ticks: 10 }

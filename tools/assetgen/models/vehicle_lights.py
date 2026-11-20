@@ -100,25 +100,34 @@ LAMPS = {
     "combine": dict(scale=2.0, head=lens(1.5, 4, 41.75, 42.75, -19, False, False) + lens(12.5, 15, 41.5, 42.5, -19, False, False),
                     tail=lens(10, 13, 21, 23, 30), body=("vehicles_farm", "combine")),
     # the donation cars (models/vehicles_donation_<id>.py: each its own module, body=(module, model) as above)
-    # classic_roadster: a round lamp in a chrome bezel in each wing's face, small round red lamps on the wings' ends
-    "classic_roadster": dict(scale=2.0, head=lens(9.75, 14.25, 7.25, 11.75, -35.75, True),
-                             tail=lens(10.5, 13.5, 8, 11, 35.6, True),
+    # classic_roadster (drawn at 32 px a block: scale 4): a round headlamp in a chrome bezel in each front fender's tip
+    # (its lens 1 px back in the bezel), round tail lamps on the rear fenders' ends
+    "classic_roadster": dict(scale=4.0, reach=2.0, head=lens(19.9, 27.1, 15.4, 22.6, -69, True),
+                             tail=lens(20.9, 26.1, 14.4, 19.6, 68, True),
                              body=("vehicles_donation_classic_roadster", "classic_roadster")),
-    # retro_camper: two big round lamps in chrome rings on the flat face, the red lower half of the stacked tail lamps
-    "retro_camper": dict(scale=2.0, head=lens(8.75, 13.25, 11.25, 15.75, -36.75, True), tail=lens(11.5, 14, 11, 13, 36.5),
+    # retro_camper (drawn at 32 px a block, shrunk by 4): the big round headlamps in chrome rings set into the nose,
+    # the round tail lamps in chrome rings on the back's corners
+    "retro_camper": dict(scale=4.0, reach=2.0, head=lens(16.5, 25.5, 28.5, 37.5, -66, True), tail=lens(21.5, 28.5, 26.5, 33.5, 65.5, True),
                          body=("vehicles_donation_retro_camper", "retro_camper")),
-    # muscle_car: two round lamps a side in the black grille, wide red lamps in chrome across the tail
-    "muscle_car": dict(scale=2.0, head=lens(5.5, 13, 8.25, 11.75, -38.5, True),   # both round lamps a side as one lens (two side by side made the beams overlap)
-                       tail=lens(4, 14, 10.25, 12.75, 38.5), body=("vehicles_donation_muscle_car", "muscle_car")),
-    # sidecar_bike: the bike's one round headlamp, the small tail lamp on its rear fender (the tub's own little red lamp
-    # sits behind the spare wheel: not drawn)
-    "sidecar_bike": dict(scale=2.0, head=lens(-8.95, -4.05, 14.8, 19.7, -11.25, True, False),
-                         tail=lens(-7.75, -5.25, 11.5, 12.75, 20.5, False, False),
+# The new LAMPS entry for models/vehicle_lights.py (replaces the old "muscle_car" one). The body is now drawn at 32 px a
+# block (BModel scale 4, like the buses' scale=4.0 entries), so the lenses are in its drawn px and scale is 4.0.
+    # muscle_car: four round lamps deep in the full-width grille, two a side, each its own lens (the inner pair 0.25 px
+    # lower and the outer pair 0.3 px prouder, so their glows and beams never share a plane); one red tail lamp band the
+    # whole width of the tail panel, split in the middle
+    "muscle_car": dict(scale=4.0, reach=2.0, head=lens(11.5, 19.5, 15.75, 23.75, -75.5, True) + lens(20.5, 28.5, 16, 24, -75.8, True),
+                       tail=lens(2.5, 28.5, 21, 26, 77), body=("vehicles_donation_muscle_car", "muscle_car")),
+# The new LAMPS entry for models/vehicle_lights.py (replaces the old "sidecar_bike" one). The body is now drawn at 32 px a
+# block (BModel scale 4, like the bus bodies' scale=4.0 entries), so the lenses are in its drawn px and scale is 4.0.
+    # sidecar_bike: the bike's round headlamp and the little running lamp on the sidecar's mudguard; the round tail lamp
+    # on the bike's rear fender and the small red lamp on the back of the sidecar's mudguard
+    "sidecar_bike": dict(scale=4.0, reach=2.0, head=lens(-19.15, -10.85, 28.85, 37.15, -29.6, True, False)
+                         + lens(27.8, 30.2, 26.3, 28.7, -3.2, True, False),
+                         tail=lens(-17.0, -13.0, 20.2, 24.2, 41.6, True, False) + lens(27.9, 30.1, 22.5, 24.7, 23.6, True, False),
                          body=("vehicles_donation_sidecar_bike", "sidecar_bike")),
-    # concept_ev: a light bar the whole width of the nose (white) and of the tail (red), its ends stepped back a little
-    # on the corners
-    "concept_ev": dict(scale=2.0, head=lens(-12.5, 12.5, 7.75, 9.75, -39.25, False, False),   # the centre bar only (the corner pieces' beams overlapped it)
-                       tail=lens(-12.5, 12.5, 11.75, 13.75, 39.25, False, False),
+    # concept_ev (drawn at 32 px a block like phantom_gt, so its lenses are in that space and scale is 4): one thin
+    # LED bar the whole width of the knife-edge nose (white) and one the whole width of the tail (red)
+    "concept_ev": dict(scale=4.0, reach=2.0, head=lens(-24, 24, 11, 12, -78, False, False),
+                       tail=lens(-26, 26, 24, 25, 78, False, False),
                        body=("vehicles_donation_concept_ev", "concept_ev")),
 }
 
@@ -239,10 +248,13 @@ def _model(v, kind, name=None, hot=None, warm=None):
     if kind == "head":
         for l in spec["head"]:
             _lens(m, "lens", l, True, hot, warm)
-            _halo(m, "glow", l, True, warm, 2.5, 0.55)
+            # reach: a body drawn at 32 px a block (the donation cars) draws its glow and beam twice as big, so they
+            # come out as large in the world as the other cars'
+            reach = spec.get("reach", 1.0)
+            _halo(m, "glow", l, True, warm, 2.5 * reach, 0.55)
             # the beam reaches 3 blocks, or as far as the model may (its bounds: model z -16 = drawn z -24 x shrink)
             room = 24 * spec["scale"] * LAMP_SCALE + l[4] - HALO_OUT - 1
-            _beam(m, l, min(48.0, room), 7, 0.22)
+            _beam(m, l, min(48.0 * reach, room), 7 * reach, 0.22)
     elif kind == "tail":
         for l in spec["tail"]:
             _lens(m, "lens", l, False, RED, RED_DIM)
