@@ -78,7 +78,9 @@ class PackPipelineTest {
             // 후원 차 6종 (16px) · 도구 스킨 세트 다시 그림 (2026-11)
             "frost_fishing_rod", "frost_fishing_rod_cast", "frost_sword", "najeon_axe", "najeon_bobber", "najeon_fishing_rod", "najeon_fishing_rod_cast", "najeon_hoe", "najeon_pickaxe", "najeon_shovel", "najeon_sword", "sushi_carnival",
             // 초밥 카니발 루프 부품 · 루프 장식 (vehicle_roofs*.py)
-            "sushi_carnival_roof_r_tree");
+            "sushi_carnival_roof_r_tree",
+            // 비밀 임무 보상 검은 세단 · 요원 K: LED eyes, the tail bar, the blue sill lines, the dash screen
+            "agent_sedan");
     private static final Set<String> ROTATED = Set.of("scarecrow", "test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
@@ -134,7 +136,9 @@ class PackPipelineTest {
             // 후원 차 6종 (16px) · 도구 스킨 세트 다시 그림 (2026-11)
             "classic_roadster_door_l", "classic_roadster_door_r", "concept_ev_door_l", "concept_ev_door_r", "dragon_shovel", "frost_axe", "frost_hoe", "frost_shovel", "galaxy_shovel", "galaxy_sword", "magma_pickaxe", "muscle_car_door_l", "muscle_car_door_r", "retro_camper", "sidecar_bike_screen", "sushi_carnival_door_l", "sushi_carnival_door_r", "sushi_carnival_slide_l", "sushi_carnival_slide_r", "wheel_sidecar", "najeon_sword", "sushi_carnival",
             // 초밥 카니발 루프 부품 · 루프 장식 (vehicle_roofs*.py)
-            "sushi_carnival_roof", "sushi_carnival_roof_r_basket", "sushi_carnival_roof_r_box_black", "sushi_carnival_roof_r_cat", "sushi_carnival_roof_r_duck", "sushi_carnival_roof_r_kayak", "sushi_carnival_roof_r_kimbap", "sushi_carnival_roof_r_mattress", "sushi_carnival_roof_r_salmon", "sushi_carnival_roof_r_shrimp", "sushi_carnival_roof_r_ski", "sushi_carnival_roof_r_surf", "sushi_carnival_roof_r_tamago", "sushi_carnival_roof_r_tent", "sushi_carnival_roof_r_watermelon", "sushi_carnival_roof_r_tree");
+            "sushi_carnival_roof", "sushi_carnival_roof_r_basket", "sushi_carnival_roof_r_box_black", "sushi_carnival_roof_r_cat", "sushi_carnival_roof_r_duck", "sushi_carnival_roof_r_kayak", "sushi_carnival_roof_r_kimbap", "sushi_carnival_roof_r_mattress", "sushi_carnival_roof_r_salmon", "sushi_carnival_roof_r_shrimp", "sushi_carnival_roof_r_ski", "sushi_carnival_roof_r_surf", "sushi_carnival_roof_r_tamago", "sushi_carnival_roof_r_tent", "sushi_carnival_roof_r_watermelon", "sushi_carnival_roof_r_tree",
+            // 검은 세단 · 요원 K: the screen, rear window and pillars (22.5 / 45 degrees), the doors' crease; 요원의 코트: the tails
+            "agent_sedan", "agent_sedan_door_fl", "agent_sedan_door_fr", "agent_sedan_door_rl", "agent_sedan_door_rr", "agent_coat");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

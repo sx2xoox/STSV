@@ -292,7 +292,11 @@ class DonationTest {
             // a tile's lines fit beside the menu: short lines, a few of them
             for (String line : p.description().split("\n")) assertTrue(dev.stsv.core.util.Text.plain(line).length() <= 40, p.id() + ": " + line);
         }
-        for (String theme : banners) assertTrue(sold.contains("banner:" + theme), "the " + theme + " banner is not for sale");
+        // every banner is for sale, but the 비밀 요원 one: the 마을버스 secret mission's reward (the bus module unlocks it)
+        for (String theme : banners) {
+            if (theme.equals("secret_agent")) assertFalse(sold.contains("banner:" + theme), "the secret mission's banner is never sold");
+            else assertTrue(sold.contains("banner:" + theme), "the " + theme + " banner is not for sale");
+        }
         // the menu: a tab a category
         YamlConfiguration menu = YamlConfiguration.loadConfiguration(PACK.resolve("menus/donation.yml").toFile());
         long tabs = menu.getConfigurationSection("donation.buttons").getKeys(false).stream()

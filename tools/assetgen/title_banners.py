@@ -120,6 +120,9 @@ THEMES = [
          title=((244, 255, 220), (150, 226, 70)), nick=((255, 255, 236), (124, 236, 64))),
     dict(id="blossom", module="blossom", icon="PINK_PETALS", name="벚꽃", tile=16, centre=0, chat=True,
          title=((255, 248, 251), (250, 176, 208)), nick=((255, 240, 246), (246, 140, 186))),
+    # 비밀 요원: the title 비밀 요원's banner (마을버스 secret mission reward; never sold, the bus module unlocks it)
+    dict(id="secret_agent", module="secret_agent", icon="BLACK_DYE", name="비밀 요원", tile=16, centre=0, chat=True,
+         title=((255, 246, 214), (240, 196, 92)), nick=((255, 255, 255), (214, 220, 232))),
 ]
 
 BAYER4 = ((0, 8, 2, 10), (12, 4, 14, 6), (3, 11, 1, 9), (15, 7, 13, 5))

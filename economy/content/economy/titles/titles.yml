@@ -152,3 +152,8 @@ night_driver:
   name: "<gradient:#bfe6ff:#6a7bff><b>[심야 기사]</b></gradient>"
   description: "새벽 2~4시 유령 손님을 열 번 태워 주었다"
   category: event
+# ── 마을버스 비밀 임무 ('수상한 선글라스 남자'): 끝까지 해낸 사람만. 칭호 배너 secret_agent (검정 + 금, 반짝임) 와 함께 받음
+secret_agent:
+  name: "<gradient:#fff3c4:#e8b84a><b>[비밀 요원]</b></gradient>"
+  description: "수상한 선글라스 남자의 비밀 임무를 끝까지 해냈다"
+  category: event

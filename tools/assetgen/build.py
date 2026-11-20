@@ -46,8 +46,10 @@ def main():
     from models import cosmetics_batch_c      # 허리 (오라 · 발자취 · 처치 효과는 파티클이라 모델 없음)
     from models import cosmetics_donation     # 후원 세트 청룡 · 은하수 (발자취 · 오라는 메뉴 카드 모델)
     from models import cosmetics_duck         # 후원 세트 아기 오리 가족 v2 (모델 발자국 · 오라 · 처치, 각성)
+    from models import cosmetics_agent        # 요원 K 세트 (마을버스 비밀 임무 보상: 선글라스 · 이어피스 · 코트)
     # every cosmetic model, whichever file draws it (their vouchers' icons come from voucher_art: items/*.yml)
-    cosmetic_models = {**cosmetics.ALL, **cosmetics_batch_a.ALL, **cosmetics_batch_b.ALL, **cosmetics_batch_c.ALL, **cosmetics_donation.ALL, **cosmetics_duck.ALL}
+    cosmetic_models = {**cosmetics.ALL, **cosmetics_batch_a.ALL, **cosmetics_batch_b.ALL, **cosmetics_batch_c.ALL, **cosmetics_donation.ALL, **cosmetics_duck.ALL,
+                       **cosmetics_agent.ALL}
     from models import furniture_japanese as furniture
     from models import furniture_retro           # 레트로 한국 가구 (three groups); preview: furniture_preview.py --set retro
     from models import furniture_farm            # 농장 가구 (허수아비)

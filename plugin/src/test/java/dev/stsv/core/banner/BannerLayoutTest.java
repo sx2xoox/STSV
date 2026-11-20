@@ -15,8 +15,8 @@ class BannerLayoutTest {
             new String[]{"최고 부자", "xozne"}, new String[]{"아주 아주 아주 긴 칭호 이름입니다", "Long_Name_12345"});
 
     @Test
-    void shipsTheTenThemes() {
-        assertEquals(List.of("fire", "lightning", "neon", "bloodmoon", "prism", "royal", "frost", "void", "toxic", "blossom"),
+    void shipsTheThemes() {
+        assertEquals(List.of("fire", "lightning", "neon", "bloodmoon", "prism", "royal", "frost", "void", "toxic", "blossom", "secret_agent"),
                 List.copyOf(C.themes().keySet()));
         // every one of them has a chat banner of its own (the banner shown in chat, the tab list and over the head)
         for (BannerCatalog.Theme t : C.themes().values()) assertTrue(t.chat() != null && t.chat().height() == 18, t.id());

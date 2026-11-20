@@ -136,10 +136,10 @@ def agent_coat():
     # the tails: swept back about the hips, split by the vent (its edges and the inside show the lining)
     m.group("tails")
     for x0, x1 in ((3.6, 7.8), (8.2, 12.4)):
-        m.box("tail", (x0, -6.4, COAT_Z), (x1, 2.2, COAT_Z + 0.5), SUIT, rotation=LOWER,
+        m.box("tail", (x0, -3.8, COAT_Z), (x1, 2.2, COAT_Z + 0.5), SUIT, rotation=LOWER,
               faces={"north": LINING, "east": LINING if x0 < 8 else SUIT, "west": LINING if x0 > 8 else SUIT})
-        m.box("hem", (x0, -6.8, COAT_Z - 0.05), (x1, -6.4, COAT_Z + 0.55), GOLD, rotation=LOWER)
-    m.box("vent", (7.8, -6.0, COAT_Z + 0.1), (8.2, 1.8, COAT_Z + 0.4), LINING, rotation=LOWER)
+        m.box("hem", (x0, -4.2, COAT_Z - 0.05), (x1, -3.8, COAT_Z + 0.55), GOLD, rotation=LOWER)
+    m.box("vent", (7.8, -3.6, COAT_Z + 0.1), (8.2, 1.8, COAT_Z + 0.4), LINING, rotation=LOWER)
     _display(m, BACK_GUI, 0.48, 1)
     return m
 
