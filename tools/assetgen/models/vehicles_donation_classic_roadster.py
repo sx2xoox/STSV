@@ -586,10 +586,6 @@ class Field:
         i, j, k = p[0] - X0 + 4, p[1] - Y0 + 4, p[2] - Z0 + 4
         return (min(max(i, 0), self.b.shape[0] - 1), min(max(j, 0), self.b.shape[1] - 1), min(max(k, 0), self.b.shape[2] - 1))
 
-    def normal(self, p):
-        q = self.idx(p)
-        return float(self.n[0][q]), float(self.n[1][q]), float(self.n[2][q])
-
     def normal_at(self, p):
         """The normal at a point (drawn px), blended from the 8 cells round it: smooth across the 1 px steps."""
         u = [p[0] - 0.5 - X0 + 4, p[1] - 0.5 - Y0 + 4, p[2] - 0.5 - Z0 + 4]
@@ -706,9 +702,7 @@ def roadster_kit(colour="rd_green", lower=None, leather="rd_tan", soft="rd_canva
         if lab == "paint":
             t = _paint_t(n, dif, ao)
             # shut lines: the doors' seams, the hood's and the boot lid's
-            seam = False
-            if (iz in (D0 - 1, D1) or iz in (D0, D1 - 1) and f == "up") and iy >= FLOOR - 1 and f != "down":
-                seam = iz in (D0 - 1, D1) and f in ("east", "west", "up")
+            seam = iz in (D0 - 1, D1) and iy >= FLOOR and f in ("east", "west", "up")
             if f == "up" and ((15 <= ax < 16 and NOSE + 6 < z < COWL - 3) or (COWL - 4 <= z < COWL - 3 and ax < 16)):
                 seam = True
             if f == "up" and ((14 <= ax < 15 and 39 < z < 63) or ((39 <= z < 40 or 62 <= z < 63) and ax < 15)):
@@ -763,9 +757,9 @@ def roadster_kit(colour="rd_green", lower=None, leather="rd_tan", soft="rd_canva
 
     _windscreen(m)
     _dash_parts(m)
-    _steering(m, leather)
+    _steering(m)
     _rack(m)
-    _trim(m, kit, base, door, colour)
+    _trim(m, kit, base, door)
     _exhausts(m)
     _KIT[key] = kit
     return kit
@@ -899,9 +893,6 @@ def _canvas(kind, soft, c, n, dif, ao):
     return col(soft, t + (0.04 if (math.floor(x) + math.floor(z)) % 2 else 0))
 
 
-CHROME_BOX = Paint("rd_chrome", 5, noise=0, grad=0, rim=0.6, ao=0.4)
-
-
 def _chrome_decal(c):
     """Chrome on plain boxes: bright tops, a dark horizon on the sides, the undersides mid grey."""
     f = c.face
@@ -979,7 +970,7 @@ def _dash_parts(m):
             m.box("gauge", (cx - d / 2, cy - d / 2, face), (cx + d / 2, cy + d / 2, face + 0.35), p)
 
 
-def _steering(m, leather):
+def _steering(m):
     """A big wooden-rim steering wheel on a column from the dash, tilted to the driver; wire spokes, a chrome boss."""
     cx, cy, cz = -SEAT_X, 25.0, -3.0
     tilt = ("x", -22.5, (cx, cy, cz))
@@ -1037,7 +1028,7 @@ def _top_of(cells, x, z):
     return max(ys) + 1 if ys else None
 
 
-def _trim(m, kit, cells, door, colour):
+def _trim(m, kit, cells, door):
     """The bullet wing mirror, the door handles, the fuel filler cap, the soft top's hood irons."""
     # the wing mirror on the left front fender, near the cowl
     mx, mz = -24, -24
