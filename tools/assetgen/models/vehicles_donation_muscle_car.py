@@ -95,6 +95,8 @@ TUB0, TUB1 = D0, 44            # the cabin's tub
 GRILLE_X, GRILLE_Y0, GRILLE_Y1, GRILLE_D = 29.5, 14, 26, 4
 LAMP_D, LAMP_Y = 8, 20
 LAMPS_X = (15.5, 24.5)         # the four round lamps: centres (x, either side)
+LAMP_YS = (19.75, 20)          # their heights (the inner pair a hair lower, the outer pair a hair prouder: their lit
+LAMP_Z = (NOSE + 1.5, NOSE + 1.2)  # lenses and beams, models/vehicle_lights.py, must not lie in one plane)
 TAIL_Y0, TAIL_Y1 = 20, 27      # the tail lamp band
 
 
@@ -599,24 +601,24 @@ def _front(m, ctx):
     """The four round lamps in the grille, the chrome blade bumper, the plate's flat."""
     m.group("lights")
     for sx in (-1, 1):
-        for lx in LAMPS_X:
+        for lx, ly, lz in zip(LAMPS_X, LAMP_YS, LAMP_Z):
             cx = sx * lx
 
-            def lamp(c, cx=cx):
+            def lamp(c, cx=cx, ly=ly):
                 if c.face != "north":
                     return ("raw", (64, 68, 78, 255))
-                r = math.hypot(c.p[0] - cx, c.p[1] - LAMP_Y)
+                r = math.hypot(c.p[0] - cx, c.p[1] - ly)
                 if r < 1.1:
                     return ("raw", (255, 252, 236, 255))              # the projector's hot core
                 if r < 1.8:
                     return ("raw", (120, 130, 150, 255))              # its black ring
                 if r < 2.8:
-                    k = math.atan2(c.p[1] - LAMP_Y, c.p[0] - cx)
+                    k = math.atan2(c.p[1] - ly, c.p[0] - cx)
                     return ("raw", (226, 232, 240, 255)) if k > 0.4 else ("raw", (176, 184, 198, 255))   # the reflector
                 if r < 3.5:
                     return ("raw", (206, 236, 255, 255))              # the halo ring
                 return ("raw", (118, 124, 138, 255))                  # the bezel
-            cyl(m, "headlamp", (cx, LAMP_Y), LAMP_D, NOSE + 1.5, NOSE + GRILLE_D,
+            cyl(m, "headlamp", (cx, ly), LAMP_D, lz, NOSE + GRILLE_D,
                 Paint("mc_led", 2, noise=0, light=False, glow=True, decal=lamp), axis="z")
     m.group("body")
     # the chrome blade bumper under the grille, wrapping round the corners
@@ -775,7 +777,7 @@ def _cabin(m, ctx):
         if c.face == "south" and abs(y - 23.5) < 0.5:
             return tone("mc_chrome", 0.8)                              # a bright strip across the dash
         return tone(TR, 0.3)
-    m.box("dash", (-26, 17, ZS0 - 0.5), (26, 29.6, -25), Paint(TR, 1, noise=0, grad=0, rim=0.3, decal=dash))
+    m.box("dash", (-26, 17.3, ZS0 - 0.5), (26, 29.6, -25), Paint(TR, 1, noise=0, grad=0, rim=0.3, decal=dash))
     m.box("binnacle", (-19, 29, -26.5), (-3, 30.5, -24), Paint(TR, 1, noise=0, rim=0.4))
 
     def dial(cx, cy, rad):

@@ -93,7 +93,7 @@ NOSE, TAIL = -70, 68
 WF, WR = -43, 38                # front / rear axle (z)
 WY = WRAD = 12.8                # wheel centre height = wheel radius (0.8 block across)
 ARCH = 15.5                     # the arch cut round a wheel
-TRACK_IN = 18.5                 # the body is cut beyond this |x| in the arches
+TRACK_IN = 20.0                 # the body is cut beyond this |x| in the arches
 WHEEL_X = 24                    # the wheels' middle (x)
 GROUND = 5                      # the sills' lowest cells
 FLOOR = 7                       # the cockpit's floor
@@ -241,11 +241,11 @@ def inside(x, y, z):
         return True
     if z < 16:
         lo, hi = ff_span(z)
-        if ax <= hi - t and y < fender_top(ff_top(z), lo, hi, ax, 4.5, 7):
+        if ax <= hi - t and y < fender_top(round(ff_top(z)), lo, hi, ax, 3.8, 5.8):
             return True
     if z > -4:
         lo, hi = rf_span(z)
-        if ax <= hi - t and y < fender_top(rf_top(z), lo, hi, ax, 4.0, 6):
+        if ax <= hi - t and y < fender_top(round(rf_top(z)), lo, hi, ax, 3.4, 5.0):
             return True
     return False
 
@@ -292,7 +292,8 @@ def _cells():
         s = 1 if x >= 0 else -1
         for k in (1, 2):
             n = (x + s * k, y, z)
-            if n not in cells and in_arch(abs(n[0] + 0.5), y + 0.5, z + 0.5) and inside(n[0] + 0.5, y + 0.5, z + 0.5):
+            if n not in cells and abs(n[0] + 0.5) > TRACK_IN and inside(n[0] + 0.5, y + 0.5, z + 0.5) \
+                    and (x - s, y, z) in cells and (x, y + 1, z) in cells:
                 cells[(x, y, z)] = "well"
                 break
 
@@ -340,66 +341,62 @@ def _cells():
 
     lamp_z = {}
 
-    def round_feature(cx, cy, r_in, r_out, label, face, recess=1, ring="bezel", key=None):
-        """A round lens in a proud chrome bezel on the front (face -1) or the back (face 1) of the body."""
-        fronts = {}
+    def fill(x, y, z0, z1, label):
+        """cells from z0 to z1 (both included, either order) of the column (x, y)"""
+        for z in range(min(z0, z1), max(z0, z1) + 1):
+            cells[(x, y, z)] = label
+            group[(x, y, z)] = "body"
+
+    def round_feature(cx, cy, r_in, r_out, label, face, key=None):
+        """A round lens in a chrome bezel on the front (face -1) or the back (face 1) of the body: the bezel's face flat,
+        a pixel proud of the body where it stands furthest out, the lens flat a pixel back inside it."""
+        cols = {}
         for x in range(int(cx - r_out) - 1, int(cx + r_out) + 2):
             for y in range(int(cy - r_out) - 1, int(cy + r_out) + 2):
                 r = math.hypot(x + 0.5 - cx, y + 0.5 - cy)
-                if r >= r_out:
-                    continue
                 f = front(x, y) if face < 0 else back(x, y)
-                if f is not None:
-                    fronts[(x, y)] = (f, r)
-        for (x, y), (f, r) in fronts.items():
+                if r < r_out and f is not None:
+                    cols[(x, y)] = (f, r)
+        zp = (min(f for f, _ in cols.values()) - 1) if face < 0 else (max(f for f, _ in cols.values()) + 1)
+        for (x, y), (f, r) in cols.items():
             if r < r_in:
-                for k in range(recess):
-                    cells.pop((x, y, f - face * k), None)
-                    group.pop((x, y, f - face * k), None)
-                q = (x, y, f - face * recess)
-                if q in cells:
-                    cells[q] = label
+                fill(x, y, zp - face, f, label)
+                cells.pop((x, y, zp), None)
+                group.pop((x, y, zp), None)
             else:
-                cells[(x, y, f)] = ring
-                q = (x, y, f + face)
-                cells[q] = ring                                 # the bezel stands a pixel proud
-                group[q] = "body"
+                fill(x, y, zp, f, "bezel")
         if key:
-            f = fronts[(int(math.floor(cx)), int(math.floor(cy)))][0]
-            lamp_z[key] = f + recess if face < 0 else f + 1 - recess      # the lens' face
+            lamp_z[key] = zp - face + (1 if face > 0 else 0)          # the lens' face
 
     for s in (1, -1):
         round_feature(s * HEAD[0], HEAD[1], HEAD[2], HEAD[3], "lens", -1, key=("head", s))
         round_feature(s * PARK[0], PARK[1], PARK[2], PARK[3], "amber", -1)
         round_feature(s * TAILL[0], TAILL[1], TAILL[2], TAILL[3], "tail", 1, key=("tail", s))
 
-    # the grille: an oval opening 2 px deep with the egg-crate mesh at its back, a proud chrome lip round it
+    # the grille: an oval opening 2 px deep with the egg-crate mesh at its back, a flat chrome lip round it standing a
+    # pixel proud of the nose, a chrome bar down the middle
     gx, gy, ga, gb = GRILLE
-    ring = {}
+    cols = {}
     for x in range(-14, 14):
         for y in range(6, 24):
             xc, yc = x + 0.5, y + 0.5
             e = math.hypot((xc - gx) / ga, (yc - gy) / gb)
             e2 = math.hypot((xc - gx) / (ga + 1.5), (yc - gy) / (gb + 1.5))
             f = front(x, y)
-            if f is None or e2 >= 1:
-                continue
-            if e < 1:
-                if x in (-1, 0):                                # a chrome bar down the middle, flush with the lip
-                    cells[(x, y, f)] = "chrome"
-                    cells[(x, y, f + 1)] = "chrome"
-                    continue
-                for k in (0, 1):
-                    cells.pop((x, y, f + k), None)
-                    group.pop((x, y, f + k), None)
-                if (x, y, f + 2) in cells:
-                    cells[(x, y, f + 2)] = "mesh"
-            else:
-                ring[(x, y)] = f
-    for (x, y), f in ring.items():
-        cells[(x, y, f)] = "bezel"
-        cells[(x, y, f - 1)] = "bezel"
-        group[(x, y, f - 1)] = "body"
+            if f is not None and e2 < 1:
+                cols[(x, y)] = (f, e)
+    zp = min(f for f, _ in cols.values()) - 1
+    for (x, y), (f, e) in cols.items():
+        if e >= 1:
+            fill(x, y, zp, f, "bezel")
+        elif x in (-1, 0):
+            fill(x, y, zp + 1, f, "chrome")
+            cells.pop((x, y, zp), None)
+        else:
+            for z in range(zp, zp + 2):
+                cells.pop((x, y, z), None)
+                group.pop((x, y, z), None)
+            fill(x, y, zp + 2, max(f, zp + 2), "mesh")
 
     # side vents behind the front wheels: chrome strakes over a dark slot, a chrome frame
     for s in (1, -1):
@@ -456,7 +453,7 @@ def _bumpers(cells, group):
     for front in (True, False):
         for x in range(-27, 27):
             ax = abs(x + 0.5)
-            back_off = max(0.0, ax - 17) ** 2 * 0.11
+            back_off = 0 if ax < 18 else 1 if ax < 21 else 3 if ax < 24 else 6      # wrapping round the corners
             for y in range(6, 11):
                 for d in range(4):
                     # the blade: 5 px tall, 4 deep, its four long edges rounded off
@@ -490,7 +487,7 @@ def _bumpers(cells, group):
                     for y in range(4, 19):
                         xc, yc, zc = x + 0.5, y + 0.5, z + 0.5
                         r = math.hypot(xc - cx, (zc - cz) * 0.8)
-                        rad = 2.1
+                        rad = 1.8
                         if yc > top - 2:
                             rad *= math.sqrt(max(0.0, 1 - ((yc - (top - 2)) / 2) ** 2))
                         if yc < 5.5:
@@ -1130,7 +1127,7 @@ def wheel_classic():
         cyl(m, "spinner", (0, 0), 2.6, a, b, hp, axis="x")
         a, b = sorted((s * (w2 + 1.5), s * (w2 + 2.2)))
         m.box("spinner_ear", (a, -0.55, -3.6), (b, 0.55, 3.6), hp)
-        a, b = sorted((s * (w2 + 1.5), s * (w2 + 2.6)))
+        a, b = sorted((s * (w2 + 1.45), s * (w2 + 2.6)))
         for e in (1, -1):
             lo, hi = sorted((e * 2.6, e * 3.8))
             m.box("spinner_tip", (a, -0.9, lo), (b, 0.9, hi), hp)

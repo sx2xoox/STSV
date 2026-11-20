@@ -156,12 +156,33 @@ class Mats:
             if isinstance(k, tuple):
                 if k[0] != "lit":
                     return k
-                n = (normal(c) if normal else None) or FACE_N[c.face]
+                n = (normal(c) if normal else None) or bar_normal(c)
                 return _tone(k[1], k[2], n)
             ramp, kind, lo, hi = m[k]
-            n = (normal(c) if normal else None) or FACE_N[c.face]
+            n = (normal(c) if normal else None) or bar_normal(c)
             return _tone(ramp, kind, n, lo, hi)
         return Paint("sc_chrome", 4, noise=0, light=False, glow=glow, decal=decal)
+
+
+AX = {"east": 0, "west": 0, "up": 1, "down": 1, "north": 2, "south": 2}
+
+
+def bar_normal(c):
+    """A box's face normal, rounded across a thin box (a bar or a tube drawn as a box reads round: lit along one edge,
+    dark along the other)."""
+    fn = FACE_N[c.face]
+    fa = AX[c.face]
+    ext = [c.hi[i] - c.lo[i] for i in range(3)]
+    others = [i for i in range(3) if i != fa]
+    ca = min(others, key=lambda i: ext[i])
+    if ext[ca] > 3.5 or ext[ca] <= 0:
+        return fn
+    t = 2 * (c.p[ca] - c.lo[ca]) / ext[ca] - 1
+    t = max(-1.0, min(1.0, t))
+    e = [0.0, 0.0, 0.0]
+    e[ca] = 0.85 * t
+    k = math.sqrt(max(0.0, 1 - 0.72 * t * t))
+    return _n(tuple(fn[i] * k + e[i] for i in range(3)))
 
 
 def field_normal(f):
@@ -312,7 +333,7 @@ def poly_ring(m, name, axis, c, rin, rout, lo, hi, paint, n=16, inner=True, oute
                 fo, fi, ends = ("up", "down") if sg > 0 else ("down", "up"), None, ("east", "west")
             rot = ("z", phi, (a, b, lo)) if phi else None
         p = paint(th, out)
-        faces = {ends[0]: None, ends[1]: None}
+        faces = {ends[0]: None, ends[1]: None} if rot else {}     # (the checker wants an upright box closed)
         if not outer:
             faces[fo[0]] = None
         if not inner:
@@ -633,8 +654,8 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
         m.box("axle_nut", (min(BX + s * 7.4, BX + s * 8.2), WY - 0.8, ZF - 0.8),
               (max(BX + s * 7.4, BX + s * 8.2), WY + 0.8, ZF + 0.8), chrome)
     # the crowns: the lower one carries the rear legs, the upper one the springs and the bars
-    rod(m, "crown", fork(22.0, -4.5), fork(22.0, 2.8), 2.0, black, x=(BX - 7.6, BX + 7.6), depth=2.0)
-    rod(m, "crown", fork(24.2, -4.5), fork(24.2, 3.4), 1.6, M.paint("chrome"), x=(BX - 7.8, BX + 7.8), depth=1.6)
+    rod(m, "crown", fork(22.0, -3.6), fork(22.0, 2.4), 1.6, black, x=(BX - 7.2, BX + 7.2), depth=1.6)
+    rod(m, "crown", fork(24.4, -3.0), fork(24.4, 2.9), 1.2, M.paint("chrome"), x=(BX - 7.4, BX + 7.4), depth=1.2)
 
     # the front fender: deep valances, the trim colour along its crown with a fine pinstripe each side, a chrome tip
     ff = fender_f(WY, ZF, BX, 4.0, 13.2, 1.8, -108, 34)
@@ -739,15 +760,15 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
         m.box("lever", (lo, by + 0.1, gz - 2.6), (hi, by + 0.7, gz - 1.9), chrome)
     # one round mirror on a stalk from the left perch
     mx, mz = BX - 6.0 - 5.0 * math.cos(math.radians(22.5)) - 1.0, cz + 5.0 * math.sin(math.radians(22.5)) - 1.2
-    m.box("mirror_stalk", (mx - 0.4, by + 1.2, mz - 0.4), (mx + 0.4, by + 8.0, mz + 0.4), chrome)
+    m.box("mirror_stalk", (mx - 0.4, by + 1.2, mz - 0.4), (mx + 0.4, by + 5.0, mz + 0.4), chrome)
 
     def mirror(c):
         if c.face == "south":
-            r = math.hypot(c.p[0] - mx, c.p[1] - (by + 9.6))
+            r = math.hypot(c.p[0] - mx, c.p[1] - (by + 6.6))
             if r < 1.5:
                 return ("sc_glass", 2.6 if c.p[0] < mx else 1.6)
         return "chrome"
-    cyl(m, "mirror", (mx, by + 9.6), 4.0, mz - 0.8, mz + 0.4, M.paint(mirror, normal=radial("z", mx, by + 9.6)), axis="z")
+    cyl(m, "mirror", (mx, by + 6.6), 4.0, mz - 0.8, mz + 0.4, M.paint(mirror, normal=radial("z", mx, by + 6.6)), axis="z")
 
     m.group("tank")
 
@@ -826,17 +847,17 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
     # coil springs under its back
 
     def saddle_f(x, y, z):
-        if not (-0.5 <= z <= 14.0):
+        if not (0.0 <= z <= 13.0):
             return 1.0
-        u = (z + 0.5) / 14.5
-        hw = 2.6 + 4.9 * smooth(u * 1.4) - 0.8 * smooth((u - 0.85) / 0.15)
-        top = SADDLE - 0.3 * (1 - u) + 0.9 * smooth((u - 0.8) / 0.2)       # the cantle rises a little
-        if u < 0.1:
-            top -= (0.1 - u) * 10
-        bot = SADDLE - 2.6
+        u = z / 13.0
+        hw = 2.0 + 3.4 * smooth(u * 1.6) - 0.6 * smooth((u - 0.8) / 0.2)
+        top = SADDLE - 0.5 * (1 - u) + 1.0 * smooth((u - 0.75) / 0.25)      # the cantle rises at the back
+        if u < 0.12:
+            top -= (0.12 - u) * 9
+        bot = SADDLE - 3.2 + 0.6 * smooth(u * 2)
         yc, hh = (top + bot) / 2, (top - bot) / 2
         ax = abs(x - BX)
-        return (ax / hw) ** 3 + (abs(y - yc) / hh) ** 2.4 - 1
+        return (ax / hw) ** 2.6 + (abs(y - yc) / hh) ** 2.2 - 1
 
     def saddle(c):
         x, y, z = c.p
@@ -864,7 +885,7 @@ def _bike(m, M, chrome, black, rubber, chrome_r):
 # The engine: a 45 degree V-twin, the exhausts, the footboards
 # ------------------------------------------------------------------------------------------------
 
-V_BASE = {"front": (15.0, -5.6), "rear": (15.0, 0.8)}        # each cylinder's foot (y, z)
+V_BASE = {"front": (14.0, -5.6), "rear": (14.0, 0.8)}        # each cylinder's foot (y, z)
 
 
 def _engine(m, M, chrome, black, rubber, chrome_r):
@@ -906,24 +927,24 @@ def _engine(m, M, chrome, black, rubber, chrome_r):
         bar = M.paint("iron", normal=radial("y", BX, z0))
         # the barrel's core and its fins (iron), then the head's bigger fins (alloy)
         for (a, b, hw) in bands(5.0):
-            m.box("barrel", (BX - hw, y0, z0 + a), (BX + hw, y0 + 10.6, z0 + b), bar, rotation=rot)
-        for k in range(5):
-            fy = y0 + 1.0 + k * 1.6
+            m.box("barrel", (BX - hw, y0, z0 + a), (BX + hw, y0 + 9.0, z0 + b), bar, rotation=rot)
+        for k in range(4):
+            fy = y0 + 0.8 + k * 1.5
             fp = M.paint(("lit", "sc_iron", "satin"), normal=radial("y", BX, z0))
             for (a, b, hw) in bands(8.6):
                 m.box("fin", (BX - hw, fy, z0 + a), (BX + hw, fy + 0.8, z0 + b), fp, rotation=rot)
         for k in range(3):
-            fy = y0 + 8.6 + k * 1.5
+            fy = y0 + 6.2 + k * 1.3
             fp = M.paint(("lit", "sc_alloy", "satin"), normal=radial("y", BX, z0))
             for (a, b, hw) in bands(9.6):
                 m.box("head_fin", (BX - hw, fy, z0 + a), (BX + hw, fy + 0.8, z0 + b), fp, rotation=rot)
         # the rocker cover: a chrome cap on top, a spark plug with its lead on the outside
         for (a, b, hw) in bands(6.0):
-            m.box("rocker_cover", (BX - hw, y0 + 12.9, z0 + a), (BX + hw, y0 + 14.1, z0 + b),
+            m.box("rocker_cover", (BX - hw, y0 + 9.6, z0 + a), (BX + hw, y0 + 10.8, z0 + b),
                   chrome_r("y", BX, z0), rotation=rot)
-        m.box("plug", (BX - 4.6, y0 + 10.2, z0 - 0.6), (BX - 2.8, y0 + 11.4, z0 + 0.6),
+        m.box("plug", (BX - 5.4, y0 + 7.4, z0 - 0.6), (BX - 3.4, y0 + 8.4, z0 + 0.6),
               M.paint(("lit", "sc_white", "satin")), rotation=rot)
-        m.box("plug_lead", (BX - 5.4, y0 + 4.0, z0 - 0.4), (BX - 4.6, y0 + 11.0, z0 + 0.4),
+        m.box("plug_lead", (BX - 6.2, y0 + 2.0, z0 - 0.4), (BX - 5.4, y0 + 8.2, z0 + 0.4),
               M.paint(("lit", "sc_black", "gloss")), rotation=rot)
 
     # the carburettor in the vee on the right, its round chrome air cleaner
