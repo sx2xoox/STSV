@@ -29,12 +29,13 @@ Its look:
     chrome strip along the sills.
   * back: a near-upright tailgate with a big dark window, wide tail lamps on the corners joined by a thin light bar, a
     roof spoiler, a black bumper with the plate above it.
-  * roof: two silver roof rails, two black cross bars, and clamped on them THE ROOF BOX: long and low (about two
-    thirds of the roof), a wedge nose tapering down at 22.5 degrees, a shorter tapered tail, a gently domed lid
+  * roof: two silver roof rails, three black cross bars, and clamped on them THE ROOF BOX: long and low (almost the
+    whole roof), a wedge nose tapering down at 22.5 degrees, a shorter tapered tail, a gently domed lid
     (22.5-degree shoulders), two faint ribs along it and a soft gloss line down the top, a thin shut line where the
-    lid meets the base, a small lock barrel on each side, four feet clamped round the bars.
+    lid meets the base, a small lock barrel on each side, six feet clamped round the bars.
   * paint: the body colour (colour: pearl white), the cabin (trim: warm tan leather), the roof box (box: gloss
-    graphite black "sc_box", or matte grey "sc_box_grey"). All are arguments.
+    the body colour by default, like the photos; or gloss graphite black "sc_box", or matte grey "sc_box_grey"). All
+    are arguments.
   * inside: 7 seats: two front seats, two captain chairs in the middle row, a three-seat bench at the back; a dash
     with a wide screen, a steering wheel.
 
@@ -129,12 +130,13 @@ GATE_Y = 22                      # the tailgate's window from here up   # the ta
 RAIL_Y = ROOF + 1.5            # the rails' top
 BAR_Y = RAIL_Y + 0.75          # the cross bars' top
 BX = 10                        # the box's half width
-BOX_Y0 = BAR_Y + 0.5           # its bottom (it stands on four feet on the bars)
+BOX_Y0 = BAR_Y + 0.5           # its bottom (it stands on six feet on the bars)
 BOX_Y1 = BOX_Y0 + 6.5            # its crown
 CROWN = 7.5                    # the crown's half width (22.5-degree shoulders from here out to BX)
 BOX_YS = BOX_Y1 - (BX - CROWN) * T     # the sides' top (where the shoulders end)
 SHUT = BOX_Y0 + 2.5            # the shut line between the base and the lid
-BOX_Z0, BOX_ZC0, BOX_ZC1, BOX_Z1 = -15, -6, 21, 26     # the nose's tip, the crown's ends, the tail
+BOX_Z0, BOX_ZC0, BOX_ZC1, BOX_Z1 = -19, -10, 33, 38    # the nose's tip, the crown's ends, the tail (about 93% of the roof)
+BARS = (-14, 9, 29)             # the three cross bars (z of their front edge)
 NOSE_DROP = (BOX_ZC0 - BOX_Z0) * T                       # how far the nose's top falls (22.5 degrees)
 TAIL_DROP = (BOX_Z1 - BOX_ZC1) * T
 CHEEK = 8.75                   # the nose's / tail's slope: full height inside this |x|, one shoulder lower outside
@@ -386,11 +388,13 @@ _KIT = {}
 PARTS = ("door_l", "door_r", "slide_l", "slide_r")
 
 
-def sushi_carnival(colour="sc_pearl", trim="sc_leather", box="sc_box", name="sushi_carnival"):
+def sushi_carnival(colour="sc_pearl", trim="sc_leather", box=None, name="sushi_carnival"):
     return carnival_kit(colour, trim, box, name).body
 
 
-def carnival_kit(colour="sc_pearl", trim="sc_leather", box="sc_box", name="sushi_carnival"):
+def carnival_kit(colour="sc_pearl", trim="sc_leather", box=None, name="sushi_carnival"):
+    """box: the roof box's ramp; None paints it in the body colour."""
+    box = box or colour
     key = (colour, trim, box, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
@@ -876,18 +880,18 @@ def _side_details(m, ctx):
 
 
 def _roof_rack(m, ctx):
-    """Two silver roof rails (on a foot at each end), two black cross bars (the roof box is clamped on them)."""
+    """Two silver roof rails (on a foot at each end), three black cross bars (the roof box is clamped on them)."""
     rail = _chrome(0.95, 0.75, 0.5)
     for s in (-1, 1):
         x0, x1 = 11.5, 12.75
         m.box("rail", _lo(s, x0, x1, ROOF + 0.75, ZS1 + 5), _hi(s, x0, x1, RAIL_Y, RZ1 - 4), rail)
-        m.box("rail_post", _lo(s, x0 + 0.25, x1 - 0.25, ROOF, 9), _hi(s, x0 + 0.25, x1 - 0.25, ROOF + 0.75, 10), BLACK)
+        m.box("rail_post", _lo(s, x0 + 0.25, x1 - 0.25, ROOF, 0), _hi(s, x0 + 0.25, x1 - 0.25, ROOF + 0.75, 1), BLACK)
         # the black end caps, their ends bevelled at 45 degrees
         for z0, z1 in ((ZS1 + 3, ZS1 + 5), (RZ1 - 4, RZ1 - 2)):
             m.box("rail_cap", _lo(s, x0 - 0.1, x1 + 0.1, ROOF, z0), _hi(s, x0 - 0.1, x1 + 0.1, RAIL_Y + 0.1, z1), BLACK)
         plank(m, "rail_cap_nose", "x", (ZS1 + 1.5, ROOF), (ZS1 + 3, RAIL_Y), _x(s, x0, x1), 0.6, BLACK, below=False)
         plank(m, "rail_cap_tail", "x", (RZ1 - 2, RAIL_Y), (RZ1 - 0.5, ROOF), _x(s, x0, x1), 0.6, BLACK, below=False)
-    for zb in (-9, 19):
+    for zb in BARS:
         m.box("cross_bar", (-13, RAIL_Y, zb), (13, BAR_Y, zb + 1.5), BLACK)
         for s in (-1, 1):
             m.box("bar_clamp", _lo(s, 11.25, 13.25, RAIL_Y - 0.5, zb - 0.25), _hi(s, 11.25, 13.25, BAR_Y + 0.25, zb + 1.75), BLACK)
@@ -899,7 +903,14 @@ def _roof_rack(m, ctx):
 
 def _box_decal(B):
     """The roof box's paint (world space): a soft gloss line down the crown, two faint ribs, the domed shoulders lit,
-    the sides darker towards the bottom, the thin shut line round the base, the lid's lip just over it."""
+    the sides darker towards the bottom, the thin shut line round the base, the lid's lip just over it. A light paint
+    (the body's pearl white) is kept bright like the body; a dark one keeps its depth."""
+    spec = MATERIALS.get(REMAP.get(B, B))
+    k = 0.3 if spec and spec[2] > 0.6 else 0.0                          # lift for a light paint
+
+    def t(v):
+        return tone(B, v + k * (1 - v))
+
     def d(c):
         x, y, z = c.p
         ax = abs(x)
@@ -909,23 +920,22 @@ def _box_decal(B):
         if f == "up":
             if y > BOX_Y1 - 0.6 and ax < CROWN + 0.1:
                 if -4.5 <= x < -2.5:
-                    return tone(B, 0.98 if -4 <= x < -3 else 0.82)      # the gloss line
+                    return t(0.98 if -4 <= x < -3 else 0.82)            # the gloss line
                 if math.floor(ax) == 5:
-                    return tone(B, 0.62)                                # the ribs' lit side
+                    return t(0.62)                                      # the ribs' lit side
                 if math.floor(ax) == 6:
-                    return tone(B, 0.34)                                # their shadow
-                return tone(B, 0.5)
+                    return t(0.34)                                      # their shadow
+                return t(0.5)
             if y > BOX_YS - 0.3:
-                return tone(B, 0.68 if x < 0 else 0.56)                 # the shoulders and slopes, lit
-            return tone(B, 0.6)
-        fy = math.floor(y - BOX_Y0 + 1e-6)
+                return t(0.68 if x < 0 else 0.56)                       # the shoulders and slopes, lit
+            return t(0.6)
         if math.floor(y) == math.floor(SHUT):
-            return tone(B, 0.0)                                         # the shut line
+            return tone(B, 0.0 if k == 0 else 0.25)                     # the shut line
         if math.floor(y) == math.floor(SHUT) + 1:
-            return tone(B, 0.78)                                        # the lid's lip catching the light
+            return t(0.78)                                              # the lid's lip catching the light
         if f in ("east", "west"):
-            return tone(B, 0.32 + 0.24 * smooth((y - BOX_Y0) / 6))
-        return tone(B, 0.36 + 0.26 * smooth((y - BOX_Y0) / 6))
+            return t(0.32 + 0.24 * smooth((y - BOX_Y0) / 6))
+        return t(0.36 + 0.26 * smooth((y - BOX_Y0) / 6))
     return d
 
 
@@ -976,19 +986,19 @@ def _roof_box(m, ctx):
     # a lock barrel each side, just under the shut line near the back: a chrome ring round a dark key slot
     def lock(c):
         if c.face in ("east", "west"):
-            r = math.hypot(c.p[1] - (SHUT - 0.75), c.p[2] - 14.75)
+            r = math.hypot(c.p[1] - (SHUT - 0.75), c.p[2] - 26.75)
             return ("raw", (20, 20, 24, 255)) if r < 0.25 else tone("sc_chrome", 0.8)
         return tone("sc_chrome", 0.6)
     for s in (-1, 1):
-        m.box("box_lock", _lo(s, BX, BX + 0.25, SHUT - 1.25, 14.25), _hi(s, BX, BX + 0.25, SHUT - 0.25, 15.25),
+        m.box("box_lock", _lo(s, BX, BX + 0.25, SHUT - 1.25, 26.25), _hi(s, BX, BX + 0.25, SHUT - 0.25, 27.25),
               Paint("sc_chrome", 5, noise=0, rim=0.3, decal=lock))
     # the lid's lip along each side, just over the shut line
     for s in (-1, 1):
         m.box("box_lip", _lo(s, BX, BX + 0.25, SHUT, zc0), _hi(s, BX, BX + 0.25, SHUT + 0.5, zc1),
-              Paint(B, 3, noise=0, rim=0.3, decal=lambda c: tone(B, 0.85 if c.face == "up" else 0.55)))
+              Paint(B, 3, noise=0, rim=0.3, decal=lambda c: dec(c) if c.face == "down" else tone(B, 0.95 if c.face == "up" else 0.7)))
     # the feet: a block under the box on each bar, a clamp hooked round the bar's underside
     foot = Paint("sc_black", 1, noise=0, grad=0, rim=0.3, ao=0.3)
-    for zb in (-9, 19):
+    for zb in BARS:
         for s in (-1, 1):
             m.box("box_foot", _lo(s, 5, 7.5, BAR_Y, zb - 0.5), _hi(s, 5, 7.5, y0, zb + 2), foot)
             m.box("box_clamp", _lo(s, 5.5, 7, RAIL_Y - 0.6, zb - 0.25), _hi(s, 5.5, 7, RAIL_Y, zb + 1.75), foot)
