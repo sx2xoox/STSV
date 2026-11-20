@@ -46,9 +46,6 @@ ORE_DROP = {  # (item, mean drop without Fortune, Fortune III multiplier kind)
     "gold": ("minecraft:gold_ingot", 1.0, "ore"), "redstone": ("minecraft:redstone", 4.5, "uniform"),
     "lapis": ("minecraft:lapis_lazuli", 6.5, "ore"), "copper": ("minecraft:copper_ingot", 3.5, "ore"),
     "coal": ("minecraft:coal", 1.0, "ore")}
-FIND_ORES = {"iron", "redstone", "lapis", "diamond"}     # jobs.yml miner finds.drops
-FIND_ITEM = {"iron": "economy:rough_ruby", "redstone": "economy:rough_ruby", "lapis": "economy:rough_sapphire",
-             "diamond": "economy:rough_sapphire"}
 SEA = {"sea", "deep", "warm", "cold", "mangrove", "mushroom"}
 LEVEL_TIER = {1: 0, 15: 1, 30: 3}
 
@@ -365,8 +362,11 @@ def mining_hour(W_, lv, miner=True):
         item, mean, kind = ORE_DROP[ore]
         d = mean * 2.2 if kind == "ore" else mean + 1.5        # Fortune III
         add(out, item, n * (d + extra), 1.0)
-        if ore in FIND_ORES:
-            add(out, FIND_ITEM[ore], n * fc, 1.0)
+        # finds from jobs.yml (finds.drops of "<ore>_ore", times finds.weights: a common ore finds less)
+        gems = finds.get("drops", {}).get(f"{ore}_ore", [])
+        w = finds.get("weights", {}).get(f"{ore}_ore", 1.0)
+        for g in gems:
+            add(out, g, n * fc * w / len(gems), 1.0)
     return {k: tuple(v) for k, v in out.items()}
 
 

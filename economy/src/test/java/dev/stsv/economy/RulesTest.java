@@ -318,7 +318,7 @@ class RulesTest {
         assertEquals(0.05 + 0.75 * 14 / 29, miner.range("extra", 15, 30), 1e-9, "evenly between");
         assertEquals(0, miner.range("extra", 0, 30), 1e-9, "no level, no effect");
         assertEquals(List.of("economy:rough_ruby"), miner.finds().drops("minecraft:redstone_ore"));
-        assertEquals(0.12, miner.finds().chance().at(30, 30), 1e-9);
+        assertEquals(0.15, miner.finds().chance().at(30, 30), 1e-9);
         assertEquals(0.01, miner.finds().outsider(), 1e-9);
         // machine bonuses switch on at their level
         assertEquals(0, miner.bonus("extra", 9), 1e-9);

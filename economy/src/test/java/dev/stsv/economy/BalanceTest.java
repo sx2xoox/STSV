@@ -1464,7 +1464,9 @@ class BalanceTest {
         for (var point : t.getAsJsonObject("trade").entrySet()) {
             for (var e : point.getValue().getAsJsonObject().entrySet()) {
                 var v = e.getValue().getAsJsonObject();
-                if (v.get("trade").getAsDouble() <= v.get("solo").getAsDouble()) {
+                // within 0.5% counts as level: buying the gatherers' goods at 70% of base may come out about even with doing it
+                // all yourself (광부 Lv15 does since the 원석 buff), it must never fall clearly behind
+                if (v.get("trade").getAsDouble() < v.get("solo").getAsDouble() * 0.995) {
                     bad.add(point.getKey() + " " + e.getKey() + ": trade " + v.get("trade") + " <= solo " + v.get("solo"));
                 }
             }

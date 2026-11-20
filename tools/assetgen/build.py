@@ -50,6 +50,7 @@ def main():
     cosmetic_models = {**cosmetics.ALL, **cosmetics_batch_a.ALL, **cosmetics_batch_b.ALL, **cosmetics_batch_c.ALL, **cosmetics_donation.ALL, **cosmetics_duck.ALL}
     from models import furniture_japanese as furniture
     from models import furniture_retro           # 레트로 한국 가구 (three groups); preview: furniture_preview.py --set retro
+    from models import furniture_farm            # 농장 가구 (허수아비)
     from models import vehicles
     from models import vehicles_road
     from models import vehicles_farm
@@ -70,6 +71,7 @@ def main():
     donation_cars += [importlib.import_module("models.vehicle_roofs"), importlib.import_module("models.vehicle_roofs_fun")]
     import furniture_icons
     import furniture_icons_retro
+    import furniture_icons_farm
     import vehicle_icons
     for n in DONATION_VEHICLES:
         importlib.import_module(f"vehicle_icons_donation_{n}")   # registers into vehicle_icons.ICONS
@@ -77,14 +79,14 @@ def main():
     import vehicle_icons_farm
     import vehicle_icons_misc
     import vehicle_icons_fun
-    ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
+    ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **furniture_farm.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
            **vehicles_boats.ALL, **vehicles_fun.ALL,
            **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL, **karts.ALL, **kart_ghosts.ALL,
            **{k: v for m in skinsets for k, v in m.ALL.items()}, **{k: v for m in donation_cars for k, v in m.ALL.items()}}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in cosmetic_models or name in furniture.ALL or name in furniture_retro.ALL or name in vehicles.ALL \
+        return CONTENT if name in SHIPPED_MODELS or name in cosmetic_models or name in furniture.ALL or name in furniture_retro.ALL or name in furniture_farm.ALL or name in vehicles.ALL \
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
             or name in vehicles_fun.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL \
@@ -134,6 +136,9 @@ def main():
     for name, fn in furniture_icons_retro.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     print(f"icons   {len(furniture_icons_retro.ICONS)} retro furniture")
+    for name, fn in furniture_icons_farm.ICONS.items():
+        fn().save(CONTENT / "textures" / f"{name}_icon.png")
+    print(f"icons   {len(furniture_icons_farm.ICONS)} farm furniture")
     # vehicles: 2D inventory icons (placed: body, wheels and parts as 3D models); preview sheet: vehicle_preview.py
     for name, fn in vehicle_icons.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")

@@ -54,7 +54,7 @@ jobs:
     description:   # 메뉴에서: "# 제목" = 묶음 제목, "@10 효과" = Lv10 에 열림(✔), "{5~80}" = 내 레벨의 값 (Lv1 ~ Lv30 사이 고르게)
       - "# 채광"
       - "광석 추가 드롭 {5~80}%"
-      - "보석 원석 발견 {4~15}%"
+      - "보석 원석 발견 {3~15}%"
       - "운철·수정 원석이 자주 나옴"
       - "돌·심층암을 캐도 경험치"
       - "# 세공대"
@@ -68,13 +68,13 @@ jobs:
       - "@50 결과 +1 확률 +5% · 칭호 [광부 명인]"
     extra: [0.05, 0.80]          # 광석 드롭 +1 확률
     finds:
-      chance: [0.04, 0.15]       # 원석 발견 확률
+      chance: [0.03, 0.15]       # 원석 발견 확률
       outsider: 0.01             # 다른 직업일 때
       weights:                   # 흔한 광석은 발견 확률을 이만큼만 (적지 않은 광석은 1)
-        coal_ore: 0.5
-        deepslate_coal_ore: 0.5
-        copper_ore: 0.5
-        deepslate_copper_ore: 0.5
+        coal_ore: 0.4
+        deepslate_coal_ore: 0.4
+        copper_ore: 0.4
+        deepslate_copper_ore: 0.4
       drops:                     # 광석 -> 나올 수 있는 원석
         redstone_ore: [economy:rough_ruby]
         deepslate_redstone_ore: [economy:rough_ruby]
