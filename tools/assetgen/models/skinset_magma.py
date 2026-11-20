@@ -382,12 +382,13 @@ def magma_shovel():
             m.box("rim", (x0, lo, z0), (x1, y1, z1), ROCK_RIM)
     m.box("rim", (C - 1.5, 28.25, z0), (C + 1.5, 30.25, z1), ROCK_RIM)
     # the magma filling the dish: orange inside the rim, hotter towards its middle, a bubble bursting
-    for y0, y1, hw in ((19.25, 20, 3.25), (20, 25, 3.75), (25, 26.5, 3.25), (26.5, 28.25, 2.5)):
-        m.box("pool", (C - hw, y0, 9.0), (C + hw, y1, 9.35), LAVA_DEEP)
-    m.box("pool_hot", (C - 2.5, 20.5, 9.35), (C + 2.5, 25.0, 9.5), LAVA)
-    m.box("pool_hot", (C - 1.5, 25.0, 9.35), (C + 1.5, 26.75, 9.5), LAVA)
-    m.box("bubble", (C - 1.25, 22.0, 9.5), (C - 0.25, 23.0, 9.8), WHITE_HOT)
-    m.box("crust", (C + 0.75, 23.5, 9.5), (C + 2.25, 24.25, 9.65), LAVA_RED)
+    for y0, y1, hw in ((19.25, 20, 3.25), (20, 25, 3.75), (25, 26.5, 3.25), (26.5, 28.25, 2.25)):
+        m.box("pool", (C - hw, y0, 9.0), (C + hw, y1, 9.35), LAVA_RED)
+    m.box("pool_hot", (C - 2.75, 20.25, 9.35), (C + 2.75, 25.25, 9.5), LAVA_DEEP)
+    m.box("pool_hot", (C - 1.75, 25.25, 9.35), (C + 1.75, 27.0, 9.5), LAVA_DEEP)
+    m.box("pool_core", (C - 1.5, 21.25, 9.5), (C + 1.5, 25.25, 9.6), LAVA)
+    m.box("bubble", (C - 1.0, 22.0, 9.6), (C, 23.0, 9.9), WHITE_HOT)
+    m.box("crust", (C + 1.75, 23.5, 9.5), (C + 2.5, 24.25, 9.65), EMBER)
     # spilling over the shoulders and dripping
     for side, big in ((1, True), (-1, False)):
         x0, x1 = _lr(side, 3.75, 4.5)
