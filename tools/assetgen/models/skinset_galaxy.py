@@ -470,22 +470,22 @@ def galaxy_shovel():
     handle(m)
     shaft(m, 15.5)
     m.group("blade")
-    round_y(m, "socket", 6.25, 9.75, 6.25, 9.75, 15, 16.75, SILVER, 0.75)
-    rows = ((16.5, 24.5, 4.5), (24.5, 26.5, 3.75), (26.5, 28, 2.75))
+    m.box("socket", (6.4, 15, 6.4), (9.6, 16.75, 9.6), SILVER)
+    rows = ((16.5, 25.5, 4.0), (25.5, 27.25, 3.25), (27.25, 28.5, 2.25))
     for y0, y1, hw in rows:
-        m.box("blade", (C - hw, y0, 7.25), (C + hw, y1, 8.75), SPADE if hw == 4.5 else SPACE_PLAIN)
+        m.box("blade", (C - hw, y0, 7.25), (C + hw, y1, 8.75), SPADE if hw == 4.0 else SPACE_PLAIN)
         for s in (-1, 1):
             e = C + s * hw
             lo, hi = (e - 0.375, e) if s < 0 else (e, e + 0.375)
             m.box("rim", (lo, max(y0, 19.5), 7.05), (hi, y1, 8.95), SILVER_LIGHT)
-    m.box("point", (6.25, 28, 7.1), (9.75, 29, 8.9), SILVER_LIGHT)
-    m.box("point", (7.25, 29, 7.3), (8.75, 29.75, 8.7), RING_EDGE)
-    m.box("point_star", (7.6, 29.75, 7.6), (8.4, 30.5, 8.4), STAR_WHITE)
-    star(m, "star", C, 23.25, 6.9, 9.1, 1.9)
+    m.box("point", (6.5, 28.5, 7.1), (9.5, 29.5, 8.9), SILVER_LIGHT)
+    m.box("point", (7.25, 29.5, 7.3), (8.75, 30.25, 8.7), RING_EDGE)
+    m.box("point_star", (7.6, 30.25, 7.6), (8.4, 31, 8.4), STAR_WHITE)
+    star(m, "star", C, 23.5, 6.9, 9.1, 1.8)
     m.group("moon")
-    for x0, x1, y0, y1 in ring_rows(C, 19.25, 6.0, 4.25, 4.25, 3.5, icy=21.0, y0=15.25, y1=23.25, step=1.0):
+    for x0, x1, y0, y1 in ring_rows(C, 19.25, 5.5, 4.25, 3.75, 3.5, icy=21.0, y0=15.25, y1=23.25, step=1.0):
         m.box("moon", (x0, y0, 6.6), (x1, y1, 9.4), MOON)
-    for x in (2.6, 13.4):
+    for x in (3.1, 12.9):
         m.box("horn_star", (x - 0.5, 23.25, 7.5), (x + 0.5, 24.25, 8.5), STAR_WHITE, rotation=("z", 45, (x, 23.75, C)))
     return _held(m, "shovel")
 

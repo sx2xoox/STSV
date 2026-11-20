@@ -570,13 +570,13 @@ def _cabin(m, A, TR):
           decal=lambda c: (A, 3) if c.face == "south" and abs(c.p[0] - ycx) < 1 else None))
     m.box("yoke_bar", (ycx - 6, ycy - 2.5, ycz), (ycx + 6, ycy - 1.5, ycz + 1), grip)
     for gx in (-6, 5):
-        m.box("yoke_grip", (ycx + gx, ycy - 2.5, ycz), (ycx + gx + 1, ycy + 3, ycz + 1), grip)
+        m.box("yoke_grip", (ycx + gx, ycy - 3, ycz - 0.25), (ycx + gx + 1, ycy + 3, ycz + 1.25), grip)
     # the console: a floating spine between the front seats, a light line along its top
     m.box("console", (-2, 11, -30), (2, 13, 4), Paint(TR, 1, noise=0, rim=0.4,
           decal=lambda c: (A, 2) if c.face == "up" and abs(c.p[0]) < 0.5 else None))
     m.box("console_leg", (-1, 6, -2), (1, 11, 1), base)
     # the floor: a dark mat over the tub's floor
-    m.box("floor", (-22, 6.5, -37), (22, 7, 29), Paint("ev_satin", 1, noise=0, rim=0,
+    m.box("floor", (-22, 7, -37), (22, 7.5, 29), Paint("ev_satin", 1, noise=0, rim=0,
           decal=lambda c: ("ev_satin", 2 if math.floor(c.p[2]) % 4 == 0 else 1) if c.face == "up" else None))
 
 

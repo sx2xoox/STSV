@@ -174,7 +174,7 @@ dragon_hoe_skin:
   name: "<#3fd0c0>스킨북: 여의주 지팡이"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>여의주를 문 청룡 지팡이"
+    - "<gray>여의주를 받든 청룡 지팡이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
