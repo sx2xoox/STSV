@@ -894,5 +894,40 @@
         "name": "stsv:vehicle/sushi_carnival_engine_stop"
       }
     ]
+  },
+  "vehicle.agent_sedan.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/agent_sedan_horn"
+      }
+    ]
+  },
+  "vehicle.agent_sedan.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/agent_sedan_horn_end"
+      }
+    ]
+  },
+  "vehicle.agent_sedan.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/agent_sedan_engine"
+      }
+    ]
+  },
+  "vehicle.agent_sedan.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/agent_sedan_engine_start"
+      }
+    ]
+  },
+  "vehicle.agent_sedan.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/agent_sedan_engine_stop"
+      }
+    ]
   }
 }

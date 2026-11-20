@@ -69,12 +69,15 @@ def main():
     donation_cars = [importlib.import_module(f"models.vehicles_donation_{n}") for n in DONATION_VEHICLES]
     # 루프 장식 (튜닝샵 roofs: <루프 부품>_r_<id>, 그 차 몸체 좌표에 그림): 평범한 것 · 이상한 것
     donation_cars += [importlib.import_module("models.vehicle_roofs"), importlib.import_module("models.vehicle_roofs_fun")]
+    # 비밀 임무 보상 검은 세단 · 요원 K (마을버스 '수상한 선글라스 남자'): 후원 차와 같은 방식 (16px, 기울인 판)
+    donation_cars += [importlib.import_module("models.vehicles_agent_sedan")]
     import furniture_icons
     import furniture_icons_retro
     import furniture_icons_farm
     import vehicle_icons
     for n in DONATION_VEHICLES:
         importlib.import_module(f"vehicle_icons_donation_{n}")   # registers into vehicle_icons.ICONS
+    import vehicle_icons_agent_sedan                            # 검은 세단 · 요원 K: registers into vehicle_icons.ICONS
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc

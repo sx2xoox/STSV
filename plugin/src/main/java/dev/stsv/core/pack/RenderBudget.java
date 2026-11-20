@@ -74,6 +74,9 @@ public final class RenderBudget {
             Map.entry("stsv:wheel_sidecar", new Object[]{130, "후원 사이드카 바퀴"}),
             Map.entry("stsv:sushi_carnival", new Object[]{1600, "후원 초밥 카니발 몸체"}),
             Map.entry("stsv:wheel_sushi_carnival", new Object[]{130, "후원 초밥 카니발 바퀴"}),
+            // 비밀 임무 보상 검은 세단 · 요원 K: 후원 차와 같은 방식 (16px, 기울인 판 + 텍스처), 서버에 몇 대 없는 차
+            Map.entry("stsv:agent_sedan", new Object[]{1600, "비밀 임무 보상 검은 세단 몸체"}),
+            Map.entry("stsv:wheel_agent_sedan", new Object[]{130, "비밀 임무 보상 검은 세단 바퀴"}),
             Map.entry("stsv:dragon_sword", new Object[]{450, "후원 도구 스킨 청룡언월도 (손에 하나만 드는 도구)"}),
             Map.entry("stsv:magma_sword", new Object[]{450, "후원 도구 스킨 화산 대검 (손에 하나만 드는 도구)"}),
             Map.entry("stsv:frost_sword", new Object[]{450, "후원 도구 스킨 고드름 대검 (손에 하나만 드는 도구)"}),

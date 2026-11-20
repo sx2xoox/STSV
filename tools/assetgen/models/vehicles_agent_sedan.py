@@ -47,7 +47,7 @@ def _ramp(name, *spec):
     PALETTE[name] = build_ramp(*spec)
 
 
-_ramp("ag_black", 262, 0.010, 0.36, 0.26, 8, False)    # matte black paint (lit planes lift it, shade drops it)
+_ramp("ag_black", 262, 0.010, 0.33, 0.24, 8, False)    # matte black paint (lit planes lift it, shade drops it)
 _ramp("ag_trim", 260, 0.008, 0.27, 0.06, 4, False)     # gloss black trim: pillars, grille, cladding
 _ramp("ag_chrome", 232, 0.012, 0.74, 0.56, 8, False)   # the little chrome there is
 _ramp("ag_leather", 40, 0.010, 0.31, 0.16, 5, False)   # black leather cabin
@@ -88,10 +88,10 @@ CLEAR = ("raw", (0, 0, 0, 0))
 T = math.tan(math.radians(22.5))
 NOSE, TAIL = -42, 42           # z of the nose's face and the tail's
 W = 16                         # the body's half width
-GROUND, FLOOR = 2.5, 3         # the body's bottom, the cabin floor
+GROUND, FLOOR = 1.5, 2         # the body's bottom, the cabin floor
 SILL = 5                       # the sills' top (the doors stand on them)
 SIDE, BELT = 15.5, 16.5        # the flank's top (a 45 degree crease from here up to BELT): the hood, the deck, the belt
-GLASS_TOP, ROOF = 24, 25       # the side glass's top, the roof's top
+GLASS_TOP, ROOF = 25, 26       # the side glass's top, the roof's top
 CAB = 13                       # the doors' inner faces; the side glass from CAB to CAB + 0.5
 WF, WR = -26, 25               # front / rear axle (z)
 WY, WRAD = 7, 7                # wheel centre height, its radius (a 0.875 block wheel)
@@ -109,7 +109,8 @@ R0, R1 = -1, WR - ARCH - 1     # the rear door: from the B pillar to just before
 GRILLE_X, GRILLE_Y0, GRILLE_Y1 = 8.5, 6, 12.5
 LAMP = (9.5, 15.25, 11.5, 13.0)    # the slim headlamp: |x| from, to; y from, to (its face at NOSE - 0.4)
 TAIL_Y = (13.25, 14.25)            # the tail bar (y), the lamps at the corners a little taller
-SEAT_F, SEAT_R = -4, 10.5          # the seats' middles (z): front row, rear bench
+SEAT_F, SEAT_R = -3.5, 10.5        # the seats' middles (z): front row, rear bench
+SEAT_Y = 3.52                      # the seats' height (vehicles.yml seats at 0.22)
 SEAT_X = 4.8                       # the front seats' middles (|x|: vehicles.yml seats at 0.3)
 
 
@@ -558,8 +559,8 @@ def _rear(m, ctx):
             return bd(c)
         if 7.5 <= y < 11 and ax < 5:
             return tone("ag_trim", 0.2)                                   # the plate's recess
-        if math.floor(y) == 12 and ax < 9:
-            return tone("ag_chrome", 0.8)                                 # a thin chrome line over the plate
+        if math.floor(y) == 12 and ax < 6:
+            return tone("ag_chrome", 0.5)                                 # a thin chrome line over the plate
         if math.floor(ax) == 12 and y > 11:
             return tone(C, 0.08)                                          # the boot lid's shut lines
         return tone(C, 0.26 + 0.2 * smooth((y - 4) / 12))
@@ -585,10 +586,10 @@ def _rear(m, ctx):
 
     def tip(c):
         if c.face == "south":
-            return ("raw", (12, 12, 16, 255)) if abs(c.p[1] - 3.75) < 0.5 and abs(abs(c.p[0]) - 9.75) < 1.0 else tone("ag_chrome", 0.9)
-        return tone("ag_chrome", 0.7)
+            return ("raw", (12, 12, 16, 255)) if abs(c.p[1] - (GROUND + 1.5)) < 0.5 and abs(abs(c.p[0]) - 9.75) < 1.0 else tone("ag_chrome", 0.62)
+        return tone("ag_chrome", 0.45)
     for s in (-1, 1):
-        m.box("exhaust", _lo(s, 8.25, 11.25, 3, TAIL), _hi(s, 8.25, 11.25, 4.5, TAIL + 1),
+        m.box("exhaust", _lo(s, 8.25, 11.25, GROUND + 0.75, TAIL), _hi(s, 8.25, 11.25, GROUND + 2.25, TAIL + 1),
               Paint("ag_chrome", 5, noise=0, rim=0.3, decal=tip))
     # the ducktail: a slim lip along the boot lid's back edge
     lip = Paint(C, 4, noise=0, grad=0, rim=0.3, ao=0,
@@ -698,12 +699,12 @@ def _cabin(m, ctx):
     seat = Paint(TR, 2, noise=0, grad=0, rim=0.5, ao=0.35, decal=leather)
     for sx in (-SEAT_X, SEAT_X):
         z0 = SEAT_F - 3
-        m.box("cushion", (sx - 3, 3.5, z0), (sx + 3, 4.75, z0 + 5.5), seat)
-        m.box("seat_back", (sx - 3.25, 4.75, z0 + 5.5), (sx + 3.25, 16, z0 + 7), seat)
+        m.box("cushion", (sx - 3, FLOOR, z0), (sx + 3, SEAT_Y + 0.25, z0 + 5.5), seat)
+        m.box("seat_back", (sx - 3.25, FLOOR, z0 + 5.5), (sx + 3.25, 16, z0 + 7), seat)
         m.box("seat_head", (sx - 2, 16, z0 + 5.75), (sx + 2, 18.5, z0 + 7), seat)
     z0 = SEAT_R - 3
-    m.box("bench", (-CAB + 0.5, 3.5, z0), (CAB - 0.5, 4.75, z0 + 5.5), seat)
-    m.box("bench_back", (-CAB + 0.5, 4.75, z0 + 5.5), (CAB - 0.5, 15.5, z0 + 7), seat)
+    m.box("bench", (-CAB + 0.5, FLOOR, z0), (CAB - 0.5, SEAT_Y + 0.25, z0 + 5.5), seat)
+    m.box("bench_back", (-CAB + 0.5, FLOOR, z0 + 5.5), (CAB - 0.5, 15.5, z0 + 7), seat)
     for hx in (-7.5, 0, 7.5):
         m.box("bench_head", (hx - 2, 15.5, z0 + 5.75), (hx + 2, 17.5, z0 + 7), seat)
 
@@ -821,10 +822,10 @@ def wheel_agent_sedan():
         if rr < 1.8:
             return tone("ag_rim", 0.5)
         a = math.atan2(z, y)
-        t = (a * 5 / (2 * math.pi)) % 1.0                                 # five pairs of spokes
+        t = (a * 5 / (2 * math.pi)) % 1.0                                 # five broad spokes
         dpx = abs(t - 0.5) * 2 * math.pi * rr / 5
-        if 0.35 < dpx < 1.15:
-            return tone("ag_rim", 0.8 if y > 0.5 else 0.6)
+        if dpx < 0.5 + 0.25 * rr:
+            return tone("ag_rim", 0.8 if y > 0.5 else 0.62)
         if rr > 2.6 and y > 1.2 and abs(z) < 1.6:
             return tone(ACCENT_RAMP, 0.6)                                 # the blue calliper
         return tone("ag_trim", 0.0)

@@ -28,6 +28,11 @@ Characters:
                     two-tone.
   sidecar_bike      a vintage twin: a loping "투둥투둥" (two firings close together, then a gap) through open pipes,
                     each beat a low knock with the pipe ringing and a short bark. Horn: a small bike horn "빵빵".
+  agent_sedan       검은 세단 · 요원 K (the 마을버스 secret mission's reward, not a donation car; its sounds live here
+                    with the other cars'): the minivan's smooth quiet V6 (minivan_body), a little lower and quieter.
+                    Horn: no horn at all but a radio: pressing keys the mic ("칙" a click and a burst of squelch, then
+                    the open channel's soft hiss for as long as it is held), letting go drops it with the squelch tail
+                    "치익" and a short roger beep (radio_hold, radio_tail).
 
     python3 sounds_donation.py   # writes only these clips (sounds.py writes them with the rest)
 """
@@ -42,16 +47,16 @@ import sounds_feel as F
 SR = S.SR
 FADE = S.ENGINE_FADE
 
-CARS = ("muscle_car", "concept_ev", "retro_camper", "classic_roadster", "sidecar_bike", "sushi_carnival")
+CARS = ("muscle_car", "concept_ev", "retro_camper", "classic_roadster", "sidecar_bike", "sushi_carnival", "agent_sedan")
 NAMES = [(v, k) for v in CARS for k in ("horn", "horn_end", "engine", "engine_start", "engine_stop")]
 
 # the idle pitch each hum is played at (vehicles.yml engine.idle-pitch): the start ends on, the stop begins from, it
 IDLE_PITCH = {"muscle_car": 0.5, "concept_ev": 0.7, "retro_camper": 0.6, "classic_roadster": 0.6, "sidecar_bike": 0.5,
-              "sushi_carnival": 0.6}
+              "sushi_carnival": 0.6, "agent_sedan": 0.6}
 
 # loudness of the files (RMS, dBFS; peaks kept under 0.95): the other cars' hums sit at -12 .. -15 dB
 ENGINE_RMS_DB = {"muscle_car": -11.5, "concept_ev": -21.0, "retro_camper": -14.5, "classic_roadster": -14.0,
-                 "sidecar_bike": -13.0, "sushi_carnival": -17.0}
+                 "sidecar_bike": -13.0, "sushi_carnival": -17.0, "agent_sedan": -18.0}
 
 
 def _rms(x):
@@ -255,12 +260,13 @@ def sidecar_run(t, scale, rng):
 
 
 BODIES = {"muscle_car": muscle_body, "concept_ev": ev_body, "retro_camper": camper_body,
-          "classic_roadster": roadster_body, "sushi_carnival": minivan_body}
+          "classic_roadster": roadster_body, "sushi_carnival": minivan_body, "agent_sedan": minivan_body}
 
 
 def engine(v):
     """The hum's segment, levelled."""
-    seeds = {"muscle_car": 81, "concept_ev": 82, "retro_camper": 83, "classic_roadster": 84, "sushi_carnival": 86}
+    seeds = {"muscle_car": 81, "concept_ev": 82, "retro_camper": 83, "classic_roadster": 84, "sushi_carnival": 86,
+             "agent_sedan": 87}
     if v == "sidecar_bike":
         x = sidecar_segment()
     else:
@@ -292,6 +298,9 @@ STARTS = {
     # a short smooth starter whirr, it catches at once and eases up into the idle with hardly a rise; a gentle stop
     "sushi_carnival": dict(crank=(12.5, 0.3, 250.0), start=0.8 + FADE, stop=0.8, seed=106, thud=0.18,
                            rev=lambda r: 1 + 0.35 * (r / 0.2) * np.exp(1 - r / 0.2)),
+    # the black sedan: the same smooth V6, a quick starter and one low, short blip; a soft stop
+    "agent_sedan": dict(crank=(13.0, 0.28, 240.0), start=0.8 + FADE, stop=0.8, seed=107, thud=0.15,
+                        rev=lambda r: 1 + 0.5 * (r / 0.15) * np.exp(1 - r / 0.15)),
 }
 
 
@@ -423,7 +432,54 @@ def blast_hold(first, second, blast=0.14, gap=0.06):
 
 
 
+def _radio_band(x):
+    """A handheld radio's voice band: 300 Hz .. 3.2 kHz, a little presence peak, a touch of grit."""
+    x = S.eq(x, lambda f: S.highpass(f, 320, 3) * S.lowpass(f, 3200, 3) * S.peak(f, 1800, 700, 0.6))
+    x = x / (np.max(np.abs(x)) + 1e-12)
+    return np.tanh(1.6 * x) / np.tanh(1.6)
+
+
+def radio_hold():
+    """Keying a radio (the black sedan's "horn"): a sharp click, a short loud burst of squelch noise ("칙"), a faint
+    data chirp, then the open channel's soft hiss, slowly fluttering, for the rest of the hold (HORN_HOLD s; the
+    server stops it on release and plays radio_tail)."""
+    rng = np.random.default_rng(118)
+    seconds = 0.03 + S.HORN_HOLD + 0.06
+    t = S.t_axis(seconds)
+    n = len(t)
+    noise = _radio_band(rng.standard_normal(n))
+    flutter = 1 + 0.25 * S.smooth_noise(rng, n, 6.0)
+    burst = np.exp(-np.clip(t - 0.012, 0, None) / 0.05) * (t >= 0.012)
+    hiss = 0.16 * flutter * np.clip((t - 0.06) / 0.05, 0, 1)
+    click = np.exp(-t / 0.0025) * np.sin(2 * np.pi * 2600 * t)
+    chirp_t = np.clip(t - 0.09, 0, None)
+    chirp = np.sin(2 * np.pi * (1400 + 9000 * chirp_t) * chirp_t) * ((t >= 0.09) & (t < 0.15)) * 0.35
+    x = 0.9 * click + noise * (0.75 * burst + hiss) + chirp
+    x *= np.clip((seconds - t) / 0.06, 0, 1)
+    return S.normalize(x, 0.7)
+
+
+def radio_tail():
+    """Letting go: the squelch tail ("치익", a hiss falling away) and a short two-note roger beep; 0.32 s."""
+    rng = np.random.default_rng(119)
+    seconds = 0.32
+    t = S.t_axis(seconds)
+    n = len(t)
+    noise = _radio_band(rng.standard_normal(n))
+    tail = noise * 0.7 * np.exp(-t / 0.06) * np.clip(t / 0.004, 0, 1)
+    beep = np.zeros(n)
+    for at, f0 in ((0.13, 2000.0), (0.2, 1500.0)):
+        d = np.clip(t - at, 0, None)
+        on = (t >= at) & (t < at + 0.06)
+        beep += np.sin(2 * np.pi * f0 * d) * on * np.clip(d / 0.004, 0, 1) * np.clip((at + 0.06 - t) / 0.006, 0, 1)
+    x = tail + 0.4 * beep
+    x *= np.clip((seconds - t) / 0.02, 0, 1)
+    return S.normalize(x, 0.6)
+
+
 def horn(v):
+    if v == "agent_sedan":
+        return radio_hold(), radio_tail()
     if v == "retro_camper":
         return blast_hold(*CAMPER_HORN, blast=0.17, gap=0.07), S.horn_tail(CAMPER_HORN[1])
     if v == "sidecar_bike":
