@@ -487,12 +487,11 @@ def sidecar_kit(colour="sc_maroon", trim="sc_cream", leather="sc_leather", white
 
 
 BLACK = solid("sc_black", 0.62, 0.38, 0.1, 0.5)
-RUBBER = solid("sc_rubber", 0.4, 0.22, 0.05)
 ALLOY = solid("sc_alloy", 0.8, 0.5, 0.2, 0.62)
 CHROME = chrome_paint()
 
 
-def _fender(m, name, ctx, cz, cx, half, angles, tip=None, sides=(-1, 1)):
+def _fender(m, name, ctx, cz, cx, half, angles, sides=(-1, 1)):
     """A valanced fender round the wheel at (WY, cz), centred on x = cx: a crown of panels (the trim colour down its
     middle) and a valance each side reaching down past the tyre's shoulder."""
     C, T = ctx.C, ctx.T
@@ -503,9 +502,6 @@ def _fender(m, name, ctx, cz, cx, half, angles, tip=None, sides=(-1, 1)):
         ax = abs(x - cx)
         if c.face in ("east", "west"):
             return tone(C, 0.30 + 0.22 * smooth((y - 2) / 12))
-        a = math.degrees(math.atan2(z - cz, y - WY))
-        if tip is not None and (a < tip[0] or a > tip[1]):
-            return tone("sc_chrome", 0.92 if c.face == "up" else 0.6)
         if c.face in ("down", "north", "south") and math.hypot(y - WY, z - cz) < r1 + 0.2:
             return tone(C, 0.12)                                         # its underside
         if ax < 0.7:
@@ -551,7 +547,7 @@ def _front(m, ctx):
     rod(m, "crown", fork(10.75, -1.9), fork(10.75, 1.3), 0.8, blk, x=(BX - 3.7, BX + 3.7), depth=0.8)
     rod(m, "crown", fork(12.2, -1.6), fork(12.2, 1.6), 0.6, CHROME, x=(BX - 3.8, BX + 3.8), depth=0.6)
 
-    # the front fender: deep valances, the trim colour down its crown, a chrome tip low at the front
+    # the front fender: deep valances, the trim colour down its crown
     _fender(m, "front_fender", ctx, ZF, BX, 2.25, [-112.5, -90, -67.5, -45, -22.5, 0, 22.5])
     for s in (-1, 1):
         lo, hi = _x(BX, s * 2.25, s * 2.75)
