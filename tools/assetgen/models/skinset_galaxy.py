@@ -128,16 +128,14 @@ class SpaceCrystal(HMat):
 
     def face(self, w, h, face, seed):
         pw, ph = max(1, math.ceil(w * D - 1e-6)), max(1, math.ceil(h * D - 1e-6))
-        big = pw > HS or ph > HS
-        if big:
-            pw, ph = min(pw, HS), min(ph, HS)
+        pw, ph = min(pw, HS), min(ph, HS)       # a longer face stretches its texture along it
         frames = [self._sky(pw, ph, face, seed, k) for k in range(8)]
         key = "hd_" + format(zlib.crc32(b"".join(f.tobytes() for f in frames)), "08x")
         if key not in T.SURFACES:
             first = frames[0]
             T.SURFACES[key] = (lambda img=first: img.copy())
             T.ANIMATED[key] = (lambda fs=frames: [f.copy() for f in fs], 3)
-        return key, [0, 0, pw, ph] if not big else [0, 0, HS, HS]
+        return key, [0, 0, pw, ph]
 
 
 CONST_INK = shade("feather", 3)         # a constellation's star: pure white, never painted over by the twinkles
@@ -172,10 +170,10 @@ class BeamMat(HMat):
                     c = shade("ice", 3)
                 elif d < 0.42:
                     c = shade("glow_cyan", 2.6)
-                elif d < 0.7:
-                    c = shade("aurora", 3.0 - (d - 0.42) * 2.5)
+                elif d < 0.66:
+                    c = shade("aurora", 2.6 - (d - 0.42) * 3)
                 else:
-                    c = shade("magic", 2.3 - (d - 0.7))
+                    c = shade("magic", 1.6 - (d - 0.66) * 1.5)
                 if side and (xx == 0 or xx == pw - 1):
                     c = shade("crystal", 4)
                 px[x, y] = c
@@ -189,16 +187,14 @@ class BeamMat(HMat):
 
     def face(self, w, h, face, seed):
         pw, ph = max(1, math.ceil(w * D - 1e-6)), max(1, math.ceil(h * D - 1e-6))
-        big = pw > HS or ph > HS
-        if big:
-            pw, ph = min(pw, HS), min(ph, HS)
+        pw, ph = min(pw, HS), min(ph, HS)       # a longer face stretches its texture along it
         frames = [self._beam(pw, ph, face, seed, k) for k in range(8)]
         key = "hd_" + format(zlib.crc32(b"".join(f.tobytes() for f in frames)), "08x")
         if key not in T.SURFACES:
             first = frames[0]
             T.SURFACES[key] = (lambda img=first: img.copy())
             T.ANIMATED[key] = (lambda fs=frames: [f.copy() for f in fs], 2)
-        return key, [0, 0, pw, ph] if not big else [0, 0, HS, HS]
+        return key, [0, 0, pw, ph]
 
 
 class MoonMat(HMat):
@@ -460,30 +456,33 @@ def galaxy_axe():
     ball(m, "planet", pcx, pcy, C, 7, PLANET)
     m.group("ring")
     rot = ("z", 22.5, (pcx, pcy, C))
-    rows = ring_rows(5.5, pcy, 8.0, 4.0, 4.75, 2.25, icx=pcx)
-    for x0, x1, y0, y1 in rows:
-        edge = x0 < 2.5
-        if edge:
+    # the outer ring (gold, the blade: a silver cutting edge out at -x), a dark gap, the inner ring (lilac)
+    for x0, x1, y0, y1 in ring_rows(5.5, pcy, 8.0, 4.0, 6.25, 3.0, icx=6):
+        if x0 < 2.5:
             m.box("ring_edge", (x0 - 0.5, y0, 7.6), (x0 + 0.25, y1, 8.4), RING_EDGE, rotation=rot)
             x0 += 0.25
         m.box("ring", (x0, y0, 7.4), (x1, y1, 8.6), RING, rotation=rot)
+    for x0, x1, y0, y1 in ring_rows(6, pcy, 5.75, 2.75, 4.25, 1.75, icx=pcx):
+        m.box("ring_inner", (x0, y0, 7.5), (x1, y1, 8.5), EDGE, rotation=rot)
     return _held(m, "axe")
 
 
 def galaxy_hoe():
-    """별자리 지팡이: the vanilla hoe's L: a straight head out to -x from the top of the shaft, made of four stars joined by
-    glowing constellation lines, the last star ending it flat with a silver cap."""
+    """별자리 지팡이: the vanilla hoe's L: a straight head out to -x from the top of the shaft, a bar of night sky with
+    three stars on it joined by a glowing constellation line (front and back), ending flat in a silver cap."""
     m = MModel("galaxy_hoe")
     handle(m)
     shaft(m, 20)
     m.group("head")
     y = 21.5
-    m.box("line", (-2, y - 0.4, 7.6), (7, y + 0.4, 8.4), LINE_GLOW)
-    star(m, "star", 8, y, 6.75, 9.25, 2.25)
-    star(m, "star", 3.75, y, 7, 9, 1.75)
-    star(m, "star", 0.25, y, 7, 9, 1.5)
-    m.box("end", (-3.5, y - 1.5, 6.75), (-2, y + 1.5, 9.25), SILVER)
-    m.box("end_star", (-3.75, y - 0.5, 7.5), (-3.5, y + 0.5, 8.5), STAR)
+    m.box("bar", (-2.25, y - 1, 7.3), (7, y + 1, 8.7), SPACE_PLAIN)
+    for z0, z1 in ((7.1, 7.3), (8.7, 8.9)):
+        m.box("line", (-2, y - 0.2, z0), (7, y + 0.2, z1), LINE_GLOW)
+    star(m, "star", 8, y, 6.75, 9.25, 2.75)
+    star(m, "star", 3.5, y, 6.9, 9.1, 2.25)
+    star(m, "star", -0.5, y, 7, 9, 2)
+    m.box("end", (-4, y - 1.75, 6.75), (-2.25, y + 1.75, 9.25), SILVER)
+    m.box("end_star", (-4.25, y - 0.6, 7.4), (-4, y + 0.6, 8.6), STAR)
     return _held(m, "hoe")
 
 

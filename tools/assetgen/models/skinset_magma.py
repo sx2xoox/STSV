@@ -330,26 +330,54 @@ def magma_pickaxe():
     return _held(m, "pickaxe")
 
 
+def ring_y(m, name, cx, cz, d_out, d_in, y0, y1, mat):
+    """A round ring lying flat (facing y): the stepped circle d_out with d_in cut out of its middle."""
+    o, i = _rows(d_out), _rows(d_in)
+    rows = []
+    for r in sorted(o):
+        key = (o[r], i.get(r))
+        if rows and rows[-1][2] == key:
+            rows[-1][1] = r + 1
+        else:
+            rows.append([r, r + 1, key])
+    for a, b, (ho, hi) in rows:
+        if hi is None:
+            m.box(name, (cx - ho, y0, cz + a), (cx + ho, y1, cz + b), mat)
+        else:
+            m.box(name, (cx - ho, y0, cz + a), (cx - hi, y1, cz + b), mat)
+            m.box(name, (cx + hi, y0, cz + a), (cx + ho, y1, cz + b), mat)
+
+
 def magma_shovel():
-    """마그마 국자 삽: a deep iron ladle on the haft, full to just under its rim with molten magma (a bubble bursting on
-    it), a pouring lip, magma spilling over the rim and dripping."""
+    """마그마 국자 삽: a deep round iron ladle bowl on the haft, open to the sky, brimming with molten magma that heaps
+    above its rim with a bubble bursting on it; a pouring lip on one side with magma running off it, magma spilling
+    down the bowl's front and dripping from its foot."""
     m = MModel("magma_shovel")
     handle(m)
-    shaft(m, 17.75)
+    shaft(m, 17.5)
     m.group("ladle")
-    cx, cy = C, 22.5
-    disc(m, "bowl_back", cx, cy, 8, 5, 6.5, IRON_DARK)
-    disc(m, "bowl", cx, cy, 10, 6.5, 9.25, IRON)
-    disc(m, "magma", cx, cy, 8, 9.25, 9.9, LAVA, inset=0.05)
-    ring(m, "rim", cx, cy, 10, 8, 9.25, 10.75, IRON)
-    m.box("rim_hot", (cx - 3, cy + 4.75, 10.75), (cx + 3, cy + 5, 11), EMBER_RED)
-    m.box("lip", (cx - 6.25, cy + 1, 6.75), (cx - 5, cy + 3.5, 10.5), IRON)
-    m.box("lip_spill", (cx - 6.5, cy + 0.5, 7.5), (cx - 5.75, cy + 1, 9.75), LAVA_DEEP)
-    m.box("bubble", (cx + 0.75, cy + 0.5, 9.9), (cx + 2, cy + 1.75, 10.2), WHITE_HOT)
-    m.box("bubble", (cx - 2.25, cy - 1.75, 9.9), (cx - 1.5, cy - 1, 10.1), LAVA)
-    m.box("spill", (cx + 2, cy - 4.5, 10.75), (cx + 3, cy - 2.5, 11), LAVA_DEEP)
-    drip(m, cx + 2.5, cy - 4.75, z=10.25)
-    drip(m, cx - 3.25, cy - 3.75, z=8, big=False)
+    round_y(m, "neck", 6.5, 9.5, 6.5, 9.5, 16.5, 18, IRON, 0.75)
+    cyl(m, "bowl", "y", (C, C), 6, 18, 19, IRON_DARK, cap=IRON_DARK)
+    cyl(m, "bowl", "y", (C, C), 8, 19, 20.5, IRON_DARK, cap=IRON_DARK)
+    cyl(m, "bowl", "y", (C, C), 10, 20.5, 23.5, ROCK, cap=ROCK)
+    cyl(m, "bowl_band", "y", (C, C), 10, 23.5, 24.25, ROCK_PLAIN, cap=ROCK_PLAIN)
+    ring_y(m, "rim", C, C, 12, 8, 24.25, 25.25, IRON)
+    cyl(m, "magma", "y", (C, C), 8, 24.25, 25.5, LAVA, cap=LAVA)
+    cyl(m, "magma_heap", "y", (C, C), 6, 25.5, 26.75, LAVA_DEEP, cap=LAVA_DEEP)
+    cyl(m, "magma_heap", "y", (C, C), 4, 26.75, 27.75, LAVA, cap=LAVA)
+    cyl(m, "magma_heap", "y", (C, C), 2, 27.75, 28.5, WHITE_HOT, cap=WHITE_HOT)
+    m.box("bubble", (10.25, 25.5, 7.25), (11.25, 26.5, 8.25), LAVA)
+    # the pouring lip (-x) and what runs off it
+    m.box("lip", (0.75, 24.25, 7), (2.05, 25.25, 9), IRON)
+    m.box("lip_magma", (1.25, 25.25, 7.375), (3.5, 25.75, 8.625), LAVA_DEEP)
+    m.box("lip_spill", (0.25, 22.5, 7.5), (1.0, 25.2, 8.5), LAVA_DEEP)
+    drip(m, 0.625, 22.5, big=True)
+    # spills down the front, over the rim
+    m.box("spill", (8.75, 23.25, 14.0), (9.75, 25.2, 14.3), LAVA_DEEP)
+    m.box("spill", (8.75, 20.75, 13.0), (9.75, 23.4, 13.3), LAVA_DEEP)
+    m.box("spill", (6.25, 24.0, 14.0), (7.0, 25.2, 14.3), EMBER)
+    m.box("spill", (6.25, 21.75, 13.0), (7.0, 23.4, 13.3), EMBER)
+    drip(m, 8, 18, z=C)
     return _held(m, "shovel")
 
 
@@ -404,7 +432,7 @@ def magma_hoe():
     m.box("edge", (-1.75, 19.75, 6.5), (-1, 22.75, 9.5), LAVA)
     m.group("flames")
     # tongues along the top edge, uneven: (x0, height)
-    for x0, h in ((-0.75, 2.75), (0.5, 1.5), (1.75, 3.5), (3.0, 2.0), (4.25, 3.0), (5.5, 1.75), (6.75, 2.5)):
+    for x0, h in ((-0.75, 4.0), (0.5, 2.25), (1.75, 5.0), (3.0, 3.0), (4.25, 4.5), (5.5, 2.5), (6.75, 3.5)):
         m.box("flame", (x0, 22.75 if x0 < 6.25 else 23, 7.25), (x0 + 1.25, 22.75 + h * 0.6, 8.75), LAVA_DEEP)
         m.box("flame_tip", (x0 + 0.25, 22.75 + h * 0.6, 7.5), (x0 + 1.0, 22.75 + h, 8.5), LAVA)
     m.box("flame_root", (-0.6, 22.75, 7), (6.2, 23.25, 9), EMBER)
@@ -424,7 +452,7 @@ def _rod(name, cast):
     m.group("whip")
     # the lash: braided segments thinning upwards, each a little off the last (a whip's sway), ember knots between
     segs = ((6.5, 11, 0.0, 1.25), (11, 15.5, 0.25, 1.125), (15.5, 20, 0.5, 1.0), (20, 24, 0.25, 0.875),
-            (24, 27.5, 0.0, 0.75), (27.5, 30, -0.25, 0.625))
+            (24, 26.5, 0.0, 0.75), (26.5, 28.5, -0.25, 0.625))
     for y0, y1, dx, hw in segs:
         m.box("lash", (C + dx - hw, y0, C - hw), (C + dx + hw, y1, C + hw), WHIP)
     for y0, y1, dx, hw in segs[1:]:
@@ -432,21 +460,23 @@ def _rod(name, cast):
     m.box("guide", (9.25, 17.5, 7.5), (10.25, 18.5, 8.5), IRON)
     m.box("guide", (8.75, 25.5, 7.625), (9.75, 26.5, 8.375), IRON)
     m.group("flame")
-    m.box("flame", (7.0, 30, 7.25), (8.5, 31, 8.75), LAVA_DEEP)
+    m.box("flame_base", (6.75, 28.5, 7.0), (8.75, 29.75, 9.0), EMBER)
+    m.box("flame", (7.0, 29.75, 7.25), (8.5, 31, 8.75), LAVA_DEEP)
     m.box("flame", (7.25, 31, 7.5), (8.25, 32, 8.5), LAVA)
-    m.box("flame_lick", (6.5, 30.25, 7.625), (7.0, 31.25, 8.375), EMBER)
-    m.box("flame_lick", (8.5, 30.5, 7.625), (9.0, 31.75, 8.375), EMBER)
+    m.box("flame_heart", (7.375, 29.25, 8.75), (8.125, 30.5, 9.05), WHITE_HOT)
+    m.box("flame_lick", (6.25, 29.25, 7.625), (6.75, 30.75, 8.375), EMBER)
+    m.box("flame_lick", (8.75, 29.5, 7.625), (9.25, 31.25, 8.375), LAVA_DEEP)
     if not cast:
         m.group("line")
-        top = (8, 30.75, C)
+        top = (7.75, 30.5, C)
         rot = ("z", 45, top)
-        m.box("line", (7.75, 19.75, 7.75), (8.25, 30.75, 8.25), LINE, rotation=rot)
+        m.box("line", (7.5, 19.75, 7.75), (8.0, 30.5, 8.25), LINE, rotation=rot)
         # a magma rock float on the line: an iron eye, cracked rock, a glowing band, an ember drop below
-        m.box("float_eye", (7.25, 19, 7.5), (8.75, 19.75, 8.5), IRON, rotation=rot)
-        m.box("float_top", (6.25, 17.5, 6.75), (9.75, 19, 9.25), ROCK_PLAIN, rotation=rot)
-        m.box("float_band", (6, 16.75, 6.5), (10, 17.5, 9.5), LAVA, rotation=rot)
-        m.box("float_bottom", (6.25, 15, 6.75), (9.75, 16.75, 9.25), ROCK_PLAIN, rotation=rot)
-        m.box("float_drop", (7.25, 14, 7.75), (8.75, 15, 8.25), EMBER, rotation=rot)
+        m.box("float_eye", (7, 19, 7.5), (8.5, 19.75, 8.5), IRON, rotation=rot)
+        m.box("float_top", (6, 17.5, 6.75), (9.5, 19, 9.25), ROCK_PLAIN, rotation=rot)
+        m.box("float_band", (5.75, 16.75, 6.5), (9.75, 17.5, 9.5), LAVA, rotation=rot)
+        m.box("float_bottom", (6, 15, 6.75), (9.5, 16.75, 9.25), ROCK_PLAIN, rotation=rot)
+        m.box("float_drop", (7, 14, 7.75), (8.5, 15, 8.25), EMBER, rotation=rot)
     return _held(m, "rod")
 
 
