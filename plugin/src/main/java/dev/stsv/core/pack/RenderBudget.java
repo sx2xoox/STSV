@@ -52,15 +52,22 @@ public final class RenderBudget {
     }
 
     /** Models allowed more than their kind's budget: model ("ns:name") -> {faces, why}. Empty is the goal. */
-    public static final Map<String, Object[]> EXCEPTIONS = Map.of(
+    public static final Map<String, Object[]> EXCEPTIONS = Map.ofEntries(
             // 특별 탈것 로데오 황소: the bull is the vehicle's real body (shown as its moving part; the stand under it, the
             // "body", is a plain mat): a vehicle body's budget, not a part's
-            "stsv:rodeo_bull_bull", new Object[]{Category.VEHICLE.faces, "로데오 황소의 황소 (움직이는 부품이지만 실제 몸체: 탈것 몸체 예산)"},
+            Map.entry("stsv:rodeo_bull_bull", new Object[]{Category.VEHICLE.faces, "로데오 황소의 황소 (움직이는 부품이지만 실제 몸체: 탈것 몸체 예산)"}),
             // 쇼케이스 팬텀 GT: 서버에 한 대뿐인 최고 디테일 차 (1블록 32픽셀, 곡면을 1픽셀 칸으로 깎음: 예산 없이)
-            "stsv:phantom_gt", new Object[]{40000, "쇼케이스 팬텀 GT 몸체 (예산 없음)"},
-            "stsv:phantom_gt_door_l", new Object[]{4000, "쇼케이스 팬텀 GT 문 (예산 없음)"},
-            "stsv:phantom_gt_door_r", new Object[]{4000, "쇼케이스 팬텀 GT 문 (예산 없음)"},
-            "stsv:wheel_phantom", new Object[]{2000, "쇼케이스 팬텀 GT 바퀴 (예산 없음)"});
+            Map.entry("stsv:phantom_gt", new Object[]{40000, "쇼케이스 팬텀 GT 몸체 (예산 없음)"}),
+            Map.entry("stsv:phantom_gt_door_l", new Object[]{4000, "쇼케이스 팬텀 GT 문 (예산 없음)"}),
+            Map.entry("stsv:phantom_gt_door_r", new Object[]{4000, "쇼케이스 팬텀 GT 문 (예산 없음)"}),
+            Map.entry("stsv:wheel_phantom", new Object[]{2000, "쇼케이스 팬텀 GT 바퀴 (예산 없음)"}),
+            Map.entry("stsv:dragon_sword", new Object[]{450, "후원 도구 스킨 청룡언월도 (손에 하나만 드는 도구)"}),
+            Map.entry("stsv:magma_sword", new Object[]{450, "후원 도구 스킨 화산 대검 (손에 하나만 드는 도구)"}),
+            Map.entry("stsv:frost_sword", new Object[]{450, "후원 도구 스킨 고드름 대검 (손에 하나만 드는 도구)"}),
+            Map.entry("stsv:galaxy_axe", new Object[]{450, "후원 도구 스킨 토성 도끼 (손에 하나만 드는 도구)"}),
+            Map.entry("stsv:galaxy_fishing_rod", new Object[]{450, "후원 도구 스킨 북두칠성 낚싯대 (손에 하나만 드는 도구)"}),
+            Map.entry("stsv:galaxy_fishing_rod_cast", new Object[]{450, "후원 도구 스킨 북두칠성 낚싯대 (던짐) (손에 하나만 드는 도구)"}),
+            Map.entry("stsv:magma_shovel", new Object[]{450, "후원 도구 스킨 마그마 국자 삽 (손에 하나만 드는 도구)"}));
 
     private RenderBudget() {}
 

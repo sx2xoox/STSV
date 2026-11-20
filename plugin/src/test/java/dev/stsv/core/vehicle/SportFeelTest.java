@@ -46,7 +46,8 @@ class SportFeelTest {
             YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("items/" + file).toFile());
             for (String id : y.getKeys(false)) {
                 ConfigurationSection s = y.getConfigurationSection(id + ".vehicle");
-                if (s == null || id.equals("sports_car") || id.equals("tuner_car") || id.equals("hyper_car") || id.equals("phantom_gt")) continue;   // the fast cars (쇼케이스 팬텀 GT too)
+                if (s == null || id.equals("sports_car") || id.equals("tuner_car") || id.equals("hyper_car") || id.equals("phantom_gt")
+                        || id.equals("classic_roadster") || id.equals("muscle_car") || id.equals("concept_ev")) continue;   // the fast cars (쇼케이스 팬텀 GT, 후원 차 3대 too)
                 VehicleSpec v = VehicleSpec.parse(s, "stsv", m -> true);
                 assertFalse(v.extras().overCap(), id);
                 assertTrue(v.acceleration() < car.acceleration(), id + " gets going slower than the sports car");

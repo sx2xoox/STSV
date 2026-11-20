@@ -318,9 +318,9 @@ class DonationTest {
             DonationShop.Product set = shop.products().get(series + "_set");
             assertEquals(own, Set.copyOf(set.items().stream().map(i -> i.substring(5)).toList()), series);
             assertEquals(100, set.price(), series + ": a set is 100 stars");
-            int alone = 0;
-            for (DonationShop.Product p : shop.products().values()) if (p.items().size() == 1 && own.contains(p.item().substring(5))) alone += p.price();
-            assertEquals(150, alone, series + ": its books alone come to 150 stars");
+            int single = 0;
+            for (DonationShop.Product p : shop.products().values()) if (p.items().size() == 1 && own.contains(p.item().substring(5))) single += p.price();
+            assertEquals(150, single, series + ": its books alone come to 150 stars");
             // a donation skin shines and does something: every book has effects
             for (String id : own) assertTrue(books.isConfigurationSection(id + ".skin.fx") || books.isConfigurationSection(id + ".skin") && books.contains(id + ".skin.fx"), id + ": no fx");
         }
@@ -339,7 +339,7 @@ class DonationTest {
             assertTrue(books.getBoolean(id + ".skin.return-on-remove"), id + ": the book comes back when the skin is taken off");
             assertFalse(books.getStringList(id + ".skin.applies-to").isEmpty());
         }
-        assertEquals(6, books.getKeys(false).size(), "the toy series: sword, pickaxe, shovel, axe, hoe, fishing rod");
+        assertEquals(36, books.getKeys(false).size(), "six donation series (toy and five sets): sword, pickaxe, shovel, axe, hoe, fishing rod");
         // the rod's skin brings a float of its own: a model the pack has, no larger than a block, standing over the game's float
         String floatModel = books.getString("toy_fishing_rod_skin.skin.bobber.model");
         assertEquals("stsv:toy_bobber", floatModel);

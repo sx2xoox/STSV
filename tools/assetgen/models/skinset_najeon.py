@@ -459,7 +459,7 @@ def najeon_axe():
     round_y(m, "shaft_cap", 6.5, 9.5, 6.5, 9.5, 25.5, 26.25, GOLD, 0.75)
     m.group("fan")
     x0, y0, x1, y1 = FAN_BOX
-    U = lambda x: round((x - x0) / (x1 - x0) * 16, 4)
+    U = lambda x: round(min(16, max(0, (x - x0) / (x1 - x0) * 16)), 4)   # the leaves run under the guard stick: last column there
     V = lambda y: round((y1 - y) / (y1 - y0) * 16, 4)
     cx, cy = FAN_C
     for a, b, hw in bands(2 * FAN_R):

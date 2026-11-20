@@ -71,7 +71,10 @@ class PackPipelineTest {
             // the rice cooker's warm lamp, the mosquito coil on the 평상, the phone's amber window, the street lamp's bulb
             "crt_tv", "arcade_machine", "yeontan_stove", "kerosene_stove", "dalgona_stand", "rice_cooker", "pyeongsang", "public_phone",
             "street_lamp",
-            "kart_storm", "kart_bubble", "kart_drifter", "kart_buffalo");   // 서킷 karts: head and tail lamps, the antenna ball, neon
+            "kart_storm", "kart_bubble", "kart_drifter", "kart_buffalo",    // 서킷 karts: head and tail lamps, the antenna ball, neon
+            "classic_roadster", "retro_camper", "sidecar_bike", "muscle_car", "concept_ev",   // 후원 차 5종: dash lamps, the camper's porch lamp, LED bars
+            // 후원 도구 스킨: every piece shines (jade eyes and pearls, stars, embers; the 장난감 series' lamps) — the gold ones never
+            "toy_sword", "toy_pickaxe", "toy_shovel", "toy_axe", "toy_hoe", "toy_fishing_rod", "toy_fishing_rod_cast", "toy_bobber", "dragon_sword", "dragon_pickaxe", "dragon_shovel", "dragon_axe", "dragon_hoe", "dragon_fishing_rod", "dragon_fishing_rod_cast", "dragon_bobber", "galaxy_sword", "galaxy_pickaxe", "galaxy_shovel", "galaxy_axe", "galaxy_hoe", "galaxy_fishing_rod", "galaxy_fishing_rod_cast", "galaxy_bobber", "magma_sword", "magma_pickaxe", "magma_shovel", "magma_axe", "magma_hoe", "magma_fishing_rod", "magma_fishing_rod_cast", "magma_bobber");
     private static final Set<String> ROTATED = Set.of("test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
@@ -118,7 +121,9 @@ class PackPipelineTest {
             // fenders, the sled's curled runners, bow and rope, the balloons' strings, the bull's tail
             // the duck and the bull: octagonal sections whose corners are boxes turned 45 degrees (smooth round forms), the
             // stand's lever
-            "kickboard", "skateboard", "banana_boat", "segway", "sled", "balloon_chair_balloons", "rodeo_bull_bull", "toy_duck", "rodeo_bull");
+            "kickboard", "skateboard", "banana_boat", "segway", "sled", "balloon_chair_balloons", "rodeo_bull_bull", "toy_duck", "rodeo_bull",
+            // 도구 스킨 세트: slanted blades, crossed straps, the rods' tilted reels and guides (22.5 or 45 degrees)
+            "camping_fishing_rod", "camping_pickaxe", "camping_shovel", "camping_sword", "candy_fishing_rod", "candy_pickaxe", "candy_shovel", "frost_fishing_rod", "frost_fishing_rod_cast", "frost_pickaxe", "frost_sword", "kitchen_fishing_rod", "kitchen_pickaxe", "kitchen_sword", "najeon_fishing_rod", "najeon_pickaxe", "pirate_axe", "pirate_fishing_rod", "pirate_hoe", "pirate_pickaxe", "pirate_shovel", "woodcraft_axe", "woodcraft_fishing_rod", "woodcraft_fishing_rod_cast", "woodcraft_hoe", "woodcraft_pickaxe", "woodcraft_shovel", "woodcraft_sword");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")
