@@ -103,10 +103,10 @@ toy_fishing_rod_skin:
 
 dragon_sword_skin:
   material: paper
-  name: "<#3fd0c0>스킨북: 청룡 검"
+  name: "<#3fd0c0>스킨북: 청룡언월도"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>검 스킨"
-    - "<gray>용수염 가드의 비취 청룡검"
+    - "<gray>용의 입에서 뻗은 언월도"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
@@ -120,10 +120,10 @@ dragon_sword_skin:
 
 dragon_pickaxe_skin:
   material: paper
-  name: "<#3fd0c0>스킨북: 청룡 곡괭이"
+  name: "<#3fd0c0>스킨북: 용 발톱"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
-    - "<gray>두 용발톱의 비취 곡괭이"
+    - "<gray>세 갈래 용 발톱 곡괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 곡괭이에 입히기"
@@ -137,10 +137,10 @@ dragon_pickaxe_skin:
 
 dragon_shovel_skin:
   material: paper
-  name: "<#3fd0c0>스킨북: 청룡 삽"
+  name: "<#3fd0c0>스킨북: 용 비늘 방패 삽"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>삽 스킨"
-    - "<gray>여의주 박힌 비늘 모양 삽"
+    - "<gray>용 비늘 방패 모양 삽"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
@@ -154,10 +154,10 @@ dragon_shovel_skin:
 
 dragon_axe_skin:
   material: paper
-  name: "<#3fd0c0>스킨북: 청룡 도끼"
+  name: "<#3fd0c0>스킨북: 용머리 도끼"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
-    - "<gray>용 지느러미 날의 도끼"
+    - "<gray>용의 입에서 나온 도끼날"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 도끼에 입히기"
@@ -171,10 +171,10 @@ dragon_axe_skin:
 
 dragon_hoe_skin:
   material: paper
-  name: "<#3fd0c0>스킨북: 청룡 괭이"
+  name: "<#3fd0c0>스킨북: 여의주 지팡이"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>여의주 박힌 곧은 비취 괭이"
+    - "<gray>여의주를 문 청룡 지팡이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
@@ -188,10 +188,10 @@ dragon_hoe_skin:
 
 dragon_fishing_rod_skin:
   material: paper
-  name: "<#3fd0c0>스킨북: 청룡 낚싯대"
+  name: "<#3fd0c0>스킨북: 용 수염 낚싯대"
   lore:
     - "<gold>후원 · 청룡 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
-    - "<gray>용머리 끝의 비취 낚싯대"
+    - "<gray>긴 용 수염의 낚싯대"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 낚싯대에 입히기"
@@ -208,10 +208,10 @@ dragon_fishing_rod_skin:
 
 galaxy_sword_skin:
   material: paper
-  name: "<#9b8cff>스킨북: 은하수 검"
+  name: "<#9b8cff>스킨북: 별빛 광선검"
   lore:
     - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>검 스킨"
-    - "<gray>초승달 가드의 별빛 수정 검"
+    - "<gray>초승달에서 뻗은 빛의 장검"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
@@ -225,10 +225,10 @@ galaxy_sword_skin:
 
 galaxy_pickaxe_skin:
   material: paper
-  name: "<#9b8cff>스킨북: 은하수 곡괭이"
+  name: "<#9b8cff>스킨북: 혜성 곡괭이"
   lore:
     - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
-    - "<gray>별 끝이 빛나는 수정 곡괭이"
+    - "<gray>두 꼬리를 늘어뜨린 혜성"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 곡괭이에 입히기"
@@ -242,10 +242,10 @@ galaxy_pickaxe_skin:
 
 galaxy_shovel_skin:
   material: paper
-  name: "<#9b8cff>스킨북: 은하수 삽"
+  name: "<#9b8cff>스킨북: 초승달 삽"
   lore:
     - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>삽 스킨"
-    - "<gray>별자리가 새겨진 수정 삽"
+    - "<gray>별을 품은 초승달 국자"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
@@ -259,10 +259,10 @@ galaxy_shovel_skin:
 
 galaxy_axe_skin:
   material: paper
-  name: "<#9b8cff>스킨북: 은하수 도끼"
+  name: "<#9b8cff>스킨북: 토성 도끼"
   lore:
     - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
-    - "<gray>초승달 모양의 수정 도끼"
+    - "<gray>고리가 날이 된 토성"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 도끼에 입히기"
@@ -276,10 +276,10 @@ galaxy_axe_skin:
 
 galaxy_hoe_skin:
   material: paper
-  name: "<#9b8cff>스킨북: 은하수 괭이"
+  name: "<#9b8cff>스킨북: 별자리 지팡이"
   lore:
     - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>곧은 별빛 수정 날의 괭이"
+    - "<gray>별을 이은 곧은 별자리"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
@@ -293,10 +293,10 @@ galaxy_hoe_skin:
 
 galaxy_fishing_rod_skin:
   material: paper
-  name: "<#9b8cff>스킨북: 은하수 낚싯대"
+  name: "<#9b8cff>스킨북: 북두칠성 낚싯대"
   lore:
     - "<gold>후원 · 은하수 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
-    - "<gray>별 고리와 초승달 낚싯대"
+    - "<gray>일곱 별이 오르는 밤하늘 대"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 낚싯대에 입히기"
@@ -306,17 +306,17 @@ galaxy_fishing_rod_skin:
     model: "stsv:galaxy_fishing_rod"
     applies-to: ["minecraft:fishing_rod"]
     return-on-remove: true
-    bobber: { model: "stsv:galaxy_bobber", scale: 0.9, lift: -0.05 }
+    bobber: { model: "stsv:galaxy_bobber", scale: 0.9, lift: -0.025 }
     fx: { held: dust, colors: ["#9b8cff", "#ffffff", "#7fe0ff"], use: end_rod, sound: "entity.experience_orb.pickup", pitch: 1.9 }
 
 # 자개 시리즈
 
 najeon_sword_skin:
   material: paper
-  name: "<#f0c4e4>스킨북: 자개 검"
+  name: "<#f0c4e4>스킨북: 자개 사인검"
   lore:
     - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>검 스킨"
-    - "<gray>옥빛 결의 자개 장식 검"
+    - "<gray>별자리 금입사 장검"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
@@ -330,10 +330,10 @@ najeon_sword_skin:
 
 najeon_pickaxe_skin:
   material: paper
-  name: "<#f0c4e4>스킨북: 자개 곡괭이"
+  name: "<#f0c4e4>스킨북: 자개 비녀 곡괭이"
   lore:
     - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
-    - "<gray>매화 자개를 박은 곡괭이"
+    - "<gray>옥비녀 두 개를 단 곡괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 곡괭이에 입히기"
@@ -347,10 +347,10 @@ najeon_pickaxe_skin:
 
 najeon_shovel_skin:
   material: paper
-  name: "<#f0c4e4>스킨북: 자개 삽"
+  name: "<#f0c4e4>스킨북: 자개 노 삽"
   lore:
     - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>삽 스킨"
-    - "<gray>주칠에 매화 자개를 박은 삽"
+    - "<gray>주칠 나룻배 노 삽"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
@@ -364,10 +364,10 @@ najeon_shovel_skin:
 
 najeon_axe_skin:
   material: paper
-  name: "<#f0c4e4>스킨북: 자개 도끼"
+  name: "<#f0c4e4>스킨북: 자개 합죽선 도끼"
   lore:
     - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
-    - "<gray>매화 가지 자개를 새긴 도끼"
+    - "<gray>활짝 편 매화 합죽선 도끼"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 도끼에 입히기"
@@ -381,10 +381,10 @@ najeon_axe_skin:
 
 najeon_hoe_skin:
   material: paper
-  name: "<#f0c4e4>스킨북: 자개 괭이"
+  name: "<#f0c4e4>스킨북: 자개 붓 괭이"
   lore:
     - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>옥날을 단 자개 괭이"
+    - "<gray>먹을 머금은 큰 붓 괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
@@ -398,10 +398,10 @@ najeon_hoe_skin:
 
 najeon_fishing_rod_skin:
   material: paper
-  name: "<#f0c4e4>스킨북: 자개 낚싯대"
+  name: "<#f0c4e4>스킨북: 자개 퉁소 낚싯대"
   lore:
     - "<gold>후원 · 자개 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
-    - "<gray>자개 박 찌가 뜨는 낚싯대"
+    - "<gray>자개 박 찌를 단 퉁소 낚싯대"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 낚싯대에 입히기"
@@ -418,10 +418,10 @@ najeon_fishing_rod_skin:
 
 frost_sword_skin:
   material: paper
-  name: "<#7fd8ff>스킨북: 서리 수정 검"
+  name: "<#7fd8ff>스킨북: 고드름 대검"
   lore:
     - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>검 스킨"
-    - "<gray>수정 결정이 돋은 얼음 검"
+    - "<gray>거대한 고드름 날의 대검"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
@@ -435,10 +435,10 @@ frost_sword_skin:
 
 frost_pickaxe_skin:
   material: paper
-  name: "<#7fd8ff>스킨북: 서리 수정 곡괭이"
+  name: "<#7fd8ff>스킨북: 눈송이 곡괭이"
   lore:
     - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
-    - "<gray>휘어진 얼음 날의 곡괭이"
+    - "<gray>눈송이 가지 날의 곡괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 곡괭이에 입히기"
@@ -452,10 +452,10 @@ frost_pickaxe_skin:
 
 frost_shovel_skin:
   material: paper
-  name: "<#7fd8ff>스킨북: 서리 수정 삽"
+  name: "<#7fd8ff>스킨북: 눈썰매 삽"
   lore:
     - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>삽 스킨"
-    - "<gray>고드름 달린 얼음 삽"
+    - "<gray>작은 눈썰매 모양의 삽"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
@@ -469,10 +469,10 @@ frost_shovel_skin:
 
 frost_axe_skin:
   material: paper
-  name: "<#7fd8ff>스킨북: 서리 수정 도끼"
+  name: "<#7fd8ff>스킨북: 빙하 도끼"
   lore:
     - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
-    - "<gray>넓은 수정 날의 얼음 도끼"
+    - "<gray>거친 빙하 덩이의 도끼"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 도끼에 입히기"
@@ -486,10 +486,10 @@ frost_axe_skin:
 
 frost_hoe_skin:
   material: paper
-  name: "<#7fd8ff>스킨북: 서리 수정 괭이"
+  name: "<#7fd8ff>스킨북: 스케이트날 괭이"
   lore:
     - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>서리 맺힌 얼음 날 괭이"
+    - "<gray>스케이트 날을 단 괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
@@ -503,10 +503,10 @@ frost_hoe_skin:
 
 frost_fishing_rod_skin:
   material: paper
-  name: "<#7fd8ff>스킨북: 서리 수정 낚싯대"
+  name: "<#7fd8ff>스킨북: 얼음낚시 대"
   lore:
     - "<gold>후원 · 서리 수정 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
-    - "<gray>수정 끝의 가는 얼음 낚싯대"
+    - "<gray>얼음구멍 장식 낚싯대"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 낚싯대에 입히기"
@@ -523,10 +523,10 @@ frost_fishing_rod_skin:
 
 magma_sword_skin:
   material: paper
-  name: "<#ff7a1f>스킨북: 용암 검"
+  name: "<#ff7a1f>스킨북: 화산 대검"
   lore:
     - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>검 스킨"
-    - "<gray>용암이 갈라져 흐르는 흑요석 검"
+    - "<gray>용암이 갈라진 톱날 대검"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 검에 입히기"
@@ -540,10 +540,10 @@ magma_sword_skin:
 
 magma_pickaxe_skin:
   material: paper
-  name: "<#ff7a1f>스킨북: 용암 곡괭이"
+  name: "<#ff7a1f>스킨북: 분화구 곡괭이"
   lore:
     - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>곡괭이 스킨"
-    - "<gray>불씨 끝을 단 흑요석 곡괭이"
+    - "<gray>연기 뿜는 화산 곡괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 곡괭이에 입히기"
@@ -557,10 +557,10 @@ magma_pickaxe_skin:
 
 magma_shovel_skin:
   material: paper
-  name: "<#ff7a1f>스킨북: 용암 삽"
+  name: "<#ff7a1f>스킨북: 마그마 국자 삽"
   lore:
     - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>삽 스킨"
-    - "<gray>용암 균열이 빛나는 흑요석 삽"
+    - "<gray>끓는 마그마를 퍼 담는 국자"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 삽에 입히기"
@@ -574,10 +574,10 @@ magma_shovel_skin:
 
 magma_axe_skin:
   material: paper
-  name: "<#ff7a1f>스킨북: 용암 도끼"
+  name: "<#ff7a1f>스킨북: 불새 날개 도끼"
   lore:
     - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>도끼 스킨"
-    - "<gray>녹은 날이 이글거리는 도끼"
+    - "<gray>불꽃 깃털이 타오르는 도끼"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 도끼에 입히기"
@@ -591,10 +591,10 @@ magma_axe_skin:
 
 magma_hoe_skin:
   material: paper
-  name: "<#ff7a1f>스킨북: 용암 괭이"
+  name: "<#ff7a1f>스킨북: 화염 괭이"
   lore:
     - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>괭이 스킨"
-    - "<gray>용암 날을 두른 흑요석 괭이"
+    - "<gray>불길이 솟는 흑요석 괭이"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 괭이에 입히기"
@@ -608,10 +608,10 @@ magma_hoe_skin:
 
 magma_fishing_rod_skin:
   material: paper
-  name: "<#ff7a1f>스킨북: 용암 낚싯대"
+  name: "<#ff7a1f>스킨북: 불꽃 채찍 낚싯대"
   lore:
     - "<gold>후원 · 용암 시리즈</gold> <dark_gray>· <gray>낚싯대 스킨"
-    - "<gray>불씨 끝의 검은 용암 낚싯대"
+    - "<gray>끝에 불꽃이 이는 채찍 낚싯대"
     - "<light_purple>✦ 들고 있으면 빛나고, 쓸 때 효과"
     - "<gray>겉모습만 바뀜 · 떼기: /스킨 해제"
     - "<yellow>우클릭: 낚싯대에 입히기"
