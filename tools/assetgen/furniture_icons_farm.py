@@ -24,10 +24,10 @@ SCARECROW = ["......HHHH......",
              ".....bbbbFbh....",
              "....HHHHHHHHHHh.",
              ".HHHHHHKKKKk....",
-             "....KKEKKEKk....",
-             "....KPKKKKPk....",
-             "....KMKKKKMk....",
-             ".....KMMMMk.....",
+             "....KEKKKKEk....",
+             "....KEKKKKEk....",
+             "....PKKMMKKP....",
+             "..Y..KKKKKk.....",
              "..rRRRRSSRRRRr..",
              "SsRrRRRRRRRRrRsS",
              ".SRRrDDRRRRrRRS.",
@@ -39,7 +39,7 @@ PIXELS = {  # char: (material, step, layer)
     "H": ("straw", 4, 9), "h": ("straw", 3, 9), "b": ("denim", 3, 9), "F": ("gold", 4, 9),
     "K": ("burlap", 4, 5), "k": ("burlap", 3, 5), "E": ("rubber", 1, 6), "P": ("pink", 3, 6), "M": ("wood_dark", 1, 6),
     "R": ("fabric_red", 3, 3), "r": ("fabric_red", 2, 3), "D": ("denim", 4, 4), "L": ("bean", 4, 4),
-    "S": ("straw", 4, 2), "s": ("straw", 3, 2), "W": ("wood", 3, 1), "w": ("wood", 2, 1),
+    "S": ("straw", 4, 2), "s": ("straw", 3, 2), "W": ("wood", 3, 1), "Y": ("gold", 4, 7), "w": ("wood", 2, 1),
 }
 
 

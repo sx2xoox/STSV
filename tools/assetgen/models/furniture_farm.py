@@ -165,12 +165,12 @@ def scarecrow():
     # the face (column 0 at the viewer's left, x 12..13; rows from y 26 down): S thread, T a stitch across it,
     # P a rosy cheek (the eyes are buttons standing out of it)
     face = ["..........",   # y 26
-            "..........",   # y 25  eyes (buttons)
+            "..........",   # y 25  eyes (buttons, set low and wide: a baby face)
             "..........",   # y 24  eyes
-            ".P......P.",   # y 23
-            "..........",   # y 22
-            ".S.T..T.S.",   # y 21  the smile's ends turned up, a stitch across it each side
-            "..SSSSSS..",   # y 20
+            "..........",   # y 23  eyes
+            "...S.S....",   # y 22  a small sewn smile
+            ".PP.S..PP.",   # y 21  rosy cheeks under the eyes
+            "..........",   # y 20
             ]
     art = {(12 - col, 26 - row): ch for row, line in enumerate(face) for col, ch in enumerate(line) if ch != "."}
 
@@ -195,8 +195,8 @@ def scarecrow():
         if c.face == "north" and c.u == 0 and c.v == 0:
             return ("porcelain", 2)
         return None
-    for x in (9, 5):
-        m.box("eye", (x, 24, 2.5), (x + 2, 26, 3), Paint("rubber", 1, noise=0, decal=glint, ao=0, rim=0))
+    for x in (10, 4):
+        m.box("eye", (x, 22, 2.5), (x + 2, 25, 3), Paint("rubber", 1, noise=0, decal=glint, ao=0, rim=0))
 
     # --- the straw hat, cocked to one side ------------------------------------------------------------
     m.group("hat")
@@ -218,6 +218,15 @@ def scarecrow():
     # a little sunflower tucked in the band, on its front
     rbox(m, "flower", (9, 28.25, 2.5), (11.5, 30.25, 3), flat("gold", 1, ao=0), rot)
     rbox(m, "flower_eye", (9.75, 28.75, 2.25), (10.75, 29.75, 2.5), flat("fox", 1, ao=0), rot)
+    # --- a chick perched on the left sleeve --------------------------------------------------------
+    m.group("chick")
+    chick = flat("gold", 2, rim=0.6)
+    m.box("chick", (14.75, 18, 6.75), (17.25, 20, 9.25), chick)
+    m.box("chick_head", (15.25, 20, 7.25), (16.75, 21.5, 8.75), chick)
+    m.box("chick_wing", (17.25, 18.5, 7.25), (17.5, 19.5, 8.75), flat("gold", 1, ao=0))
+    m.box("chick_beak", (15.75, 20.5, 6.75), (16.25, 21, 7.25), flat("fox", 1, ao=0, rim=0))
+    for x in (15.25, 16.5):
+        m.box("chick_eye", (x, 20.75, 7.1), (x + 0.25, 21.1, 7.25), flat("rubber", 1, ao=0, rim=0))
     return display(m, (1, 2, 1), 0)
 
 
