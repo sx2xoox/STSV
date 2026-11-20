@@ -773,11 +773,11 @@ concept_ev:
 # 패밀리카답게 느긋함 (9블록/초, 드리프트 없음). 모델: tools/assetgen/models/vehicles_donation_sushi_carnival.py
 sushi_carnival:
   material: paper
-  name: "<gradient:#ff8a4c:#fff4e6:#2f4a3a>초밥 카니발"
+  name: "<gradient:#f4f6f8:#3a3f46>초밥 카니발"
   lore:
     - "<gold>후원 한정</gold> <gray>· 7인승 가족 미니밴 + 지붕 루프박스"
     - "<white>9블록/초 <gray>· 느긋함 · 짐칸 없음"
-    - "<dark_gray>양쪽 미닫이 문 · 지붕엔 거대한 연어 초밥"
+    - "<dark_gray>양쪽 미닫이 문 · 지붕엔 길쭉한 루프박스"
     - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
     - "<dark_gray>스페이스: 경적"
     - "<yellow>우클릭: 세우기 · 타기"
