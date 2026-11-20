@@ -859,5 +859,40 @@
         "name": "stsv:vehicle/sidecar_bike_engine_stop"
       }
     ]
+  },
+  "vehicle.sushi_carnival.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sushi_carnival_horn"
+      }
+    ]
+  },
+  "vehicle.sushi_carnival.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sushi_carnival_horn_end"
+      }
+    ]
+  },
+  "vehicle.sushi_carnival.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sushi_carnival_engine"
+      }
+    ]
+  },
+  "vehicle.sushi_carnival.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sushi_carnival_engine_start"
+      }
+    ]
+  },
+  "vehicle.sushi_carnival.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/sushi_carnival_engine_stop"
+      }
+    ]
   }
 }

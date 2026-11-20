@@ -1,6 +1,6 @@
 """
-The five donation cars' own sounds (content/stsv/items/vehicles.yml classic_roadster, retro_camper, sidecar_bike,
-muscle_car, concept_ev), synthesized like sounds.py (numpy, original, nothing sampled) and written by it (sounds.py
+The donation cars' own sounds (content/stsv/items/vehicles.yml classic_roadster, retro_camper, sidecar_bike,
+muscle_car, concept_ev, sushi_carnival), synthesized like sounds.py (numpy, original, nothing sampled) and written by it (sounds.py
 EXTRA). Until now they borrowed other vehicles' horns, hums and starts; each gets its own here:
 
   <v>_horn, <v>_horn_end        the horn held (sounds.py horn_hold: HORN_HOLD s) and its release tail
@@ -13,11 +13,15 @@ EXTRA). Until now they borrowed other vehicles' horns, hums and starts; each get
 Characters:
   muscle_car        a big American V8: a deep lumpy burble (the cross-plane firing order: the exhaust pulses of each
                     bank come unevenly, so the beat swings in a two-revolution pattern), heavy low end, a hard rasp
-                    on the throttle; the loudest of the five. Horn: a loud, low two-tone blare.
+                    on the throttle; the loudest of them. Horn: a loud, low two-tone blare.
   concept_ev        an electric car: no combustion at all. A soft, smooth hum (a gentle sine on 240 Hz at pitch 1 with
                     a faint motor harmonic and a breath of air), every partial kept low (nothing piercing even flat
                     out); much quieter than the rest. Start: a soft two-note chime "띵-" and the hum swelling in;
                     stop: the hum powering down. Horn: a soft modern two-tone beep.
+  sushi_carnival    a big seven-seat family minivan: a smooth, quiet modern V6, soft and even with a little hum under
+                    it, never rough (no rasp, no lope); medium-low, between the roadster and the EV. Start: a short
+                    smooth starter whirr settling straight into the idle; stop: a gentle wind-down. Horn: a friendly
+                    mid-pitch two-tone, a major third.
   retro_camper      a small air-cooled flat-four: a rattly, buzzy "달달달", thin and a little tinny (the tin cooling
                     shroud), modest. Horn: a cheerful old "빠-빵" (two reedy blasts, a fourth apart).
   classic_roadster  a smooth inline six: an even, sweet purr, a touch of sporty edge, medium. Horn: a classic mellow
@@ -38,15 +42,16 @@ import sounds_feel as F
 SR = S.SR
 FADE = S.ENGINE_FADE
 
-CARS = ("muscle_car", "concept_ev", "retro_camper", "classic_roadster", "sidecar_bike")
+CARS = ("muscle_car", "concept_ev", "retro_camper", "classic_roadster", "sidecar_bike", "sushi_carnival")
 NAMES = [(v, k) for v in CARS for k in ("horn", "horn_end", "engine", "engine_start", "engine_stop")]
 
 # the idle pitch each hum is played at (vehicles.yml engine.idle-pitch): the start ends on, the stop begins from, it
-IDLE_PITCH = {"muscle_car": 0.5, "concept_ev": 0.7, "retro_camper": 0.6, "classic_roadster": 0.6, "sidecar_bike": 0.5}
+IDLE_PITCH = {"muscle_car": 0.5, "concept_ev": 0.7, "retro_camper": 0.6, "classic_roadster": 0.6, "sidecar_bike": 0.5,
+              "sushi_carnival": 0.6}
 
 # loudness of the files (RMS, dBFS; peaks kept under 0.95): the other cars' hums sit at -12 .. -15 dB
 ENGINE_RMS_DB = {"muscle_car": -11.5, "concept_ev": -21.0, "retro_camper": -14.5, "classic_roadster": -14.0,
-                 "sidecar_bike": -13.0}
+                 "sidecar_bike": -13.0, "sushi_carnival": -17.0}
 
 
 def _rms(x):
@@ -161,6 +166,26 @@ def roadster_body(t, scale, rng):
     return tone + 0.45 * purr + 0.12 * rasp
 
 
+def minivan_body(t, scale, rng):
+    """Smooth modern V6, 54 Hz firing at pitch 1 (32 Hz idling at 0.6): an even row of harmonics that falls away
+    quickly (no lope: it fires evenly, and a quiet muffler takes the edge off), each breathing only a little; a soft
+    hum of narrow resonances on its second to fourth harmonics under it and a quiet breath of intake air. Nothing
+    over ~1.2 kHz, no rasp."""
+    n = len(t)
+    f = 54.0 * scale * (1 + 0.004 * S.smooth_noise(rng, n, 2.0))
+    ph = _phase(rng, f)
+    tone = np.zeros(n)
+    for k, level in enumerate((0.75, 0.8, 0.55, 0.3, 0.17, 0.09, 0.05, 0.03), start=1):
+        wob = 0.012 * S.smooth_noise(rng, n, 3.0)
+        tone += level * (1 + 0.07 * S.smooth_noise(rng, n, 5.0)) * np.sin(k * ph + wob)
+    tone = S.eq(tone, lambda fr: S.lowpass(fr, 1100, 2) * S.highpass(fr, 28, 2))
+    tone /= _rms(tone)
+    hum = S.resonant_noise(rng, n, [(108.0, 6.0, 1.0), (162.0, 7.0, 0.7), (216.0, 8.0, 0.3)], floor=0.08)
+    hum /= _rms(hum)
+    air = S.eq(rng.standard_normal(n), lambda fr: S.lowpass(fr, 1200, 2) * S.highpass(fr, 220, 2))
+    return tone + 0.4 * hum + 0.07 * air / _rms(air)
+
+
 # the twin: cycles (two firings each) per ENGINE_PERIOD, so 16 a second at pitch 1 (8 idling at 0.5)
 TWIN_CYCLES = 8
 TWIN_GAP = 0.34             # the second firing this far into the cycle: "투-둥", then the longer gap
@@ -230,12 +255,12 @@ def sidecar_run(t, scale, rng):
 
 
 BODIES = {"muscle_car": muscle_body, "concept_ev": ev_body, "retro_camper": camper_body,
-          "classic_roadster": roadster_body}
+          "classic_roadster": roadster_body, "sushi_carnival": minivan_body}
 
 
 def engine(v):
     """The hum's segment, levelled."""
-    seeds = {"muscle_car": 81, "concept_ev": 82, "retro_camper": 83, "classic_roadster": 84}
+    seeds = {"muscle_car": 81, "concept_ev": 82, "retro_camper": 83, "classic_roadster": 84, "sushi_carnival": 86}
     if v == "sidecar_bike":
         x = sidecar_segment()
     else:
@@ -249,7 +274,8 @@ def engine(v):
 # ----------------------------------------------------------------------------------------------
 
 # per car: the starter (cranking rate, seconds, whine Hz), the run's rate over the start (relative to idle, a function
-# of seconds since it caught), the start's and the stop's length (start = vehicle_feel.yml engine-start.ticks/20 + FADE)
+# of seconds since it caught), the start's and the stop's length (start = vehicle_feel.yml engine-start.ticks/20 + FADE),
+# and the stop's last soft thud (as it settles; 0.7 unless given)
 STARTS = {
     # a heavy starter, then a big bark of revs, a second blip, and the lumpy idle
     "muscle_car": dict(crank=(7.5, 0.55, 190.0), start=1.3 + FADE, stop=0.85, seed=101,
@@ -263,6 +289,9 @@ STARTS = {
     # a short starter, then the twin catches and blips
     "sidecar_bike": dict(crank=(13.0, 0.28, 300.0), start=0.9 + FADE, stop=0.6, seed=105,
                          rev=lambda r: 1 + 1.1 * (r / 0.12) * np.exp(1 - r / 0.12)),
+    # a short smooth starter whirr, it catches at once and eases up into the idle with hardly a rise; a gentle stop
+    "sushi_carnival": dict(crank=(12.5, 0.3, 250.0), start=0.8 + FADE, stop=0.8, seed=106, thud=0.18,
+                           rev=lambda r: 1 + 0.35 * (r / 0.2) * np.exp(1 - r / 0.2)),
 }
 
 
@@ -310,7 +339,7 @@ def stop_clip(v):
     env = (1 - k) ** 1.5 * np.clip(t / 0.01, 0, 1)
     thud_t = np.clip(t - length * 0.72, 0, None)
     thud = np.sin(2 * np.pi * 46 * thud_t) * np.exp(-thud_t / 0.06) * (t >= length * 0.72)
-    x = run * env + 0.7 * thud
+    x = run * env + e.get("thud", 0.7) * thud
     x *= np.clip((length - t) / 0.03, 0, 1)
     return F._finish(x, 0.75 if v == "muscle_car" else 0.7)
 
@@ -369,6 +398,8 @@ HORNS = {
     "concept_ev": dict(tones=(523.3, 659.3), rolloff=2.6, drive=1.0, formant=(1100.0, 500.0, 0.25), top=2800, seed=112),
     # a classic mellow two-tone: round, a little buzz
     "classic_roadster": dict(tones=(370.0, 466.2), rolloff=1.35, drive=1.5, formant=(1600.0, 700.0, 1.0), top=4800, seed=114),
+    # a friendly family-car two-tone: mid-pitch, a bright major third (G4 + B4), smooth with a light buzz
+    "sushi_carnival": dict(tones=(392.0, 493.9), rolloff=1.2, drive=1.7, formant=(2000.0, 800.0, 1.1), top=5600, seed=117),
 }
 # the bulb-like "빠-빵": a reedy, nasal low note then a fourth up
 CAMPER_HORN = (dict(tones=(392.0,), rolloff=0.75, drive=2.0, formant=(1150.0, 450.0, 2.0), top=4500, seed=113),
