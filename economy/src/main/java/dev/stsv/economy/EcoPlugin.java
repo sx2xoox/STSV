@@ -125,6 +125,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(traps = new dev.stsv.economy.fishing.TrapModule(this));   // after fishing: it reads the fish
         add(codex = new dev.stsv.economy.codex.CodexModule(this));
         add(accessories = new dev.stsv.economy.accessory.AccessoryModule(this));
+        add(new dev.stsv.economy.skin.SkinBoxModule(this));
         add(docks = new dev.stsv.economy.dock.DockModule(this));   // after the shop, machines and land: it reads them
         add(roads = new dev.stsv.economy.road.RoadModule(this));
         add(bus = new dev.stsv.economy.bus.BusModule(this));   // after the roads: its stops stand on them

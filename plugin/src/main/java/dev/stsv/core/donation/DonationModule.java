@@ -333,10 +333,19 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                 return out;
             }
             Category c = shop.categories().get(tab);
+            // a "|" in the tab's list starts a new row: the rest of the row before it stays empty (null in shown)
             List<Product> products = new ArrayList<>();
-            for (String pid : c == null ? List.<String>of() : c.products()) products.add(shop.products().get(pid));
+            List<String> ids = c == null ? List.of() : c.products();
+            for (int i = 0; i < ids.size(); i++) {
+                if (c.rows().contains(i)) while (products.size() % 9 != 0) products.add(null);
+                products.add(shop.products().get(ids.get(i)));
+            }
             shown = products;
             for (Product product : products) {
+                if (product == null) {
+                    out.add(null);
+                    continue;
+                }
                 boolean owned = has(p, product, books.owned()), affords = DonationShop.affords(books.account().balance(), product);
                 out.add(tile(p, product, Lang.items(owned ? "donation.tile-lore-owned" : affords ? "donation.tile-lore" : "donation.tile-lore-short",
                         "price", shop.amount(product.price()), "short", shop.amount(Math.max(0, product.price() - books.account().balance())))));
@@ -349,6 +358,7 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
             Player p = view.player();
             if (index < 0 || index >= shown.size()) return;
             Product product = shown.get(index);
+            if (product == null) return;   // an empty slot at a row's end
             if (has(p, product, books.owned()) || !DonationShop.affords(books.account().balance(), product)) {
                 p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f, 0.8f);
                 return;

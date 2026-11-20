@@ -52,7 +52,12 @@ categories:
   tool_skins:
     name: "스킨북"
     icon: "stsv:toy_pickaxe"
-    products: [dragon_set, dragon_sword, dragon_pickaxe, dragon_shovel, dragon_axe, dragon_hoe, dragon_fishing_rod, galaxy_set, galaxy_sword, galaxy_pickaxe, galaxy_shovel, galaxy_axe, galaxy_hoe, galaxy_fishing_rod, najeon_set, najeon_sword, najeon_pickaxe, najeon_shovel, najeon_axe, najeon_hoe, najeon_fishing_rod, frost_set, frost_sword, frost_pickaxe, frost_shovel, frost_axe, frost_hoe, frost_fishing_rod, magma_set, magma_sword, magma_pickaxe, magma_shovel, magma_axe, magma_hoe, magma_fishing_rod,
+    # "|" = 새 줄: 시리즈마다 한 줄 (세트 · 검 · 곡괭이 · 삽 · 도끼 · 괭이 · 낚싯대, 남는 칸은 빈칸)
+    products: [dragon_set, dragon_sword, dragon_pickaxe, dragon_shovel, dragon_axe, dragon_hoe, dragon_fishing_rod, "|",
+               galaxy_set, galaxy_sword, galaxy_pickaxe, galaxy_shovel, galaxy_axe, galaxy_hoe, galaxy_fishing_rod, "|",
+               najeon_set, najeon_sword, najeon_pickaxe, najeon_shovel, najeon_axe, najeon_hoe, najeon_fishing_rod, "|",
+               frost_set, frost_sword, frost_pickaxe, frost_shovel, frost_axe, frost_hoe, frost_fishing_rod, "|",
+               magma_set, magma_sword, magma_pickaxe, magma_shovel, magma_axe, magma_hoe, magma_fishing_rod, "|",
                toy_set, toy_sword, toy_pickaxe, toy_shovel, toy_axe, toy_hoe, toy_fishing_rod]
   sets:
     name: "후원 치장 세트"

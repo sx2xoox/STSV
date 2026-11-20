@@ -41,7 +41,15 @@ public record DonationShop(String currency, String symbol, List<String> notice, 
                           List<String> commands, List<String> unlocks, String icon) {}
 
     /** @param icon the tab's icon: an item model of the pack or a material; may be null */
-    public record Category(String id, String name, List<String> products, String icon) {}
+    /**
+     * A tab of the shop. {@code rows}: where a new row starts in the menu (the product's index in {@code products}),
+     * from a {@code "|"} between products in the file: the menu leaves the rest of the row before it empty.
+     */
+    public record Category(String id, String name, List<String> products, String icon, List<Integer> rows) {
+        public Category(String id, String name, List<String> products, String icon) {
+            this(id, name, products, icon, List.of());
+        }
+    }
 
     /** "300★" */
     /** The cosmetics a product's commands give (관리자 치장 지급 {player} <id>), as namespaced ids. */
@@ -137,12 +145,15 @@ public record DonationShop(String currency, String symbol, List<String> notice, 
                 continue;
             }
             List<String> in = new ArrayList<>();
+            List<Integer> rows = new ArrayList<>();
             for (String product : c.getStringList("products")) {
-                if (!products.containsKey(product)) problems.accept("categories." + id + ": 모르는 상품 " + product);
+                if (product.equals("|")) {
+                    if (!in.isEmpty() && !rows.contains(in.size())) rows.add(in.size());
+                } else if (!products.containsKey(product)) problems.accept("categories." + id + ": 모르는 상품 " + product);
                 else if (!placed.add(product)) problems.accept("categories." + id + ": " + product + " 는 이미 다른 분류에 있음");
                 else in.add(product);
             }
-            if (!in.isEmpty()) categories.put(id, new Category(id, c.getString("name", id), List.copyOf(in), c.getString("icon")));
+            if (!in.isEmpty()) categories.put(id, new Category(id, c.getString("name", id), List.copyOf(in), c.getString("icon"), List.copyOf(rows)));
         }
         for (String id : products.keySet()) if (!placed.contains(id)) problems.accept("products." + id + ": 어느 분류에도 없어 상점에 보이지 않음");
         return new DonationShop(currency, symbol, List.copyOf(file.getStringList("notice")), Collections.unmodifiableMap(categories),

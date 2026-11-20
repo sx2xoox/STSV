@@ -1,4 +1,4 @@
-# 골드 스킨북: 경제 상점 (economy shop.yml 의 '도구 스킨' 분류) 에서 골드로 삼. 쓰는 법은 skin_books.yml 과 같음.
+# 골드 스킨북: 경제 상점 '도구' 분류의 골드 스킨북 상자 (economy skin_box.yml) 에서 한 권씩 나옴. 쓰는 법은 skin_books.yml 과 같음.
 # 후원 스킨과 달리 효과(fx)는 없음. 모델: tools/assetgen/models/skinset_<id>.py
 
 # ---- 목각 시리즈 ----

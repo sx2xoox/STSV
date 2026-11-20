@@ -1,0 +1,39 @@
+# 골드 스킨북 상자 (상점 50,000 G): 우클릭으로 열면 골드 스킨북 30권 중 한 권.
+# 아직 안 뽑은 책만 나옴 (사람마다 기록): 30번 열면 30권이 다 모이고, 다 모은 뒤엔 다시 30권 전체에서.
+item: economy:skin_box
+books:
+  # 해적
+  - stsv:pirate_sword_skin
+  - stsv:pirate_pickaxe_skin
+  - stsv:pirate_shovel_skin
+  - stsv:pirate_axe_skin
+  - stsv:pirate_hoe_skin
+  - stsv:pirate_fishing_rod_skin
+  # 목각
+  - stsv:woodcraft_sword_skin
+  - stsv:woodcraft_pickaxe_skin
+  - stsv:woodcraft_shovel_skin
+  - stsv:woodcraft_axe_skin
+  - stsv:woodcraft_hoe_skin
+  - stsv:woodcraft_fishing_rod_skin
+  # 사탕
+  - stsv:candy_sword_skin
+  - stsv:candy_pickaxe_skin
+  - stsv:candy_shovel_skin
+  - stsv:candy_axe_skin
+  - stsv:candy_hoe_skin
+  - stsv:candy_fishing_rod_skin
+  # 주방
+  - stsv:kitchen_sword_skin
+  - stsv:kitchen_pickaxe_skin
+  - stsv:kitchen_shovel_skin
+  - stsv:kitchen_axe_skin
+  - stsv:kitchen_hoe_skin
+  - stsv:kitchen_fishing_rod_skin
+  # 캠핑
+  - stsv:camping_sword_skin
+  - stsv:camping_pickaxe_skin
+  - stsv:camping_shovel_skin
+  - stsv:camping_axe_skin
+  - stsv:camping_hoe_skin
+  - stsv:camping_fishing_rod_skin

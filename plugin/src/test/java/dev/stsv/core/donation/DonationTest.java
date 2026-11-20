@@ -324,6 +324,10 @@ class DonationTest {
             // a donation skin shines and does something: every book has effects
             for (String id : own) assertTrue(books.isConfigurationSection(id + ".skin.fx") || books.isConfigurationSection(id + ".skin") && books.contains(id + ".skin.fx"), id + ": no fx");
         }
+        // the skin book tab: one series a row ("|" between them), the set first
+        DonationShop.Category tab = shop.categories().get("tool_skins");
+        assertEquals(List.of(7, 14, 21, 28, 35), tab.rows(), "six series, each on its own row");
+        for (int r = 0; r < 6; r++) assertTrue(tab.products().get(r * 7).endsWith("_set"), "a row starts with its set");
         // the gold books (economy shop) have no effects: that is what the donation ones have over them
         YamlConfiguration gold = YamlConfiguration.loadConfiguration(PACK.resolve("items/skin_books_gold.yml").toFile());
         assertEquals(30, gold.getKeys(false).size());

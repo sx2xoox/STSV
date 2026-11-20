@@ -1113,6 +1113,12 @@ starter:
   given: "<green>기본템을 받았습니다! <gray>기계 {machines}종 · 책장 64 · 마법부여대 · 청금석 64 · 스테이크 64 · 경험치 10,000 <dark_gray>(자리가 모자라면 /우편함)"
   already: "<red>기본템은 계정마다 한 번만 받을 수 있습니다."
 
+skin-box:
+  rolling: "<gray>골드 스킨북 상자"
+  count: "<gold>골드 스킨북 {have} / {all}권"
+  got: "<gold>골드 스킨북 상자: <white>{item} <gray>({have} / {all}권)"
+  round: "<gold>골드 스킨북을 다 모았어요! <gray>이제 처음부터 다시 나옵니다"
+
 accessory:
   dropped: "<gold>장신구를 찾았어요!</gold> {item}"
   announce: "<white>{player}</white><gray>님이 <gold>{item}</gold> 을(를) 얻었습니다!"

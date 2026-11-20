@@ -438,42 +438,8 @@ buy:
       - { item: bucket, price: 60 }
       # 수선(Mending) 책: 주민 거래가 막혀 있어 낚시 보물로만 나오던 것. 일부러 비쌈 (돈이 빠지는 곳): 도구·갑옷 하나에 한 권
       - { item: 'minecraft:enchanted_book[stored_enchantments={mending:1}]', price: 30000 }
-      # 도구 스킨 (골드): 스킨북은 도구 겉모습만 바꿈 (효과 없음, 후원 스킨북은 /후원). 세트 30만 G 한 번에 6권 · 한 권 7만 5천 G
-      - { bundle: [stsv:woodcraft_sword_skin, stsv:woodcraft_pickaxe_skin, stsv:woodcraft_shovel_skin, stsv:woodcraft_axe_skin, stsv:woodcraft_hoe_skin, stsv:woodcraft_fishing_rod_skin], name: "목각 시리즈 스킨북 6권", price: 300000 }
-      - { item: stsv:woodcraft_sword_skin, price: 75000 }   # 목각 검
-      - { item: stsv:woodcraft_pickaxe_skin, price: 75000 }   # 목각 곡괭이
-      - { item: stsv:woodcraft_shovel_skin, price: 75000 }   # 목각 삽
-      - { item: stsv:woodcraft_axe_skin, price: 75000 }   # 목각 도끼
-      - { item: stsv:woodcraft_hoe_skin, price: 75000 }   # 목각 괭이
-      - { item: stsv:woodcraft_fishing_rod_skin, price: 75000 }   # 목각 낚싯대
-      - { bundle: [stsv:candy_sword_skin, stsv:candy_pickaxe_skin, stsv:candy_shovel_skin, stsv:candy_axe_skin, stsv:candy_hoe_skin, stsv:candy_fishing_rod_skin], name: "사탕 (adds 시리즈 스킨북 6권", price: 300000 }
-      - { item: stsv:candy_sword_skin, price: 75000 }   # 사탕 검
-      - { item: stsv:candy_pickaxe_skin, price: 75000 }   # 사탕 곡괭이
-      - { item: stsv:candy_shovel_skin, price: 75000 }   # 사탕 삽
-      - { item: stsv:candy_axe_skin, price: 75000 }   # 사탕 도끼
-      - { item: stsv:candy_hoe_skin, price: 75000 }   # 사탕 괭이
-      - { item: stsv:candy_fishing_rod_skin, price: 75000 }   # 사탕 낚싯대
-      - { bundle: [stsv:pirate_sword_skin, stsv:pirate_pickaxe_skin, stsv:pirate_shovel_skin, stsv:pirate_axe_skin, stsv:pirate_hoe_skin, stsv:pirate_fishing_rod_skin], name: "해적 시리즈 스킨북 6권", price: 300000 }
-      - { item: stsv:pirate_sword_skin, price: 75000 }   # 해적 커틀러스
-      - { item: stsv:pirate_pickaxe_skin, price: 75000 }   # 해적 곡괭이
-      - { item: stsv:pirate_shovel_skin, price: 75000 }   # 해적 삽
-      - { item: stsv:pirate_axe_skin, price: 75000 }   # 해적 도끼
-      - { item: stsv:pirate_hoe_skin, price: 75000 }   # 해적 괭이
-      - { item: stsv:pirate_fishing_rod_skin, price: 75000 }   # 해적 낚싯대
-      - { bundle: [stsv:kitchen_sword_skin, stsv:kitchen_pickaxe_skin, stsv:kitchen_shovel_skin, stsv:kitchen_axe_skin, stsv:kitchen_hoe_skin, stsv:kitchen_fishing_rod_skin], name: "주방 시리즈 스킨북 6권", price: 300000 }
-      - { item: stsv:kitchen_sword_skin, price: 75000 }   # 식칼 검
-      - { item: stsv:kitchen_pickaxe_skin, price: 75000 }   # 고기 망치 곡괭이
-      - { item: stsv:kitchen_shovel_skin, price: 75000 }   # 국자 삽
-      - { item: stsv:kitchen_axe_skin, price: 75000 }   # 중식도 도끼
-      - { item: stsv:kitchen_hoe_skin, price: 75000 }   # 뒤집개 괭이
-      - { item: stsv:kitchen_fishing_rod_skin, price: 75000 }   # 젓가락 낚싯대
-      - { bundle: [stsv:camping_sword_skin, stsv:camping_pickaxe_skin, stsv:camping_shovel_skin, stsv:camping_axe_skin, stsv:camping_hoe_skin, stsv:camping_fishing_rod_skin], name: "캠핑 시리즈 스킨북 6권", price: 300000 }
-      - { item: stsv:camping_sword_skin, price: 75000 }   # 캠핑 마체테
-      - { item: stsv:camping_pickaxe_skin, price: 75000 }   # 캠핑 곡괭이
-      - { item: stsv:camping_shovel_skin, price: 75000 }   # 캠핑 삽
-      - { item: stsv:camping_axe_skin, price: 75000 }   # 캠핑 손도끼
-      - { item: stsv:camping_hoe_skin, price: 75000 }   # 캠핑 괭이
-      - { item: stsv:camping_fishing_rod_skin, price: 75000 }   # 캠핑 낚싯대
+      # 골드 스킨북 상자: 열면 골드 스킨북 30권 중 한 권 (안 뽑은 책만, 30번이면 전부: skin_box.yml). 효과 없음 (후원 스킨북은 /후원)
+      - { item: economy:skin_box, price: 50000 }
   # 직업 기계: 상점에서만 삼 (조합대에서는 만들 수 없음). 강화 단계 0
   machines:
     name: "기계"

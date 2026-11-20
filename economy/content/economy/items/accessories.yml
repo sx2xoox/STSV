@@ -28,3 +28,10 @@ dragon_chest:
   name: "<#7fd8ff>용궁 상자"
   lore: ["<gray>우클릭: 열기", "<dark_gray>장신구 조각 · 단련석 · 보석 가루 · 전복 · 붉은 산호 · 희귀 물고기 · 드물게 장신구"]
   texture: dragon_chest
+
+# 골드 스킨북 상자 (상점 50,000): 우클릭으로 열면 골드 스킨북 한 권 (skin_box.yml). 아이콘: tools/assetgen/accessory_art.py
+skin_box:
+  material: paper
+  name: "<#f0c448>골드 스킨북 상자"
+  lore: ["<gray>우클릭: 열기 (골드 스킨북 30권 중 한 권)", "<gray>아직 안 뽑은 책만 나옴: 30번이면 전부"]
+  texture: skin_box

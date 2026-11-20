@@ -903,6 +903,33 @@ def dragon_chest():
 for _fn in (acc_box, acc_fragment, dragon_chest):
     ICONS[_fn.__name__] = (lambda f=_fn: f().render())
 
+
+def skin_box():
+    """골드 스킨북 상자: a red-lacquer chest with a raised lid, gold bands and corners, a little closed book (navy cover,
+    cream pages, a gold clasp) on the front plate where a lock would be, and a glint: the gold skin books come out of it."""
+    c = Canvas()
+    c.rect(1.6, 7.4, 14.4, 14.4, "vermilion", 0, normal=(-0.1, 0.1, 1), lo=1, hi=3)                   # the body
+    body = c.last()
+    c.cyl(1.6, 3.2, 14.4, 7.6, "vermilion", 1, lo=1, hi=4, rounded=0.5)                               # the rounded lid
+    c.tone([(x, y) for x, y in body if y == 13], -1)
+    for x0 in (2.6, 11.8):                                                                             # gold bands
+        c.rect(x0, 3.2, x0 + 1.6, 14.4, "gold", 2, normal=(-0.2, -0.2, 1), lo=1, hi=4)
+    c.line(2, 7, 13, 7, "gold", 2, z=2)                                                                # the seam
+    c.rect(5.2, 6.2, 10.8, 13.0, "gold", 3, normal=(-0.2, -0.3, 1), lo=2, hi=4)                        # the plate
+    c.rect(6.0, 7.0, 9.0, 12.0, "police_blue", 4, normal=(-0.2, -0.2, 1), lo=2, hi=4)                  # the book's cover
+    for y in range(7, 12):
+        c.put(6, y, "police_blue", 1, z=5)                                                             # its spine, darker
+        c.put(9, y, "pearl", 3 if y > 7 else 4, z=5)                                                   # the page edges
+    for x in range(7, 10):
+        c.put(x, 12, "pearl", 2, z=5)
+    c.put(7, 8, "gold", 5, z=5).put(8, 8, "gold", 4, z=5)                                              # the title on the cover
+    c.put(7, 10, "gold", 3, z=5)
+    c.dots([(13, 2), (14, 2), (13, 1), (2, 4)], "lamp", 5)                                    # glints
+    return c
+
+
+ICONS["skin_box"] = lambda: skin_box().render()
+
 # ================================================================================================
 # Menu buttons (economy:gui/<name>): the ui_icons.py look
 # ================================================================================================
@@ -1061,7 +1088,7 @@ GUI_NAMES = {"acc_workshop": "장신구 공방", "acc_enhance": "강화", "acc_r
 
 
 NAMES = {"accessory": "장신구"}
-NAMES.update({"acc_box": "장신구 상자", "acc_fragment": "장신구 조각", "dragon_chest": "용궁 상자"})
+NAMES.update({"acc_box": "장신구 상자", "acc_fragment": "장신구 조각", "dragon_chest": "용궁 상자", "skin_box": "골드 스킨북 상자"})
 
 
 # ================================================================================================
