@@ -1246,6 +1246,9 @@ public final class GuideModule extends EcoModule {
         Session s = sessions.get(p.getUniqueId());
         String region = s == null ? null : placeRegion(s.station.id());
         Block b = e.getBlock();
+        // the farm field: a hoe tilling dirt (the server reports that as placing farmland) and planting the trial seeds
+        if (s != null && s.station.id().equals("farming") && s.station.inside(s.station.regions().get("field"), b.getX() + 0.5, b.getZ() + 0.5)
+                && (Tag.ITEMS_HOES.isTagged(e.getItemInHand().getType()) || Items.trial(e.getItemInHand()))) return;
         if (s == null || region == null || !Items.trial(e.getItemInHand()) || !s.station.inside(s.station.regions().get(region), b.getX() + 0.5, b.getZ() + 0.5)
                 || b.getY() < GuideLayout.FLOOR_Y || b.getY() > GuideLayout.FLOOR_Y + 8) {
             e.setCancelled(true);
