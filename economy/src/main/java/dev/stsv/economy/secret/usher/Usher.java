@@ -155,13 +155,13 @@ public final class Usher extends Secret {
 
     private String skin() {
         String s = cfg.getString("skin", "");
-        return s == null || s.isBlank() ? eco.getConfig().getString("guide.npc-skin", "") : s;
+        return s == null || s.isBlank() ? eco.getConfig().getString("guide.npc-skin") : s;
     }
 
     private Pictures pictures() {
         if (pictures == null) {
             String w = cfg.getString("worker-skin", "");
-            if (w == null || w.isBlank()) w = eco.getConfig().getString("guide.passenger-skin", "");
+            if (w == null || w.isBlank()) w = eco.getConfig().getString("guide.passenger-skin");
             pictures = new Pictures(eco, m.haunt(), w);
         }
         return pictures;

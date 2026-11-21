@@ -114,7 +114,7 @@ class ContentTest {
     }
 
     @Test
-    void everyDataFileParsesAndNamesRealItems() {
+    void everyDataFileParsesAndNamesRealItems() throws java.io.IOException {
         Set<String> ours = ourItems();
         List<String> problems = new ArrayList<>();
 
@@ -274,8 +274,8 @@ class ContentTest {
         // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12, ours.size(),
-                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball)");
+        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12 + 8, ours.size(),
+                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 8 숨은 비밀 물건");
         assertEquals(7, machines.size());
         assertEquals(148 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
@@ -355,6 +355,20 @@ class ContentTest {
         }
         for (String id : ours) if (id.startsWith("economy:lost_") && !makeable.contains(id)) problems.add("a lost item no kind leaves: " + id);
         for (String title : lost.titles().keySet()) if (!titles.contains(title.substring(title.indexOf(':') + 1))) problems.add("lost title: " + title);
+        // 숨은 비밀 (items/secrets.yml): only the secrets' own code gives them (by id, in secret/), the shop never trades them
+        String secretCode;
+        try (var files = java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java/dev/stsv/economy/secret"))) {
+            StringBuilder b = new StringBuilder();
+            for (var f : files.filter(f -> f.toString().endsWith(".java")).toList()) b.append(java.nio.file.Files.readString(f));
+            for (var f : java.nio.file.Files.list(PACK.resolve("secrets")).toList()) b.append(java.nio.file.Files.readString(f));
+            secretCode = b.toString();
+        }
+        for (String key : yaml("items/secrets.yml").getKeys(false)) {
+            String id = "economy:" + key;
+            if (!secretCode.contains(key)) problems.add("no secret gives " + id);
+            if (shop.sell().containsKey(id)) problems.add("the shop buys a secret item: " + id);
+            makeable.add(id);
+        }
         for (String id : ours) if (!makeable.contains(id) && !oldGoods.contains(id)) problems.add("nobody can make " + id);
         for (String id : oldGoods) if (makeable.contains(id)) problems.add("an old good is made again: " + id + " (move it out of sell.legacy)");
         assertTrue(problems.isEmpty(), String.join("\n", problems));
