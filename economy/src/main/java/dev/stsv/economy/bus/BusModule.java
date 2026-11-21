@@ -61,6 +61,11 @@ public final class BusModule extends EcoModule {
     private BusSpec spec;
     /** 수상한 선글라스 남자 (SecretAgent: docs/admin/버스_비밀_의뢰.md) */
     private SecretAgent secret;
+
+    /** The 선글라스 남자 (for /관리자 비밀 목록 · 켜기 · 끄기). */
+    public SecretAgent secretAgent() {
+        return secret;
+    }
     private PassengerPreview preview;
     /** 버스 내비게이션 (/버스 내비) */
     private BusNavigator navigator;

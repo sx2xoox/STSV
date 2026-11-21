@@ -323,12 +323,31 @@ public final class SecretModule extends EcoModule {
                     s.sendMessage(Text.msg(" <white>" + x.name() + " <dark_gray>(" + x.id() + ") " + (enabled(x) ? "<green>켜짐" : "<red>꺼짐")
                             + " <gray>· 푼 사람 <white>" + who + " <gray>· 진행 중(접속) <white>" + active(x).size()));
                 }
+                var bus = eco.bus() == null ? null : eco.bus().secretAgent();
+                if (bus != null) {
+                    String who = Optional.ofNullable(eco.kv().get("bus.secret.first")).map(v -> {
+                        try {
+                            return Optional.ofNullable(Bukkit.getOfflinePlayer(UUID.fromString(v)).getName()).orElse(v);
+                        } catch (IllegalArgumentException e) {
+                            return v;
+                        }
+                    }).orElse("-");
+                    s.sendMessage(Text.msg(" <white>버스 <dark_gray>(bus, 자세히: /관리자 버스 비밀) " + (bus.on() ? "<green>켜짐" : "<red>꺼짐")
+                            + " <gray>· 푼 사람 <white>" + who));
+                }
             }
-            case "켜기", "끄기" -> withSecret(s, a, 1, x -> {
+            case "켜기", "끄기" -> {
+                if (a.length > 1 && (a[1].equals("버스") || a[1].equalsIgnoreCase("bus"))) {
+                    eco.kv().set("secret.bus.switch", sub.equals("켜기") ? "on" : "off");
+                    s.sendMessage(Text.msg("<green>버스 비밀: " + (sub.equals("켜기") ? "켰어요" : "껐어요 (??? 가 더는 나오지 않음, 기록은 그대로)")));
+                    return;
+                }
+                withSecret(s, a, 1, x -> {
                 eco.kv().set("secret." + x.id() + ".switch", sub.equals("켜기") ? "on" : "off");
                 if (sub.equals("끄기")) for (Player p : Bukkit.getOnlinePlayers()) x.cleanup(p.getUniqueId());
                 s.sendMessage(Text.msg("<green>" + x.name() + ": " + (sub.equals("켜기") ? "켰어요" : "껐어요 (진행 기록은 그대로, 다시 켜면 이어서)")));
-            });
+                });
+            }
             case "시작" -> withSecret(s, a, 1, x -> online(s, a.length > 2 ? a[2] : null, p -> {
                 x.cleanup(p.getUniqueId());
                 x.start(p);
@@ -422,6 +441,7 @@ public final class SecretModule extends EcoModule {
             case "상태" -> Players.complete(s, a[1]);
             case "테스트" -> List.of("켜기", "끄기");
             case "목록" -> List.of();
+            case "켜기", "끄기" -> java.util.stream.Stream.concat(names.stream(), java.util.stream.Stream.of("버스")).toList();
             default -> names;
         };
         if (a.length == 3) {

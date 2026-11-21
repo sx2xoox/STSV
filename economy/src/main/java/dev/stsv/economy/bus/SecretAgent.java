@@ -379,7 +379,7 @@ public final class SecretAgent implements Listener {
 
     /** Every second: he comes (1-2 times a day), is shown at his stop near a bus, jobs time out or lose him. */
     void second(long now) {
-        if (!cfg.enabled() || type() == null) return;
+        if (!on() || type() == null) return;
         ZonedDateTime t = ZonedDateTime.now(KST);
         if (waitStop == null && !closed()) {   // solved once on this server: he no longer comes for notes
             long day = t.toLocalDate().toEpochDay();
@@ -457,7 +457,7 @@ public final class SecretAgent implements Listener {
 
     /** The bus just stopped at a stop: his missions' progress; he gets on if he waits here; the weekly job. */
     void arrived(Player p, BusModule.Run run, VehicleModule.Driven d, BusStop here) {
-        if (!cfg.enabled()) return;
+        if (!on()) return;
         Job j = jobs.get(p.getUniqueId());
         if (j != null && j.bus == run.id) {
             double secs = (System.currentTimeMillis() - j.boarded) / 1000.0;
@@ -860,13 +860,19 @@ public final class SecretAgent implements Listener {
         Deque<Long> d = honks.computeIfAbsent(u, k -> new ArrayDeque<>());
         if (!honked(d, System.currentTimeMillis(), cfg.honks(), cfg.honkWindow() * 1000L)) return;
         d.clear();
-        if (!cfg.enabled() || closed() || jobs.containsKey(u) || agent(u) || run.atStop == null) return;
+        if (!on() || closed() || jobs.containsKey(u) || agent(u) || run.atStop == null) return;
         ZonedDateTime t = ZonedDateTime.now(KST);
         if (!finalTime(t.getHour(), t.getMinute(), cfg.finalHour(), cfg.finalMinute(), cfg.finalSpan())) return;
         if (!hasAll(earned(u), cfg.notes().size())) return;
         BusStop here = bus.stopMap().get(run.atStop);
         if (here == null || !terminalSide(here)) return;
         startFinal(p, run, here);
+    }
+
+    /** On: bus.yml secret.enabled, unless an admin switched it (/관리자 비밀 켜기·끄기 버스: eco.kv "secret.bus.switch"). */
+    public boolean on() {
+        String sw = eco.kv().get("secret.bus.switch");
+        return sw != null ? sw.equals("on") : cfg.enabled();
     }
 
     /** The secret is solved once per server: after the first agent, no one else can get notes or run the final. */
