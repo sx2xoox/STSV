@@ -450,6 +450,70 @@ def lost_key_nameless(c):
     return c
 
 
+@icon
+def old_doll(c):
+    """낡은 인형: a small old rag doll, its pale porcelain face gone yellow and its head tipped to one side, brown yarn
+    hair, a crack running up from the lost eye, a faded dusty-rose dress with a lace collar and a patch sewn on; one button eye still on, the other hanging
+    loose on its thread down the cheek, and the mouth stitched shut in dark thread."""
+    rows = ["................",
+            ".....hhHHHHh....",
+            "....hHH5HHHHHh..",
+            "..hHHH4HHH4HHHh.",
+            "..hH4444443cHh..",
+            "..h4bB4443c3Hh..",
+            "..h4BB4442o3hh..",
+            "..hh443x3xt2hh..",
+            "..hhh3mwmwm2hh..",
+            "...hhh33222thh..",
+            "....h1LlLlakK...",
+            "....aPPDDdaKB...",
+            "...aaPDDsDdaa...",
+            "....dPDDDDdd....",
+            ".....S...S......",
+            "................"]
+    legend = {"h": ("doenjang", 1, 2), "H": ("doenjang", 2, 2), "5": ("cream", 5, 2), "1": ("cream", 1, 2),
+              "4": ("cream", 4, 2), "3": ("cream", 3, 2), "2": ("cream", 2, 2), "B": ("soot", 1, 3),
+              "b": ("soot", 4, 3), "o": ("doenjang", 0, 2), "t": ("stone", 3, 3),
+              "x": ("soot", 2, 2), "m": ("soot", 1, 2), "w": ("doenjang", 1, 2), "L": ("cream", 4, 2), "l": ("cream", 3, 2),
+              "a": ("cream", 3, 1), "D": ("sakura", 0, 1), "P": ("sakura", 1, 1), "d": ("pink", 0, 1),
+              "s": ("doenjang", 2, 1), "S": ("leather", 2, 1), "k": ("soot", 4, 3), "K": ("soot", 2, 3),
+              "c": ("wood", 2, 2)}
+    c.ink["sakura"] = ("pink", 0)
+    _paint(c, rows, legend)
+    return c
+
+
+@icon
+def scarecrow_straw(c):
+    """허수아비의 지푸라기: a handful of dry golden straw pulled from a scarecrow, its stalks fanning out at both ends from a
+    wrap of frayed twine, a few loose strands sticking out, and one of them gone oddly dark at its tip."""
+    # the bundle runs up to the right at 45 degrees, so each stalk is a diagonal line of pixels: d = x + y - 15 picks
+    # the stalk (negative on the lit, upper left side), t = x - y runs along it; the twine sits across it at t = -1..0
+    ragged = (0, 2, 1, 0, 2, 0, 1, 2, 0, 1, 1)
+    for y in range(16):
+        for x in range(16):
+            d, t = x + y - 15, x - y - 0.5
+            tie = -1.5 <= t <= 0.5
+            if abs(d + 0.5) > (2.6 if tie else 1.1 + abs(t) * 0.3):                       # it flares out from the tie
+                continue
+            reach = 11.0 - ragged[(d + 5) % 11] * 0.7                                       # uneven, broken-off ends
+            if abs(t) > reach:
+                continue
+            if tie:                                                                        # the twine, twisted
+                c.put(x, y, "burlap", (4 if d < -1 else 3 if d < 1 else 2) - (1 if (d + int(t + 1)) % 2 else 0), z=3)
+                continue
+            step = (4, 3, 1)[d % 3] if d < 0 else (3, 2, 1)[d % 3]                         # stalks, dark gaps between
+            if abs(t) >= reach - 1 and step > 1:                                           # the dry cut ends, paler
+                step += 1
+            c.put(x, y, "straw", min(step, 4), z=1)
+    c.dots([(10, 9), (10, 10), (10, 11), (11, 12)], "burlap", 2, z=3).dots([(9, 12)], "burlap", 1, z=3)
+    c.put(10, 9, "burlap", 3, z=3)                                                         # the frayed end of the twine
+    # stray stalks: one sticking out low, one out of the top gone dark and wet at its tip
+    c.dots([(5, 13), (5, 14)], "straw", 3, z=2)
+    c.dots([(9, 3), (9, 2)], "straw", 3, z=2).put(9, 2, "doenjang", 2, z=2).put(8, 1, "wine", 1, z=2)
+    return c
+
+
 def main(out=None):
     """Writes only these icons into the economy pack's textures (never touches the others), and a 6x preview sheet to `out`."""
     from pathlib import Path
