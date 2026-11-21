@@ -1715,6 +1715,10 @@ public final class RoadModule extends EcoModule {
                 public void paint(RoadGuide.Paint p) {
                     b.add(p.x(), p.z(), 3, () -> RoadSigns.paint(w, p.x(), p.y(), p.z(), p.yaw(), p.text(), p.host(), sets.getOrDefault(p.host(), 0), v));
                 }
+
+                public void label(RoadDetail.Label l) {
+                    b.add(l.x(), l.z(), 3, () -> putLabel(w, l, v, footings));
+                }
             });
             junctions += plan.junctions().size();
             b.done = () -> {
@@ -1729,6 +1733,29 @@ public final class RoadModule extends EcoModule {
             if (!b.empty()) batches.add(b);
         }
         to.accept(Lang.msg("road.resign-start", "roads", targets.size(), "signs", signs, "junctions", junctions, "removed", removed[0]));
+    }
+
+    /**
+     * A road's detail in the world (README "국도", 디테일): its post (a stone brick wall on the shoulder's block: only on
+     * solid ground under open air, never in protected land nor on another road's lanes; recorded in the road's undo record
+     * when it has one), then its words. A post that cannot stand: no label.
+     */
+    private void putLabel(World w, RoadDetail.Label l, DisplayView.Settings v, Map<String, RoadUndo.Recorder> footings) {
+        if (!(l.level() >= w.getMinHeight() && l.level() + 6 < w.getMaxHeight())) return;
+        int[] c = l.post();
+        if (c != null) {
+            if (guardBase.column(w.getName(), c[0], c[1]) != null) return;
+            RoadNetwork.Spot o = roads(w.getName()).at(c[0], c[1]);
+            if (o != null && o.paved()) return;
+            Block under = w.getBlockAt(c[0], l.level(), c[1]), at = w.getBlockAt(c[0], l.level() + 1, c[1]), over = w.getBlockAt(c[0], l.level() + 2, c[1]);
+            boolean ours = at.getType() == Material.STONE_BRICK_WALL;   // put up again: its post is there
+            if (!ours && (!under.getType().isSolid() || !(at.getType().isAir() || at.isReplaceable()) || !over.getType().isAir())) return;
+            if (!ours) {
+                RoadUndo.Recorder rec = hasUndo(l.host()) ? footings.computeIfAbsent(l.host(), k -> new RoadUndo.Recorder()) : null;
+                change(at, Material.STONE_BRICK_WALL.createBlockData(), rec);
+            }
+        }
+        RoadSigns.label(w, l.x(), l.y(), l.z(), l.yaw(), l.text(), l.style(), l.host(), sets.getOrDefault(l.host(), 0), v);
     }
 
     /**

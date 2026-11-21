@@ -69,7 +69,11 @@ public final class RoadGuide {
     /** Where two roads meet: road a at its point ai, road b at bi; a fork (b leaves a there) or a level crossing. */
     public record Junction(int a, int ai, int b, int bi, boolean fork) {}
 
-    public record Plan(List<Sign> signs, List<Paint> paints, List<Junction> junctions) {
+    public record Plan(List<Sign> signs, List<Paint> paints, List<Junction> junctions, List<RoadDetail.Label> labels) {
+        public Plan(List<Sign> signs, List<Paint> paints, List<Junction> junctions) {
+            this(signs, paints, junctions, List.of());
+        }
+
         /** The signs a dock's road has a part in (its own and those at its junctions). */
         public List<Sign> about(String dock) {
             return signs.stream().filter(s -> dock.equals(s.host()) || dock.equals(s.also())).toList();
@@ -84,6 +88,9 @@ public final class RoadGuide {
         void put(Sign s);
 
         void paint(Paint p);
+
+        /** A road's detail (README "국도", 디테일: km posts, chevrons, name plates). */
+        default void label(RoadDetail.Label l) {}
     }
 
     /**
@@ -100,6 +107,7 @@ public final class RoadGuide {
             n++;
         }
         for (Paint p : plan.paints()) if (docks.contains(p.host())) board.paint(p);
+        for (RoadDetail.Label l : plan.labels()) if (docks.contains(l.host())) board.label(l);
         return n;
     }
 
@@ -416,7 +424,15 @@ public final class RoadGuide {
             junction(j, signs);
         }
         for (int r = 0; r < roads.size(); r++) own(r, at.getOrDefault(r, List.of()), signs, paints);
-        return new Plan(spread(signs), paints, junctions);
+        List<Sign> kept = spread(signs);
+        // the details (README "국도", 디테일), clear of the signs kept on their road
+        List<RoadDetail.Label> labels = new ArrayList<>();
+        for (int r = 0; r < roads.size(); r++) {
+            java.util.Set<Integer> near = new java.util.HashSet<>();
+            for (Sign s : kept) if (s.road() == r) near.add(s.at());
+            for (RoadDetail.Label l : RoadDetail.of(roads.get(r), parts[r], near, lights)) if (l.at() >= own[r] + 10) labels.add(l);
+        }
+        return new Plan(kept, paints, junctions, labels);
     }
 
     private void junction(Junction j, List<Sign> signs) {

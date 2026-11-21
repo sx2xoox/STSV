@@ -157,6 +157,38 @@ final class RoadSigns {
         });
     }
 
+    /** How big a road's detail's words are (README "국도", 디테일): a km post's, a chevron board's, a name plate's. */
+    static final float LABEL = 0.8f, CHEVRON = 1.6f, NAME = 1.1f;
+
+    /**
+     * A road's detail (RoadDetail): a standing text display at (x, y, z) facing yaw, on a board of its own colour (km post:
+     * dark green, chevron: black with yellow arrows, name plate: dark blue), lit at night. Tagged like a sign (cleared and
+     * put up again with them); an old one of the same dock there goes first.
+     */
+    static void label(World w, double x, double y, double z, float yaw, String words, RoadDetail.Style style, String dock, int set,
+                      DisplayView.Settings view) {
+        Location at = new Location(w, x, y, z, yaw, 0);
+        for (Entity e : w.getNearbyEntities(at, 0.6, 0.6, 0.6)) if (e instanceof TextDisplay && dock.equals(dock(e))) e.remove();
+        w.spawn(at, TextDisplay.class, d -> {
+            setUp(d, new Owner(dock, set), view);
+            boolean chevron = style == RoadDetail.Style.CHEVRON;
+            d.text(Component.text(words, chevron ? NamedTextColor.YELLOW : NamedTextColor.WHITE).decoration(TextDecoration.BOLD, chevron));
+            d.setBillboard(Display.Billboard.FIXED);
+            d.setAlignment(TextDisplay.TextAlignment.CENTER);
+            d.setLineWidth(1000);
+            d.setDefaultBackground(false);
+            d.setBackgroundColor(switch (style) {
+                case KM_POST -> Color.fromARGB(255, 20, 90, 50);
+                case CHEVRON -> Color.fromARGB(255, 15, 15, 15);
+                case NAME -> Color.fromARGB(255, 25, 55, 120);
+            });
+            d.setShadowed(false);
+            d.setBrightness(new Display.Brightness(15, 15));
+            float s = style == RoadDetail.Style.KM_POST ? LABEL : chevron ? CHEVRON : NAME;
+            d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(s, s, s), new Quaternionf()));
+        });
+    }
+
     /**
      * Where the road lies in the model (model px): models/roads.py draws the road's surface at y 0 and bakes it with
      * shift -16, scale 2 (model point = 8 + (drawn - 16 - 8) / 2), so the road is at model y -4.

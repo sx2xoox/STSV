@@ -321,6 +321,8 @@ public final class RoadProfile {
     public static final double LEVEL_FROM = 30;
     /** Points either way of a corner held level at most. */
     public static final int LEVEL_MAX = 12;
+    /** Half blocks either way of a corner's level a road not at the normal grade also tries to hold it at. */
+    static final int LEVEL_SHIFT = 8;
 
     /**
      * Sharp corners made level (README "국도", 굽은 길): the road turns at a corner point, so the columns on a corner's inside
@@ -349,22 +351,29 @@ public final class RoadProfile {
             if (turn < LEVEL_FROM) continue;
             int want = Math.min(LEVEL_MAX, (int) Math.ceil((RoadSection.HALF + 0.5) * Math.tan(Math.toRadians(turn / 2))) + 1);
             // as wide as the grade lets it (on a long climb at 1 in 3 there is no room to hold it level: then less, or none)
+            // (a road of another grade also tries levels a little off the corner's: on a steep climb between two bends
+            // close together the corner's own level may be out of reach of the one levelled before it)
+            int tries = g.equals(Grade.NORMAL) ? 0 : LEVEL_SHIFT;
+            levelled:
             for (int w = want; w >= 2; w--) {
                 int from = Math.max(1, v - w), to = Math.min(n - 2, v + w);
                 boolean free = true;
                 for (int k = from; k <= to && free; k++) free = !fix[k];
                 if (!free) continue;
-                int[] t = h.clone();
-                boolean[] f = fix.clone();
-                for (int k = from; k <= to; k++) {
-                    t[k] = h[v];
-                    f[k] = true;
+                for (int d = 0; d <= 2 * tries; d++) {
+                    int level = h[v] + (d % 2 == 1 ? -(d + 1) / 2 : d / 2);
+                    int[] t = h.clone();
+                    boolean[] f = fix.clone();
+                    for (int k = from; k <= to; k++) {
+                        t[k] = level;
+                        f[k] = true;
+                    }
+                    relax(t, f, g);
+                    if (!graded(t, g)) continue;
+                    System.arraycopy(t, 0, h, 0, n);
+                    System.arraycopy(f, 0, fix, 0, n);
+                    break levelled;
                 }
-                relax(t, f, g);
-                if (!graded(t, g)) continue;
-                System.arraycopy(t, 0, h, 0, n);
-                System.arraycopy(f, 0, fix, 0, n);
-                break;
             }
         }
     }
