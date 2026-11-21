@@ -263,6 +263,57 @@ class VehiclePhysicsTest {
         assertEquals(9 * 0.5, sh.speed, 1e-9, "honey and cobwebs slow everything");
     }
 
+    /** A bus-like spec: 8.5 x 2.4 x 3 (the limousine bus: 4 squares 2.16 across), 32°/s from 3.5 b/s. */
+    static VehicleSpec bus() {
+        return new VehicleSpec(2f, 10, 3, 2.5, 7, 1.5, 32, 3.5, 1.0, 8.5, 2.4, 3.0, 2.0,
+                new NamespacedKey("t", "model/wheel"), 0.5, List.of(), List.of(new VehicleSpec.Vec(-0.6, 1.0, 3.2)), null, null, null, null, null);
+    }
+
+    @Test
+    void aPostCaughtOnlyByACornerIsGlidedRound() {
+        // the car's square (1.71 across) catches a post 0.1 at its side: it glides round it, no bump, never inside it
+        Grid g = flat();
+        for (int y = 64; y <= 65; y++) g.block(1, y, 12);
+        VehiclePhysics.State st = onGround(0.25, 0.5, 0);
+        boolean bumped = false;
+        for (int i = 0; i < 120; i++) {
+            VehiclePhysics.step(st, W, car(), g, 10);
+            bumped |= st.bumped;
+            assertFalse(VehiclePhysics.collides(st.x, st.y, st.z, st.yaw, car(), g), "never inside a block (tick " + i + ")");
+        }
+        assertFalse(bumped, "glided round the post's corner");
+        assertTrue(st.z > 20, "and drove on past it: " + st.z);
+        assertTrue(st.x < 0.25 - 0.1 + 1e-6 && st.x > 0.25 - 0.3, "nudged aside just enough: " + st.x);
+        // met head-on (half the square on it) it is a wall: it stops there, bumped
+        VehiclePhysics.State head = onGround(1.5, 0.5, 0);
+        bumped = false;
+        for (int i = 0; i < 120; i++) {
+            VehiclePhysics.step(head, W, car(), g, 10);
+            bumped |= head.bumped;
+        }
+        assertTrue(bumped, "head-on: a bump");
+        assertEquals(12 - 2.3, head.z, 1e-6, "stopped at the post");
+        assertEquals(1.5, head.x, 1e-9, "no glide off a wall met head-on");
+    }
+
+    @Test
+    void aLongVehicleSteersAwayFromAWallItsRearTouches() {
+        // a wall along the bus's left (+x); its squares touching it. Turning right (D) about its middle would swing its
+        // rear into the wall: the turn is made about its rear instead, and it pulls away
+        Grid g = flat();
+        for (int z = -20; z <= 70; z++) for (int y = 64; y <= 66; y++) g.block(2, y, z);
+        VehicleSpec bus = bus();
+        VehiclePhysics.State st = onGround(2 - bus.squareSize() / 2, 0.5, 0);
+        st.speed = 5;
+        DriveInput wd = new DriveInput(true, false, false, true, false, false);
+        for (int i = 0; i < 40; i++) {
+            VehiclePhysics.step(st, wd, bus, g, 10);
+            assertFalse(VehiclePhysics.collides(st.x, st.y, st.z, st.yaw, bus, g), "never inside the wall (tick " + i + ")");
+        }
+        assertTrue(st.yaw > 10 && st.yaw < 180, "turned right, away from the wall: " + st.yaw);
+        assertTrue(st.x < 2 - bus.squareSize() / 2 - 0.5, "and pulled away from it: " + st.x);
+    }
+
     @Test
     void aTurnIntoAWallIsNotMade() {
         Grid g = flat();

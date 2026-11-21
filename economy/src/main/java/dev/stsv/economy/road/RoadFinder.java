@@ -47,8 +47,8 @@ final class RoadFinder {
 
     /** No ceiling. */
     static final int OPEN = Integer.MIN_VALUE;
-    /** How far (blocks across) a lane column's tunnel wall may be. */
-    static final int WALL_REACH = 7;
+    /** How far (blocks across) a lane column's tunnel wall may be (a tunnel round a bend is wider: RoadSection#tunnelWide). */
+    static final int WALL_REACH = 7 + (int) Math.ceil(RoadSection.MAX_WIDE);
     /** How far a road's own surface rises within reach at most (1 in 3 over {@link RoadClearance#REACH} + 1). */
     static final int STEP = 4;
     /** The surfaces a ceiling clears: within this many blocks across. */

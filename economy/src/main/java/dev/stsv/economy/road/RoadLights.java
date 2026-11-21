@@ -26,7 +26,7 @@ public final class RoadLights {
     /** A post is at least this many walls high (5 over a flat road's verge: 6 from the footing to the arm). */
     static final int MIN_POST = 5, MAX_POST = 16;
     /** How far (blocks, either axis) the arm reaches from the post, and how many walls it has at most. */
-    static final int ARM_REACH = 6, ARM_MAX = 10;
+    static final int ARM_REACH = 6, ARM_MAX = 16;   // (at a corner its arm fans out over the corner's columns: 11 seen)
 
     private RoadLights() {}
 

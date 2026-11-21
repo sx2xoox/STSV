@@ -797,16 +797,24 @@ public final class BusModule extends EcoModule {
         }
     }
 
+    /**
+     * A bump the riders feel (부딪힘): the bus hit something going at least this fast (blocks/s, the tick before). The core
+     * calls a move that lost half its way at over 2 b/s a bump; a nudge at a crawl (a long bus easing round a post) is
+     * none to them.
+     */
+    public static final double BUMP_FROM = 4;
+
     /** Jolts, bumps and sharp turns: every rider's mood. */
     private void feel(Player p, Run run, VehicleModule.Driven d) {
         BusSpec.Mood m = spec.mood();
         double speed = Math.abs(d.speed());
+        double before = run.speeds[(int) Math.floorMod(ticks - 1, (long) run.speeds.length)];
         run.speeds[(int) (ticks % run.speeds.length)] = speed;
         if (run.riders.isEmpty()) {
             run.lastYaw = d.yaw();
             return;
         }
-        if (d.bumped() && ticks - run.bumpAt > m.cooldown()) {
+        if (d.bumped() && before >= BUMP_FROM && ticks - run.bumpAt > m.cooldown()) {
             run.bumpAt = ticks;
             hurt(p, run, m.bump(), "bus.mood-bump", false);
         }

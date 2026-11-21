@@ -380,12 +380,14 @@ class RoadPreviewTest {
         }
         assertTrue(filled > 20 && cut > 20, "filled " + filled + ", cut " + cut);
         for (int i = 3; i < b.halves().length; i++) assertTrue(Math.abs(b.halves()[i] - b.halves()[i - 3]) <= 2, "never over a block in three");
-        // (c) the river: a bridge with railings over the water
+        // (c) the river: a bridge with railings over the water, a block out of the vehicles' reach (RoadBendTest), the deck
+        // flush to them
         int mid = index(pts, (RIVER0 + RIVER1) / 2.0);
         assertEquals(RoadProfile.Part.BRIDGE, b.parts()[mid]);
-        assertEquals(Material.STONE_BRICK_WALL, land.get(1196, b.levels()[mid] + 1, 3));
-        assertEquals(Material.STONE_BRICK_WALL, land.get(1196, b.levels()[mid] + 1, -3));
-        assertEquals(Material.STONE_BRICK_WALL, land.get(1200, b.top(mid) + 4, 3), "the bridge's light stands on its railing");
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1196, b.levels()[mid] + 1, 4));
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1196, b.levels()[mid] + 1, -4));
+        assertEquals(Material.AIR, land.get(1196, b.levels()[mid] + 1, 3));
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1200, b.top(mid) + 4, 4), "the bridge's light stands on its railing");
         assertEquals(Material.LANTERN, land.get(1200, b.top(mid) + 5, 2), "its lantern over the edge lane");
         // (d) the steep hill: a tunnel, lit
         int in = index(pts, 1272);

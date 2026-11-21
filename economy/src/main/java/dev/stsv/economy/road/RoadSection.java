@@ -32,6 +32,9 @@ import java.util.TreeMap;
  *       flat, higher on a grade (it clears the highest surface a long vehicle can stand on under it), a step in it closed
  *       over with stone bricks.</li>
  * </ul>
+ * Nothing a vehicle can hit (a railing, a tunnel's wall, a guardrail, a reflector, a light, the cut bank) stands nearer the
+ * centre line than the long vehicles reach ({@link #reach}: on a diagonal and round a bend further out: the deck, the bore and
+ * the shoulder widen with it), and sharp corners are built level ({@link RoadProfile#levelBends}).
  * Street lights every {@code lightEvery} (sides taking turns), a post on the shoulder with an arm over the edge lane and
  * a lantern hanging from it, at the ceiling's height (4 clear blocks over a flat road); direction signs ({@link RoadSign}: the site puts the model and
  * its words) a little way from the start, every {@code markerEvery} and just before the gate, all where the road is plain
@@ -262,7 +265,7 @@ public final class RoadSection {
                 for (int j = Math.max(0, k - BEND_REACH); j <= Math.min(n - 1, k + BEND_REACH); j++) b = Math.max(b, bend[j]);
                 if (junction(k) <= JUNCTION_BEND) b = Math.max(b, JUNCTION_TURN);
                 for (int j = Math.max(0, k - RoadClearance.REACH); j <= Math.min(n - 1, k + RoadClearance.REACH); j++) d = Math.max(d, diag[j]);
-                if (RoadClearance.bend(b) > 0) d = Math.sqrt(2);   // round a bend it is slanted every way
+                d = Math.max(d, 1 + (Math.sqrt(2) - 1) * Math.min(1, b / 45));   // round a bend it is slanted every way
                 out[k] = RoadClearance.reach(d, b);
                 slants[k] = d;
             }
@@ -935,7 +938,7 @@ public final class RoadSection {
             for (int bz = pz - r; bz <= pz + r; bz++) {
                 double cx = bx + 0.5 - p[0], cz = bz + 0.5 - p[1];
                 double lat = cx * rx + cz * rz, along = cx * hx + cz * hz;
-                if (Math.abs(lat) > reach + 0.5 || !owns(i, bx + 0.5, bz + 0.5)) continue;
+                if (Math.abs(lat) > reach + 0.5 || (e == 0 && Math.hypot(lat, along) > reach + 1) || !owns(i, bx + 0.5, bz + 0.5)) continue;
                 if ((i == 0 && along < -0.5) || (i == points.size() - 1 && along > 0.5)) continue;   // not past the ends
                 double ao = Math.abs(lat);
                 if (site.protectedLand(bx, bz)) {
@@ -1083,8 +1086,17 @@ public final class RoadSection {
             for (Col c : cols) {
                 if (Math.abs(c.lat()) - e <= 2.5) continue;
                 RoadLights.Light l = RoadLights.post(world::get, c.x(), c.z(), y + 1);
-                if (l == null) continue;
-                for (int[] k : l.blocks()) {
+                List<int[]> blocks = l != null ? l.blocks() : new ArrayList<>();
+                if (l == null && world.get(c.x(), y, c.z()) == Material.STONE_BRICKS && world.get(c.x(), y + 1, c.z()) == RoadLights.POST) {
+                    // a light without an arm (at a corner, its lantern hung in its own post): its post and lantern
+                    for (int k = y + 2; k <= y + 16; k++) {
+                        Material m = world.get(c.x(), k, c.z());
+                        if (m != RoadLights.POST && m != RoadLights.LANTERN) break;
+                        blocks.add(new int[]{c.x(), k, c.z()});
+                    }
+                    if (blocks.size() < 3) blocks.clear();   // a railing's wall, no more
+                }
+                for (int[] k : blocks) {
                     o.set(k[0], k[1], k[2], Material.AIR);
                     lightBlocks.add(Overlay.key(k[0], k[1], k[2]));
                 }
@@ -1099,7 +1111,8 @@ public final class RoadSection {
             mending = false;
             site = was;
         }
-        int changed = 0;
+        // what may change, decided on the world as it is (then set: a railing's plinth laid flat first is still its plinth)
+        List<Object[]> sets = new ArrayList<>();
         for (Map.Entry<Long, String> w : o.put.entrySet()) {
             long k = w.getKey();
             int x = Overlay.x(k), by = Overlay.y(k), z = Overlay.z(k);
@@ -1118,11 +1131,15 @@ public final class RoadSection {
                     lightBlocks.contains(k))) continue;
             RoadNetwork.Spot other = world.road(x, z);
             if (other != null && other.paved()) continue;   // another road's lanes and kerbs: never
-            if (b < 0) world.set(x, by, z, to);
-            else world.set(x, by, z, data);
-            changed++;
+            // a guardrail or reflector clear of the reach stays (whether its fill still looks high or not: twice is once)
+            if (clutter(now) && (to == Material.AIR || clutter(to)) && postClear(i, x, z)) continue;
+            sets.add(new Object[]{x, by, z, b < 0 ? to : data});
         }
-        return changed;
+        for (Object[] t : sets) {
+            if (t[3] instanceof Material m) world.set((int) t[0], (int) t[1], (int) t[2], m);
+            else world.set((int) t[0], (int) t[1], (int) t[2], (String) t[3]);
+        }
+        return sets.size();
     }
 
     /**
@@ -1276,7 +1293,7 @@ public final class RoadSection {
     }
 
     /** How many points each way a column's nearest point is looked for (enough for the width round a sharp bend). */
-    private static final int NEIGHBOURS = 12;
+    private static final int NEIGHBOURS = 24;
 
     /** Trees and the like over a column, up to 30 above the road. */
     private void clearTrees(int x, int z, int from) {

@@ -454,8 +454,11 @@ public final class VehiclePhysics {
         double most = Math.min(GLIDE, want);
         for (int side = -1; side <= 1; side += 2) {
             for (int k = 1; k <= 3; k++) {
-                double g = most * k / 3, gx = -uz * side * g, gz = ux * side * g;
-                double[] c = move(sq, dx + gx, dy, dz + gz, canStep, stepHeight, t);
+                // sideways first (as far as the blocks let it), then the move from there
+                double g = most * k / 3;
+                double[] s1 = collide(sq, -uz * side * g, 0, ux * side * g, t);
+                double[] s2 = move(moved(sq, s1[0], 0, s1[2]), dx, dy, dz, canStep, stepHeight, t);
+                double[] c = {s1[0] + s2[0], s2[1], s1[2] + s2[2]};
                 double along = c[0] * ux + c[2] * uz;
                 if (along > best + 1e-6 && Math.abs(-c[0] * uz + c[2] * ux) <= g + 1e-6) {
                     best = along;

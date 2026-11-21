@@ -17,9 +17,30 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.function.IntToDoubleFunction;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+/**
+ * 국도 굽은 길 여유 (the owner: "국도가 이미 지어져 있는 애들이 급커브 같은 곳에 담장이 있거나, 리무진버스 같은 거나 막 갑자기 벽
+ * 맞은 판정"): the long vehicles (the three buses, the box truck and every land vehicle 4.5 long or more, read from the
+ * core's content) driven by their own physics ({@link VehiclePhysics}) the way players drive them (A / D towards a point ahead
+ * on a line in their lane or on its edge line; a careful driver slowing for a bend, a sloppy one at full speed steering late)
+ * along roads built as RoadModule builds them over made-up land: right-angled and 45 degree bends, an S-bend, a road round a
+ * hill (cut on its inside, filled on its outside) and round a bowl, bridges straight, on a diagonal and bending, tunnels
+ * bending and a portal on a bend, grades with bends (half steps), a diagonal along a hillside, T junctions (90 and 45 degrees)
+ * and a road crossing another. Every contact is recorded (what block, its role, how far from the centre line, which side of
+ * the bend; how: a bump, a clipped move, a turn not made).
+ * <ul>
+ *   <li>as roads were built before ({@link RoadSection#narrow}, corners not level) their railings, tunnel walls, guardrails,
+ *       reflectors and cut banks stood in the long vehicles' reach and they caught on them;</li>
+ *   <li>as built now nothing stands in the reach ({@link RoadSection#reach}), and no long vehicle touches anything on any of
+ *       the shapes (the sloppy driver on those no sharper than 45 degrees), nor turning at a junction;</li>
+ *   <li>/관리자 국도 커브정리 ({@link RoadSection#tidyCurve}) mends an old road: only the road's own blocks and the ground's,
+ *       never a lane, a player's blocks left, twice is once; then the long vehicles drive it clean.</li>
+ * </ul>
+ */
 class RoadBendTest {
 
     static Map<String, VehicleSpec> longOnes;
@@ -185,9 +206,6 @@ class RoadBendTest {
     /** A contact: what, where (lat from the road's centre line, + right of the way driven), on a bend's inside or outside. */
     record Hit(String block, int x, int y, int z, double lat, String side, double rise, String how) {}
 
-    /** When set: every tick, the footprint's corners' signed distance from the polyline and how far along (from the start) that is. */
-    static java.util.function.Consumer<double[]> reach;
-
     record Drive(String stuck, int bumps, int refused, List<Hit> hits) {
         boolean clean() {
             return stuck == null && bumps == 0 && hits.isEmpty();
@@ -289,13 +307,6 @@ class RoadBendTest {
             boolean turnRefused = steer != 0 && st.speed > 0.5 && st.yaw == yawBefore;
             if (st.bumped) bumps++;
             if (turnRefused) refused++;
-            if (reach != null) {
-                for (double[] q : VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s))
-                    for (double[] c : new double[][]{{q[0], q[2]}, {q[3], q[2]}, {q[0], q[5]}, {q[3], q[5]}}) {
-                        double[] l = latOf(pts, c[0], c[1]);
-                        reach.accept(new double[]{l[0], l[1], along(pts, c[0], c[1])});
-                    }
-            }
             if (st.bumped || clipped || turnRefused) contacts(s, st, w, pts, hits, (st.bumped ? "B" : "") + (clipped ? "C" : "") + (turnRefused ? "T" : ""));
             if (seg > best) {
                 best = seg;
@@ -327,62 +338,6 @@ class RoadBendTest {
         double cross = (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]);
         // Minecraft: x east, z south; right of heading (hx, hz) is (-hz, hx): cross > 0 = turning right
         return new double[]{sign * best, Math.abs(cross) < 1 ? 0 : Math.signum(cross)};
-    }
-
-    /** How far along the polyline (blocks from its start) its nearest point to (x, z) is. */
-    static double along(List<double[]> pts, double x, double z) {
-        double best = Double.MAX_VALUE, at = 0, run = 0;
-        for (int j = 0; j + 1 < pts.size(); j++) {
-            double[] a = pts.get(j), b = pts.get(j + 1);
-            double d = RoadSection.pointToSegment(x, z, a[0], a[1], b[0], b[1]);
-            double len = Math.hypot(b[0] - a[0], b[1] - a[1]);
-            if (d < best) {
-                best = d;
-                double t = len < 1e-9 ? 0 : Math.clamp(((x - a[0]) * (b[0] - a[0]) + (z - a[1]) * (b[1] - a[1])) / (len * len), 0, 1);
-                at = run + t * len;
-            }
-            run += len;
-        }
-        return at;
-    }
-
-    void measureReach() {
-        for (int ang : new int[]{20, 30, 45, 60, 90, 120, 135}) {
-            double r = Math.toRadians(ang);
-            List<double[]> c = corners(0, 0, 60, 0, 60 + (int) Math.round(60 * Math.cos(r)), (int) Math.round(60 * Math.sin(r)));
-            Road road = build(new Terra((x, z) -> 63, DRY), c, "a", false);
-            // strip everything over the road's level: an open plain
-            road.land().put.entrySet().removeIf(e -> {
-                long k = e.getKey();
-                int y = (int) (k & ((1 << 21) - 1)) - 1024;
-                return y >= 65;
-            });
-            for (String mode : List.of("careful", "normal", "sloppy")) {
-                double[] in = new double[60], out = new double[60];
-                java.util.Arrays.fill(in, 0);
-                java.util.Arrays.fill(out, 0);
-                double vertex = 60;
-                reach = v -> {
-                    int b = (int) Math.round(v[2] - vertex) + 30;
-                    if (b < 0 || b >= 60) return;
-                    double d = Math.abs(v[0]);
-                    boolean inside = v[1] != 0 && Math.signum(v[0]) == v[1];
-                    if (inside) in[b] = Math.max(in[b], d);
-                    else out[b] = Math.max(out[b], d);
-                };
-                for (VehicleSpec s : longOnes.values())
-                    for (double lat : LATS)
-                        for (boolean back : new boolean[]{false, true}) {
-                            if (mode.equals("careful")) drive(s, road, back, k -> lat, 9, 4.5, false);
-                            else if (mode.equals("normal")) drive(s, road, back, k -> lat, 9, 6.5, false);
-                            else if (Math.abs(lat) < 1.5) drive(s, road, back, k -> lat, 10, 10, true);
-                        }
-                reach = null;
-                StringBuilder sb = new StringBuilder(String.format(Locale.ROOT, "%3d %-8s", ang, mode));
-                for (int b = 0; b < 60; b += 3) sb.append(String.format(Locale.ROOT, " %+d:%.1f/%.1f", b - 30, in[b], out[b]));
-                System.out.println(sb);
-            }
-        }
     }
 
     static String role(Material m, Terra w, int x, int y, int z) {
@@ -437,78 +392,395 @@ class RoadBendTest {
 
     static final Ground FLAT = (x, z) -> 63;
     static final Wet DRY = (x, z) -> false;
+    /** A round hill (its slopes 0.7: a road round it cuts in on its inside and fills on its outside) and a bowl. */
+    static final Ground HILL = (x, z) -> (int) Math.floor(63 + Math.clamp(0.7 * (46 - Math.hypot(x - 60, z - 60)), -8, 20));
+    static final Ground BOWL = (x, z) -> (int) Math.floor(63 - Math.clamp(0.7 * (46 - Math.hypot(x - 60, z - 60)), -14, 12));
+    static final Wet LAKE = (x, z) -> Math.hypot(x - 60, z - 30) < 40;
+    static final Ground LAKE_BED = (x, z) -> Math.hypot(x - 60, z - 30) < 40 ? 56 : 63;
+    /** A steep hill (2 in 1) the road tunnels through. */
+    static final Ground MOUNT = (x, z) -> (int) Math.floor(63 + Math.clamp(2.0 * (40 - Math.max(Math.abs(x - 70), Math.abs(z - 40))), 0, 30));
+    static final Ground SLOPE = (x, z) -> (int) Math.floor(63 + Math.clamp((x - 20) * 0.3, 0, 18));
+    static final Ground SIDE = (x, z) -> (int) Math.floor(63 + Math.clamp((z - x) * 0.4, -10, 14));
 
-    static Map<String, Road> scenes() {
+    /** The shapes (old: as roads were built before: {@link RoadSection#narrow}, no level corners), the sharpest turning this many degrees. */
+    static Map<String, Road> scenes(boolean old) {
         Map<String, Road> out = new LinkedHashMap<>();
-        // flat corners: 45, 90, 135 degrees
-        out.put("flat 45", build(new Terra(FLAT, DRY), corners(0, 0, 60, 0, 120, 60), "a", false));
-        out.put("flat 90", build(new Terra(FLAT, DRY), corners(0, 0, 60, 0, 60, 60), "a", false));
-        out.put("flat 135", build(new Terra(FLAT, DRY), corners(0, 0, 60, 0, 10, 50), "a", false));
-        out.put("flat S", build(new Terra(FLAT, DRY), corners(0, 0, 40, 0, 56, 16, 56, 40, 72, 56, 110, 56), "a", false));
-        // round a hill (an octagon and a square): its inside cut into the hill, its outside on a fill
-        Ground hill = (x, z) -> (int) Math.floor(63 + Math.clamp(0.7 * (46 - Math.hypot(x - 60, z - 60)), -8, 20));
-        out.put("hill octagon", build(new Terra(hill, DRY), corners(0, 30, 35, 30, 60, 5, 85, 30, 85, 60, 85, 100), "a", false));
-        out.put("hill square", build(new Terra(hill, DRY), corners(0, 22, 98, 22, 98, 110), "a", false));
-        // round a bowl: the inside on a fill, the outside cut
-        Ground bowl = (x, z) -> (int) Math.floor(63 - Math.clamp(0.7 * (46 - Math.hypot(x - 60, z - 60)), -14, 12));
-        out.put("bowl square", build(new Terra(bowl, DRY), corners(0, 22, 98, 22, 98, 110), "a", false));
-        // a bridge with a bend over a lake
-        Wet lake = (x, z) -> Math.hypot(x - 60, z - 30) < 40;
-        Ground bed = (x, z) -> Math.hypot(x - 60, z - 30) < 40 ? 56 : 63;
-        out.put("bridge 45", build(new Terra(bed, lake), corners(0, 0, 50, 0, 100, 50, 100, 110), "a", false));
-        out.put("bridge 90", build(new Terra(bed, lake), corners(0, 20, 60, 20, 60, 110), "a", false));
-        // a tunnel bending in a steep hill and at its portal
-        Ground mount = (x, z) -> (int) Math.floor(63 + Math.clamp(2.0 * (40 - Math.max(Math.abs(x - 70), Math.abs(z - 40))), 0, 30));
-        out.put("tunnel 45", build(new Terra(mount, DRY), corners(0, 40, 70, 40, 120, 90, 120, 130), "a", false));
-        out.put("portal 45", build(new Terra(mount, DRY), corners(0, 0, 32, 0, 72, 40, 140, 40), "a", false));
-        // a grade with a bend (half steps)
-        Ground slope = (x, z) -> (int) Math.floor(63 + Math.clamp((x - 20) * 0.3, 0, 18));
-        out.put("grade 90", build(new Terra(slope, DRY), corners(0, 0, 70, 0, 70, 80), "a", false));
-        out.put("grade 45", build(new Terra(slope, DRY), corners(0, 0, 50, 0, 110, 60), "a", false));
-        // a diagonal on a hillside
-        Ground side = (x, z) -> (int) Math.floor(63 + Math.clamp((z - x) * 0.4, -10, 14));
-        out.put("diag hillside", build(new Terra(side, DRY), corners(0, 0, 120, 120), "a", false));
+        out.put("flat 45", build(new Terra(FLAT, DRY), corners(0, 0, 60, 0, 120, 60), "a", old));
+        out.put("flat 90", build(new Terra(FLAT, DRY), corners(0, 0, 60, 0, 60, 60), "a", old));
+        out.put("S-bend", build(new Terra(FLAT, DRY), corners(0, 0, 40, 0, 56, 16, 56, 40, 72, 56, 110, 56), "a", old));
+        out.put("hill octagon", build(new Terra(HILL, DRY), corners(0, 30, 35, 30, 60, 5, 85, 30, 85, 60, 85, 100), "a", old));
+        out.put("hill square", build(new Terra(HILL, DRY), corners(0, 22, 98, 22, 98, 110), "a", old));
+        out.put("bowl square", build(new Terra(BOWL, DRY), corners(0, 22, 98, 22, 98, 110), "a", old));
+        out.put("bridge straight", build(new Terra(LAKE_BED, LAKE), corners(0, 30, 120, 30), "a", old));
+        out.put("bridge 45", build(new Terra(LAKE_BED, LAKE), corners(0, 0, 50, 0, 100, 50, 100, 110), "a", old));
+        out.put("bridge 90", build(new Terra(LAKE_BED, LAKE), corners(0, 20, 60, 20, 60, 110), "a", old));
+        out.put("tunnel 45", build(new Terra(MOUNT, DRY), corners(0, 40, 70, 40, 120, 90, 120, 130), "a", old));
+        out.put("tunnel 90", build(new Terra(MOUNT, DRY), corners(0, 40, 70, 40, 70, 110), "a", old));
+        out.put("portal 45", build(new Terra(MOUNT, DRY), corners(0, 0, 32, 0, 72, 40, 140, 40), "a", old));
+        out.put("grade 45", build(new Terra(SLOPE, DRY), corners(0, 0, 50, 0, 110, 60), "a", old));
+        out.put("grade 90", build(new Terra(SLOPE, DRY), corners(0, 0, 70, 0, 70, 80), "a", old));
+        out.put("diagonal hillside", build(new Terra(SIDE, DRY), corners(0, 0, 120, 120), "a", old));
         return out;
+    }
+
+    /** The shapes no sharper than 45 degrees (a driver keeps his speed and steers late there too). */
+    static final List<String> GENTLE = List.of("flat 45", "bridge straight", "bridge 45", "tunnel 45", "portal 45", "grade 45", "diagonal hillside");
+
+    /** A main road and another built after it meeting it level (a junction): a T at a right angle, one at 45 degrees, a crossing. */
+    record Junction(Road main, Road branch, int at) {}
+
+    static Map<String, Junction> junctions(boolean old) {
+        Map<String, Junction> out = new LinkedHashMap<>();
+        for (Map.Entry<String, List<double[]>> e : Map.of("T 90", corners(100, 0, 100, 90), "T 45", corners(100, 0, 170, 70),
+                "crossing", corners(100, -70, 100, 70)).entrySet()) {
+            Terra land = new Terra(FLAT, DRY);
+            Road main = build(land, corners(0, 0, 160, 0), "a", old);
+            land.net = RoadNetwork.of(List.of(new RoadNetwork.Road("a", main.points(), main.halves())));
+            Road branch = build(land, e.getValue(), "b", old);
+            out.put(e.getKey(), new Junction(main, branch, 100));
+        }
+        return out;
+    }
+
+    /** Along the main road to the junction, then onto the branch (its points from the main road's centre line on). */
+    static List<double[]> turn(Junction j, boolean fromStart) {
+        List<double[]> out = new ArrayList<>();
+        List<double[]> m = j.main().points(), b = j.branch().points();
+        int on = 0;
+        for (int k = 0; k < b.size(); k++) if (Math.abs(b.get(k)[1] - 0.5) < 0.01 && Math.abs(b.get(k)[0] - (j.at() + 0.5)) < 0.01) on = k;
+        if (fromStart) for (int k = 0; k <= j.at(); k++) out.add(m.get(k));
+        else for (int k = m.size() - 1; k >= j.at(); k--) out.add(m.get(k));
+        for (int k = on + 1; k < b.size(); k++) out.add(b.get(k));
+        return out;
+    }
+
+    static int[] turnHalves(Junction j, int n) {
+        int[] h = new int[n];
+        java.util.Arrays.fill(h, j.main().halves()[0]);
+        return h;
     }
 
     static final double[] LATS = {1.25, 2.0, -1.25, -2.0};
 
-    @Test
-    void dbg() {
-        Ground hill = (x, z) -> (int) Math.floor(63 + Math.clamp(0.7 * (46 - Math.hypot(x - 60, z - 60)), -8, 20));
-        Road r = build(new Terra(hill, DRY), corners(0, 30, 35, 30, 60, 5, 85, 30, 85, 60, 85, 100), "a", true);
-        int[] h = r.halves().clone();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 55; i < 100; i++) sb.append(i).append(':').append(h[i]).append(' ');
-        System.out.println(sb);
-        RoadProfile.levelBends(r.points(), h, new boolean[h.length]);
-        sb = new StringBuilder();
-        for (int i = 55; i < 100; i++) sb.append(i).append(':').append(h[i]).append(' ');
-        System.out.println(sb);
+    /** Drives a careful driver (slows to 4.5 for a bend) and, on the gentle shapes, a sloppy one at full speed: what was not clean. */
+    static List<String> driveAll(String name, Road r, boolean sloppyToo, List<String> vehicles) {
+        List<String> bad = new ArrayList<>();
+        for (Map.Entry<String, VehicleSpec> v : longOnes.entrySet()) {
+            boolean main = vehicles.contains(v.getKey());
+            for (double lat : main ? LATS : new double[]{1.25, -2.0}) {
+                for (boolean back : main ? new boolean[]{false, true} : new boolean[]{false}) {
+                    Drive d = drive(v.getValue(), r, back, k -> lat, 9, 4.5, false);
+                    if (!d.clean()) bad.add(name + " " + v.getKey() + " " + lat + (back ? " back" : "") + ": " + d);
+                    if (sloppyToo && main) {
+                        d = drive(v.getValue(), r, back, k -> lat, 10, 10, true);
+                        if (!d.clean()) bad.add(name + " " + v.getKey() + " " + lat + (back ? " back" : "") + " sloppy: " + d);
+                    }
+                }
+            }
+        }
+        return bad;
     }
 
-    @Test
-    void survey() {
-        Map<String, Road> scenes = scenes();
-        Map<String, Integer> roles = new TreeMap<>();
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, Road> sc : scenes.entrySet()) {
-            Road r = sc.getValue();
-            for (Map.Entry<String, VehicleSpec> v : longOnes.entrySet()) {
-                if (!List.of("limousine_bus", "village_bus", "box_truck", "mini_bus").contains(v.getKey())) continue;
-                for (double lat : LATS) {
-                    for (boolean back : new boolean[]{false, true}) {
-                        for (int mode = 0; mode < 2; mode++) {
-                            Drive d = mode == 0 ? drive(v.getValue(), r, back, k -> lat, 9, 4.5, false) : drive(v.getValue(), r, back, k -> lat, 10, 10, true);
-                            if (d.clean()) continue;
-                            sb.append(sc.getKey()).append(" | ").append(v.getKey()).append(" lat ").append(lat).append(back ? " back" : "").append(mode == 1 ? " sloppy" : "").append(": ").append(d).append('\n');
-                            for (Hit h : d.hits()) roles.merge(sc.getKey() + " " + h.block() + " " + h.side() + " lat~" + Math.round(Math.abs(h.lat())) + " " + h.how(), 1, Integer::sum);
+    static final List<String> BUSES = List.of("limousine_bus", "village_bus", "box_truck", "mini_bus");
+
+    // ------------------------------------------------------------------------------------------
+    // What a vehicle can hit near a road
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Every block box over a road's surface (from half a block over it to a vehicle's height) nearer its centre line than
+     * the vehicles reach there ({@link RoadSection#reach}): "material@x,y,z distance < reach". narrowReach: measured against
+     * the reach of a road built now (for an old road: what it left in the way).
+     */
+    static List<String> inTheWay(Road r, RoadSection rule) {
+        List<String> out = new ArrayList<>();
+        List<double[]> pts = r.points();
+        double minX = Double.MAX_VALUE, minZ = Double.MAX_VALUE, maxX = -Double.MAX_VALUE, maxZ = -Double.MAX_VALUE;
+        for (double[] p : pts) {
+            minX = Math.min(minX, p[0]);
+            minZ = Math.min(minZ, p[1]);
+            maxX = Math.max(maxX, p[0]);
+            maxZ = Math.max(maxZ, p[1]);
+        }
+        List<double[]> bx = new ArrayList<>();
+        int pad = 10;
+        for (int x = (int) Math.floor(minX) - pad; x <= (int) Math.floor(maxX) + pad; x++) {
+            for (int z = (int) Math.floor(minZ) - pad; z <= (int) Math.floor(maxZ) + pad; z++) {
+                // the nearest point (not the ends: a road begins and ends in the open, where the vehicles start)
+                int at = -1;
+                double d = Double.MAX_VALUE;
+                for (int j = 0; j + 1 < pts.size(); j++) {
+                    double e = RoadSection.boxToSegment(x, z, x + 1, z + 1, pts.get(j)[0], pts.get(j)[1], pts.get(j + 1)[0], pts.get(j + 1)[1]);
+                    if (e < d) {
+                        d = e;
+                        at = j;
+                    }
+                }
+                if (at < 12 || at > pts.size() - 14 || d > 9) continue;
+                double reach = Math.min(rule.reach(at), Math.min(rule.reach(Math.max(0, at - 1)), rule.reach(at + 1)));   // (its column's own point is one of these)
+                if (d >= reach) continue;
+                double floor = Double.NEGATIVE_INFINITY;
+                for (int j = Math.max(0, at - 2); j <= Math.min(pts.size() - 1, at + 2); j++) floor = Math.max(floor, RoadSection.top(r.halves()[j]));
+                for (int y = (int) Math.floor(floor); y <= (int) Math.floor(floor + 3); y++) {
+                    bx.clear();
+                    RoadLightsTest.boxes(r.land()::get, x, y, z, bx);
+                    for (double[] o : bx) {
+                        if (o[4] <= floor + 0.55 || o[1] >= floor + 3) continue;
+                        double od = Double.MAX_VALUE;
+                        for (int j = Math.max(0, at - 14); j < Math.min(pts.size() - 1, at + 14); j++)
+                            od = Math.min(od, RoadSection.boxToSegment(o[0], o[2], o[3], o[5], pts.get(j)[0], pts.get(j)[1], pts.get(j + 1)[0], pts.get(j + 1)[1]));
+                        if (od < reach - 1e-6) {
+                            out.add(String.format(Locale.ROOT, "%s@%d,%d,%d %.2f < %.2f", r.land().get(x, y, z).name().toLowerCase(Locale.ROOT), x, y, z, od, reach));
+                            break;
                         }
                     }
                 }
             }
         }
-        System.out.println(sb);
-        roles.forEach((k, n) -> System.out.println(k + " x" + n));
+        return out;
+    }
+
+    /** What of the old road the rule finds in the way, by kind (railing, tunnel wall, guardrail, bank ...). */
+    static Map<String, Integer> kinds(List<String> in) {
+        Map<String, Integer> out = new TreeMap<>();
+        for (String s : in) out.merge(s.substring(0, s.indexOf('@')), 1, Integer::sum);
+        return out;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Why: roads as they were built
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void theOldRoadsLeftWallsInTheLongVehiclesWay() {
+        Map<String, Road> old = scenes(true), now = scenes(false);
+        // the numbers: a bus 2.4 wide on the edge line (2.0 out) reaches 3.08 on a road along x or z, 3.53 on a diagonal
+        // (axis-aligned squares); the luxury SUV 2.7 wide 3.21 and 3.72
+        assertEquals(3.315, RoadClearance.reach(1, 0), 1e-9);
+        assertEquals(2.0 + 1.215 * Math.sqrt(2) + 0.1, RoadClearance.reach(Math.sqrt(2), 0), 1e-9);
+        // a bridge's railing stood 2.5 out (its posts 2.75): in the way of a vehicle on the edge line even along x
+        Map<String, Integer> bridge = kinds(inTheWay(old.get("bridge straight"), now.get("bridge straight").section()));
+        assertTrue(bridge.getOrDefault("stone_brick_wall", 0) > 50, "the old bridge's railing in the way: " + bridge);
+        Drive edge = drive(longOnes.get("village_bus"), old.get("bridge straight"), false, k -> 2.0, 9, 4.5, false);
+        assertTrue(edge.bumps() > 0 || edge.stuck() != null, "the village bus on the edge line hit the railing's end head-on: " + edge);
+        // a tunnel's lined walls 3.5 out: on a diagonal their blocks' corners (2.8 out) in the way even of a bus in its lane
+        Map<String, Integer> tunnel = kinds(inTheWay(old.get("tunnel 45"), now.get("tunnel 45").section()));
+        assertTrue(tunnel.keySet().stream().anyMatch(k -> k.equals("white_concrete") || k.equals("polished_andesite") || k.equals("stone_bricks")),
+                "the old tunnel's walls in the way: " + tunnel);
+        // round the bends: guardrails, reflector posts and the cut bank
+        Map<String, Integer> bends = new TreeMap<>();
+        for (String s : List.of("hill octagon", "hill square", "bowl square", "flat 90"))
+            kinds(inTheWay(old.get(s), now.get(s).section())).forEach((k, v) -> bends.merge(k, v, Integer::sum));
+        assertTrue(bends.getOrDefault("andesite_wall", 0) > 0, "guardrails round a bend: " + bends);
+        assertTrue(bends.getOrDefault("grass_block", 0) + bends.getOrDefault("dirt", 0) + bends.getOrDefault("stone", 0) > 0, "the bank round a bend: " + bends);
+        // and the long vehicles caught on them, as the owner saw: in their lanes, slowing for the bends
+        List<String> bad = new ArrayList<>();
+        for (String s : List.of("bridge 45", "tunnel 45", "hill octagon", "grade 90")) bad.addAll(driveAll(s, old.get(s), false, BUSES));
+        assertTrue(bad.size() > 20, "the old roads: " + bad.size());
+        assertTrue(bad.stream().anyMatch(s -> s.startsWith("bridge 45") && s.contains("bumps") && !s.contains("bumps 0")), "bumped on the old bridge");
+        assertTrue(bad.stream().anyMatch(s -> s.startsWith("grade 90")), "the crease of steps in the old graded corner");
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Roads as built now
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void nothingStandsInTheVehiclesReachOnANewRoad() {
+        Map<String, List<String>> bad = new LinkedHashMap<>();
+        for (Map.Entry<String, Road> e : scenes(false).entrySet()) {
+            List<String> in = inTheWay(e.getValue(), e.getValue().section());
+            if (!in.isEmpty()) bad.put(e.getKey(), in.subList(0, Math.min(6, in.size())));
+        }
+        assertEquals(Map.of(), bad);
+    }
+
+    @Test
+    void longVehiclesDriveEveryNewShapeWithoutAContact() {
+        List<String> bad = new ArrayList<>();
+        for (Map.Entry<String, Road> e : scenes(false).entrySet()) bad.addAll(driveAll(e.getKey(), e.getValue(), GENTLE.contains(e.getKey()), BUSES));
+        assertEquals(List.of(), bad);
+    }
+
+    @Test
+    void longVehiclesTurnAtJunctionsWithoutAContact() {
+        List<String> bad = new ArrayList<>();
+        for (Map.Entry<String, Junction> e : junctions(false).entrySet()) {
+            Junction j = e.getValue();
+            bad.addAll(driveAll(e.getKey() + " main", j.main(), true, BUSES));
+            bad.addAll(driveAll(e.getKey() + " branch", j.branch(), true, BUSES));
+            if (e.getKey().equals("crossing")) continue;   // (it goes over the main road: no turning there)
+            for (boolean fromStart : new boolean[]{true, false}) {
+                if (!fromStart && e.getKey().equals("T 45")) continue;   // (the acute side: a 135 degree hairpin, as a corner that sharp: not driven)
+                List<double[]> path = turn(j, fromStart);
+                for (boolean back : new boolean[]{false, true}) {
+                    List<double[]> pts = back ? reversed(path) : path;
+                    for (String id : BUSES)
+                        for (double lat : new double[]{1.25, -1.25}) {
+                            Drive d = drive(longOnes.get(id), j.main().land(), pts, turnHalves(j, pts.size()), k -> lat, 9, 4.5, false);
+                            if (!d.clean()) bad.add(e.getKey() + " turning " + (fromStart ? "from the start" : "from the end") + (back ? " back" : "") + " " + id + " " + lat + ": " + d);
+                        }
+                }
+            }
+        }
+        assertEquals(List.of(), bad);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /관리자 국도 커브정리
+    // ------------------------------------------------------------------------------------------
+
+    /** /관리자 국도 커브정리 over a road as RoadModule does it: a RoadSection of the saved road (and where it meets others), every point. */
+    static int tidy(Road r, Terra land, RoadNetwork others) {
+        land.net = others;
+        RoadSection s = new RoadSection(land, STYLE, r.points(), r.halves(), r.parts(), r.dock(), 1);
+        int[] cross = others.crossings(r.points());
+        boolean[] over = new boolean[cross.length];
+        for (int i = 0; i < cross.length; i++) over[i] = cross[i] != Integer.MIN_VALUE && r.parts()[i] == RoadProfile.Part.BRIDGE;
+        s.network(cross, over);
+        int n = 0;
+        for (int i = 0; i < r.points().size(); i++) {
+            n += s.tidyCurve(i, (x, z) -> false);
+            if (r.parts()[i] == RoadProfile.Part.ROAD) n += s.tidyLight(i, (x, z) -> false)[2];
+        }
+        return n;
+    }
+
+    /** What the tidy may change a block from or to. */
+    static final java.util.Set<Material> MAY = java.util.Set.of(Material.AIR, Material.WATER, Material.GRASS_BLOCK, Material.DIRT, Material.STONE,
+            Material.DIRT_PATH, Material.ANDESITE_WALL, Material.END_ROD, Material.STONE_BRICKS, Material.STONE_BRICK_WALL, Material.LANTERN,
+            Material.SMOOTH_STONE, Material.SMOOTH_STONE_SLAB, Material.WHITE_CONCRETE, Material.YELLOW_TERRACOTTA, Material.POLISHED_ANDESITE,
+            Material.SEA_LANTERN, Material.IRON_TRAPDOOR, Material.GRAVEL, Material.COBBLESTONE);
+
+    /** A point `out` to the right of the road's point k. */
+    static int[] beside(Road r, int k, double out) {
+        double[] a = r.points().get(k - 2), b = r.points().get(k + 2), p = r.points().get(k);
+        double hx = b[0] - a[0], hz = b[1] - a[1], l = Math.hypot(hx, hz);
+        return new int[]{(int) Math.floor(p[0] - hz / l * out), (int) Math.floor(p[1] + hx / l * out)};
+    }
+
+    @Test
+    void theTidyMendsOldRoadsAndTouchesNothingElse() {
+        Map<String, Road> old = scenes(true), now = scenes(false);
+        List<String> bad = new ArrayList<>();
+        for (Map.Entry<String, Road> e : old.entrySet()) {
+            String name = e.getKey();
+            Road r = e.getValue();
+            Terra land = r.land();
+            // a player's things: a chest on the verge and planks out on the shoulder round the sharpest bend, a stone brick
+            // wall on a bridge's lane, glass in a tunnel's lane
+            int bend = 0;
+            for (int i = 20; i < r.points().size() - 20; i++) if (now.get(name).section().turn(i) > now.get(name).section().turn(bend)) bend = i;
+            if (bend == 0) bend = r.points().size() / 2;
+            int y = RoadSection.surfaceY(r.halves()[bend]), base = RoadProfile.block(r.halves()[bend]);
+            int[] chest = beside(r, bend, -4.0), planks = beside(r, bend + 3, 6.2), lane = beside(r, bend - 4, 1.0);
+            Map<String, Material> mine = new LinkedHashMap<>();
+            if (r.parts()[bend] == RoadProfile.Part.ROAD) {
+                mine.put(chest[0] + "," + (base + 1) + "," + chest[1], Material.CHEST);
+                mine.put(planks[0] + "," + (base + 1) + "," + planks[1], Material.OAK_PLANKS);
+            }
+            mine.put(lane[0] + "," + (y + 1) + "," + lane[1], r.parts()[bend - 4] == RoadProfile.Part.TUNNEL ? Material.GLASS : Material.STONE_BRICK_WALL);
+            mine.forEach((k, m) -> {
+                String[] c = k.split(",");
+                land.set(Integer.parseInt(c[0]), Integer.parseInt(c[1]), Integer.parseInt(c[2]), m);
+            });
+            Map<Long, Material> was = new HashMap<>(land.put);
+            land.log = new ArrayList<>();
+            int n = tidy(r, land, RoadNetwork.NONE);
+            if (!name.equals("flat 45") && !name.equals("S-bend") && !name.equals("diagonal hillside") && !name.equals("grade 45") && n == 0)
+                bad.add(name + ": nothing mended");
+            for (int[] k : land.log) {
+                Material from = was.getOrDefault(Terra.key(k[0], k[1], k[2]), land.base(k[0], k[1], k[2])), to = land.get(k[0], k[1], k[2]);
+                if (!MAY.contains(from) || !MAY.contains(to)) bad.add(name + ": " + from + " -> " + to + " at " + java.util.Arrays.toString(k));
+                RoadNetwork.Spot sp = null;
+                double d = Double.MAX_VALUE;
+                for (int j = 0; j + 1 < r.points().size(); j++)
+                    d = Math.min(d, RoadSection.pointToSegment(k[0] + 0.5, k[2] + 0.5, r.points().get(j)[0], r.points().get(j)[1], r.points().get(j + 1)[0], r.points().get(j + 1)[1]));
+                if (d > RoadSection.HALF + RoadSection.MAX_WIDE + 1.5) bad.add(name + ": off the road's cross-section " + d + " at " + java.util.Arrays.toString(k));
+                // never the lanes (their surface, kerbs and edge lines)
+                Material f = from;
+                if ((f == Material.GRAY_CONCRETE || f == Material.YELLOW_CONCRETE || f == Material.SMOOTH_QUARTZ || f.name().endsWith("_SLAB")
+                        || f == Material.DEEPSLATE_TILES || f == Material.CRACKED_DEEPSLATE_TILES)) bad.add(name + ": a lane's block " + f);
+            }
+            // twice is once
+            land.log = new ArrayList<>();
+            int again = tidy(r, land, RoadNetwork.NONE);
+            if (again != 0 || !land.log.isEmpty()) bad.add(name + ": again " + again + " " + land.log.size());
+            land.log = null;
+            mine.forEach((k, m) -> {
+                String[] c = k.split(",");
+                if (land.get(Integer.parseInt(c[0]), Integer.parseInt(c[1]), Integer.parseInt(c[2])) != m) bad.add(name + ": a player's " + m + " at " + k);
+                land.set(Integer.parseInt(c[0]), Integer.parseInt(c[1]), Integer.parseInt(c[2]), Material.AIR);   // (out of the way to drive)
+            });
+            // what stays in the way: only an old graded corner's crease (the lanes themselves: the tidy never relays them)
+            List<String> in = inTheWay(r, now.get(name).section());
+            in.removeIf(s -> s.startsWith("gray_concrete") || s.startsWith("smooth_quartz") || s.startsWith("yellow_concrete") || s.startsWith("smooth_stone")
+                    || s.startsWith("deepslate_tile") || s.startsWith("cracked_deepslate"));
+            if (!in.isEmpty()) bad.add(name + " in the way after: " + in.subList(0, Math.min(5, in.size())));
+            if (!name.equals("grade 90")) bad.addAll(driveAll(name + " tidied", r, GENTLE.contains(name), BUSES));
+        }
+        assertEquals(List.of(), bad);
+    }
+
+    @Test
+    void theTidyMendsOldJunctions() {
+        List<String> bad = new ArrayList<>();
+        for (Map.Entry<String, Junction> e : junctions(true).entrySet()) {
+            Junction j = e.getValue();
+            Terra land = j.main().land();
+            RoadNetwork mainNet = RoadNetwork.of(List.of(new RoadNetwork.Road("a", j.main().points(), j.main().halves())));
+            RoadNetwork branchNet = RoadNetwork.of(List.of(new RoadNetwork.Road("b", j.branch().points(), j.branch().halves())));
+            Map<Long, Material> lanes = new HashMap<>();
+            for (Map.Entry<Long, Material> p : land.put.entrySet()) if (p.getValue() == Material.GRAY_CONCRETE || p.getValue() == Material.SMOOTH_QUARTZ) lanes.put(p.getKey(), p.getValue());
+            tidy(j.main(), land, branchNet);
+            tidy(j.branch(), land, mainNet);
+            for (Map.Entry<Long, Material> p : lanes.entrySet()) if (land.put.get(p.getKey()) != p.getValue()) bad.add(e.getKey() + ": a lane changed");
+            land.log = new ArrayList<>();
+            int again = tidy(j.main(), land, branchNet) + tidy(j.branch(), land, mainNet);
+            if (again != 0) bad.add(e.getKey() + ": again " + again);
+            land.log = null;
+            land.net = mainNet;
+            if (e.getKey().equals("crossing")) continue;
+            for (boolean fromStart : new boolean[]{true, false}) {
+                if (!fromStart && e.getKey().equals("T 45")) continue;   // (the acute side: a 135 degree hairpin, as a corner that sharp: not driven)
+                List<double[]> path = turn(j, fromStart);
+                for (boolean back : new boolean[]{false, true}) {
+                    List<double[]> pts = back ? reversed(path) : path;
+                    for (String id : BUSES)
+                        for (double lat : new double[]{1.25, -1.25}) {
+                            Drive d = drive(longOnes.get(id), land, pts, turnHalves(j, pts.size()), k -> lat, 9, 4.5, false);
+                            if (!d.clean()) bad.add(e.getKey() + " tidied, turning " + (fromStart ? "from the start" : "from the end") + (back ? " back" : "") + " " + id + " " + lat + ": " + d);
+                        }
+                }
+            }
+        }
+        assertEquals(List.of(), bad);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The rule's numbers
+    // ------------------------------------------------------------------------------------------
+
+    @Test
+    void theRulesNumbers() throws IOException {
+        // the widest vehicle 4.5 long or more (its squares 0.9 of its width) and the core's square share
+        double widest = 0;
+        for (VehicleSpec s : RoadClearanceTest.landVehicles().values()) if (s.length() >= RoadClearance.LONG) widest = Math.max(widest, s.width());
+        assertTrue(RoadClearance.WIDTH >= widest, "RoadClearance.WIDTH < " + widest);
+        for (VehicleSpec s : longOnes.values()) assertEquals(s.width() * RoadClearance.SQUARE, s.squareSize(), 1e-9, "the core's square share");
+        // straight: as roads were (a bridge's railing a block further out); a right angle: the most room, within the
+        // chunks the builder loads round the road
+        assertEquals(1, RoadClearance.diagonal(1, 0), 1e-9);
+        assertEquals(Math.sqrt(2), RoadClearance.diagonal(1, 1), 1e-9);
+        assertEquals(RoadClearance.BEND_MAX, RoadClearance.bend(90), 1e-9);
+        assertTrue(RoadModule.REACH >= RoadSection.HALF + RoadSection.WIDEN + RoadSection.MAX_WIDE);
+        // the level corners keep the grade
+        int[] h = new int[80];
+        for (int i = 0; i < h.length; i++) h[i] = 128 + i * 2 / 3;
+        List<double[]> pts = RoadPlanner.densify(corners(0, 0, 40, 0, 40, 39), 1);
+        RoadProfile.levelBends(pts, h, new boolean[h.length]);
+        assertTrue(RoadProfile.graded(h));
+        // the bus' bump: only at speed
+        assertTrue(dev.stsv.economy.bus.BusModule.BUMP_FROM >= 3);
     }
 }
