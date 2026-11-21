@@ -381,7 +381,7 @@ public final class SecretAgent implements Listener {
     void second(long now) {
         if (!cfg.enabled() || type() == null) return;
         ZonedDateTime t = ZonedDateTime.now(KST);
-        if (waitStop == null) {
+        if (waitStop == null && !closed()) {   // solved once on this server: he no longer comes for notes
             long day = t.toLocalDate().toEpochDay();
             int span = Math.max(0, cfg.maxTimes() - cfg.minTimes());
             int times = cfg.minTimes() + (int) Math.floorMod(day * 31 + 7, span + 1);
@@ -860,13 +860,18 @@ public final class SecretAgent implements Listener {
         Deque<Long> d = honks.computeIfAbsent(u, k -> new ArrayDeque<>());
         if (!honked(d, System.currentTimeMillis(), cfg.honks(), cfg.honkWindow() * 1000L)) return;
         d.clear();
-        if (!cfg.enabled() || jobs.containsKey(u) || agent(u) || run.atStop == null) return;
+        if (!cfg.enabled() || closed() || jobs.containsKey(u) || agent(u) || run.atStop == null) return;
         ZonedDateTime t = ZonedDateTime.now(KST);
         if (!finalTime(t.getHour(), t.getMinute(), cfg.finalHour(), cfg.finalMinute(), cfg.finalSpan())) return;
         if (!hasAll(earned(u), cfg.notes().size())) return;
         BusStop here = bus.stopMap().get(run.atStop);
         if (here == null || !terminalSide(here)) return;
         startFinal(p, run, here);
+    }
+
+    /** The secret is solved once per server: after the first agent, no one else can get notes or run the final. */
+    boolean closed() {
+        return eco.kv().has("bus.secret.first");
     }
 
     /** Whether a stop is the first of a line (its terminal end). */
@@ -1232,7 +1237,9 @@ public final class SecretAgent implements Listener {
         p.spawnParticle(Particle.ENCHANT, c, 40, 0.3, 0.4, 0.3, 0.5);
         speak(p, j.rider.m, cfg.line("final-done", roll()));
         p.resetPlayerTime();
-        if (!agent(u)) {
+        if (closed() && !agent(u)) {   // someone else solved it first while this run was under way: the case is empty
+            p.sendMessage(Lang.mm("bus.secret-closed"));
+        } else if (!agent(u)) {
             eco.kv().set(key(u, "agent"), String.valueOf(System.currentTimeMillis()));
             rewards(p);
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 0.6f);
@@ -1450,6 +1457,11 @@ public final class SecretAgent implements Listener {
                         + coord(c[0], c[1]) + "</white> (" + Math.round(Math.hypot(c[0] - t.getX(), c[1] - t.getZ())) + " 블록"
                         + (c[4] == 0 ? ", 거리 범위 밖: 가장 가까운 점" : "") + ") · 번호 <white>" + code(cfg.notes())));
             }
+            case "서버초기화" -> {   // opens the secret again for everyone (testing): forgets the first agent and the plaque
+                eco.kv().remove("bus.secret.first");
+                eco.kv().remove("bus.secret.plaque");
+                s.sendMessage(Text.msg("<green>버스의 비밀을 다시 열었습니다 (최초의 요원 · 명판 기록 지움, 개인 진행은 그대로)"));
+            }
             case "초기화" -> {
                 if (who == null) {
                     s.sendMessage(Text.msg("<red>/관리자 버스 비밀 초기화 <플레이어>"));
@@ -1493,7 +1505,7 @@ public final class SecretAgent implements Listener {
 
     List<String> complete(String[] args) {
         if (args.length == 1) return List.of("비밀");
-        if (args.length == 2) return List.of("소환", "쪽지", "최종", "좌표", "초기화", "상태");
+        if (args.length == 2) return List.of("소환", "쪽지", "최종", "좌표", "초기화", "서버초기화", "상태");
         if (args.length == 3 && args[1].equals("소환")) return List.of("1", "2", "3", "4", "5");
         if (args.length == 3) return Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(n -> n.startsWith(args[2])).toList();
         if (args.length == 4 && args[1].equals("쪽지")) return List.of("1", "2", "3", "4", "5", "전부");

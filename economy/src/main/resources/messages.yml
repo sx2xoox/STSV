@@ -1440,6 +1440,7 @@ bus:
   secret-keypad-tries: "<gray>남은 기회 <white>{n}</white>/{max}"
   secret-keypad-wrong: "<red>찰칵… 열리지 않는다. <gray>(남은 기회 {n})"
   secret-final-again: "<gray>가방은 비어 있었습니다. (이미 보상을 받았어요)"
+  secret-closed: "<gray>가방은 비어 있었습니다… <dark_gray>누군가 먼저 버스의 비밀을 풀었습니다."
   secret-closed-sign: "<gray>폐쇄된 정류장"
   secret-final-done: "<gold>서류 가방이 열렸습니다.</gold> <gray>받은 것: {got}"
   secret-final-all: "<dark_gray>누군가 버스의 비밀을 풀었다…"
