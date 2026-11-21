@@ -494,10 +494,11 @@ public final class RoadSection {
 
     /**
      * How far from the road's centre line (the nearest point of it, round a bend too) a street light's post stays at the
-     * least: 0.75 beyond the kerb (3.5). Lights used to stand on the verge right by the kerb (the column whose centre is
-     * nearest 4 out): on a straight road its post 3.75 out, but on a diagonal or a bend that column can stand half in the
-     * kerb's line (3.2 out at 45 degrees), and a vehicle's collision squares do not turn with it (VehiclePhysics: a bus 2.4
-     * wide reaches 1.53 to each side at 45 degrees): a bus a little over the edge line, or cutting a bend, caught on them.
+     * least: a block beyond the kerb (3.5; on a straight road the shoulder's outer column, its post 4.75 out). Lights used
+     * to stand on the verge right by the kerb (the column whose centre is nearest 4 out): on a straight road the post 3.75
+     * out, but on a diagonal or a bend that column can stand half in the kerb's line (3.18 out at 45 degrees), and a
+     * vehicle's collision squares do not turn with it (VehiclePhysics: a bus 2.4 wide reaches 1.53 to each side at 45
+     * degrees): a bus a little over the edge line, or cutting a bend, caught on them (RoadLightsTest).
      */
     public static final double LIGHT_CLEAR = 4.5;
     /** A light's point with no column far enough out on its side (a diagonal's columns): the next points (up to this many) take it. */
@@ -531,8 +532,9 @@ public final class RoadSection {
             if (post != null) lamp(post, cols, side, e, h, deck, ceilings[i]);
             return;
         }
-        if (k > LIGHT_SHIFT || parts[i] != RoadProfile.Part.ROAD) return;
+        if (k > LIGHT_SHIFT || parts[i] != RoadProfile.Part.ROAD || parts[base] != RoadProfile.Part.ROAD) return;
         int side = lightSide(base);
+        if (side == 0) return;
         for (int j = base; j < i; j++) if (parts[j] == RoadProfile.Part.ROAD && lightPost(j, side, null) != null) return;   // an earlier point took it
         Col post = lightPost(i, side, cols);
         if (post != null) lamp(post, cols, side, e, h, false, ceilings[i]);
@@ -540,13 +542,18 @@ public final class RoadSection {
 
     /**
      * The side the light of the point `base` (a multiple of lightEvery) stands on: sides take turns, never a sign's side,
-     * never the inside of a bend ({@link #insideBend}: then the outside, its sign or not).
+     * never the inside of a bend ({@link #insideBend}: then the outside; 0, none, when that is a sign's side).
      */
     private int lightSide(int base) {
-        boolean sign = false;
-        for (int j = base; j <= Math.min(points.size() - 1, base + LIGHT_SHIFT); j++) sign |= signs.containsKey(j);
-        int side = (base / style.lightEvery()) % 2 == 0 && !sign ? 1 : -1;
-        return insideBend(base, side) ? -side : side;
+        int side = (base / style.lightEvery()) % 2 == 0 && !signNear(base) ? 1 : -1;
+        if (insideBend(base, side)) side = -side;
+        return side == 1 && signNear(base) ? 0 : side;   // (0: none here: the bend's outside is the sign's side)
+    }
+
+    /** Whether one of this road's own signs (on the right) stands at the points a light of `base` may take, or just by them. */
+    private boolean signNear(int base) {
+        for (int j = Math.max(0, base - 1); j <= Math.min(points.size() - 1, base + LIGHT_SHIFT + 1); j++) if (signs.containsKey(j)) return true;
+        return false;
     }
 
     /** A bend this sharp or more (degrees, over {@link #BEND_REACH} points either way) keeps the lights off its inside. */
@@ -692,8 +699,9 @@ public final class RoadSection {
                 changed++;
             }
             out[0]++;
-            if (!byBay) {
-                int put = relight(i, insideBend(i, side) ? -side : side, keepClear);
+            int again = insideBend(i, side) ? -side : side;
+            if (!byBay && !(again == 1 && signNear(i))) {   // (never by one of the road's own signs, on the right)
+                int put = relight(i, again, keepClear);
                 if (put > 0) out[1]++;
                 changed += put;
             }

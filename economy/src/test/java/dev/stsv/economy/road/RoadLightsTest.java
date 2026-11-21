@@ -539,7 +539,7 @@ class RoadLightsTest {
                 Material from = was.getOrDefault(Flat.key(k[0], k[1], k[2]), new Flat().get(k[0], k[1], k[2])), to = f.get(k[0], k[1], k[2]);
                 for (Material m : new Material[]{from, to})
                     assertTrue(m == Material.AIR || m == Material.STONE_BRICK_WALL || m == Material.LANTERN || m == Material.STONE_BRICKS
-                            || m == Material.DIRT_PATH || m == Material.GRASS_BLOCK || m == Material.DIRT || m == Material.END_ROD, shape + ": " + m + " at " + java.util.Arrays.toString(k));
+                            || m == Material.DIRT_PATH || m == Material.GRASS_BLOCK || m == Material.DIRT || m == Material.END_ROD || m == Material.ANDESITE_WALL, shape + ": " + m + " at " + java.util.Arrays.toString(k));
                 assertTrue(clearance(r.points(), k[0], k[2]) <= 5.75 + RoadSection.WIDEN, shape + ": on the road's cross-section: " + java.util.Arrays.toString(k));
             }
             assertEquals(Material.CHEST, f.get(vx, vy, vz));
@@ -564,7 +564,7 @@ class RoadLightsTest {
                         if (!d.clean()) bad.add(shape + " " + e.getKey() + " " + lat + (back ? " back" : "") + ": " + d);
                     }
                 }
-                if (!shape.startsWith("bend") && !shape.startsWith("zig")) {   // (a stop stands on a straight stretch)
+                if (shape.startsWith("diagonal")) {   // (a stop stands on a straight stretch, never on a high fill: its guardrails)
                     for (int slant : new int[]{12, 26}) {
                         Drive d = drive(e.getValue(), f, r.points(), inAndOut(c, slant), 5, false);
                         if (!d.clean()) bad.add(shape + " bay " + e.getKey() + " slant " + slant + ": " + d);

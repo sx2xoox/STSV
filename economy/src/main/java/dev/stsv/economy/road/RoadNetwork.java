@@ -135,7 +135,7 @@ public final class RoadNetwork {
 
     /**
      * {@link #branch(List, double, double)}, never within {@link #CLEAR_OF_LIGHTS} points of the old road's street lights
-     * (every lightEvery points): a light is never left standing in the new road.
+     * (every lightEvery points, or up to RoadSection.LIGHT_SHIFT after): a light is never left standing in the new road.
      */
     public Branch branch(List<int[]> route, double endX, double endZ, int lightEvery) {
         if (route.size() < 2 || !cell(route.get(0)[0], route.get(0)[1]) || !cell(route.get(1)[0], route.get(1)[1])) return null;
@@ -151,7 +151,7 @@ public final class RoadNetwork {
                 double[] p = pts.get(i);
                 if (((int) Math.floor(p[0]) >> 4) != cx || ((int) Math.floor(p[1]) >> 4) != cz) continue;
                 int m = Math.floorMod(i, lightEvery);
-                if (Math.min(m, lightEvery - m) < CLEAR_OF_LIGHTS) continue;
+                if (m < CLEAR_OF_LIGHTS + RoadSection.LIGHT_SHIFT || lightEvery - m < CLEAR_OF_LIGHTS) continue;   // (a light may take one of the next points)
                 double d = Math.hypot(p[0] - tx, p[1] - tz);
                 if (d < bestD) {
                     bestD = d;
