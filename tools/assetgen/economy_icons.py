@@ -90,3 +90,7 @@ ITEMS.update(_FISH_ICONS)
 from bus_lost_icons import ICONS as _LOST_ICONS   # noqa: E402
 
 ITEMS.update(_LOST_ICONS)
+# 숨은 비밀 (economy:<id>, items/secrets.yml)
+from secret_icons import ICONS as _SECRET_ICONS   # noqa: E402
+
+ITEMS.update(_SECRET_ICONS)
