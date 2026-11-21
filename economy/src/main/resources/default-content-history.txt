@@ -826,6 +826,7 @@ e1d0b3b237789eaccafbc18e2fafa433d287c67c economy/items/jobs.yml
 e77d72d70c269b687c5fdd0fc89acd4644b7313d economy/items/jobs.yml
 ed327f6a9709803072b357f8ee23b6ad8d16ad3e economy/items/jobs.yml
 3ab13f67620162ece5744da3090396d6a22ec1c4 economy/items/secrets.yml
+71c776e9ff9be561dddc95f7521364a634507779 economy/items/secrets.yml
 b8a5d52ed4bccd150f69826bcab2db96391ee79f economy/items/secrets.yml
 0279948cc1c88687f6b598ec86a7506f1c708240 economy/jobs.yml
 065604c00f9e842967b4e3c8e0a9e2e8474b9b97 economy/jobs.yml
@@ -1433,6 +1434,7 @@ ae5114b123cf7c1a33f28fb4c4a8e06500af6ac2 economy/secrets/common.yml
 2ae08445a1bde7b1a0ad7e9c5d659101c9444d7f economy/secrets/designer.yml
 2c06a46b3276b16b89276069d971e23a233457cb economy/secrets/designer.yml
 3cd0e223db48b0900cd2649cc88dfd57174319b5 economy/secrets/designer.yml
+09f9639a59e97bcf9d4666a14bc44f4ef5d15c84 economy/secrets/doll.yml
 9e3cc241ca573d6bc62745227a8f43411478cd98 economy/secrets/dongbang.yml
 cb74343ff22ad5820e116d73da108088801ad285 economy/secrets/dongbang.yml
 e6672325d8859a0aaef0d8c377908997ffe2db7d economy/secrets/dongbang.yml
@@ -1444,6 +1446,7 @@ bfd63f7c1b1e69249d32039d2ac8c07989e901ea economy/secrets/letter.yml
 e5e43e9454b6e81a7bd44c63c6208c98a3bb0ccd economy/secrets/letter.yml
 e7ece127028c020af80572130954bce1da68e10e economy/secrets/letter.yml
 a98d3c7b290e44337259c1c192a5808ae4b92f0f economy/secrets/lostkey.yml
+432d177d3650dc9c87cf5ba9fc82e8193435800c economy/secrets/scarecrow.yml
 3a27bbb08d7a286e63347402a75dc556d4f4f8bc economy/secrets/usher.yml
 f0b33d486c1b8a5e558529e839e49981c3882143 economy/secrets/usher.yml
 e20880f7ed4d863a6937b0ba69afd2be202e3a3d economy/secrets/vein.yml
@@ -2031,6 +2034,7 @@ e92e3a6e14856a14870ed622b85217c9d91a6654 economy/textures/oak_barrel.png
 d697b21580658c03107fb4519cf6f00d5f0b522b economy/textures/oi_muchim.png
 184aa9f5dd15fa5ead38ae49c96761d188ea8fee economy/textures/oi_sobagi.png
 fcba7636c4c1f65ab4ecc0fc711b7144ebc081b7 economy/textures/oi_sobagi.png
+17787c26ad24b785a0ef78b5f093a930df2d4057 economy/textures/old_doll.png
 562b61c3df82324fe0b898ecc3c113a772b96193 economy/textures/onion.png
 90364c3b3af32f0e1cd5d624636511d4f0878018 economy/textures/onion.png
 b4e6152ea991dfeafe99863e149bbb51479e1f4f economy/textures/onion.png
@@ -2164,6 +2168,7 @@ d3d59947289f7fe6701f0b9473e026ca97090e01 economy/textures/sardine.png
 ff537f63aa0fa45abb705dbff879da58c56ca6b4 economy/textures/sardine.png
 4b3d938f9a7213c808317d8c72754e36a6b1b94d economy/textures/saury.png
 52083ffc0e0bae010bc964800287447e20df16c7 economy/textures/saury.png
+b07a9dc3abdaf61050fad09c822a500b95557247 economy/textures/scarecrow_straw.png
 09b5375a0e0e47ac1a36353e25ffad3d9d50be98 economy/textures/scented_candle.png
 8e98e79e387a3577ee773e4f384ad457b23db144 economy/textures/scented_candle.png
 40431eeff27dbce64dadd1487e1d37fef497ab6b economy/textures/sea_bream.png
@@ -2324,6 +2329,7 @@ b85844ad4bddd4cc933f148d60b76e48134edeb8 economy/titles/codex.yml
 e67ffe09d175cd10d6befc921f9948954ef6eb93 economy/titles/codex.yml
 22af39666237f3b5a50a4ff107c0fdcd8ca15aec economy/titles/secrets.yml
 3d95471cf2baea79bddec7f36eb2e9eb81aa7bf0 economy/titles/secrets.yml
+ae11565c3587466a0a46d796218c71e9a927b538 economy/titles/secrets.yml
 2aa1954cdb2062cacea42d9ecb6590d7487b78f0 economy/titles/titles.yml
 2b440cd27f3d229c586e4e5add9515e9c9f3c438 economy/titles/titles.yml
 3df01425fcde4642abd6517097b977dbd0abad9c economy/titles/titles.yml
