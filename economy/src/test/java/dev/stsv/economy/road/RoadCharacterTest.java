@@ -481,8 +481,8 @@ class RoadCharacterTest {
 
     @Test
     void whatEachCharacterPays() {
-        assertEquals(1.4, RoadRewards.fare(null, RoadCharacter.HARD), 1e-9);
-        assertEquals(1.4, RoadRewards.fare(RoadCharacter.HARD, RoadCharacter.NORMAL), 1e-9);
+        assertEquals(1.2, RoadRewards.fare(null, RoadCharacter.HARD), 1e-9);
+        assertEquals(1.2, RoadRewards.fare(RoadCharacter.HARD, RoadCharacter.NORMAL), 1e-9);
         assertEquals(1, RoadRewards.fare(RoadCharacter.EASY, null), 1e-9);
         assertEquals(1, RoadRewards.fare(null, null), 1e-9);
         assertEquals(1, RoadRewards.fare(RoadCharacter.LEGACY, RoadCharacter.NORMAL), 1e-9);

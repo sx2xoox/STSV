@@ -159,7 +159,7 @@ roads:
       rough: true
       warnings: true
       speed-bonus: 0
-      fare: 1.4
+      fare: 1.2
       streak: 2
       outdoor-weight: 2
       # 하역 값 보너스: 1 = 없음 (예: 1.2 = 어려운길 하역장 +20%)

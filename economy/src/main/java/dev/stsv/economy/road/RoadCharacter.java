@@ -92,7 +92,7 @@ public enum RoadCharacter {
     static final Map<RoadCharacter, Shape> DEFAULTS = new EnumMap<>(Map.of(
             EASY, new Shape(5, 0.04, 1.2, 0.5, 1.10, 6, 3, 4, 4, 1, 0.75, 12, 2, 1, false, false, 0.15, 1, 1, 1, 1),
             NORMAL, new Shape(2.75, 0.015, 0.45, 0, 1.01, 3, 4, 6, 4, 0, 1.25, 24, 3, NORMAL_BEND, false, false, 0, 1, 1, 1, 1),
-            HARD, new Shape(2.25, 0.005, 0.3, 0, 1.0, 0, 6, 10, 10, -1, 3, 0, 4, HARD_BEND, true, true, 0, 1.4, 2, 2, 1),
+            HARD, new Shape(2.25, 0.005, 0.3, 0, 1.0, 0, 6, 10, 10, -1, 3, 0, 4, HARD_BEND, true, true, 0, 1.2, 2, 2, 1),
             LEGACY, LEGACY_SHAPE));
 
     private static volatile Map<RoadCharacter, Shape> shapes = DEFAULTS;
