@@ -177,15 +177,16 @@ final class Pictures {
             case "land" -> {
                 // a claim sign in the plot, with their name on it
                 Location b = blockAt(w, s, 3, 0, 6);
-                x.fake(b, Material.OAK_SIGN.createBlockData(d -> ((org.bukkit.block.data.type.Sign) d).setRotation(face(-s.fx(), -s.fz()))));
+                BlockData post = Material.OAK_SIGN.createBlockData(d -> ((org.bukkit.block.data.type.Sign) d).setRotation(face(-s.fx(), -s.fz())));
                 List<Component> lines = List.of(Text.mm("<b>땅 주인"), Text.mm(name), Text.mm(""),
                         Text.mm("<dark_gray>" + UsherPlan.date(first(p)) + " ~"));
-                p.sendSignChange(b, lines);
+                x.fake(b, post);
+                sign(p, b, post, lines);
                 pic.answer = x.hit(at(w, s, 3, 0, 6), 0.7f, 1.4f);
                 pic.frame = (q, f) -> {
                     if (f % 25 != 0) return;
-                    q.sendBlockChange(b, Material.OAK_SIGN.createBlockData(d -> ((org.bukkit.block.data.type.Sign) d).setRotation(face(-s.fx(), -s.fz()))));
-                    q.sendSignChange(b, lines);
+                    q.sendBlockChange(b, post);
+                    sign(q, b, post, lines);
                 };
             }
             case "bus" -> {
@@ -222,6 +223,8 @@ final class Pictures {
                 Location at = at(w, s, 6, 0, 17);
                 at.setYaw(out(s));
                 Mannequin man = x.add(haunt.figure(p, at, workerSkin, null));
+                // upside down: the name the game turns over, on the profile and as a (hidden) name
+                upsideDown(man);
                 man.customName(Component.text("Dinnerbone"));
                 man.setCustomNameVisible(false);
                 pic.answer = x.hit(at(w, s, 6, 0, 17), 0.8f, 2.0f);
@@ -301,6 +304,28 @@ final class Pictures {
             }
         }
         return pic;
+    }
+
+    /** A sign's words only one player sees (the sign itself is a fake block there). */
+    private static void sign(Player p, Location at, BlockData post, List<Component> lines) {
+        if (!(post.createBlockState() instanceof org.bukkit.block.Sign st)) return;
+        var side = st.getSide(org.bukkit.block.sign.Side.FRONT);
+        for (int i = 0; i < lines.size() && i < 4; i++) side.line(i, lines.get(i));
+        p.sendBlockUpdate(at, st);
+    }
+
+    /** The worker's skin under the profile name "Dinnerbone". */
+    private void upsideDown(Mannequin man) {
+        if (workerSkin == null || workerSkin.isBlank()) return;
+        boolean slim = workerSkin.endsWith(" slim");
+        String k = slim ? workerSkin.substring(0, workerSkin.length() - 5).trim() : workerSkin.trim();
+        try {
+            man.setProfile(io.papermc.paper.datacomponent.item.ResolvableProfile.resolvableProfile().name("Dinnerbone")
+                    .skinPatch(sp -> sp.body(net.kyori.adventure.key.Key.key(k))
+                            .model(slim ? org.bukkit.profile.PlayerTextures.SkinModel.SLIM : org.bukkit.profile.PlayerTextures.SkinModel.CLASSIC)).build());
+        } catch (RuntimeException e) {
+            plugin.getLogger().warning("[비밀] 안내원: 직원 스킨 키가 잘못됨: " + workerSkin);
+        }
     }
 
     /** When they first came (ms): the server's record, or now. */
