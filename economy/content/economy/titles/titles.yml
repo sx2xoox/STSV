@@ -152,6 +152,11 @@ night_driver:
   name: "<gradient:#bfe6ff:#6a7bff><b>[심야 기사]</b></gradient>"
   description: "새벽 2~4시 유령 손님을 열 번 태워 주었다"
   category: event
+# ── 국도 성격: 어려운길(산길) 정류장에서 손님을 태우거나 내려 준 곳 50곳 (README "국도", 성격 · "마을버스")
+mountain_driver:
+  name: "<gradient:#a3d977:#5b8c3a><b>[산길 기사]</b></gradient>"
+  description: "어려운길 국도의 정류장 쉰 곳을 돌았다"
+  category: event
 # ── 마을버스 분실물 (bus.yml events.lost.titles: 주인에게 돌려준 수, 사람마다 셈)
 honest_driver:
   name: "<#c9a26b>[정직한 기사]"

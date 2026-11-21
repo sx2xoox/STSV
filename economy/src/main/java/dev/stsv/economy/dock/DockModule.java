@@ -659,6 +659,8 @@ public final class DockModule extends EcoModule {
         // what was taken is what was sealed (the version matched): pay the owner what it was worth at inspection
         UUID owner = h.owner();
         long paid = trip.total();
+        // the dock's road (README "국도", 성격 · "하역장"): roads.characters.<id>.dock-pay (default 1: none)
+        if (eco.roads() != null) paid = Math.round(paid * dev.stsv.economy.road.RoadRewards.dock(eco.roads().characterOf(s.dock.name())));
         // 장신구 하역 웃돈: the seller's (usually the owner, who drove it here) on top
         if (eco.accessories() != null) {
             paid = Math.round(paid * (1 + eco.accessories().value(p.getUniqueId(), "dock_bonus")));

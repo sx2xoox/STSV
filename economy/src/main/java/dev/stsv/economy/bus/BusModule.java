@@ -1251,7 +1251,9 @@ public final class BusModule extends EcoModule {
         double secs = (System.currentTimeMillis() - r.boarded) / 1000.0;
         boolean onTime = secs <= spec.onTime(road, r.type);
         r.mood = r.type.floor(r.mood);
-        double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1) * Math.max(0, factor);
+        // a stop on a hard road (README "국도", 성격): its fares ×1.4 (roads.characters.hard.fare), either end of the ride
+        double hard = dev.stsv.economy.road.RoadRewards.fare(roadAt(stops.get(r.from)), roadAt(at));
+        double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1) * Math.max(0, factor) * hard;
         double base = fare * spec.moodFactor(r.mood) + r.type.luggage();
         boolean rain = p.getWorld().hasStorm();
         double tip = onTime && r.mood >= r.type.tipMood() ? fare * f.tip() * r.type.tip() * (rain ? 1 + x.rainTip() : 1) : 0;
@@ -1787,13 +1789,15 @@ public final class BusModule extends EcoModule {
         run.served = true;
         if (run.pointStop != here.id()) festPoint(p, "stop");
         run.pointStop = here.id();
+        dev.stsv.economy.road.RoadCharacter on = roadAt(here);
+        if (dev.stsv.economy.road.RoadRewards.mountain(on)) mountainStop(p);
         BusEvents.Streak st = spec.events().streak();
         if (!st.enabled()) return;
         int[] k = streaks.computeIfAbsent(p.getUniqueId(), u -> new int[]{0, -1});
         if (k[1] == here.id()) return;
         k[1] = here.id();
         k[0]++;
-        long bonus = st.bonus(k[0]);
+        long bonus = Math.round(st.bonus(k[0]) * dev.stsv.economy.road.RoadRewards.streak(on));   // a hard road's stop: ×2
         if (bonus <= 0) return;
         long[] paid = bonus(p, run, bonus, "bus_event");
         p.sendMessage(Lang.mm("bus.streak-bonus", "n", k[0], "g", g(paid[0]), "fee", feeText(paid[1])));
@@ -2740,10 +2744,12 @@ public final class BusModule extends EcoModule {
         int hour = now.getHour();
         boolean weekend = now.getDayOfWeek().getValue() >= 6, market = marketHere(s), rush = spec.rush(hour);
         java.util.Set<String> tags = tagsOf(s);
+        dev.stsv.economy.road.RoadCharacter on = roadAt(s);   // a hard road's stop: more hikers and campers
         double total = 0;
         Map<BusSpec.Type, Double> ws = new LinkedHashMap<>();
         for (BusSpec.Type t : spec.types().values()) {
-            double w = t.weightAt(tags, hour, weekend, market, rush, now.getMonthValue(), now.getDayOfMonth());
+            double w = t.weightAt(tags, hour, weekend, market, rush, now.getMonthValue(), now.getDayOfMonth())
+                    * dev.stsv.economy.road.RoadRewards.weight(t.id(), on);
             if (w <= 0) continue;
             ws.put(t, w);
             total += w;
@@ -2754,6 +2760,25 @@ public final class BusModule extends EcoModule {
             if (roll <= 0) return e.getKey();
         }
         return spec.types().values().stream().findFirst().orElse(null);
+    }
+
+    /** The character of the 국도 a stop stands by (README "국도", 성격), or null: none (or no roads). */
+    private dev.stsv.economy.road.RoadCharacter roadAt(BusStop s) {
+        if (s == null || eco.roads() == null) return null;
+        return eco.roads().characterNear(s.world(), (int) Math.floor(s.x()), (int) Math.floor(s.z()), dev.stsv.economy.road.RoadRewards.STOP_REACH);
+    }
+
+    /** A stop served on a hard road: counted (eco.kv), 산길 기사 at {@link dev.stsv.economy.road.RoadRewards#MOUNTAIN_STOPS}. */
+    private void mountainStop(Player p) {
+        String key = dev.stsv.economy.road.RoadRewards.MOUNTAIN_KEY + p.getUniqueId();
+        long had = eco.kv().getLong(key, 0), now = had + 1;
+        eco.kv().set(key, String.valueOf(now));
+        if (dev.stsv.economy.road.RoadRewards.titleNow(had, now) && core.profiles() != null) {
+            core.profiles().grantTitle(p.getUniqueId(), dev.stsv.economy.road.RoadRewards.MOUNTAIN_TITLE);
+            p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.0f);
+            Bukkit.broadcast(dev.stsv.core.util.Text.msg("<gold>" + p.getName() + " <gray>님이 어려운길(산길) 정류장 "
+                    + dev.stsv.economy.road.RoadRewards.MOUNTAIN_STOPS + "곳을 돌고 칭호 <white>[산길 기사]<gray>를 받았어요!"));
+        }
     }
 
     /** Once a day: market day is told; the event crowds come (출근 대란, 야구 끝, 소풍날). */
