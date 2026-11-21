@@ -44,16 +44,21 @@ final class Radio {
         return String.join(", ", out);
     }
 
-    /** All but the last two digits of |v| (|v| ≥ 100). */
+    /** All but the last two digits of |v| ("공" below 100: the 본사 is never that near, but the log must still read). */
     static String head(int v) {
-        String s = String.valueOf(Math.abs(v));
+        String s = digits(v);
         return read(s.substring(0, s.length() - 2));
     }
 
     /** The last two digits of |v|. */
     static String tail(int v) {
-        String s = String.valueOf(Math.abs(v));
+        String s = digits(v);
         return read(s.substring(s.length() - 2));
+    }
+
+    /** |v| with at least three digits. */
+    private static String digits(int v) {
+        return String.format(java.util.Locale.ROOT, "%03d", Math.abs(v));
     }
 
     /**

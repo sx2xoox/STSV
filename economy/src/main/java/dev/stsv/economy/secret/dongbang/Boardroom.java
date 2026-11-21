@@ -599,7 +599,7 @@ final class Boardroom {
     private void epilogue(boolean yes) {
         if (gone) return;
         ended = true;
-        List<String> lines = d.lines(yes ? "meeting.yes" : "meeting.no");
+        List<String> lines = d.lines(yes ? "meeting.released" : "meeting.flooded");
         if (!yes) {
             d.lost(p, preview);
             teardown();

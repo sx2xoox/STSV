@@ -500,7 +500,7 @@ public final class EyelessFish extends Secret {
     /** Right-click water (within reach) with the fish or the tag in hand: it goes into the water. */
     @EventHandler(priority = EventPriority.LOW)
     public void onUse(PlayerInteractEvent e) {
-        if (e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
+        if (!on() || e.getAction() != Action.RIGHT_CLICK_AIR && e.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         ItemStack it = e.getItem();
         if (it == null || fishOwner(it) == null && tagOwner(it) == null) return;
         Player p = e.getPlayer();
@@ -726,7 +726,7 @@ public final class EyelessFish extends Secret {
 
     /** Thrown away: the water rises around them, and it never comes again for them. */
     private void lose(UUID u) {
-        if (u == null || !going(u)) return;
+        if (u == null || !on() || !going(u)) return;
         m.stage(this, u, 0);
         m.set(this, u, "lost", 1);
         m.remove(this, u, "loose");

@@ -345,6 +345,9 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         Clues.Clue c = decide(p, 1);
         List<String> lines = whispers(0, c, p);
         m.set(this, u, "heard", Text.plain(telling(cfg.getStringList("whispers.0"), lines)));
+        PlayerInventory inv = p.getInventory();   // a key left over from before a reset: only one at a time
+        ItemStack[] all = inv.getContents();
+        for (int i = 0; i < all.length; i++) if (ownKey(all[i], u)) inv.setItem(i, null);
         giveKey(p);
         p.sendMessage(Text.mm(text("lines.got").replace("{type}", passengerTag == null ? "<gray>손님" : passengerTag)));
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 0.9f);
@@ -683,11 +686,12 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         }
         UUID u = p.getUniqueId();
         if (stage(u) != HOME) return;
-        nameKeys(p);
-        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.4f, 1.2f);
         boolean test = m.test(u);
         m.solve(this, p);
-        if (!test && stage(u) > HOME) {   // the first: their name in gold at the 분실물 센터 where the key rattled 4th
+        if (stage(u) <= HOME) return;   // someone else was first (the locker was empty)
+        nameKeys(p);
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.4f, 1.2f);
+        if (!test) {   // the first: their name in gold at the 분실물 센터 where the key rattled 4th
             String c = m.get(this, u, "center");
             BusStop s = c == null ? null : stop(parse(c));
             if (s == null) s = nearestEnd(p.getLocation());

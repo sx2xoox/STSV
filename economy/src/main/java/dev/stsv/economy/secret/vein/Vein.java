@@ -299,7 +299,8 @@ public final class Vein extends Secret {
         m.stage(this, u, 1);
         whisper(p, line);
         // a faint heartbeat from inside the stone, a few blocks on the way they were digging
-        Vector dir = p.getLocation().getDirection().setY(Math.min(0, p.getLocation().getDirection().getY())).normalize().multiply(3);
+        Vector dir = p.getLocation().getDirection().setY(Math.min(0, p.getLocation().getDirection().getY()));
+        dir = (dir.lengthSquared() < 0.01 ? new Vector(0, -1, 0) : dir.normalize()).multiply(3);   // looking straight up: below them
         Location in = center(w, at).add(dir);
         sound(p, in, "whisper", 1, 1);
         later(10L, () -> sound(p, in, "heartbeat", 0.45f, 0.6f));
