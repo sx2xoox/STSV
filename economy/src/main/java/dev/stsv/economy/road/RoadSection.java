@@ -487,6 +487,91 @@ public final class RoadSection {
         return Math.floorMod(hash(x, z) >> 6, rough ? 2 : 4) == 0 ? p[1] : p[0];
     }
 
+    // ------------------------------------------------------------------------------------------
+    // Guardrails by character (README "국도", 성격 · 가드레일)
+    // ------------------------------------------------------------------------------------------
+
+    /** 보통's cap: a white band on its andesite wall. 쉬운길's: dark steel posts with a steel band (a closed iron trapdoor) on top, a yellow dot every 10. */
+    static final Material NORMAL_CAP = Material.WHITE_CARPET, EASY_RAIL = Material.POLISHED_BLACKSTONE_WALL, EASY_DOT = Material.YELLOW_CARPET,
+            HARD_RAIL = Material.DARK_OAK_FENCE, HARD_STRIPE_A = Material.YELLOW_TERRACOTTA, HARD_STRIPE_B = Material.BLACK_TERRACOTTA;
+    static final String EASY_BAND = "minecraft:iron_trapdoor[half=bottom,open=false]";
+    static final int EASY_DOT_EVERY = 10;
+    /** A hard road's fence: runs of this many points, every third left out (it feels dangerous); a sharp bend's outside striped. */
+    static final int HARD_RUN = 6;
+    static final double STRIPE_TURN = 45;
+
+    /** Every block a guardrail of any character is made of (what /관리자 국도 가드레일교체 restyles, nothing else). */
+    static final java.util.Set<Material> RAIL_BLOCKS = java.util.EnumSet.of(GUARDRAIL, EASY_RAIL, HARD_RAIL, HARD_STRIPE_A, HARD_STRIPE_B);
+    static final java.util.Set<Material> RAIL_CAPS = java.util.EnumSet.of(NORMAL_CAP, EASY_DOT, Material.IRON_TRAPDOOR);
+
+    /**
+     * The guardrail at point i in the shoulder's post column (x, z) as this road's character builds it: {block over the
+     * shoulder, the block over that (a cap) or null}, or null: none here. high: the shoulder stands over a drop.
+     * 보통: the andesite wall (a white band on top where a whole block there is clear of the reach); 쉬운길: dark walls with
+     * a steel band, a yellow dot every 10; 어려운길: a dark wooden fence over drops, with gaps, and on a sharp bend's outside
+     * yellow and black striped blocks (drop or not).
+     */
+    Material[] rail(int i, int x, int z, boolean high) {
+        boolean cap = blockClear(i, x, z) || narrow;
+        switch (character) {
+            case EASY -> {
+                if (!high) return null;
+                return new Material[]{EASY_RAIL, cap ? (i % EASY_DOT_EVERY == 0 ? EASY_DOT : Material.IRON_TRAPDOOR) : null};
+            }
+            case HARD -> {
+                if (outsideBend(i, x, z) && cap) return new Material[]{(i / 2) % 2 == 0 ? HARD_STRIPE_A : HARD_STRIPE_B, null};
+                if (!high || (i / HARD_RUN) % 3 == 2) return null;
+                return new Material[]{HARD_RAIL, null};
+            }
+            default -> {
+                if (!high) return null;
+                return new Material[]{GUARDRAIL, cap && !narrow ? NORMAL_CAP : null};
+            }
+        }
+    }
+
+    /** Whether column (x, z) is on the outside of a sharp bend at point i ({@link #STRIPE_TURN} or more). */
+    boolean outsideBend(int i, int x, int z) {
+        if (turn(i) < STRIPE_TURN) return false;
+        double[] p = points.get(i), h = heading(i);
+        double lat = (x + 0.5 - p[0]) * -h[1] + (z + 0.5 - p[1]) * h[0];
+        return !insideBend(i, (int) Math.signum(lat)) && insideBend(i, -(int) Math.signum(lat));
+    }
+
+    /**
+     * A built road's guardrails restyled in place (/관리자 국도 가드레일교체): at point i, every guardrail block of any
+     * character standing on the shoulder's block (and its cap) becomes what this road's character puts there (a hard road's
+     * gap: taken away). Only guardrail blocks and their caps, nothing else; twice is once. How many blocks changed.
+     */
+    public int restyleRails(int i) {
+        if (parts[i] != RoadProfile.Part.ROAD || i == 0 || i >= points.size() - 1) return 0;
+        int e = extra(i), base = RoadProfile.block(halves[i]);
+        List<Col> cols = new ArrayList<>();
+        if (columns(i, e, cols) != null) return 0;
+        int changed = 0;
+        for (Col c : cols) {
+            if (Math.abs(c.lat()) - e <= 3.5) continue;
+            Material now = world.get(c.x(), base + 1, c.z());
+            if (now == null || !RAIL_BLOCKS.contains(now)) continue;
+            Material[] want = rail(i, c.x(), c.z(), true);
+            Material to = want == null ? Material.AIR : want[0];
+            if (to != now) {
+                site.set(c.x(), base + 1, c.z(), to);
+                changed++;
+            }
+            Material capNow = world.get(c.x(), base + 2, c.z()), cap = want == null ? null : want[1];
+            if (cap != null && capNow != cap && (capNow == Material.AIR || RAIL_CAPS.contains(capNow))) {
+                if (cap == Material.IRON_TRAPDOOR) site.set(c.x(), base + 2, c.z(), EASY_BAND);
+                else site.set(c.x(), base + 2, c.z(), cap);
+                changed++;
+            } else if (cap == null && capNow != null && RAIL_CAPS.contains(capNow)) {
+                site.set(c.x(), base + 2, c.z(), Material.AIR);
+                changed++;
+            }
+        }
+        return changed;
+    }
+
     /** Rumble strips (README "국도", 디테일): a band of grooved blocks across the lanes, every third point, before a bend this sharp. */
     static final double RUMBLE_TURN = 45;
     /** ... from this many points before the bend to this many (and after it the same, for the traffic the other way). */
@@ -897,7 +982,17 @@ public final class RoadSection {
      * the column's middle) to the line through the points near i ({@link #NEIGHBOURS} either way), so a bend's inside counts.
      */
     double clearance(int i, int x, int z) {
-        double x0 = x + 0.5 - POST_HALF, x1 = x + 0.5 + POST_HALF, z0 = z + 0.5 - POST_HALF, z1 = z + 0.5 + POST_HALF;
+        return clearance(i, x, z, POST_HALF);
+    }
+
+    /** Whether a whole block in column (x, z) (a cap, a striped block, a flower) stands clear of the vehicles' reach at point i. */
+    boolean blockClear(int i, int x, int z) {
+        return clearance(i, x, z, 0.5) >= reach(i) - 1e-9;
+    }
+
+    /** {@link #clearance(int, int, int)} of a box `half` either way of the column's middle. */
+    double clearance(int i, int x, int z, double half) {
+        double x0 = x + 0.5 - half, x1 = x + 0.5 + half, z0 = z + 0.5 - half, z1 = z + 0.5 + half;
         double best = Double.MAX_VALUE;
         int from = Math.max(0, i - NEIGHBOURS), to = Math.min(points.size() - 1, i + NEIGHBOURS);
         for (int j = from; j < Math.max(from + 1, to); j++) {
@@ -1028,7 +1123,7 @@ public final class RoadSection {
     /** What a mended light may take the place of: air, snow, plants, a reflector or a guardrail. */
     private static boolean free(Material m) {
         if (m == null) return false;
-        if (m == Material.AIR || m == Material.CAVE_AIR || m == Material.SNOW || m == REFLECTOR || m == GUARDRAIL) return true;
+        if (m == Material.AIR || m == Material.CAVE_AIR || m == Material.SNOW || clutter(m)) return true;
         return switch (m) {
             case SHORT_GRASS, TALL_GRASS, FERN, LARGE_FERN, DANDELION, POPPY, DEAD_BUSH, SWEET_BERRY_BUSH -> true;
             default -> false;
@@ -1214,7 +1309,7 @@ public final class RoadSection {
 
     /** What a guardrail or a reflector post is (the shoulder's clutter /관리자 국도 커브정리 may take away or move). */
     static boolean clutter(Material m) {
-        return m == GUARDRAIL || m == REFLECTOR;
+        return m == GUARDRAIL || m == REFLECTOR || m == EASY_RAIL || m == HARD_RAIL || m == NORMAL_CAP || m == EASY_DOT;
     }
 
     /**
@@ -1515,8 +1610,14 @@ public final class RoadSection {
                 site.set(x, base - k, z, verge && !high && k == 1 && i % DRAIN_EVERY == DRAIN_EVERY / 2 ? Material.GRAVEL : Material.DIRT);
             }
             if (postCol && postClear(i, x, z)) {
-                if (high) site.set(x, base + 1, z, GUARDRAIL);
-                else if (reflectEvery > 0 && i % reflectEvery == reflectEvery / 2) site.set(x, base + 1, z, REFLECTOR);
+                Material[] rail = rail(i, x, z, high);
+                if (rail != null) {
+                    site.set(x, base + 1, z, rail[0]);
+                    if (rail[1] == Material.IRON_TRAPDOOR) site.set(x, base + 2, z, EASY_BAND);
+                    else if (rail[1] != null) site.set(x, base + 2, z, rail[1]);
+                } else if (high) {
+                    // a hard road's gap in its fence: nothing
+                } else if (reflectEvery > 0 && i % reflectEvery == reflectEvery / 2) site.set(x, base + 1, z, REFLECTOR);
                 else if (character == RoadCharacter.HARD && i % SNOW_POLE_EVERY == SNOW_POLE_EVERY / 2 && !mending) {
                     // a snow pole (README "국도", 디테일): red and white, 3 high, where the snow plough looks for the edge
                     site.set(x, base + 1, z, SNOW_POLE[0]);
@@ -1524,7 +1625,7 @@ public final class RoadSection {
                     site.set(x, base + 3, z, SNOW_POLE[0]);
                 }
             } else if (character == RoadCharacter.EASY && !verge && !postCol && !apron && !high && !mending
-                    && Math.floorMod(hash(x * 5 + 1, z * 3 - 2), FLOWER_ONE_IN) == 0) {
+                    && Math.floorMod(hash(x * 5 + 1, z * 3 - 2), FLOWER_ONE_IN) == 0 && blockClear(i, x, z)) {
                 // an easy road's verge: a few flowers on its grass (outside the reach: no collision anyway)
                 site.set(x, base + 1, z, FLOWERS[Math.floorMod(hash(x, z) >> 3, FLOWERS.length)]);
             }

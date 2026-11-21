@@ -137,6 +137,12 @@ class PackPipelineTest {
             "classic_roadster_door_l", "classic_roadster_door_r", "concept_ev_door_l", "concept_ev_door_r", "dragon_shovel", "frost_axe", "frost_hoe", "frost_shovel", "galaxy_shovel", "galaxy_sword", "magma_pickaxe", "muscle_car_door_l", "muscle_car_door_r", "retro_camper", "sidecar_bike_screen", "sushi_carnival_door_l", "sushi_carnival_door_r", "sushi_carnival_slide_l", "sushi_carnival_slide_r", "wheel_sidecar", "najeon_sword", "sushi_carnival",
             // 초밥 카니발 루프 부품 · 루프 장식 (vehicle_roofs*.py)
             "sushi_carnival_roof", "sushi_carnival_roof_r_basket", "sushi_carnival_roof_r_box_black", "sushi_carnival_roof_r_cat", "sushi_carnival_roof_r_duck", "sushi_carnival_roof_r_kayak", "sushi_carnival_roof_r_kimbap", "sushi_carnival_roof_r_mattress", "sushi_carnival_roof_r_salmon", "sushi_carnival_roof_r_shrimp", "sushi_carnival_roof_r_ski", "sushi_carnival_roof_r_surf", "sushi_carnival_roof_r_tamago", "sushi_carnival_roof_r_tent", "sushi_carnival_roof_r_watermelon", "sushi_carnival_roof_r_tree",
+            // headlamp beams (vehicle_lights.py): the light on the road, a sheet turned down 22.5 / 45 degrees ahead of the lamp
+            // (only where every rider's eye stays behind it: none on the buses, trucks and scooters)
+            "police_car_lamp_head", "sports_car_lamp_head", "tuner_car_lamp_head", "hyper_car_lamp_head", "grand_sedan_lamp_head",
+            "luxury_suv_lamp_head", "light_truck_lamp_head", "golf_cart_lamp_head", "power_tiller_lamp_head", "tractor_lamp_head",
+            "combine_lamp_head", "classic_roadster_lamp_head", "retro_camper_lamp_head", "muscle_car_lamp_head", "concept_ev_lamp_head",
+            "sushi_carnival_lamp_head", "agent_sedan_lamp_head",
             // 검은 세단 · 요원 K: the screen, rear window and pillars (22.5 / 45 degrees), the doors' crease; 요원의 코트: the tails
             "agent_sedan", "agent_sedan_door_fl", "agent_sedan_door_fr", "agent_sedan_door_rl", "agent_sedan_door_rr", "agent_coat");
 

@@ -275,6 +275,11 @@ def _behind(v, normal, point):
 NORMAL = {"north": (0, 0, -1), "south": (0, 0, 1), "east": (1, 0, 0), "west": (-1, 0, 0), "up": (0, 1, 0), "down": (0, -1, 0)}
 
 
+def _one_sided(m, faces):
+    """The light plane just added shows one side only on purpose: its other side is left open (model.validate)."""
+    m.elements[-1]["open"] = {f for f, p in faces.items() if p is None}
+
+
 def _lens(m, name, l, front, core, rim):
     x0, x1, y0, y1, z, _ = l
     zz = z - PROUD if front else z + PROUD
@@ -294,7 +299,7 @@ def _halo(m, v, name, l, front, col, reach, peak):
     paint = _glow_paint(l, col, reach, peak)
     faces = {f: (paint if f in ("north", "south") and _behind(v, NORMAL[f], (x0, y0, zz)) else None) for f in NORMAL}
     if any(faces.values()):
-        m.box(name, (left, y0 - reach, zz), (right, y1 + reach, zz), paint, faces=faces)
+        _one_sided(m.box(name, (left, y0 - reach, zz), (right, y1 + reach, zz), paint, faces=faces), faces)
 
 
 # the slopes a beam's lit sheet may fall at (model rotations: 22.5 degree steps), gentlest first
@@ -329,8 +334,9 @@ def _beam(m, v, l, length, spread, peak):
         # at the lens' edge, or up to 2 px further out where a rider sits just behind it (the scooter's)
         for x in (edge + NORMAL[f][0] * k * 0.5 for k in range(5)):
             if _behind(v, NORMAL[f], (x, cy, z1)):
-                m.box("beam_side", (x, cy - reach, z0), (x, cy + reach, z1), Paint("lamp", 3, decal=side, **glow),
-                      faces={g: None for g in NORMAL if g != f})
+                faces = {g: None for g in NORMAL if g != f}
+                _one_sided(m.box("beam_side", (x, cy - reach, z0), (x, cy + reach, z1), Paint("lamp", 3, decal=side, **glow),
+                                 faces=faces), faces)
                 break
     # the lit sheet: drawn level at the lamp's height, then turned down about its near edge
     ground = -LAMPS[v].get("lift", 0) + 0.25
