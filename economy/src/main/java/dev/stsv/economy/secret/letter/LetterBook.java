@@ -102,6 +102,7 @@ final class LetterBook {
                 Target t = most.map(e -> Target.item(e.getKey())).orElse(Target.anyItem());
                 most.ifPresent(e -> itemHints(v, l, e.getKey(), e.getValue()));
                 v.put("ritual", LetterText.fill(l.getString(most.isPresent() ? "ritual-most" : "ritual-none", ""), v));
+                v.put("hints", LetterText.fill(l.getString(most.isPresent() ? "hints-most" : "hints-none", ""), v));
                 then.accept(new Written(book(p, n, l, v), t));
             });
             case 3 -> {

@@ -992,6 +992,7 @@ public final class BusModule extends EcoModule {
             HudModule.flash(p, Lang.mm("bus.arrive", "stop", here.name()), 2000);
             arrived(p, run, here);
             secret.arrived(p, run, d, here);
+            forWatchers(x -> x.stopped(p, here));
             // a wandering passenger (술 취한 아저씨) may get off here instead
             for (Rider r : run.riders) {
                 if (r.dest != here.id() && r.type.wander() > 0 && ThreadLocalRandom.current().nextDouble() < r.type.wander()) {
@@ -2295,6 +2296,7 @@ public final class BusModule extends EcoModule {
         if (n > 0) b.append("\n").append(Lang.raw("bus.team-sign", "n", n));
         if (hasSpecial(s.id())) b.append("\n").append(Lang.raw("bus.special-sign"));
         b.append(secret.sign(s));
+        forWatchers(x -> b.append(x.sign(s)));
         return b.toString();
     }
 
@@ -2428,6 +2430,106 @@ public final class BusModule extends EcoModule {
 
     Map<Long, Run> runMap() {
         return runs;
+    }
+
+    // ---- for hidden secrets outside this package (dev.stsv.economy.secret.lostkey: 분실물센터): callbacks and looks
+
+    /**
+     * Something else that rides along with the buses (a hidden secret). Registered by id ({@link #watch}); every call is
+     * guarded, so a watcher's mistake never stops a bus.
+     */
+    public interface Watcher {
+        /**
+         * A passenger is leaving a lost item on this driver's bus (events.lost's chance passed, the driver has room for it):
+         * true = the watcher left something of its own instead (no lost item this stop).
+         */
+        default boolean leftBehind(Player driver, Entity passenger, String passengerTag, BusStop gotOn, BusStop here) {
+            return false;
+        }
+
+        /** The driver's bus pulled into a stop's bay. */
+        default void stopped(Player driver, BusStop here) {}
+
+        /** Rows shown under the driver's /버스 list, after its n passengers. */
+        default List<Component> riderRows(Player driver, int n) {
+            return List.of();
+        }
+
+        /** Lines a stop's sign adds ("\n…" each), or "". */
+        default String sign(BusStop s) {
+            return "";
+        }
+    }
+
+    private final Map<String, Watcher> watchers = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Registers (or with null, removes) a watcher under an id; a later one of the same id replaces the earlier. */
+    public void watch(String id, Watcher w) {
+        if (w == null) watchers.remove(id);
+        else watchers.put(id, w);
+    }
+
+    private void forWatchers(java.util.function.Consumer<Watcher> call) {
+        for (Watcher w : watchers.values()) {
+            try {
+                call.accept(w);
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[버스] watcher 오류", e);
+            }
+        }
+    }
+
+    /** LostItems: whether a watcher left something of its own in place of a lost item. */
+    boolean watcherLeft(Player driver, Rider r, BusStop gotOn, BusStop here) {
+        for (Watcher w : watchers.values()) {
+            try {
+                if (w.leftBehind(driver, r.m, typeTag(r.type), gotOn, here)) return true;
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[버스] watcher 오류", e);
+            }
+        }
+        return false;
+    }
+
+    private Run runOf(Player p) {
+        for (Run r : runs.values()) if (p.getUniqueId().equals(r.driver)) return r;
+        return null;
+    }
+
+    /** How many passengers ride the bus this player drives, or -1 when they drive none. */
+    public int ridersOf(Player p) {
+        Run r = runOf(p);
+        return r == null ? -1 : r.riders.size();
+    }
+
+    /** The stop whose bay this player's bus stands in, or null. */
+    public Integer stoppedAt(Player p) {
+        Run r = runOf(p);
+        return r == null ? null : r.atStop;
+    }
+
+    /** The passengers shown waiting at a stop right now (only while a bus is near), front of the line first. */
+    public List<Entity> waitingAt(int stop) {
+        Shown sh = shown.get(stop);
+        List<Entity> out = new ArrayList<>();
+        if (sh != null) for (Waiter w : sh.waiters) if (w.m.isValid()) out.add(w.m);
+        return out;
+    }
+
+    /** The lines of a world's network (none before it is built). */
+    public List<BusLine> linesIn(String world) {
+        Net n = nets.get(world);
+        return n == null ? List.of() : List.copyOf(n.lines());
+    }
+
+    /** A stop's traits (mountain, sea, forest, field, village, port). */
+    public java.util.Set<String> stopTags(BusStop s) {
+        return java.util.Set.copyOf(tagsOf(s));
+    }
+
+    /** How many lost items this driver has given back to their owners. */
+    public long lostReturned(UUID driver) {
+        return eco.kv().getLong(LostItems.backKey(driver), 0);
     }
 
     // ---- for BusNavigator (버스 내비게이션)
@@ -3332,6 +3434,7 @@ public final class BusModule extends EcoModule {
                 "line", line == null ? Lang.raw("bus.no-line") : line.name()));
         secret.listLine(p);   // the 선글라스 남자's coordinate, while his final runs
         if (n == 0) {
+            forWatchers(x -> x.riderRows(p, 0).forEach(p::sendMessage));
             p.sendMessage(Lang.mm("bus.list-empty"));
             return;
         }
@@ -3343,6 +3446,7 @@ public final class BusModule extends EcoModule {
             p.sendMessage(Lang.mm("bus.list-row", "i", i++, "type", typeTag(x.type), "dest", x.secret || s == null ? "???" : s.name(),
                     "km", s == null ? "" : km(Math.hypot(s.x() - p.getX(), s.z() - p.getZ())), "left", clock(left), "mood", (int) Math.round(x.mood)));
         }
+        forWatchers(x -> x.riderRows(p, n).forEach(p::sendMessage));
     }
 
     public void showStops(Player p) {

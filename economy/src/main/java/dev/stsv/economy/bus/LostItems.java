@@ -226,6 +226,10 @@ final class LostItems {
             if (t != null && !t.expired(now) && t.finder().equals(p.getUniqueId())) n++;
         }
         if (n >= lo.maxHeld()) return;
+        if (bus.watcherLeft(p, r, home, here)) {   // something else was left instead (a hidden secret: BusModule.Watcher)
+            run.lostHere = true;
+            return;
+        }
         BusEvents.LostKind k = lo.pick(r.type.id(), rnd.nextDouble());
         if (k == null) return;
         run.lostHere = true;
@@ -294,6 +298,11 @@ final class LostItems {
         if (changed) refresh(p, now);
     }
 
+    /** eco.kv key: how many lost items this driver gave back. */
+    static String backKey(UUID driver) {
+        return "bus.lost.back." + driver;
+    }
+
     private static String fee(long fee) {
         return fee > 0 ? Lang.raw("bus.bonus-fee", "fee", BusModule.g(fee)) : "";
     }
@@ -307,7 +316,7 @@ final class LostItems {
         if (pay.fast()) why.append(Lang.raw("bus.lost-why-fast", "x", x(lo.fastBonus())));
         if (pay.rain()) why.append(Lang.raw("bus.lost-why-rain", "x", x(k.rain())));
         if (pay.spoiled()) why.append(Lang.raw("bus.lost-why-spoiled"));
-        String key = "bus.lost.back." + p.getUniqueId();
+        String key = backKey(p.getUniqueId());
         long before = eco.kv().getLong(key, 0), count = before + 1;
         eco.kv().set(key, String.valueOf(count));
         p.sendMessage(Lang.mm("bus.lost-back", "thing", thing, "g", BusModule.g(paid[0]), "why", why.toString(), "fee", fee(paid[1]), "n", count));
