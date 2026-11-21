@@ -456,11 +456,14 @@ CLEAR = ("raw", (0, 0, 0, 0))
 # ================================================================================================
 
 class Kit:
-    def __init__(self, name, parts):
+    def __init__(self, name, parts, cabin=None):
+        """cabin: the riders' eyes (drawn): the glass's faces towards it lose their tint (bake.outward_glass)."""
         self.body = BModel(name, shift=(8, 8, 8), scale=2.0)
+        self.body.cabin = cabin
         self.parts = {}
         for part in parts:
             m = BModel(f"{name}_{part}", shift=(8, 8, 8), scale=2.0)
+            m.cabin = cabin
             m.display = presets.furniture(gui_scale=0.4)
             m.group(part)
             self.parts[part] = m
