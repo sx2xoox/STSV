@@ -65,6 +65,17 @@ public final class AuctionModule extends EcoModule {
     }
 
     /** Sets (or with null, clears) the ghost. */
+    /** The ghost's refusal for this item (a message key), or null: the 거래소 asks too, so a secret's item is never listed there. */
+    public String ghostRefusal(ItemStack it) {
+        if (ghost == null || it == null) return null;
+        try {
+            return ghost.refuse(it);
+        } catch (RuntimeException e) {
+            eco.getLogger().warning("경매 (숨은 비밀) 오류: " + e);
+            return null;
+        }
+    }
+
     public void ghost(Ghost g) {
         ghost = g;
     }

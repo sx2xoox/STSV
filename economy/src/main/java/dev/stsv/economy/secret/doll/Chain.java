@@ -113,6 +113,28 @@ final class Chain {
         return Result.NEXT;
     }
 
+    /**
+     * An admin pass (연출 건네기): it counts whatever the riddle said, even to the one holding it or to a hand already
+     * counted (solo testing). The last one still only goes home to the first owner.
+     */
+    Result force(UUID to, String name) {
+        if (phase == Phase.HOME) return Result.NONE;
+        if (last()) {
+            if (!to.equals(owner)) return wrong(to, name);
+            holder = to;
+            phase = Phase.HOME;
+            riddle = null;
+            snapshot.clear();
+            return Result.HOME;
+        }
+        trail.add(new Hand(to, name, true));
+        holder = to;
+        if (riddle != null && riddle != Riddles.Kind.HOME) used.add(riddle);
+        riddle = null;
+        snapshot.clear();
+        return Result.NEXT;
+    }
+
     private Result wrong(UUID to, String name) {
         trail.add(new Hand(to, name, false));
         holder = to;
@@ -156,6 +178,18 @@ final class Chain {
             b.appendCodePoint(cp);
         });
         return b.toString().toLowerCase(Locale.ROOT);
+    }
+
+    /** A line written backwards (the listing's description): leading MiniMessage tags stay in front. */
+    static String backwards(String line) {
+        if (line == null) return "";
+        int i = 0;
+        while (i < line.length() && line.charAt(i) == '<') {
+            int j = line.indexOf('>', i);
+            if (j < 0) break;
+            i = j + 1;
+        }
+        return line.substring(0, i) + new StringBuilder(line.substring(i)).reverse();
     }
 
     // ------------------------------------------------------------------------------------------

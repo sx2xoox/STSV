@@ -81,6 +81,8 @@ public final class MarketModule extends EcoModule {
         if (core.economy().isCheque(it)) return "market.no-cheques";
         if (core.vehicles() != null && core.vehicles().noTrade(it)) return "market.no-vehicles";
         if (Items.trial(it)) return "market.no-trial";
+        String secret = eco.auction() == null ? null : eco.auction().ghostRefusal(it);   // 숨은 비밀 낡은 인형
+        if (secret != null) return secret;
         if (store.count(p.getUniqueId()) >= limit(p.getUniqueId())) return "market.full";
         return null;
     }
