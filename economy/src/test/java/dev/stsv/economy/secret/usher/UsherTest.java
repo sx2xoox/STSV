@@ -136,23 +136,39 @@ class UsherTest {
         assertEquals("air", at.get(UsherPlan.key(down[0], down[1] + 1, down[2])));
         assertFalse(UsherPlan.onOpening(down[0], UsherPlan.DOWN[1], down[2]), "landing does not send them down again");
         assertFalse(UsherPlan.underOpening(down[0], UsherPlan.DOWN[1], down[2]), "landing does not send them up");
-        // walking down from the landing reaches the room; every step has room for a head
-        for (int i = 4; i <= UsherPlan.STEPS; i++) {
-            int x = -10 + i, y = UsherPlan.FLOOR - i;
-            assertEquals("stair", at.get(UsherPlan.key(x, y, 0)));
-            assertEquals("air", at.get(UsherPlan.key(x, y + 1, 0)), "step " + i);
-            assertEquals("air", at.get(UsherPlan.key(x, y + 2, 0)), "step " + i);
+        assertEquals(-90f, UsherPlan.DOWN_YAW, "landing faces down the stairs (east)");
+        // walking down from the landing reaches the room, three wide: every step a west-facing stair with three blocks of
+        // air over it, and nothing over a head (1.8) where the player straddles one step and the next (the old lintel)
+        for (int z = -UsherPlan.WELL_Z; z <= UsherPlan.WELL_Z; z++) {
+            for (int i = 4; i <= UsherPlan.STEPS; i++) {
+                int x = -10 + i, y = UsherPlan.FLOOR - i;
+                assertEquals("stair", at.get(UsherPlan.key(x, y, z)), "step " + i + " z " + z);
+                for (int h = 1; h <= 3; h++) assertEquals("air", at.get(UsherPlan.key(x, y + h, z)), "step " + i + " z " + z + " +" + h);
+                // standing at the top of this step (y + 1), a head reaches y + 2.8: clear in this column and the next
+                for (int h = 1; h <= 2; h++) assertEquals("air", at.get(UsherPlan.key(x + 1, y + h, z)), "into step " + (i + 1) + " z " + z + " +" + h);
+            }
+            for (int y = UsherPlan.ROOM_Y + 1; y <= UsherPlan.ROOM_Y + 4; y++)
+                assertEquals("air", at.get(UsherPlan.key(UsherPlan.ROOM_X1 + 1, y, z)), "just inside the door, z " + z + " y " + y);
+            assertFalse(UsherPlan.underOpening(-6, UsherPlan.FLOOR - 3, z), "step 4 does not send them up");
+            assertTrue(UsherPlan.underOpening(-7, UsherPlan.FLOOR - 2.5, z), "step 3 sends them up");
+            assertTrue(UsherPlan.below(-5, UsherPlan.FLOOR - 4, z));
         }
+        // walls either side of the stairs (nothing open to the void beside them)
+        for (int x = UsherPlan.OPEN_X1; x <= UsherPlan.ROOM_X1; x++)
+            for (int z : new int[]{-UsherPlan.WELL_Z - 1, UsherPlan.WELL_Z + 1})
+                assertEquals("wall", at.get(UsherPlan.key(x, UsherPlan.ROOM_Y + 4, z)), "x " + x + " z " + z);
         assertTrue(UsherPlan.inRoom(0, UsherPlan.ROOM_Y + 1, 0));
         for (double[] who : new double[][]{UsherPlan.LEFT, UsherPlan.RIGHT}) {
             int x = (int) Math.floor(who[0]), z = (int) Math.floor(who[1]);
             assertTrue(UsherPlan.inRoom(x, UsherPlan.ROOM_Y + 1, z));
             assertEquals("air", at.get(UsherPlan.key(x, UsherPlan.ROOM_Y + 1, z)));
         }
-        // the opening is over the first steps, and the way up lands on the plaza beside it
+        // the opening is over the first steps (all three wide), and the way up lands on the plaza beside it
         for (int x = UsherPlan.OPEN_X1; x <= UsherPlan.OPEN_X2; x++) {
-            assertTrue(UsherPlan.onOpening(x, UsherPlan.FLOOR + 1, UsherPlan.OPEN_Z));
-            assertEquals("stair", at.get(UsherPlan.key(x, UsherPlan.FLOOR - (x + 10), 0)));
+            for (int z = UsherPlan.OPEN_Z1; z <= UsherPlan.OPEN_Z2; z++) {
+                assertTrue(UsherPlan.onOpening(x, UsherPlan.FLOOR + 1, z));
+                assertEquals("stair", at.get(UsherPlan.key(x, UsherPlan.FLOOR - (x + 10), z)));
+            }
         }
         int ux = (int) Math.floor(UsherPlan.UP[0]), uz = (int) Math.floor(UsherPlan.UP[2]);
         assertFalse(UsherPlan.onOpening(ux, UsherPlan.UP[1], uz));

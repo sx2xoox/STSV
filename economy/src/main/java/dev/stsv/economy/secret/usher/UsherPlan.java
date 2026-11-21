@@ -144,10 +144,14 @@ final class UsherPlan {
 
     /** The plaza floor's y (players stand one above). */
     static final int FLOOR = 63;
-    /** The opening in the plaza floor: z 0, x -9..-7 (only its player sees it open). */
-    static final int OPEN_Z = 0, OPEN_X1 = -9, OPEN_X2 = -7;
-    /** Steps i = 1..7 at x = -10 + i, the stair block at y 63 - i (walking east, down). */
-    static final int STEPS = 7;
+    /** The opening in the plaza floor: x -9..-7, z -1..1 (only its player sees it open), right over the first three steps. */
+    static final int OPEN_X1 = -9, OPEN_X2 = -7, OPEN_Z = 0, OPEN_Z1 = -1, OPEN_Z2 = 1;
+    /**
+     * Steps i = 1..7 at x = -10 + i, the stair block at y 63 - i (walking east, down; stairs facing west, so each block is
+     * two half steps), three wide (z -1..1) between walls at z ±2, with an end wall at x -10. The last step is in the room's
+     * door (x -3), which is open the room's full height (y 56..59) so a head coming down never meets the lintel.
+     */
+    static final int STEPS = 7, WELL_Z = 1;
     /** The room: floor y 55, air 56..59, ceiling 60; walls at x -3 (the door) and 7, z ±5. */
     static final int ROOM_Y = 55, ROOM_X1 = -3, ROOM_X2 = 7, ROOM_Z = 5;
 
@@ -156,12 +160,12 @@ final class UsherPlan {
      * floor is still there for everyone else, so they are carried past it to the fourth step.
      */
     static boolean onOpening(int bx, double y, int bz) {
-        return bz == OPEN_Z && bx >= OPEN_X1 && bx <= OPEN_X2 && y >= FLOOR - 0.5 && y <= FLOOR + 1.7;
+        return bz >= OPEN_Z1 && bz <= OPEN_Z2 && bx >= OPEN_X1 && bx <= OPEN_X2 && y >= FLOOR - 0.5 && y <= FLOOR + 1.7;
     }
 
-    /** Back up the stairs past the fourth step (under the real floor): up they go, beside the opening. */
+    /** Back up the stairs past the fourth step (onto the third, under the real floor): up they go, beside the opening. */
     static boolean underOpening(int bx, double y, int bz) {
-        return bz == OPEN_Z && bx >= OPEN_X1 - 1 && bx <= OPEN_X2 && y < FLOOR - 0.5 && y > ROOM_Y;
+        return Math.abs(bz) <= WELL_Z && bx >= OPEN_X1 - 1 && bx <= OPEN_X2 && y < FLOOR - 0.5 && y > ROOM_Y;
     }
 
     /** Inside the room. */
@@ -187,19 +191,26 @@ final class UsherPlan {
                 out.add(new Cell(x, ROOM_Y, z, Math.floorMod(x + z, 2) == 0 ? "floor" : "floor2"));
                 out.add(new Cell(x, ROOM_Y + 5, z, "ceiling"));
                 for (int y = ROOM_Y + 1; y <= ROOM_Y + 4; y++) {
-                    boolean door = z == 0 && x == ROOM_X1 && y <= ROOM_Y + 3;
+                    boolean door = Math.abs(z) <= WELL_Z && x == ROOM_X1;   // three wide, full height (the stairwell fills it)
                     out.add(new Cell(x, y, z, wall && !door ? "wall" : "air"));
                 }
             }
         }
-        // the stairwell: steps, its walls, the air above each step
-        for (int i = 1; i <= STEPS; i++) {
-            int x = -10 + i, sy = FLOOR - i;
+        // the stairwell: three wide, walls at z ±2 and x -10, and air over every step right up to the plaza floor (in the
+        // door column x -3, up to the room's ceiling: the door is open the room's full height)
+        for (int x = OPEN_X1 - 1; x <= ROOM_X1; x++) {
+            int i = x + 10, sy = FLOOR - i;
+            int top = x == ROOM_X1 ? ROOM_Y + 4 : FLOOR - 1;
             for (int y = ROOM_Y; y <= FLOOR - 1; y++) {
-                for (int z : new int[]{-1, 1}) out.add(new Cell(x, y, z, "wall"));
-                if (y < sy) out.add(new Cell(x, y, 0, "wall"));
-                else if (y == sy) out.add(new Cell(x, y, 0, "stair"));
-                else if (x != ROOM_X1 || y <= ROOM_Y + 3) out.add(new Cell(x, y, 0, "air"));
+                if (y > top) continue;   // the room's ceiling stays over the door
+                for (int z = -WELL_Z - 1; z <= WELL_Z + 1; z++) {
+                    String kind;
+                    if (i == 0 || Math.abs(z) > WELL_Z) kind = "wall";
+                    else if (y < sy) kind = "wall";
+                    else if (y == sy) kind = "stair";
+                    else kind = "air";
+                    out.add(new Cell(x, y, z, kind));
+                }
             }
         }
         // lights: lanterns at the near corners (as on the plaza), soul lanterns by the two at the back
@@ -219,6 +230,10 @@ final class UsherPlan {
 
     /** Where the two stand (x, z of their feet; y = ROOM_Y + 1), left and right as one walks in (east). */
     static final double[] LEFT = {5.5, -1.5}, RIGHT = {5.5, 2.5};
-    /** Where someone lands going down (on step 4, facing east) and coming up (beside the opening). */
-    static final double[] DOWN = {-5.5, FLOOR - 3, 0.5}, UP = {-7.5, FLOOR + 1, 2.5};
+    /**
+     * Where someone lands going down (on step 4, the middle of the three, facing east = yaw -90) and coming up (on the plaza
+     * beside the opening, facing away from it = yaw 0).
+     */
+    static final double[] DOWN = {-5.5, FLOOR - 3, 0.5}, UP = {-7.5, FLOOR + 1, 3.5};
+    static final float DOWN_YAW = -90, UP_YAW = 0;
 }

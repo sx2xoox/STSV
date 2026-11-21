@@ -686,15 +686,13 @@ public final class Usher extends Secret {
         World gw = p.getWorld();
         if (w.room == null) {
             w.room = new Props(eco, m.haunt(), u);
-            for (int x = UsherPlan.OPEN_X1; x <= UsherPlan.OPEN_X2; x++)
-                w.room.fake(new Location(gw, x, UsherPlan.FLOOR, UsherPlan.OPEN_Z), Material.AIR.createBlockData());
+            openFloor(w.room, gw);
             if (m.get(this, u, "real") == null) m.set(this, u, "real", ThreadLocalRandom.current().nextBoolean() ? "left" : "right");
         } else w.room.refake(l -> Material.AIR.createBlockData());
         if (!roomBuilt) return;
         if (w.left == null || !w.left.isValid() || w.right == null || !w.right.isValid()) {
             w.room.clear();
-            for (int x = UsherPlan.OPEN_X1; x <= UsherPlan.OPEN_X2; x++)
-                w.room.fake(new Location(gw, x, UsherPlan.FLOOR, UsherPlan.OPEN_Z), Material.AIR.createBlockData());
+            openFloor(w.room, gw);
             int y = UsherPlan.ROOM_Y + 1;
             Location l = new Location(gw, UsherPlan.LEFT[0], y, UsherPlan.LEFT[1], 90, 0);
             Location r = new Location(gw, UsherPlan.RIGHT[0], y, UsherPlan.RIGHT[1], 90, 0);
@@ -708,6 +706,13 @@ public final class Usher extends Secret {
             w.room.text(sign, line("room-sign", "<gold><b>관험체 이잡라길</b>\n<gray>요세보 라골 을것 은싶 고보 해"), Display.Billboard.FIXED, 0.9f, false)
                     .setRotation(90, 0);
         }
+    }
+
+    /** The opening: the plaza floor over the first three steps, air to them only. */
+    private static void openFloor(Props room, World gw) {
+        for (int x = UsherPlan.OPEN_X1; x <= UsherPlan.OPEN_X2; x++)
+            for (int z = UsherPlan.OPEN_Z1; z <= UsherPlan.OPEN_Z2; z++)
+                room.fake(new Location(gw, x, UsherPlan.FLOOR, z), Material.AIR.createBlockData());
     }
 
     /** Every frame (2 ticks): pictures move, the 안내원 turns to them, the stairs, the two speak. */
@@ -737,13 +742,13 @@ public final class Usher extends Secret {
         if (UsherPlan.onOpening(bx, l.getY(), bz) && !p.isFlying() && roomBuilt && !w.ending) {
             m.haunt().black(p, 1);
             double[] d = UsherPlan.DOWN;
-            p.teleport(new Location(p.getWorld(), d[0], d[1], d[2], -90, 20));
+            p.teleport(new Location(p.getWorld(), d[0], d[1], d[2], UsherPlan.DOWN_YAW, 20));
             p.playSound(p.getLocation(), Sound.BLOCK_STONE_STEP, SoundCategory.AMBIENT, 0.8f, 0.7f);
             return;
         }
         if (UsherPlan.underOpening(bx, l.getY(), bz) && !w.ending) {
             double[] up = UsherPlan.UP;
-            p.teleport(new Location(p.getWorld(), up[0], up[1], up[2], 180, 0));
+            p.teleport(new Location(p.getWorld(), up[0], up[1], up[2], UsherPlan.UP_YAW, 0));
             return;
         }
         boolean in = UsherPlan.inRoom(bx, l.getY(), bz);
@@ -1004,7 +1009,7 @@ public final class Usher extends Secret {
         if (found >= UsherPlan.NOTE_AT && !hasNote(p)) note(p);
         String next = UsherPlan.next(order(), found);
         GuideLayout.Station s = next == null ? null : GuideLayout.station(next);
-        p.sendMessage(Text.mm("<gray>[안내원] 찾은 그림 " + found + "/13 · " + (s == null ? "다음: 광장 바닥의 계단 (x -9..-7, z 0)" : "다음: " + s.title())));
+        p.sendMessage(Text.mm("<gray>[안내원] 찾은 그림 " + found + "/13 · " + (s == null ? "다음: 광장 바닥의 계단 (x -9..-7, z -1..1)" : "다음: " + s.title())));
         enter(p, false);
     }
 
@@ -1054,7 +1059,7 @@ public final class Usher extends Secret {
             case "숨은방" -> {
                 Walk w = walks.computeIfAbsent(u, Walk::new);
                 w.roomPreview = true;
-                admin.sendMessage(Text.mm("<gray>광장 바닥 x -9..-7, z 0 이 열립니다 (그 사람에게만). 진짜는 "
+                admin.sendMessage(Text.mm("<gray>광장 바닥 x -9..-7, z -1..1 이 열립니다 (그 사람에게만). 진짜는 "
                         + (realLeft(u) ? "왼쪽" : "오른쪽") + " — 골라도 저장 안 함"));
                 if (m.get(this, u, "real") == null) m.set(this, u, "real", ThreadLocalRandom.current().nextBoolean() ? "left" : "right");
                 if (!inGuide(p)) enter(p, false);
