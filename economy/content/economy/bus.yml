@@ -311,17 +311,22 @@ secret:
   agent-tip: 2.0
   window: [420, 450]
   # 최종 미션: hour:minute 부터 minutes 분 동안, 노선 첫 정류장(터미널 쪽)에 선 버스에서 honk-window 초 안에 경적 honks 번.
-  # 폐쇄된 정류장 = 쪽지 숫자로 정해지는 distance 블록 거리의 국도 점. 그 기사만 보는 검은 차가 따라옴:
-  # slow-speed 블록/초보다 느린 시간이 모두 slow-limit 초를 넘거나 급정거 · 부딪힘이면 실패
+  # ??? 가 폐쇄된 정류장 좌표만 말해 줌 (repeat 초마다 다시, /버스 에도): 출발 자리에서 직선 distance 블록의 국도 점
+  # (쪽지 숫자와 플레이어로 정해짐; 그런 점이 없으면 가장 가까운 거리의 점 + 서버 로그 경고). 탄 뒤 time-limit 분 안에 도착.
+  # 그 정류장 10칸 안에 멈추면 그가 내려 서류 가방을 둠: case-range 칸 안에서 우클릭 → 번호 (쪽지 숫자 1→5 순서) 입력,
+  # attempts 번 틀리면 실패. 도착 뒤 wait 분 안에 못 열면 실패.
   final:
     hour: 3
     minute: 33
     minutes: 2
     honks: 3
     honk-window: 5
-    distance: [1000, 3000]
-    slow-speed: 4
-    slow-limit: 15
+    distance: [5000, 8000]
+    time-limit: 45
+    repeat: 60
+    wait: 10
+    attempts: 3
+    case-range: 6
     money: 1000000
     vehicle: stsv:agent_sedan
     cosmetics: [stsv:agent_sunglasses, stsv:agent_earpiece, stsv:agent_coat]
@@ -332,7 +337,7 @@ secret:
     distance: [1000, 2000]
     reward: [100000, 300000]
     chance: 0.25
-  # 쪽지 1~5 (미션 1~5): 이름, 최종 수수께끼 한 줄, 뒷면 숫자 (숫자 다섯 개가 폐쇄된 정류장 자리를 정함)
+  # 쪽지 1~5 (미션 1~5): 이름, 최종 수수께끼 한 줄, 뒷면 숫자 (1→5 순서로 읽은 숫자 다섯 개 = 서류 가방 번호, 폐쇄된 정류장 자리도 정함)
   notes:
     - {name: "…침묵", line: "새벽 3시 33분", number: 4}
     - {name: "빈 버스", line: "종점 터미널", number: 7}
@@ -359,6 +364,11 @@ secret:
     success: ["…좋아.", "자네, 괜찮군.", "…수고했네."]
     fail: ["…다음에 보지."]
     final-board: ["…기다렸네. 가지. 목적지는 묻지 말고.", "드디어군. 출발하게."]
+    final-coord: ["…{coord}. 거기로."]
+    final-repeat: ["…{coord}.", "{coord}. 잊지 말게."]
+    final-timeout: ["…시간이 다 됐군."]
+    final-case: ["가방을 열어 보게. 번호는… 자네가 이미 알고 있을 텐데."]
+    final-wrong: ["…실망이군."]
     final-done: ["자네, 쓸모 있군."]
     weekly: ["이걸 {stop}까지. 흔들리면 곤란해.", "{stop}. 조심히."]
 

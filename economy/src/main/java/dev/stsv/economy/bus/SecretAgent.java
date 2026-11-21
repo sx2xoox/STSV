@@ -26,22 +26,30 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.profile.PlayerTextures;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
+import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 
 import java.time.LocalDate;
@@ -65,7 +73,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * 수상한 선글라스 남자 (docs/admin/버스_비밀_의뢰.md; bus.yml {@code secret}; not in the README on purpose). Once or twice a
  * day he waits at a random stop; the bus that picks him up gets one of five missions, each worth its own note (쪽지 1..5:
  * a line of the final riddle and a number). A driver who earned all five themselves may, at 03:33 at a stop at a line's
- * terminal end, honk three times: the final run to a closed stop no one else sees. After that, a weekly 비밀 의뢰.
+ * terminal end, honk three times: he names a coordinate 5-8 km off; at the closed stop no one else sees he leaves a
+ * briefcase whose code is the notes' numbers in order. After that, a weekly 비밀 의뢰.
  * The pure parts (mission choice, the 7-minute window, A-B-A, note ownership, the closed stop) are static and unit-tested.
  */
 public final class SecretAgent implements Listener {
@@ -834,7 +843,7 @@ public final class SecretAgent implements Listener {
         ItemStack it = new ItemStack(Material.PAPER);
         it.editMeta(m -> {
             m.itemName(Lang.mm("bus.note-name", "n", n, "name", no.name()));
-            m.lore(List.of(Lang.mm("bus.note-lore-1", "line", no.line()), Lang.mm("bus.note-lore-2", "number", no.number()),
+            m.lore(List.of(Lang.mm("bus.note-lore-1", "line", no.line()), Lang.mm("bus.note-lore-2", "number", no.number(), "n", n, "max", cfg.notes().size()),
                     Lang.mm("bus.note-lore-3")).stream().map(c -> c.decoration(TextDecoration.ITALIC, false)).toList());
             m.getPersistentDataContainer().set(NOTE, PersistentDataType.INTEGER, n);
         });
@@ -874,16 +883,17 @@ public final class SecretAgent implements Listener {
         return false;
     }
 
-    /** The final run starts: night for them alone, everyone else gets off and fades, he gets on, the black car behind. */
+    /** The final run starts: night for them alone, everyone else gets off and fades, he gets on and names a coordinate. */
     String startFinal(Player p, BusModule.Run run, BusStop here) {
         VehicleModule vm = core.vehicles();
         VehicleModule.Driven d = vm == null ? null : vm.drivenBy(p);
         if (d == null || d.id() != run.id) return "<red>버스를 운전 중이 아니에요";
         if (type() == null) return "<red>bus.yml secret.type 의 손님 종류가 없어요";
-        List<double[]> pts = new ArrayList<>();
-        if (eco.roads() != null) for (var r : eco.roads().builtRoads(d.world().getName())) pts.addAll(r.points());
-        double[] closed = closedStop(seed(cfg.notes()), pts, d.x(), d.z(), cfg.finalMin(), cfg.finalMax());
+        double[] closed = target(p.getUniqueId(), d.world(), d.x(), d.z());
         if (closed == null) return "<red>이 월드에 국도가 없어요";
+        if (closed[4] == 0) eco.getLogger().warning("[버스 비밀] " + Math.round(cfg.finalMin()) + "~" + Math.round(cfg.finalMax())
+                + " 블록 거리의 국도 점이 없어 가장 가까운 거리의 점을 씀: " + coord(closed[0], closed[1])
+                + " (" + Math.round(Math.hypot(closed[0] - d.x(), closed[1] - d.z())) + " 블록)");
         Job old = jobs.get(p.getUniqueId());
         if (old != null) end(old, p);
         if (here != null) bus.dropAll(p, run, here);
@@ -905,43 +915,33 @@ public final class SecretAgent implements Listener {
         j.mission = FINAL;
         j.closed = closed;
         j.world = d.world().getName();
-        j.car = car(p, d);
         jobs.put(p.getUniqueId(), j);
-        p.sendMessage(Lang.mm("bus.secret-final-start", "km", BusModule.km(Math.hypot(closed[0] - d.x(), closed[1] - d.z())),
-                "dir", compass(closed[0] - d.x(), closed[1] - d.z())));
+        p.sendMessage(Lang.mm("bus.secret-final-start", "min", cfg.finalLimit()));
         Bukkit.getScheduler().runTaskLater(eco, () -> {
             if (jobs.get(p.getUniqueId()) == j) speak(p, m, cfg.line("final-board", roll()));
         }, 30L);
-        return "<green>" + p.getName() + ": 최종 미션 시작 (폐쇄된 정류장 " + Math.round(closed[0]) + ", " + Math.round(closed[1]) + ")";
+        Bukkit.getScheduler().runTaskLater(eco, () -> {   // where to: a coordinate, nothing more
+            if (jobs.get(p.getUniqueId()) != j || j.phase != 0) return;
+            j.lastSaid = System.currentTimeMillis();
+            speak(p, m, cfg.line("final-coord", roll(), "coord", coord(closed[0], closed[1])));
+        }, 90L);
+        return "<green>" + p.getName() + ": 최종 미션 시작 (폐쇄된 정류장 " + coord(closed[0], closed[1]) + ", "
+                + Math.round(Math.hypot(closed[0] - d.x(), closed[1] - d.z())) + " 블록, 번호 " + code(cfg.notes()) + ")";
     }
 
-    private static String compass(double dx, double dz) {
-        String[] dirs = {"남", "남서", "서", "북서", "북", "북동", "동", "남동"};
-        double a = Math.toDegrees(Math.atan2(-dx, dz));
-        return dirs[(int) Math.floorMod(Math.round(a / 45), 8)];
+    /** Where this player's closed stop is from (x, z) in this world (see {@link #closedStop}), or null without roads. */
+    private double[] target(UUID u, World w, double x, double z) {
+        List<double[]> pts = new ArrayList<>();
+        if (eco.roads() != null) for (var r : eco.roads().builtRoads(w.getName())) pts.addAll(r.points());
+        return closedStop(playerSeed(seed(cfg.notes()), u), pts, x, z, cfg.finalMin(), cfg.finalMax());
     }
 
-    /** The black car that follows: the agent sedan's item model when the pack has it, else a black block (only they see it). */
-    private Entity car(Player p, VehicleModule.Driven d) {
-        Location at = d.location();
-        java.util.Optional<ItemStack> sedan = cfg.vehicle().isEmpty() ? java.util.Optional.empty() : Items.create(cfg.vehicle(), 1);
-        Entity e;
-        if (sedan.isPresent()) {
-            e = at.getWorld().spawn(at, ItemDisplay.class, x -> {
-                x.setItemStack(sedan.get());
-                x.setTransformation(new Transformation(new Vector3f(0, 1.2f, 0), new AxisAngle4f(), new Vector3f(3, 3, 3), new AxisAngle4f()));
-                prep(x);
-            });
-        } else {
-            BlockData black = Material.BLACK_CONCRETE.createBlockData();
-            e = at.getWorld().spawn(at, BlockDisplay.class, x -> {
-                x.setBlock(black);
-                x.setTransformation(new Transformation(new Vector3f(-1f, 0.3f, -2.2f), new AxisAngle4f(), new Vector3f(2f, 1.3f, 4.4f), new AxisAngle4f()));
-                prep(x);
-            });
+    /** What the coordinate line of /버스 adds while the final runs (he said it; they must find it themselves). */
+    void listLine(Player p) {
+        Job j = jobs.get(p.getUniqueId());
+        if (j != null && j.mission == FINAL && j.closed != null) {
+            p.sendMessage(Lang.mm("bus.secret-says", "line", cfg.line("final-repeat", roll(), "coord", coord(j.closed[0], j.closed[1]))));
         }
-        p.showEntity(eco, e);
-        return e;
     }
 
     private static void prep(Display x) {
@@ -952,19 +952,27 @@ public final class SecretAgent implements Listener {
         x.getPersistentDataContainer().set(BusModule.GUEST, PersistentDataType.BYTE, (byte) 1);
     }
 
-    /** The closed stop's ghostly shelter, made when they come near (only they see it). */
-    private void showClosed(Player p, Job j) {
+    /** A point in a shelter's own frame (+z away from the road, +x along it), on the ground there. */
+    private static Location local(Location base, double lx, double ly, double lz) {
+        double yaw = Math.toRadians(base.getYaw());
+        double x = base.getX() + lx * Math.cos(yaw) - lz * Math.sin(yaw), z = base.getZ() + lx * Math.sin(yaw) + lz * Math.cos(yaw);
+        return new Location(base.getWorld(), x, base.getY() + ly, z, base.getYaw(), 0);
+    }
+
+    /** The closed stop's ghostly shelter, made when they come near (or now: `force`); only they see it. */
+    private void showClosed(Player p, Job j, boolean force) {
         if (!j.shown.isEmpty() || !p.getWorld().getName().equals(j.world)) return;
         double x = j.closed[0], z = j.closed[1];
-        if (Math.hypot(p.getX() - x, p.getZ() - z) > 120) return;
+        if (!force && Math.hypot(p.getX() - x, p.getZ() - z) > 120) return;
         World w = p.getWorld();
-        if (!w.isChunkLoaded((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4)) return;
         double ax = j.closed[2], az = j.closed[3];
         double nx = -az, nz = ax;   // beside the road
         double bx = x + nx * 7, bz = z + nz * 7;
+        if (!w.isChunkLoaded((int) Math.floor(bx) >> 4, (int) Math.floor(bz) >> 4)) return;
         int y = w.getHighestBlockYAt((int) Math.floor(bx), (int) Math.floor(bz)) + 1;
         float yaw = (float) Math.toDegrees(Math.atan2(-ax, az)) + 90;
         Location base = new Location(w, bx, y, bz, yaw, 0);
+        j.shelter = base;
         block(p, j, base, Material.CRACKED_STONE_BRICKS, -2f, 0f, 0.8f, 4f, 0.2f, 0.2f);          // floor
         block(p, j, base, Material.STRIPPED_DARK_OAK_LOG, -2f, 0.2f, -0.8f, 0.25f, 2.4f, 0.25f);  // posts
         block(p, j, base, Material.STRIPPED_DARK_OAK_LOG, 1.75f, 0.2f, -0.8f, 0.25f, 2.4f, 0.25f);
@@ -984,7 +992,7 @@ public final class SecretAgent implements Listener {
         w.playSound(base, Sound.AMBIENT_CAVE, 0.6f, 0.5f);
     }
 
-    private void block(Player p, Job j, Location base, Material mat, float tx, float ty, float tz, float sx, float sy, float sz) {
+    private BlockDisplay block(Player p, Job j, Location base, Material mat, float tx, float ty, float tz, float sx, float sy, float sz) {
         BlockData bd = mat.createBlockData();
         BlockDisplay d = base.getWorld().spawn(base, BlockDisplay.class, x -> {
             x.setBlock(bd);
@@ -993,31 +1001,248 @@ public final class SecretAgent implements Listener {
         });
         p.showEntity(eco, d);
         j.shown.add(d);
+        return d;
     }
 
-    /** Stopped at the closed stop: the briefcase, his last words, the rewards (in full), the sky put back. */
-    private void finalDone(Player p, BusModule.Run run, Job j) {
-        UUID u = p.getUniqueId();
-        speak(p, j.rider.m, cfg.line("final-done", roll()));
-        if (j.rider.m.isValid()) {   // the briefcase he leaves on the seat
-            ItemDisplay bag = j.rider.m.getWorld().spawn(j.rider.m.getLocation().add(0, 0.6, 0), ItemDisplay.class, x -> {
-                x.setItemStack(new ItemStack(Material.BROWN_SHULKER_BOX));
-                x.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(), new Vector3f(0.5f, 0.35f, 0.15f), new AxisAngle4f()));
-                prep(x);
+    /** The bus stopped at the closed stop: he gets off and walks slowly into the ruined shelter. */
+    private void arriveClosed(Player p, BusModule.Run run, Job j) {
+        showClosed(p, j, true);
+        Mannequin m = j.rider.m;
+        if (j.shelter == null || !m.isValid()) return;   // its place not loaded yet: the next tick
+        j.phase = 1;
+        j.stopAt = System.currentTimeMillis();
+        VehicleModule vm = core.vehicles();
+        if (vm != null) vm.unseatGuest(run.id, m);
+        run.riders.remove(j.rider);
+        for (Entity e : m.getPassengers()) e.remove();   // a speech bubble would keep him from moving
+        World w = p.getWorld();
+        Location to = local(j.shelter, 0.7, 0, 0.1);
+        double dx = to.getX() - p.getX(), dz = to.getZ() - p.getZ(), len = Math.max(0.01, Math.hypot(dx, dz));
+        double sx = p.getX() + dx / len * Math.min(2.5, len), sz = p.getZ() + dz / len * Math.min(2.5, len);
+        m.teleport(ground(w, sx, sz, j.shelter.getBlockY(), (float) Math.toDegrees(Math.atan2(-dx, dz))));
+        p.playSound(p.getLocation(), Sound.BLOCK_IRON_DOOR_OPEN, 0.7f, 0.6f);
+        UUID u = j.driver;
+        j.walk = Bukkit.getScheduler().runTaskTimer(eco, () -> {
+            if (jobs.get(u) != j || !m.isValid()) {
+                j.walk.cancel();
+                return;
+            }
+            Location at = m.getLocation();
+            double ex = to.getX() - at.getX(), ez = to.getZ() - at.getZ(), left = Math.hypot(ex, ez), step = 0.07;   // a slow walk
+            if (left <= step) {
+                j.walk.cancel();
+                j.walk = null;
+                inShelter(j, to);
+                return;
+            }
+            m.teleport(ground(w, at.getX() + ex / left * step, at.getZ() + ez / left * step, j.shelter.getBlockY(),
+                    (float) Math.toDegrees(Math.atan2(-ex, ez))));
+        }, 1L, 1L);
+    }
+
+    private static Location ground(World w, double x, double z, int near, float yaw) {
+        Double y = BusModule.standY(w, x, z, near);
+        return new Location(w, x, y == null ? near : y, z, yaw, 0);
+    }
+
+    /** In the shelter: he turns to them, says his piece and sets the briefcase down. */
+    private void inShelter(Job j, Location at) {
+        Player p = Bukkit.getPlayer(j.driver);
+        Mannequin m = j.rider.m;
+        if (p == null || !m.isValid()) return;
+        double dx = p.getX() - at.getX(), dz = p.getZ() - at.getZ();
+        m.teleport(new Location(at.getWorld(), at.getX(), m.getY(), at.getZ(), (float) Math.toDegrees(Math.atan2(-dx, dz)), 0));
+        speak(p, m, cfg.line("final-case", roll()));
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (jobs.get(j.driver) != j || !p.isOnline()) return;
+            briefcase(p, j);
+            j.phase = 2;
+            HudModule.flash(p, Lang.mm("bus.secret-case-hint"), 4000);
+        }, 40L);
+    }
+
+    /** The briefcase on the shelter's floor (black, gold latches, a handle; its lid hinged at the back); only they see it. */
+    private void briefcase(Player p, Job j) {
+        Location c = local(j.shelter, -0.8, 0, -0.1);
+        Location at = ground(c.getWorld(), c.getX(), c.getZ(), j.shelter.getBlockY(), j.shelter.getYaw());
+        block(p, j, at, Material.BLACK_TERRACOTTA, -0.35f, 0f, -0.22f, 0.7f, 0.1f, 0.44f);           // the case
+        j.lid = block(p, j, at, Material.BLACK_TERRACOTTA, -0.35f, 0.1f, -0.22f, 0.7f, 0.08f, 0.44f);  // the lid
+        block(p, j, at, Material.POLISHED_BLACKSTONE, -0.1f, 0.05f, -0.28f, 0.2f, 0.04f, 0.06f);       // handle
+        block(p, j, at, Material.GOLD_BLOCK, -0.24f, 0.08f, -0.235f, 0.06f, 0.05f, 0.02f);              // latches
+        block(p, j, at, Material.GOLD_BLOCK, 0.18f, 0.08f, -0.235f, 0.06f, 0.05f, 0.02f);
+        j.caseHit = at.getWorld().spawn(at, Interaction.class, x -> {
+            x.setPersistent(false);
+            x.setVisibleByDefault(false);
+            x.setInteractionWidth(0.9f);
+            x.setInteractionHeight(0.5f);
+            x.setResponsive(true);
+            x.getPersistentDataContainer().set(BusModule.GUEST, PersistentDataType.BYTE, (byte) 1);
+        });
+        p.showEntity(eco, j.caseHit);
+        j.shown.add(j.caseHit);
+        at.getWorld().playSound(at, Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.8f, 0.7f);
+    }
+
+    // ---- the keypad
+
+    static final int[] DIGIT_SLOTS = {40, 12, 13, 14, 21, 22, 23, 30, 31, 32};   // 0..9 (a phone's layout)
+    static final int CLEAR = 39, OK = 41, TRIES = 49, SHOW = 2;
+
+    static final class Keypad implements InventoryHolder {
+        final Job job;
+        final StringBuilder entered = new StringBuilder();
+        Inventory inventory;
+
+        Keypad(Job job) {
+            this.job = job;
+        }
+
+        @Override
+        public @NotNull Inventory getInventory() {
+            return inventory;
+        }
+    }
+
+    /** Right-click on the briefcase: its keypad (within reach, theirs only). */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onCase(PlayerInteractEntityEvent e) {
+        if (e.getHand() != EquipmentSlot.HAND || !(e.getRightClicked() instanceof Interaction hit)) return;
+        Player p = e.getPlayer();
+        Job j = jobs.get(p.getUniqueId());
+        if (j == null || j.mission != FINAL || j.caseHit == null || !hit.equals(j.caseHit)) return;
+        e.setCancelled(true);
+        if (j.phase != 2) return;
+        if (!near(p, j)) {
+            HudModule.flash(p, Lang.mm("bus.secret-case-far"), 2000);
+            return;
+        }
+        Keypad k = new Keypad(j);
+        k.inventory = Bukkit.createInventory(k, 54, Lang.mm("bus.secret-keypad-title"));
+        render(k);
+        p.openInventory(k.inventory);
+        p.playSound(p.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_OPEN, 0.5f, 1.4f);
+    }
+
+    private boolean near(Player p, Job j) {
+        return j.caseHit != null && j.caseHit.isValid() && p.getWorld().equals(j.caseHit.getWorld())
+                && p.getLocation().distance(j.caseHit.getLocation()) <= cfg.caseRange();
+    }
+
+    private void render(Keypad k) {
+        Inventory inv = k.inventory;
+        for (int i = 0; i < inv.getSize(); i++) inv.setItem(i, button(Material.BLACK_STAINED_GLASS_PANE, Text.mm(" "), 1));
+        int len = code(cfg.notes()).length();
+        for (int i = 0; i < len && SHOW + i < 9; i++) {
+            if (i < k.entered.length()) {
+                int dgt = k.entered.charAt(i) - '0';
+                inv.setItem(SHOW + i, button(Material.WHITE_STAINED_GLASS_PANE, Text.mm("<white>" + dgt), Math.max(1, dgt)));
+            } else inv.setItem(SHOW + i, button(Material.LIGHT_GRAY_STAINED_GLASS_PANE, Text.mm("<dark_gray>_"), 1));
+        }
+        for (int dgt = 0; dgt <= 9; dgt++) inv.setItem(DIGIT_SLOTS[dgt], button(Material.STONE_BUTTON, Text.mm("<white>" + dgt), Math.max(1, dgt)));
+        inv.setItem(CLEAR, button(Material.RED_DYE, Lang.mm("bus.secret-keypad-clear"), 1));
+        inv.setItem(OK, button(Material.LIME_DYE, Lang.mm("bus.secret-keypad-ok"), 1));
+        inv.setItem(TRIES, button(Material.CLOCK, Lang.mm("bus.secret-keypad-tries", "n", cfg.attempts() - k.job.wrong, "max", cfg.attempts()), 1));
+    }
+
+    private static ItemStack button(Material mat, net.kyori.adventure.text.Component name, int amount) {
+        ItemStack it = new ItemStack(mat, amount);
+        it.editMeta(m -> m.itemName(name));
+        return it;
+    }
+
+    @EventHandler
+    public void onKeypad(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder(false) instanceof Keypad k)) return;
+        e.setCancelled(true);
+        if (!(e.getWhoClicked() instanceof Player p) || e.getClickedInventory() != e.getView().getTopInventory()) return;
+        Job j = k.job;
+        if (jobs.get(p.getUniqueId()) != j || j.phase != 2 || !near(p, j)) {
+            Bukkit.getScheduler().runTask(eco, () -> p.closeInventory());
+            return;
+        }
+        String code = code(cfg.notes());
+        int slot = e.getSlot();
+        for (int dgt = 0; dgt <= 9; dgt++) {
+            if (DIGIT_SLOTS[dgt] != slot) continue;
+            if (k.entered.length() < code.length()) k.entered.append(dgt);
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.7f, 1.2f + dgt * 0.05f);
+            render(k);
+            return;
+        }
+        if (slot == CLEAR) {
+            k.entered.setLength(0);
+            p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 0.8f);
+            render(k);
+        } else if (slot == OK) {
+            if (k.entered.length() < code.length()) {
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.7f, 0.6f);
+                return;
+            }
+            int r = guess(code, k.entered.toString(), j.wrong, cfg.attempts());
+            if (r == 1) {
+                p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1.4f);
+                Bukkit.getScheduler().runTask(eco, () -> {
+                    p.closeInventory();
+                    solve(p, j);
+                });
+                return;
+            }
+            j.wrong++;
+            k.entered.setLength(0);
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f);
+            if (r == 0) {
+                HudModule.flash(p, Lang.mm("bus.secret-keypad-wrong", "n", cfg.attempts() - j.wrong), 2500);
+                render(k);
+                return;
+            }
+            Bukkit.getScheduler().runTask(eco, () -> {   // the last try: it snaps shut, he is gone
+                p.closeInventory();
+                if (jobs.get(p.getUniqueId()) != j) return;
+                if (j.caseHit != null) {
+                    p.spawnParticle(Particle.SMOKE, j.caseHit.getLocation().add(0, 0.2, 0), 12, 0.2, 0.1, 0.2, 0.01);
+                    p.playSound(j.caseHit.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 1f, 0.5f);
+                }
+                fail(p, j, "wrong", "final-wrong");
             });
-            p.showEntity(eco, bag);
-            Bukkit.getScheduler().runTaskLater(eco, bag::remove, 100L);
         }
-        eco.kv().set(key(u, "agent"), String.valueOf(System.currentTimeMillis()));
-        end(j, p);
-        p.addPotionEffect(new PotionEffect(PotionEffectType.DARKNESS, 30, 0, false, false));
-        rewards(p);
-        p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 0.6f);
-        Bukkit.broadcast(Lang.msg("bus.secret-final-all"));
-        if (!eco.kv().has("bus.secret.first")) {
-            eco.kv().set("bus.secret.first", u.toString());
-            p.sendMessage(Lang.mm("bus.secret-first"));
+    }
+
+    @EventHandler
+    public void onKeypadDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder(false) instanceof Keypad) e.setCancelled(true);
+    }
+
+    /** The right code: the briefcase opens, his last words, the sky back, the rewards (once per player, in full). */
+    private void solve(Player p, Job j) {
+        UUID u = p.getUniqueId();
+        if (jobs.get(u) != j || j.phase != 2) return;
+        j.phase = 3;
+        jobs.remove(u, j);
+        if (j.lid != null && j.lid.isValid()) {   // the lid swings up about its back edge
+            float a = (float) Math.toRadians(105);
+            j.lid.setInterpolationDelay(0);
+            j.lid.setInterpolationDuration(10);
+            j.lid.setTransformation(new Transformation(new Vector3f(-0.35f, 0.1f + 0.44f * (float) Math.sin(a), 0.22f - 0.44f * (float) Math.cos(a)),
+                    new AxisAngle4f(a, 1, 0, 0), new Vector3f(0.7f, 0.08f, 0.44f), new AxisAngle4f()));
         }
+        Location c = j.caseHit != null ? j.caseHit.getLocation().add(0, 0.3, 0) : p.getLocation();
+        p.playSound(c, Sound.BLOCK_CHEST_OPEN, 1f, 0.7f);
+        p.playSound(c, Sound.BLOCK_ENCHANTMENT_TABLE_USE, 0.8f, 0.8f);
+        p.spawnParticle(Particle.END_ROD, c, 20, 0.2, 0.3, 0.2, 0.03);
+        p.spawnParticle(Particle.ENCHANT, c, 40, 0.3, 0.4, 0.3, 0.5);
+        speak(p, j.rider.m, cfg.line("final-done", roll()));
+        p.resetPlayerTime();
+        if (!agent(u)) {
+            eco.kv().set(key(u, "agent"), String.valueOf(System.currentTimeMillis()));
+            rewards(p);
+            p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 0.6f);
+            Bukkit.broadcast(Lang.msg("bus.secret-final-all"));
+            if (!eco.kv().has("bus.secret.first")) {
+                eco.kv().set("bus.secret.first", u.toString());
+                p.sendMessage(Lang.mm("bus.secret-first"));
+            }
+        } else p.sendMessage(Lang.mm("bus.secret-final-again"));
+        Bukkit.getScheduler().runTaskLater(eco, () -> end(j, Bukkit.getPlayer(u)), 80L);   // he fades, the ruin too
     }
 
     /** The final's rewards: money (not shared with a rental), the sedan (bound to them), the three cosmetics, the title. */
@@ -1114,7 +1339,7 @@ public final class SecretAgent implements Listener {
 
     void admin(CommandSender s, String[] args) {
         if (args.length < 2 || !args[0].equals("비밀")) {
-            s.sendMessage(Text.msg("<red>/관리자 버스 비밀 소환 [1-5] | 쪽지 <플레이어> <1-5|전부> | 최종 [플레이어] | 초기화 <플레이어> | 상태 <플레이어>"));
+            s.sendMessage(Text.msg("<red>/관리자 버스 비밀 소환 [1-5] | 쪽지 <플레이어> <1-5|전부> | 최종 [플레이어] | 좌표 <플레이어> | 초기화 <플레이어> | 상태 <플레이어>"));
             return;
         }
         String who = args.length > 2 ? args[2] : null;
@@ -1206,6 +1431,25 @@ public final class SecretAgent implements Listener {
                 }
                 s.sendMessage(Text.msg(startFinal(t, run, here)));
             }
+            case "좌표" -> {
+                Player t = who == null ? (s instanceof Player p ? p : null) : Bukkit.getPlayerExact(who);
+                if (t == null) {
+                    s.sendMessage(Text.msg("<red>/관리자 버스 비밀 좌표 <접속한 플레이어>"));
+                    return;
+                }
+                Job j = jobs.get(t.getUniqueId());
+                if (j != null && j.mission == FINAL && j.closed != null) {
+                    s.sendMessage(Text.msg("<gold>" + t.getName() + " <gray>폐쇄된 정류장 <white>" + coord(j.closed[0], j.closed[1]) + "</white> ("
+                            + j.world + ", 지금 " + Math.round(Math.hypot(j.closed[0] - t.getX(), j.closed[1] - t.getZ())) + " 블록) · 단계 <white>"
+                            + switch (j.phase) { case 0 -> "운전 중"; case 1 -> "걸어 들어가는 중"; case 2 -> "가방 대기"; default -> "열림"; }
+                            + "</white> · 틀린 번호 <white>" + j.wrong + "/" + cfg.attempts() + "</white> · 번호 <white>" + code(cfg.notes())));
+                    return;
+                }
+                double[] c = target(t.getUniqueId(), t.getWorld(), t.getX(), t.getZ());
+                s.sendMessage(Text.msg(c == null ? "<red>이 월드에 국도가 없어요" : "<gold>" + t.getName() + " <gray>진행 중인 최종 미션 없음. 지금 자리에서 시작하면 <white>"
+                        + coord(c[0], c[1]) + "</white> (" + Math.round(Math.hypot(c[0] - t.getX(), c[1] - t.getZ())) + " 블록"
+                        + (c[4] == 0 ? ", 거리 범위 밖: 가장 가까운 점" : "") + ") · 번호 <white>" + code(cfg.notes())));
+            }
             case "초기화" -> {
                 if (who == null) {
                     s.sendMessage(Text.msg("<red>/관리자 버스 비밀 초기화 <플레이어>"));
@@ -1238,18 +1482,18 @@ public final class SecretAgent implements Listener {
                     s.sendMessage(Text.msg("<gold>" + who + " <gray>쪽지(직접 얻음) <white>" + earned(u) + "</white> · 최종 <white>"
                             + (agent(u) ? "완료" : "아직") + "</white> · 이번 주 의뢰 <white>"
                             + (week(LocalDate.now(KST)).equals(eco.kv().get(key(u, "week"), "")) ? "받음" : "아직") + "</white> · 유령 조각 <white>"
-                            + eco.kv().getLong("bus.ghost." + u, 0) + "</white> · 진행 중 <white>" + (j == null ? "없음" : "미션 " + j.mission)
+                            + eco.kv().getLong("bus.ghost." + u, 0) + "</white> · 진행 중 <white>" + (j == null ? "없음" : j.mission == FINAL ? "최종 (단계 " + j.phase + ")" : "미션 " + j.mission)
                             + "</white> · 기다리는 곳 <white>" + (ws == null ? "없음" : ws.name()) + "</white> · 최초의 요원 <white>"
                             + (u.toString().equals(eco.kv().get("bus.secret.first", "")) ? "예" : "아니오")));
                 });
             }
-            default -> s.sendMessage(Text.msg("<red>/관리자 버스 비밀 소환|쪽지|최종|초기화|상태"));
+            default -> s.sendMessage(Text.msg("<red>/관리자 버스 비밀 소환|쪽지|최종|좌표|초기화|상태"));
         }
     }
 
     List<String> complete(String[] args) {
         if (args.length == 1) return List.of("비밀");
-        if (args.length == 2) return List.of("소환", "쪽지", "최종", "초기화", "상태");
+        if (args.length == 2) return List.of("소환", "쪽지", "최종", "좌표", "초기화", "상태");
         if (args.length == 3 && args[1].equals("소환")) return List.of("1", "2", "3", "4", "5");
         if (args.length == 3) return Bukkit.getOnlinePlayers().stream().map(Player::getName).filter(n -> n.startsWith(args[2])).toList();
         if (args.length == 4 && args[1].equals("쪽지")) return List.of("1", "2", "3", "4", "5", "전부");

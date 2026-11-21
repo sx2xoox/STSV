@@ -1,0 +1,76 @@
+# 마을버스 분실물 (bus.yml events.lost.kinds): 손님이 버스에 두고 내린 물건. 버스 기사만 얻음 (손님이 내릴 때), 다른 곳에서는 안 나옴.
+# 이름 · 설명은 줄 때 BusModule 이 손님 종류 · 돌려줄 정류장 · 남은 시간으로 바꿔 씀 (아래 name 은 기본값). 상점 구매품 표시라 팔 수 없음.
+# 아이콘: tools/assetgen/bus_lost_icons.py
+lost_wallet:
+  material: paper
+  name: "<#c9a26b>지갑"
+  texture: lost_wallet
+  max-stack: 1
+
+lost_umbrella:
+  material: paper
+  name: "<#c9a26b>우산"
+  texture: lost_umbrella
+  max-stack: 1
+
+lost_phone:
+  material: paper
+  name: "<#c9a26b>휴대폰"
+  texture: lost_phone
+  max-stack: 1
+
+lost_lunchbox:
+  material: paper
+  name: "<#c9a26b>도시락"
+  texture: lost_lunchbox
+  max-stack: 1
+
+lost_lunchbox_spoiled:
+  material: paper
+  name: "<#9a9a5a>쉰 도시락"
+  texture: lost_lunchbox_spoiled
+  max-stack: 1
+
+lost_dentures:
+  material: paper
+  name: "<#c9a26b>틀니"
+  texture: lost_dentures
+  max-stack: 1
+
+lost_leash:
+  material: paper
+  name: "<#c9a26b>강아지 목줄"
+  texture: lost_leash
+  max-stack: 1
+
+lost_loveletter:
+  material: paper
+  name: "<#c9a26b>연애편지"
+  texture: lost_loveletter
+  max-stack: 1
+
+lost_signedball:
+  material: paper
+  name: "<#c9a26b>사인볼"
+  texture: lost_signedball
+  max-stack: 1
+
+# 주인이 끝내 안 온 사인볼 (기한이 지나면 사인볼이 이걸로 바뀜): 기사가 가지는 기념품
+lost_signedball_keepsake:
+  material: paper
+  name: "<#ffd166>사인볼 (기념품)"
+  lore: ["<gray>주인이 끝내 찾으러 오지 않은 야구팬의 사인볼", "<dark_gray>기념품 · 팔 수 없음"]
+  texture: lost_signedball_keepsake
+  max-stack: 1
+
+lost_hat:
+  material: paper
+  name: "<#c9a26b>모자"
+  texture: lost_hat
+  max-stack: 1
+
+lost_key:
+  material: paper
+  name: "<#c9a26b>열쇠"
+  texture: lost_key
+  max-stack: 1

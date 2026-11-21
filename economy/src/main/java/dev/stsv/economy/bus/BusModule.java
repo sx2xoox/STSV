@@ -3176,6 +3176,7 @@ public final class BusModule extends EcoModule {
         BusLine line = net == null || r == null ? null : net.line(r.line);
         p.sendMessage(Lang.mm("bus.list-head", "n", n, "seats", d.seats() - 1, "today", String.format("%,d", earned),
                 "line", line == null ? Lang.raw("bus.no-line") : line.name()));
+        secret.listLine(p);   // the 선글라스 남자's coordinate, while his final runs
         if (n == 0) {
             p.sendMessage(Lang.mm("bus.list-empty"));
             return;

@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -103,24 +104,76 @@ class SecretAgentTest {
 
     @Test
     void closedStopFromTheNoteNumbers() {
+        SecretAgent.Config cfg = config();
+        assertEquals(5000, cfg.finalMin(), 1e-9);
+        assertEquals(8000, cfg.finalMax(), 1e-9);
         List<double[]> road = new ArrayList<>();
-        for (int i = 0; i <= 500; i++) road.add(new double[]{i * 10, 0});   // a straight road 5 km east
-        long seed = SecretAgent.seed(config().notes());
+        for (int i = 0; i <= 1000; i++) road.add(new double[]{i * 10, 0});   // a straight road 10 km east
+        long seed = SecretAgent.seed(cfg.notes());
         assertEquals(47192, seed);
-        double[] c = SecretAgent.closedStop(seed, road, 0, 0, 1000, 3000);
+        UUID a = UUID.fromString("11111111-2222-3333-4444-555555555555"), b = UUID.fromString("99999999-8888-7777-6666-000000000001");
+        long sa = SecretAgent.playerSeed(seed, a);
+        double[] c = SecretAgent.closedStop(sa, road, 0, 0, cfg.finalMin(), cfg.finalMax());
         assertNotNull(c);
         double d = Math.hypot(c[0], c[1]);
-        assertTrue(d >= 1000 && d <= 3000, "" + d);
+        assertTrue(d >= 5000 && d <= 8000, "" + d);
+        assertEquals(1, c[4], 1e-9);   // in range
         assertEquals(1, c[2], 1e-9);   // along the road
-        // the same numbers, the same place; other numbers, most likely another
-        assertArrayEquals(c, SecretAgent.closedStop(seed, road, 0, 0, 1000, 3000));
-        double[] o = SecretAgent.closedStop(12345, road, 0, 0, 1000, 3000);
+        // the same player, the same place (every night); another player, most likely another
+        assertEquals(sa, SecretAgent.playerSeed(seed, UUID.fromString(a.toString())));
+        assertArrayEquals(c, SecretAgent.closedStop(SecretAgent.playerSeed(seed, a), road, 0, 0, 5000, 8000));
+        double[] o = SecretAgent.closedStop(SecretAgent.playerSeed(seed, b), road, 0, 0, 5000, 8000);
         assertNotEquals(c[0], o[0]);
-        // nothing that far: the point nearest half way
+        assertTrue(Math.hypot(o[0], o[1]) >= 5000);
+        // a small map: nothing 5 km off, the farthest point (flagged out of range)
         List<double[]> shortRoad = road.subList(0, 50);
-        double[] n = SecretAgent.closedStop(seed, shortRoad, 0, 0, 1000, 3000);
+        double[] n = SecretAgent.closedStop(sa, shortRoad, 0, 0, 5000, 8000);
         assertEquals(490, n[0], 1e-9);
-        assertNull(SecretAgent.closedStop(seed, List.of(), 0, 0, 1000, 3000));
+        assertEquals(0, n[4], 1e-9);
+        // everything too far: the nearest beyond the range
+        double[] f = SecretAgent.closedStop(sa, road.subList(900, 1001), 0, 0, 5000, 8000);
+        assertEquals(9000, f[0], 1e-9);
+        assertNull(SecretAgent.closedStop(sa, List.of(), 0, 0, 5000, 8000));
+        assertEquals("X 1234, Z -567", SecretAgent.coord(1234.7, -566.2));
+    }
+
+    @Test
+    void briefcaseCodeAndTries() {
+        SecretAgent.Config cfg = config();
+        assertEquals("47192", SecretAgent.code(cfg.notes()));
+        assertEquals("01234", SecretAgent.code(List.of(new SecretAgent.Note("a", "", 0), new SecretAgent.Note("b", "", 1),
+                new SecretAgent.Note("c", "", 2), new SecretAgent.Note("d", "", 13), new SecretAgent.Note("e", "", 4))));
+        assertEquals(3, cfg.attempts());
+        assertEquals(1, SecretAgent.guess("47192", "47192", 0, 3));
+        assertEquals(1, SecretAgent.guess("47192", "47192", 2, 3));   // the last try may still be right
+        assertEquals(0, SecretAgent.guess("47192", "29174", 0, 3));   // read backwards: wrong
+        assertEquals(0, SecretAgent.guess("47192", "12479", 1, 3));
+        assertEquals(-1, SecretAgent.guess("47192", "00000", 2, 3));  // the third wrong: it snaps shut
+        int wrong = 0, r = 0;
+        for (String t : List.of("11111", "22222", "33333")) {
+            r = SecretAgent.guess("47192", t, wrong, cfg.attempts());
+            if (r <= 0) wrong++;
+        }
+        assertEquals(-1, r);
+        assertEquals(3, wrong);
+    }
+
+    @Test
+    void finalTimeLimits() {
+        SecretAgent.Config cfg = config();
+        assertEquals(45, cfg.finalLimit());
+        assertEquals(10, cfg.finalWait());
+        assertEquals(60, cfg.finalRepeat());
+        assertEquals(6, cfg.caseRange(), 1e-9);
+        long t0 = 1_000_000;
+        assertFalse(SecretAgent.timeUp(t0, t0 + 45 * 60_000L, cfg.finalLimit()));
+        assertTrue(SecretAgent.timeUp(t0, t0 + 45 * 60_000L + 1, cfg.finalLimit()));
+        assertFalse(SecretAgent.timeUp(t0, t0 + 9 * 60_000L, cfg.finalWait()));
+        assertTrue(SecretAgent.timeUp(t0, t0 + 10 * 60_000L + 1000, cfg.finalWait()));
+        assertTrue(cfg.line("final-coord", 0, "coord", "X 1, Z 2").contains("X 1, Z 2"));
+        assertTrue(cfg.line("final-repeat", 0.99, "coord", "X 1, Z 2").contains("X 1, Z 2"));
+        assertEquals("…시간이 다 됐군.", cfg.line("final-timeout", 0));
+        assertEquals("…실망이군.", cfg.line("final-wrong", 0));
     }
 
     @Test

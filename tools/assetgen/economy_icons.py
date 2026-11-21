@@ -86,3 +86,7 @@ ITEMS = {}
 ITEMS.update(_GOODS_ICONS)
 ITEMS.update(_CROP_ICONS)
 ITEMS.update(_FISH_ICONS)
+# 마을버스 분실물 (economy:lost_<kind>, bus.yml events.lost)
+from bus_lost_icons import ICONS as _LOST_ICONS   # noqa: E402
+
+ITEMS.update(_LOST_ICONS)
