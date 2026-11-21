@@ -94,6 +94,11 @@ public final class TradeModule extends EcoModule {
         }
     }
 
+    /** Whether this inventory is a 직거래 window (for the 숨은 비밀 낡은 인형: its doll may sit in one while a trade is made). */
+    public static boolean window(Inventory inv) {
+        return inv != null && inv.getHolder(false) instanceof Session;
+    }
+
     static boolean isA(int slot) {
         return slot < 45 && slot % 9 < 4;
     }

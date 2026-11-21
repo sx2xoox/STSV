@@ -126,7 +126,7 @@ final class Field {
     // the house
     // ------------------------------------------------------------------------------------------
 
-    /** The lower half of the nearest door on the player's land within radius of a spot, or null. */
+    /** The lower half of the nearest door on the player's land (any land when u is null) within radius of a spot, or null. */
     Block door(Location from, UUID u, int radius) {
         World w = from.getWorld();
         Block best = null;
@@ -138,7 +138,7 @@ final class Field {
                 if (!Tag.DOORS.isTagged(b.getType())) continue;
                 if (b.getBlockData() instanceof Bisected bi && bi.getHalf() == Bisected.Half.TOP) continue;
                 double d = b.getLocation().add(0.5, 0, 0.5).distanceSquared(from);
-                if (d >= bd || !allows(b.getLocation(), u)) continue;
+                if (d >= bd || (u != null && !allows(b.getLocation(), u))) continue;
                 bd = d;
                 best = b;
             }

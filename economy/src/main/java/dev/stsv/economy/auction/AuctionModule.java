@@ -41,6 +41,49 @@ public final class AuctionModule extends EcoModule {
     private final Map<String, Integer> rareWins = new HashMap<>();   // player|week
     /** names for messages, read from the item once per auction (the boss bar asks every second) */
     private final Map<Auction, String> names = new java.util.WeakHashMap<>();
+    private Ghost ghost;
+
+    /**
+     * A listing put up by a hidden secret (숨은 비밀 주인 없는 경매품): no seller and no deposit, not rare, its own seller
+     * name. It runs, takes bids and settles like a server auction; the secret hears when it ends. Errors in it never
+     * break /경매.
+     */
+    public interface Ghost {
+        /** Whether this auction is the ghost's listing. */
+        boolean owns(Auction a);
+
+        /** The seller name shown for it (announcement and list). */
+        String seller(Auction a);
+
+        /** A message key (the ghost may register its own) when this stack may not be put up by a player, else null. */
+        default String refuse(ItemStack it) {
+            return null;
+        }
+
+        /** Its listing ended: a.bidder is the winner (the item already delivered), or null when nobody bid. */
+        void ended(Auction a);
+    }
+
+    /** Sets (or with null, clears) the ghost. */
+    public void ghost(Ghost g) {
+        ghost = g;
+    }
+
+    private boolean ghostly(Auction a) {
+        try {
+            return ghost != null && ghost.owns(a);
+        } catch (RuntimeException e) {
+            eco.getLogger().warning("경매 (숨은 비밀) 오류: " + e);
+            return false;
+        }
+    }
+
+    /** Puts up the ghost's listing: no seller, not rare, no deposit (see {@link Ghost}). */
+    public Auction startGhost(ItemStack item, long startPrice, double minutes) {
+        Auction a = create(null, null, item, startPrice, 0, false, minutes);
+        announceStart(a, ghost != null ? ghost.seller(a) : Lang.raw("auction.server"));
+        return a;
+    }
 
     /** From the auctioned item itself, so it reads in each player's language (item_name is kept for the record). */
     private String name(Auction a) {
@@ -103,6 +146,14 @@ public final class AuctionModule extends EcoModule {
         if (it == null || it.isEmpty() || core.economy().isCheque(it)) return "auction.hold-item";
         if (core.vehicles() != null && core.vehicles().noTrade(it)) return "auction.no-vehicles";
         if (dev.stsv.economy.util.Items.trial(it)) return "auction.no-trial";
+        if (ghost != null) {
+            try {
+                String r = ghost.refuse(it);
+                if (r != null) return r;
+            } catch (RuntimeException e) {
+                eco.getLogger().warning("경매 (숨은 비밀) 오류: " + e);
+            }
+        }
         if (store.playerRunning() >= rules.maxRunning()) return "auction.full";
         if (store.running().stream().anyMatch(a -> p.getUniqueId().equals(a.seller))) return "auction.one-each";
         if (!core.economy().has(p.getUniqueId(), rules.auctionDeposit())) return "auction.no-deposit";
@@ -231,6 +282,21 @@ public final class AuctionModule extends EcoModule {
     }
 
     private void settle(Auction a) {
+        boolean ghostly = ghostly(a);
+        try {
+            settleNow(a, ghostly);
+        } finally {
+            if (ghostly) {
+                try {
+                    ghost.ended(a);
+                } catch (RuntimeException e) {
+                    eco.getLogger().warning("경매 (숨은 비밀) 오류: " + e);
+                }
+            }
+        }
+    }
+
+    private void settleNow(Auction a, boolean ghostly) {
         if (a.bidder == null) {
             store.finish(a, AuctionStore.UNSOLD);
             UUID back = a.seller != null ? a.seller : a.creator;
@@ -254,12 +320,12 @@ public final class AuctionModule extends EcoModule {
             if (a.deposit > 0) core.economy().move(null, a.seller, a.deposit, EconomyStore.Kind.ESCROW, "auction_deposit_back", "#" + a.id);
         } else {
             core.economy().withdraw(a.bidder, a.bid, "auction_buy");
-            rareWins.merge(a.bidder + "|" + a.week, 1, Integer::sum);
+            if (a.rare) rareWins.merge(a.bidder + "|" + a.week, 1, Integer::sum);
         }
         eco.mail().deliver(a.bidder, Items.fromBytes(a.item), "auction_win");
         // achievements and missions: only at a meaningful price, once a day per seller (no wash trades); server auctions always
         ItemStack won = Items.fromBytes(a.item);
-        if (eco.credit().credit(dev.stsv.economy.TradeCredit.AUCTION, a.bidder, a.seller, a.bid,
+        if (!ghostly && eco.credit().credit(dev.stsv.economy.TradeCredit.AUCTION, a.bidder, a.seller, a.bid,
                 eco.market().shopValue(Items.key(won), a.amount), rules, now())) {
             core.profiles().add(a.bidder, "auctions_won", 1);
         }
@@ -309,7 +375,7 @@ public final class AuctionModule extends EcoModule {
         List<Component> extra = Lang.items("auction.lore", "id", a.id,
                 "price", EconomyModule.format(a.bidder == null ? a.startPrice : a.bid),
                 "player", a.bidder == null ? Lang.raw("auction.no-bids") : Players.name(a.bidder),
-                "seller", a.seller == null ? Lang.raw("auction.server") : Players.name(a.seller),
+                "seller", a.seller != null ? Players.name(a.seller) : ghostly(a) ? ghost.seller(a) : Lang.raw("auction.server"),
                 "min", EconomyModule.format(a.minNext(rules.minRaise())), "left", dev.stsv.economy.event.EventModule.hoursText(a.ends - now()),
                 "bids", a.bids);
         if (a.rare) extra.addAll(Lang.items("auction.lore-rare", "limit", rules.rareWeeklyWins()));
