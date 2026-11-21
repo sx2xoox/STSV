@@ -33,7 +33,7 @@ class HiddenRewardsTest {
             }
         }
         assertEquals(Set.of("economy:secret_agent", "economy:last_shareholder", "economy:yesterday_me", "economy:designer_heir",
-                "economy:guide_of_guides"), hidden);
+                "economy:guide_of_guides", "economy:water_name", "economy:heart_miner", "economy:lost_finder"), hidden);
 
         List<String> problems = new ArrayList<>();
         try (Stream<Path> s = Files.walk(PACK)) {
@@ -50,7 +50,7 @@ class HiddenRewardsTest {
 
         String bus = Files.readString(PACK.resolve("bus.yml"));
         assertTrue(bus.contains("title: economy:secret_agent"), "the secret mission still gives it");
-        for (String[] s : new String[][]{{"dongbang", "last_shareholder"}, {"letter", "yesterday_me"}, {"designer", "designer_heir"}, {"usher", "guide_of_guides"}}) {
+        for (String[] s : new String[][]{{"dongbang", "last_shareholder"}, {"letter", "yesterday_me"}, {"designer", "designer_heir"}, {"usher", "guide_of_guides"}, {"fish", "water_name"}, {"vein", "heart_miner"}, {"lostkey", "lost_finder"}}) {
             String y = Files.readString(PACK.resolve("secrets").resolve(s[0] + ".yml"));
             assertTrue(y.contains("title: economy:" + s[1]), s[0] + ".yml gives economy:" + s[1]);
         }
