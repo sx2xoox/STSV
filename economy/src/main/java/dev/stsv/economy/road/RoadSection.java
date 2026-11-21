@@ -163,6 +163,11 @@ public final class RoadSection {
     private final String dock;
     private final int route;
     private final Map<Integer, RoadSign.Kind> signs;
+    /** its character (README "국도", 성격) and what of it the cross-section goes by: normal is the roads as they always were */
+    private RoadCharacter character = RoadCharacter.NORMAL;
+    private int shoulder, reflectEvery = REFLECT_EVERY, railDrop = RAIL_DROP, lightEvery;
+    private double bendScale = 1;
+    private boolean rough;
 
     /** halves: the road's height at each point in half blocks ({@link RoadProfile#halves}). */
     public RoadSection(Site site, Style style, List<double[]> points, int[] halves, RoadProfile.Part[] parts, String dock, int route) {
@@ -176,6 +181,36 @@ public final class RoadSection {
         this.dock = dock;
         this.route = route;
         this.signs = signs(parts, style.markerEvery());
+        this.lightEvery = style.lightEvery();
+    }
+
+    /**
+     * Builds it as a road of this character (README "국도", 성격): its shoulder's width, how far apart its lights and
+     * reflectors are, where its guardrails go, how much room round a bend, rough patches, and (a hard road) warning signs
+     * before its sharp bends, steep grades and deep cuts. ground: the ground's top block at each point (where it is cut
+     * deep: 낙석 주의), or null.
+     */
+    public RoadSection character(RoadCharacter c, int[] ground) {
+        RoadCharacter.Shape sh = c.shape();
+        this.character = c;
+        this.shoulder = sh.shoulder();
+        this.reflectEvery = sh.reflectEvery();
+        this.railDrop = sh.railDrop();
+        this.lightEvery = sh.lightEvery(style.lightEvery());
+        this.bendScale = sh.bendScale();
+        this.rough = sh.rough();
+        this.reach = null;
+        this.warns = sh.warnings() ? warnings(ground) : Map.of();
+        return this;
+    }
+
+    public RoadCharacter character() {
+        return character;
+    }
+
+    /** Street lights every this many points (roads.light-every × the character's). */
+    public int lightEvery() {
+        return lightEvery;
     }
 
     public Style style() {
@@ -237,6 +272,11 @@ public final class RoadSection {
 
     /** How many degrees the road turns at point i (its way over {@link #BEND_REACH} points before against the same after). */
     double turn(int i) {
+        return turnAt(points, i);
+    }
+
+    /** How many degrees a road of these points turns at point i (over {@link #BEND_REACH} points either way). */
+    static double turnAt(List<double[]> points, int i) {
         double[] a = points.get(Math.max(0, i - BEND_REACH)), p = points.get(i), b = points.get(Math.min(points.size() - 1, i + BEND_REACH));
         double ax = p[0] - a[0], az = p[1] - a[1], bx = b[0] - p[0], bz = b[1] - p[1];
         if (Math.hypot(ax, az) < 1e-6 || Math.hypot(bx, bz) < 1e-6) return 0;
@@ -266,7 +306,7 @@ public final class RoadSection {
                 if (junction(k) <= JUNCTION_BEND) b = Math.max(b, JUNCTION_TURN);
                 for (int j = Math.max(0, k - RoadClearance.REACH); j <= Math.min(n - 1, k + RoadClearance.REACH); j++) d = Math.max(d, diag[j]);
                 d = Math.max(d, 1 + (Math.sqrt(2) - 1) * Math.min(1, b / 45));   // round a bend it is slanted every way
-                out[k] = RoadClearance.reach(d, b);
+                out[k] = RoadClearance.reach(d, b * bendScale);   // (a hard road: only what a careful driver needs)
                 slants[k] = d;
             }
             reach = out;
@@ -292,7 +332,7 @@ public final class RoadSection {
 
     /** How much further out the shoulder's guardrails (and reflectors) stand at point i than before (4.5 out), the banks with them. */
     public double shoulderWide(int i) {
-        return narrow ? 0 : Math.max(0, reach(i) + slant(i, POST_HALF) - 4.5);
+        return narrow ? 0 : Math.max(0, reach(i) + slant(i, POST_HALF) - (4.5 + shoulder));
     }
 
     /** How much further out than {@link #HALF} the cross-section at point i reaches (the widest of the above, at most {@link #MAX_WIDE}). */
@@ -443,8 +483,19 @@ public final class RoadSection {
         Material[] p = patches(style.surface());
         if (p == null) return style.surface();
         int h = hash(Math.floorDiv(x, 2), Math.floorDiv(z, 2));
-        if (Math.floorMod(h, 25) != 0) return style.surface();
-        return Math.floorMod(hash(x, z) >> 6, 4) == 0 ? p[1] : p[0];
+        if (Math.floorMod(h, rough ? ROUGH_PATCHES : 25) != 0) return style.surface();
+        return Math.floorMod(hash(x, z) >> 6, rough ? 2 : 4) == 0 ? p[1] : p[0];
+    }
+
+    /** A rough road's patches (README "국도", 성격): one cell in this many (25 on the others), half of them cracked. */
+    static final int ROUGH_PATCHES = 6;
+    /** A rough road's worn edge: one edge line block in this many is coarse dirt (cosmetic: a full block, level with the lane). */
+    static final int ROUGH_EDGE = 4;
+    static final Material WORN_EDGE = Material.COARSE_DIRT;
+
+    /** The edge line's block at a column: a rough road's worn here and there. */
+    Material edge(int x, int z) {
+        return rough && Math.floorMod(hash(x * 31 + 7, z * 17 + 3) >> 4, ROUGH_EDGE) == 0 ? WORN_EDGE : style.edge();
     }
 
     /** The block of the surface's y at a half level: the slab's own block or the full block. */
@@ -502,6 +553,82 @@ public final class RoadSection {
         }
         return -1;
     }
+
+    /** A hard road's warnings: a bend turning this much (degrees, {@link #turnAt}). */
+    static final double WARN_TURN = 60;
+    /** ... a grade rising or falling this many half blocks within {@link #WARN_OVER} points; a cut this deep (blocks) this long. */
+    static final int WARN_RISE = 8, WARN_OVER = 24, WARN_CUT = 5, WARN_CUT_RUN = 6;
+    /** How far before what it warns of a warning stands (points), and how far it may move back to plain road. */
+    static final int WARN_AHEAD = 30, WARN_LOOK = 30;
+    /** No two signs (any) closer than this (points). */
+    static final int WARN_GAP = 25;
+
+    /**
+     * Where a hard road's warning signs go (README "국도", 성격), for the traffic coming from the start: {@link #WARN_AHEAD}
+     * before each sharp bend ({@link RoadSign.Kind#CURVE}), steep grade ({@link RoadSign.Kind#GRADE}) and tunnel or deep
+     * cut ({@link RoadSign.Kind#ROCKS}: ground null, tunnels only), on plain road that runs straight there (moved back up to
+     * {@link #WARN_LOOK}), never within {@link #WARN_GAP} of another sign (taken: the road's own). Point -> kind.
+     */
+    static Map<Integer, RoadSign.Kind> warnings(List<double[]> points, int[] halves, RoadProfile.Part[] parts, int[] ground,
+                                                java.util.Set<Integer> taken, int lightEvery) {
+        Map<Integer, RoadSign.Kind> out = new TreeMap<>();
+        int n = Math.min(points.size(), Math.min(halves.length, parts.length));
+        if (n < 2 * WARN_AHEAD + 10) return out;
+        List<int[]> hazards = new ArrayList<>();   // {point, kind ordinal}
+        for (int i = 1; i < n; i++) {
+            if (turnAt(points, i) >= WARN_TURN) {
+                hazards.add(new int[]{Math.max(0, i - BEND_REACH), RoadSign.Kind.CURVE.ordinal()});
+                while (i + 1 < n && turnAt(points, i + 1) >= WARN_TURN) i++;
+            }
+        }
+        for (int i = 0; i + 1 < n; i++) {
+            int j = Math.min(n - 1, i + WARN_OVER);
+            if (Math.abs(halves[j] - halves[i]) >= WARN_RISE) {
+                hazards.add(new int[]{i, RoadSign.Kind.GRADE.ordinal()});
+                i += 2 * WARN_OVER;
+            }
+        }
+        for (int i = 1; i < n; i++) {
+            boolean tunnel = parts[i] == RoadProfile.Part.TUNNEL && parts[i - 1] != RoadProfile.Part.TUNNEL;
+            boolean cut = false;
+            if (ground != null && !tunnel) {
+                int k = i;
+                while (k < n && k < ground.length && parts[k] == RoadProfile.Part.ROAD && ground[k] != Integer.MIN_VALUE
+                        && ground[k] >= surfaceY(halves[k]) + WARN_CUT) k++;
+                cut = k - i >= WARN_CUT_RUN;
+            }
+            if (tunnel || cut) {
+                hazards.add(new int[]{i, RoadSign.Kind.ROCKS.ordinal()});
+                i += 2 * WARN_OVER;
+            }
+        }
+        hazards.sort((a, b) -> Integer.compare(a[0], b[0]));
+        java.util.Set<Integer> all = new java.util.TreeSet<>(taken);
+        for (int[] h : hazards) {
+            for (int k = 0; k < WARN_LOOK; k++) {
+                int i = h[0] - WARN_AHEAD - k;
+                if (i < SIGN_START || i + 3 >= n) break;
+                if (plain(parts, i, 1, 1) != i || turnAt(points, i) >= BEND) continue;
+                int m = Math.floorMod(i, Math.max(1, lightEvery));   // clear of the street lights (they keep off the road's own signs only)
+                if (m <= LIGHT_SHIFT + 2 || lightEvery - m <= 2) continue;
+                boolean near = false;
+                for (int t : all) near |= Math.abs(t - i) < WARN_GAP;
+                if (near) continue;
+                out.put(i, RoadSign.Kind.values()[h[1]]);
+                all.add(i);
+                break;
+            }
+        }
+        return out;
+    }
+
+    /** This road's warnings ({@link #warnings(List, int[], RoadProfile.Part[], int[], java.util.Set)}). */
+    private Map<Integer, RoadSign.Kind> warnings(int[] ground) {
+        return warnings(points, halves, parts, ground, signs.keySet(), lightEvery);
+    }
+
+    /** This road's warning signs (a hard road's), point -> kind: put up with its signs, never in the lights' way. */
+    private Map<Integer, RoadSign.Kind> warns = Map.of();
 
     /** The signs of this road (point -> kind). */
     public Map<Integer, RoadSign.Kind> signs() {
@@ -565,7 +692,7 @@ public final class RoadSection {
             if (ao <= 2.5) {
                 if (cross) top = Math.floorMod(Math.round(c.lat()), 2) == 0 ? style.edge() : style.surface();
                 else if (lane <= 0.5) top = dash ? style.line() : style.surface();
-                else if (ao > 1.5) top = style.edge();
+                else if (ao > 1.5) top = edge(c.x(), c.z());
                 else if (part == RoadProfile.Part.BRIDGE && i % JOINT_EVERY == JOINT_EVERY / 2 && !half) top = POLISHED_JOINT;
                 else if (part != RoadProfile.Part.BRIDGE && !half) top = patch(c.x(), c.z());
                 else top = style.surface();
@@ -583,7 +710,7 @@ public final class RoadSection {
             return null;
         }
         light(i, cols, e, h);
-        RoadSign.Kind sign = signs.get(i);
+        RoadSign.Kind sign = signs.containsKey(i) ? signs.get(i) : warns.get(i);
         if (sign != null) sign(p, rx, rz, h, RoadSign.yaw(-hx, -hz), i, sign);
         if (d == WORDS_AT && e > 0 && part == RoadProfile.Part.ROAD) site.roadText(p[0], top(h) + 0.01, p[1], RoadSign.yaw(-hx, -hz), GATE_WORDS);
         return null;
@@ -610,7 +737,7 @@ public final class RoadSection {
     public static final double LIGHT_CLEAR = 4.5;
     /** How far from the centre line a light's post stands at point i at the least: {@link #LIGHT_CLEAR}, more round a bend (the vehicles' reach). */
     double lightClear(int i) {
-        return narrow ? LIGHT_CLEAR : Math.max(LIGHT_CLEAR, reach(i));
+        return narrow ? LIGHT_CLEAR : Math.max(LIGHT_CLEAR + Math.min(0, shoulder), reach(i));   // (a hard road's narrow shoulder: on its verge)
     }
 
     /** A light's point with no column far enough out on its side (a diagonal's columns): the next points (up to this many) take it. */
@@ -633,7 +760,7 @@ public final class RoadSection {
      * (the nearest such column to the road), at this point or, when it has none, one of the next {@link #LIGHT_SHIFT}.
      */
     private void light(int i, List<Col> cols, int e, int h) {
-        int every = style.lightEvery(), k = Math.floorMod(i, every), base = i - k;
+        int every = lightEvery, k = Math.floorMod(i, every), base = i - k;
         if (base <= 0 || i >= points.size() - 1 || parts[i] == RoadProfile.Part.TUNNEL) return;
         if (oldLights || parts[base] == RoadProfile.Part.BRIDGE) {
             if (k != 0) return;
@@ -658,7 +785,7 @@ public final class RoadSection {
      * never the inside of a bend ({@link #insideBend}: then the outside; 0, none, when that is a sign's side).
      */
     private int lightSide(int base) {
-        int side = (base / style.lightEvery()) % 2 == 0 && !signNear(base) ? 1 : -1;
+        int side = (base / lightEvery) % 2 == 0 && !signNear(base) ? 1 : -1;
         if (insideBend(base, side)) side = -side;
         return side == 1 && signNear(base) ? 0 : side;   // (0: none here: the bend's outside is the sign's side)
     }
@@ -794,7 +921,7 @@ public final class RoadSection {
         int changed = 0;
         for (Col c : cols) {
             double ao = Math.abs(c.lat()) - e;
-            if (ao <= 3.5 || ao > 5.5 + wide(i)) continue;
+            if (ao <= 3.5 || ao > 5.5 + shoulder + wide(i)) continue;
             RoadLights.Light l = RoadLights.post(b, c.x(), c.z(), base + 1);
             if (l == null) continue;
             int side = (int) Math.signum(c.lat());
@@ -932,7 +1059,7 @@ public final class RoadSection {
         hx /= len;
         hz /= len;
         double rx = -hz, rz = hx;   // the right hand
-        double reach = HALF + e + wide(i);
+        double reach = HALF + shoulder + e + wide(i);
         int px = (int) Math.floor(p[0]), pz = (int) Math.floor(p[1]), r = (int) Math.ceil(reach) + 1;
         for (int bx = px - r; bx <= px + r; bx++) {
             for (int bz = pz - r; bz <= pz + r; bz++) {
@@ -1123,7 +1250,7 @@ public final class RoadSection {
             Material to = Material.matchMaterial(b < 0 ? data : data.substring(0, b)), now = world.get(x, by, z);
             if (to == null || now == null || now == to) continue;
             boolean where = switch (part) {
-                case ROAD -> a > 3.5 && (by > base || a > HALF + 0.5);
+                case ROAD -> a > 3.5 && (by > base || a > HALF + shoulder + 0.5);
                 case BRIDGE -> a > 2.5 || by > y + 1;
                 case TUNNEL -> a > 3.5 || by > y;
             };
@@ -1332,21 +1459,23 @@ public final class RoadSection {
         // the shoulders: cut the bank down to the road, fill a dip to it, clear trees. A clean verge: a path strip by the
         // kerb (a drain grate in it now and then), grass beyond; a guardrail on a high fill, a reflector post now and then
         boolean verge = ao <= 4.5, apron = points.size() - 1 - i <= APRON;
-        boolean high = !verge && !apron && open(x, base, z, RAIL_DROP) >= RAIL_DROP;
+        // the posts' column (guardrail, reflector): the shoulder's outermost (a hard road's narrow shoulder: its verge),
+        // round a bend and on a diagonal further out: clear of what the vehicles reach (RoadClearance#reach)
+        double w = shoulderWide(i), inner = 4.5 + shoulder;
+        boolean postCol = !apron && ao > inner + w && ao <= inner + 1 + w;
+        boolean high = postCol && open(x, base, z, railDrop) >= railDrop;
         cut(x, z, base, 4);
         if (!site.liquid(x, base, z)) {
             if (apron) site.set(x, base, z, APRON_BLOCK);   // the last blocks before the gate: paved like the dock's floor
-            else if (verge && i % DRAIN_EVERY == DRAIN_EVERY / 2) site.set(x, base, z, "minecraft:iron_trapdoor[half=top]");
+            else if (verge && !high && i % DRAIN_EVERY == DRAIN_EVERY / 2) site.set(x, base, z, "minecraft:iron_trapdoor[half=top]");
             else site.set(x, base, z, verge ? VERGE : Material.GRASS_BLOCK);
             for (int k = 1; k <= 8; k++) {   // down to the ground (as deep as the road itself is filled): never left hanging
                 if (!site.fillable(x, base - k, z) || site.liquid(x, base - k, z)) break;
-                site.set(x, base - k, z, verge && k == 1 && i % DRAIN_EVERY == DRAIN_EVERY / 2 ? Material.GRAVEL : Material.DIRT);
+                site.set(x, base - k, z, verge && !high && k == 1 && i % DRAIN_EVERY == DRAIN_EVERY / 2 ? Material.GRAVEL : Material.DIRT);
             }
-            // (round a bend and on a diagonal further out: clear of what the vehicles reach, RoadClearance#reach)
-            double w = shoulderWide(i);
-            if (!verge && !apron && ao > 4.5 + w && ao <= 5.5 + w && postClear(i, x, z)) {
+            if (postCol && postClear(i, x, z)) {
                 if (high) site.set(x, base + 1, z, GUARDRAIL);
-                else if (i % REFLECT_EVERY == REFLECT_EVERY / 2) site.set(x, base + 1, z, REFLECTOR);
+                else if (reflectEvery > 0 && i % reflectEvery == reflectEvery / 2) site.set(x, base + 1, z, REFLECTOR);
             }
         }
         clearTrees(x, z, base + 1);

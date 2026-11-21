@@ -51,13 +51,26 @@ public final class RoadPlanner {
     }
 
     /** How much each thing costs per cell step (see the class doc). */
-    public record Weights(double climb, double steep, double rough, double water, double depth, double reuse, double beside) {
+    /**
+     * run: the grade (one block in this many: {@link #GRADE_RUN}); turn: what each 45 degrees the route turns from one cell
+     * step to the next costs (0: nothing, the way roads were always planned); straighten: {@link #smooth}'s tolerance
+     * (a straight line replaces the cells when it costs no more than this × theirs). README "국도", 성격.
+     */
+    public record Weights(double climb, double steep, double rough, double water, double depth, double reuse, double beside,
+                          double run, double turn, double straighten) {
         public static final Weights DEFAULT = new Weights(0.02, 0.6, 0.03, 6, 0.4, 0.2, 0.6);
+
+        public Weights(double climb, double steep, double rough, double water, double depth, double reuse, double beside) {
+            this(climb, steep, rough, water, depth, reuse, beside, GRADE_RUN, 0, STRAIGHTEN);
+        }
 
         public Weights(double climb, double steep, double rough, double water, double depth) {
             this(climb, steep, rough, water, depth, 1, 0);
         }
     }
+
+    /** {@link #smooth}'s tolerance as roads were always planned. */
+    public static final double STRAIGHTEN = 1.02;
 
     /** The road's grade: one block up or down in this many along. */
     public static final double GRADE_RUN = 3;
@@ -65,7 +78,7 @@ public final class RoadPlanner {
     static double stepCost(Field f, int ax, int az, int bx, int bz, Weights w) {
         double len = ax != bx && az != bz ? Math.sqrt(2) : 1;
         double dh = Math.abs(f.height(bx, bz) - f.height(ax, az));
-        double allowed = len * 16 / GRADE_RUN;
+        double allowed = len * 16 / w.run();
         double c = len;
         c += w.climb() * dh;
         c += w.steep() * Math.max(0, dh - allowed);
@@ -98,23 +111,26 @@ public final class RoadPlanner {
      */
     public static List<int[]> path(Field f, int sx, int sz, int ex, int ez, Weights w, int maxNodes) {
         if (!open(f, sx, sz) || !open(f, ex, ez)) return List.of();
-        record Node(int x, int z, double g, double f) {}
+        // with a turn cost the way a cell was entered counts (dir 0..7; 8: the start, or no turn cost: one state a cell)
+        boolean turns = w.turn() > 0;
+        record Node(int x, int z, int dir, double g, double f) {}
         PriorityQueue<Node> queue = new PriorityQueue<>((a, b) -> Double.compare(a.f(), b.f()));
         Map<Long, Double> best = new HashMap<>();
         Map<Long, Long> from = new HashMap<>();
-        queue.add(new Node(sx, sz, 0, Math.hypot(ex - sx, ez - sz)));
-        best.put(key(sx, sz), 0.0);
+        queue.add(new Node(sx, sz, 8, 0, Math.hypot(ex - sx, ez - sz)));
+        best.put(state(sx, sz, 8), 0.0);
         int seen = 0;
         while (!queue.isEmpty()) {
             Node n = queue.poll();
-            if (n.g() > best.getOrDefault(key(n.x(), n.z()), Double.POSITIVE_INFINITY) + 1e-9) continue;
+            long here = state(n.x(), n.z(), n.dir());
+            if (n.g() > best.getOrDefault(here, Double.POSITIVE_INFINITY) + 1e-9) continue;
             if (n.x() == ex && n.z() == ez) {
                 List<int[]> out = new ArrayList<>();
-                long k = key(ex, ez);
+                long k = here;
                 out.add(new int[]{ex, ez});
                 while (from.containsKey(k)) {
                     k = from.get(k);
-                    out.add(new int[]{(int) (k >> 32), (int) k});
+                    out.add(new int[]{sx(k), sz(k)});
                 }
                 Collections.reverse(out);
                 return out;
@@ -125,17 +141,63 @@ public final class RoadPlanner {
                     if (dx == 0 && dz == 0) continue;
                     int nx = n.x() + dx, nz = n.z() + dz;
                     if (!canStep(f, n.x(), n.z(), nx, nz)) continue;
+                    int dir = turns ? dir(dx, dz) : 8;
                     double g = n.g() + stepCost(f, n.x(), n.z(), nx, nz, w);
-                    long k = key(nx, nz);
+                    if (turns && n.dir() != 8) g += w.turn() * turnSteps(n.dir(), dir);
+                    long k = state(nx, nz, dir);
                     if (g + 1e-9 < best.getOrDefault(k, Double.POSITIVE_INFINITY)) {
                         best.put(k, g);
-                        from.put(k, key(n.x(), n.z()));
-                        queue.add(new Node(nx, nz, g, g + Math.hypot(ex - nx, ez - nz)));
+                        from.put(k, here);
+                        queue.add(new Node(nx, nz, dir, g, g + Math.hypot(ex - nx, ez - nz)));
                     }
                 }
             }
         }
         return List.of();
+    }
+
+    /** A cell and the way it was entered (0..8) as one key. */
+    private static long state(int x, int z, int dir) {
+        return ((long) x << 34) | ((long) (z & 0x3FFFFFFF) << 4) | dir;
+    }
+
+    private static int sx(long k) {
+        return (int) (k >> 34);
+    }
+
+    private static int sz(long k) {
+        return ((int) ((k >> 4) & 0x3FFFFFFF)) << 2 >> 2;
+    }
+
+    /** The way (dx, dz) as one of 8 (counter-clockwise from +x). */
+    static int dir(int dx, int dz) {
+        return switch (dx * 3 + dz) {
+            case 3 -> 0;      // (1, 0)
+            case 4 -> 1;      // (1, 1)
+            case 1 -> 2;      // (0, 1)
+            case -2 -> 3;     // (-1, 1)
+            case -3 -> 4;     // (-1, 0)
+            case -4 -> 5;     // (-1, -1)
+            case -1 -> 6;     // (0, -1)
+            default -> 7;     // (1, -1)
+        };
+    }
+
+    /** How many 45 degree steps between two ways (0 .. 4). */
+    static int turnSteps(int a, int b) {
+        int d = Math.floorMod(a - b, 8);
+        return Math.min(d, 8 - d);
+    }
+
+    /** How many 45 degree turns a path of cells makes, all told. */
+    public static int turns(List<int[]> cells) {
+        int out = 0;
+        for (int i = 2; i < cells.size(); i++) {
+            int a = dir(Integer.signum(cells.get(i - 1)[0] - cells.get(i - 2)[0]), Integer.signum(cells.get(i - 1)[1] - cells.get(i - 2)[1]));
+            int b = dir(Integer.signum(cells.get(i)[0] - cells.get(i - 1)[0]), Integer.signum(cells.get(i)[1] - cells.get(i - 1)[1]));
+            out += turnSteps(a, b);
+        }
+        return out;
     }
 
     /** What a path of cells costs, step by step. */
@@ -199,7 +261,7 @@ public final class RoadPlanner {
                 }
                 if (!clear) continue;
                 double along = cost(f, cells.subList(i, j + 1), w);
-                if (cost(f, straight, w) <= along * 1.02 + 1e-9) {
+                if (cost(f, straight, w) <= along * w.straighten() + 1e-9) {
                     best = j;
                     break;
                 }

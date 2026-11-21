@@ -27,6 +27,39 @@ public final class RoadProfile {
 
     private RoadProfile() {}
 
+    /**
+     * A grade in half blocks (README "국도", 성격): never more than {@code halves} half steps in {@code window} points, nor
+     * (for every shorter stretch j) more than its share rounded up, and never more than one between neighbours. Normal
+     * (1 in 3): 2 in 3. Easy (1 in 5): 2 in 5 (half steps at least 2 apart). Hard (1 in 2.5): 4 in 5.
+     */
+    public record Grade(int window, int halves) {
+        public static final Grade NORMAL = new Grade(3, 2);
+
+        /** One block in `run` points, in half steps: the smallest window that holds whole half steps. */
+        public static Grade of(double run) {
+            for (int k = 2; k <= 8; k += 2) {
+                double w = k * run / 2;
+                if (Math.abs(w - Math.rint(w)) < 1e-6) return new Grade((int) Math.rint(w), k);
+            }
+            return new Grade((int) Math.round(run), 2);
+        }
+
+        /** Blocks a point at most (what {@link #fit} steps by). */
+        public double step() {
+            return halves / (2.0 * window);
+        }
+
+        /** Half steps at most over j points (1 .. window). */
+        int limit(int j) {
+            return Math.max(1, (int) Math.ceil(halves * (double) j / window - 1e-9));
+        }
+
+        /** Whether the stretch of j points is a rule of its own (tighter than its neighbours' rule chained): j = 1 always. */
+        boolean binding(int j) {
+            return j == 1 || limit(j) < j;
+        }
+    }
+
     /** A moving average over 2 * half + 1 points (the ends use what they have). */
     public static double[] smooth(double[] target, int half) {
         double[] out = new double[target.length];
@@ -75,6 +108,11 @@ public final class RoadProfile {
      * never more than a block (two half steps) in three points: the grade of 1 in 3.
      */
     public static int[] halves(double[] p) {
+        return halves(p, Grade.NORMAL);
+    }
+
+    /** {@link #halves(double[])} at a grade of its own. */
+    public static int[] halves(double[] p, Grade g) {
         int[] out = new int[p.length];
         if (p.length == 0) return out;
         out[0] = (int) Math.floor(p[0] * 2 + 0.5);
@@ -84,7 +122,7 @@ public final class RoadProfile {
             if (q >= l + 1 - 1e-9) l++;
             else if (q <= l - 1 + 1e-9) l--;
             // never more than a block (two half steps) in three points: the grade holds whatever the rounding did
-            if (i >= 3 && Math.abs(l - out[i - 3]) > 2) l = out[i - 1];
+            for (int j = 2; j <= g.window(); j++) if (g.binding(j) && i >= j && Math.abs(l - out[i - j]) > g.limit(j)) l = out[i - 1];
             out[i] = l;
         }
         return out;
@@ -104,14 +142,17 @@ public final class RoadProfile {
 
     /** The road's surface at each point in half blocks ({@link #halves}); the ends at their ground. */
     public static int[] planHalves(int[] ground, boolean[] water, int[] surface) {
-        return halves(fit(target(ground, water, surface), water, MAX_GRADE));
+        return halves(fit(target(ground, water, surface, FOLLOW), water, MAX_GRADE));
     }
 
-    private static double[] target(int[] ground, boolean[] water, int[] surface) {
+    /** How many points either way the ground is smoothed over before the road is fitted to it (normal). */
+    public static final int FOLLOW = 4;
+
+    private static double[] target(int[] ground, boolean[] water, int[] surface, int follow) {
         int n = ground.length;
         double[] target = new double[n];
         for (int i = 0; i < n; i++) target[i] = water[i] ? surface[i] + 2 : ground[i];
-        double[] t = smooth(target, 4);
+        double[] t = smooth(target, follow);
         if (n > 0) {
             t[0] = target[0];
             t[n - 1] = target[n - 1];
@@ -124,7 +165,7 @@ public final class RoadProfile {
      * (then surface[i] is the water's top block y). The ends stay at their ground (start and the dock's gate).
      */
     public static int[] plan(int[] ground, boolean[] water, int[] surface) {
-        return levels(fit(target(ground, water, surface), water, MAX_GRADE));
+        return levels(fit(target(ground, water, surface, FOLLOW), water, MAX_GRADE));
     }
 
     /** What being h above the target costs a point: fill (per block), then bridge; cut, then tunnel (cheaper a block). */
@@ -223,9 +264,14 @@ public final class RoadProfile {
      * near the crossing (high[i]: {@link RoadNetwork#headroom}; null: only where it crosses).
      */
     public static Plan planNetwork(int[] ground, boolean[] water, int[] surface, int[] cross, int[] high) {
+        return planNetwork(ground, water, surface, cross, high, Grade.NORMAL, FOLLOW);
+    }
+
+    /** {@link #planNetwork(int[], boolean[], int[], int[], int[])} at a grade of its own, the ground smoothed over `follow` points. */
+    public static Plan planNetwork(int[] ground, boolean[] water, int[] surface, int[] cross, int[] high, Grade g, int follow) {
         int n = ground.length;
-        double[] t = target(ground, water, surface);
-        double[] free = fit(t, water, MAX_GRADE);
+        double[] t = target(ground, water, surface, follow);
+        double[] free = fit(t, water, g.step());
         double[] lo = new double[n], hi = new double[n];
         java.util.Arrays.fill(lo, Double.NaN);
         java.util.Arrays.fill(hi, Double.NaN);
@@ -260,14 +306,14 @@ public final class RoadProfile {
             }
             i = j + 1;
         }
-        int[] h = halves(fit(t, water, MAX_GRADE, lo, hi));
+        int[] h = halves(fit(t, water, g.step(), lo, hi), g);
         boolean[] fixed = new boolean[n];
         for (int k = 0; k < n; k++) {
             if (level[k] && !over[k]) h[k] = cross[k];
             if (over[k]) h[k] = Math.max(h[k], (int) Math.ceil(lo[k] * 2));
             fixed[k] = level[k] || over[k];
         }
-        relax(h, fixed);
+        relax(h, fixed, g);
         return new Plan(h, over);
     }
 
@@ -285,6 +331,11 @@ public final class RoadProfile {
      * a level crossing or an overpass near it stays as it is (then that corner is not levelled). Changes h in place.
      */
     public static void levelBends(java.util.List<double[]> points, int[] h, boolean[] fixed) {
+        levelBends(points, h, fixed, Grade.NORMAL);
+    }
+
+    /** {@link #levelBends(java.util.List, int[], boolean[])} at a grade of its own. */
+    public static void levelBends(java.util.List<double[]> points, int[] h, boolean[] fixed, Grade g) {
         int n = h.length;
         boolean[] fix = fixed.clone();
         if (n > 0) {
@@ -309,8 +360,8 @@ public final class RoadProfile {
                     t[k] = h[v];
                     f[k] = true;
                 }
-                relax(t, f);
-                if (!graded(t)) continue;
+                relax(t, f, g);
+                if (!graded(t, g)) continue;
                 System.arraycopy(t, 0, h, 0, n);
                 System.arraycopy(f, 0, fix, 0, n);
                 break;
@@ -320,10 +371,13 @@ public final class RoadProfile {
 
     /** Whether half levels keep the grade: never more than half a block between neighbours, nor a block in three points. */
     static boolean graded(int[] h) {
-        for (int k = 1; k < h.length; k++) {
-            if (Math.abs(h[k] - h[k - 1]) > 1) return false;
-            if (k >= 3 && Math.abs(h[k] - h[k - 3]) > 2) return false;
-        }
+        return graded(h, Grade.NORMAL);
+    }
+
+    /** Whether half levels keep a grade ({@link Grade}). */
+    static boolean graded(int[] h, Grade g) {
+        for (int k = 1; k < h.length; k++)
+            for (int j = 1; j <= g.window() && j <= k; j++) if (g.binding(j) && Math.abs(h[k] - h[k - j]) > g.limit(j)) return false;
         return true;
     }
 
@@ -332,19 +386,28 @@ public final class RoadProfile {
      * between neighbours, nor a block in three points; the fixed stay as they are.
      */
     static void relax(int[] h, boolean[] fixed) {
+        relax(h, fixed, Grade.NORMAL);
+    }
+
+    /** {@link #relax(int[], boolean[])} to a grade of its own. */
+    static void relax(int[] h, boolean[] fixed, Grade g) {
         int n = h.length;
         for (int round = 0; round < 8; round++) {
             boolean changed = false;
-            for (int k = 1; k < n; k++) changed |= clamp(h, fixed, k, k - 1, k - 3);
-            for (int k = n - 2; k >= 0; k--) changed |= clamp(h, fixed, k, k + 1, k + 3);
+            for (int k = 1; k < n; k++) changed |= clamp(h, fixed, k, -1, g);
+            for (int k = n - 2; k >= 0; k--) changed |= clamp(h, fixed, k, 1, g);
             if (!changed) return;
         }
     }
 
-    private static boolean clamp(int[] h, boolean[] fixed, int k, int near, int far) {
+    private static boolean clamp(int[] h, boolean[] fixed, int k, int dir, Grade g) {
         if (fixed[k]) return false;
-        int v = Math.clamp(h[k], h[near] - 1, h[near] + 1);
-        if (far >= 0 && far < h.length) v = Math.clamp(v, h[far] - 2, h[far] + 2);
+        int v = h[k];
+        for (int j = 1; j <= g.window(); j++) {
+            int o = k + dir * j;
+            if (!g.binding(j) || o < 0 || o >= h.length) continue;
+            v = Math.clamp(v, h[o] - g.limit(j), h[o] + g.limit(j));
+        }
         if (v == h[k]) return false;
         h[k] = v;
         return true;

@@ -147,16 +147,20 @@ public final class RoadModule extends EcoModule {
                     + "roads/서해.txt)은 읽기만 하고 새로 만들 수 없어요. 서버 시작 스크립트에 export LANG=C.UTF-8 (또는 LC_ALL=C.UTF-8)을 넣고 다시 켜세요.");
         load();
         if (core.vehicles() != null) core.vehicles().surfaceBonus(b -> {
-            return paved.contains(b.getType()) ? settings.bonus() : 1;
+            if (!paved.contains(b.getType())) return 1;
+            // the road's character (README "국도", 성격: an easy road faster) by the saved roads' columns, looked up in O(1)
+            return speedBonus(settings.bonus(), roads(b.getWorld().getName()).character(b.getX(), b.getZ()));
         });
         // the vehicles' tools (쟁기, 로터리, 파종기, 수확기) never work on a road, a dock or a terminal
         if (core.vehicles() != null) core.vehicles().toolGuard((p, b) -> toolsKeepOff(b));
         STSVPlugin.get().admin().add(EcoPlugin.ADMIN_OWNER, "국도",
-                "<하역장> [기준점|여기서|새로|이어짓기] | <하역장> 미리보기 [기준점|여기서] | <하역장> 되돌리기 | 되돌리기 중지 | "
+                "<하역장> [쉬운길|보통|어려운길] [기준점|여기서|새로|이어짓기] | <하역장> 미리보기 [쉬운길|보통|어려운길] [기준점|여기서] | "
+                        + "<하역장> 성격 <쉬운길|보통|어려운길> | <하역장> 되돌리기 | 되돌리기 중지 | "
                         + "기준점 [설정|보기|초기화] | 중지 | 상태 | 표지판 정리 <하역장> | "
                         + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체|여기 [반경]] | 눈치우기 [반경|전체] | "
                         + "가로등정리 [하역장|전체|여기 [반경]] | 커브정리 [하역장|전체|여기 [반경]]",
-                "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터, "
+                "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (성격: 쉬운길 = 완만·넓게·빠르게, "
+                        + "보통 = 예전 그대로(기본), 어려운길 = 가파르고 굽은 산길·보상 큼; 멈췄던 것은 이어서, 새로 = 처음부터, "
                         + "이어짓기 = 다 지은 길의 끝에서 입구까지 모자란 곳만, 개인·서버 땅과 roads.avoid 는 피함) / 미리보기 = 살피고 길만 찾아 "
                         + "입자·요약·땅 밖 건물 경고 (짓지 않음, 60분 안에 같은 출발이면 그 길로 지음) / 되돌리기 = 그 길이 바꾼 블록을 원래대로 "
                         + "(그사이 바뀐 블록은 그대로) / 기준점 정하기 / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기 / "
@@ -177,7 +181,10 @@ public final class RoadModule extends EcoModule {
                     }
                     if (a[0].equals("기준점")) return a.length == 2 ? List.of("설정", "보기", "초기화") : List.of();
                     if (a[0].equals("되돌리기")) return a.length == 2 ? List.of("중지") : List.of();
-                    if (a.length == 3 && a[1].equals("미리보기")) return List.of("기준점", "여기서");
+                    if (a.length == 3 && a[1].equals(CHARACTER)) return List.of("쉬운길", "보통", "어려운길");
+                    if (a.length == 3 && a[1].equals("미리보기")) return List.of("쉬운길", "보통", "어려운길", "기준점", "여기서");
+                    if (a.length == 4 && a[1].equals("미리보기") && RoadCharacter.parse(a[2]) != null) return List.of("기준점", "여기서");
+                    if (a.length == 3 && RoadCharacter.parse(a[1]) != null) return List.of("기준점", "여기서", "새로", "이어짓기");
                     if (a[0].equals("터널보수")) {
                         if (a.length == 2) {
                             List<String> out = withAll();
@@ -198,7 +205,8 @@ public final class RoadModule extends EcoModule {
                     }
                     if (a[0].equals("표지판")) return a.length == 2 ? List.of("정리", "다시세우기")
                             : a.length == 3 ? (a[1].equals("다시세우기") ? withAll() : new ArrayList<>(eco.docks().names())) : List.of();
-                    return a.length == 2 ? List.of("기준점", "여기서", "새로", "이어짓기", "미리보기", "되돌리기") : List.of();
+                    return a.length == 2 ? List.of("쉬운길", "보통", "어려운길", "기준점", "여기서", "새로", "이어짓기", "미리보기", "되돌리기", CHARACTER)
+                            : List.of();
                 });
         // a road that was being built when the server stopped goes on
         try {
@@ -266,7 +274,13 @@ public final class RoadModule extends EcoModule {
         if (j.dock == null || j.preview) return;
         if (j.route > 0) routes.put(j.dock, j.route);
         sets.put(j.dock, j.signs);
+        if (j.tail) return;
+        if (j.removed) characters.remove(j.dock);
+        else characters.put(j.dock, j.character);
     }
+
+    /** every saved road's character, by dock (README "국도", 성격): what its dock's unloading pays by */
+    private final Map<String, RoadCharacter> characters = new java.util.concurrent.ConcurrentHashMap<>();
 
     /** The number of the next new road: one more than any road's so far. */
     private int nextRoute() {
@@ -281,6 +295,24 @@ public final class RoadModule extends EcoModule {
 
     /** Every road built, by world, built off the main thread (SnowNets): a snow event only looks a column up. */
     private final SnowNets snowNets = new SnowNets(this::buildSnowNets, r -> Bukkit.getScheduler().runTaskAsynchronously(eco, r));
+
+    /** The speed bonus on a road's surface: roads.speed-bonus, plus its character's (none: no saved road there), 1 .. 2. */
+    static double speedBonus(double base, RoadCharacter c) {
+        return Math.clamp(base + (c == null ? 0 : c.shape().speedBonus()), 1, 2);
+    }
+
+    /**
+     * The character of the road a place is on or beside (within r blocks: a bus stop's bay), or null: no saved road there.
+     * What the rewards go by (README "국도", 성격: a bus stop on a hard road).
+     */
+    public RoadCharacter characterNear(String world, int x, int z, int r) {
+        return roads(world).characterNear(x, z, r);
+    }
+
+    /** The character of a dock's road (its saved road; none: null). */
+    public RoadCharacter characterOf(String dock) {
+        return dock == null ? null : characters.get(dock);
+    }
 
     /** Every road built in this world, as last read (a road saved or finished, a reload: read again, off the main thread). */
     RoadNetwork roads(String world) {
@@ -522,6 +554,7 @@ public final class RoadModule extends EcoModule {
                 new LoadGate.Settings(eco.getConfig().getDouble("roads.max-mspt"), Math.clamp(eco.getConfig().getInt("roads.concurrent"), 1, 16),
                         Math.clamp(eco.getConfig().getInt("roads.concurrent-online"), 1, 16)));
         budget = new BlockBudget(settings.blocksPerTick());
+        RoadCharacter.configure(characters(eco.getConfig().getConfigurationSection("roads.characters")));
         paved = settings.style().paved();
         roadBlocks = java.util.EnumSet.copyOf(settings.style().roadBlocks());
         origin = readOrigin();
@@ -769,6 +802,25 @@ public final class RoadModule extends EcoModule {
         };
     }
 
+    /** roads.characters.&lt;id&gt; (README "국도", 성격): each character's shape, a missing key its default. */
+    static Map<RoadCharacter, RoadCharacter.Shape> characters(org.bukkit.configuration.ConfigurationSection all) {
+        Map<RoadCharacter, RoadCharacter.Shape> out = new java.util.EnumMap<>(RoadCharacter.class);
+        if (all == null) return out;
+        for (RoadCharacter c : RoadCharacter.values()) {
+            org.bukkit.configuration.ConfigurationSection s = all.getConfigurationSection(c.id);
+            if (s == null) continue;
+            RoadCharacter.Shape d = c.defaults();
+            out.put(c, new RoadCharacter.Shape(s.getDouble("grade", d.gradeRun()), s.getDouble("climb", d.climb()), s.getDouble("steep", d.steep()),
+                    s.getDouble("turn", d.turn()), s.getDouble("straighten", d.straighten()), s.getInt("follow", d.follow()),
+                    s.getInt("bridge-gap", d.bridgeGap()), s.getInt("tunnel-cover", d.tunnelCover()), s.getInt("min-run", d.minRun()),
+                    s.getInt("shoulder", d.shoulder()), s.getDouble("light-factor", d.lightFactor()), s.getInt("reflect-every", d.reflectEvery()),
+                    s.getInt("rail-drop", d.railDrop()), s.getDouble("bend-room", d.bendScale()), s.getBoolean("rough", d.rough()),
+                    s.getBoolean("warnings", d.warnings()), s.getDouble("speed-bonus", d.speedBonus()), s.getDouble("fare", d.fare()),
+                    s.getDouble("streak", d.streak()), s.getDouble("outdoor-weight", d.outdoors()), s.getDouble("dock-pay", d.dock())));
+        }
+        return out;
+    }
+
     private void command(CommandSender s, String[] a) {
         if (a.length == 0 || a[0].equals("상태")) {
             status(s);
@@ -863,6 +915,20 @@ public final class RoadModule extends EcoModule {
             s.sendMessage(Lang.msg("dock.unknown", "name", a[0]));
             return;
         }
+        if (a.length > 1 && a[1].equals(CHARACTER)) {
+            relabel(s, d.name(), a.length > 2 ? a[2] : null);
+            return;
+        }
+        // the road's character (README "국도", 성격): any argument after the dock that names one
+        RoadCharacter chosen = null;
+        List<String> rest = new ArrayList<>();
+        for (int k = 1; k < a.length; k++) {
+            RoadCharacter c = RoadCharacter.parse(a[k]);
+            if (c != null && chosen == null) chosen = c;
+            else rest.add(a[k]);
+        }
+        rest.addFirst(a[0]);
+        a = rest.toArray(new String[0]);
         if (job != null && job.running) {
             s.sendMessage(Lang.msg("road.busy", "dock", job.dock));
             return;
@@ -881,6 +947,7 @@ public final class RoadModule extends EcoModule {
         }
         if (how.equals("이어짓기") && !preview) {
             patch(s, d, w);
+            if (chosen != null && job != null && job.dock.equals(d.name()) && chosen != job.character) s.sendMessage(keeps(job.character));
             return;
         }
         RoadJob old = here || fresh || atOrigin ? null : saved(d.name());
@@ -891,6 +958,7 @@ public final class RoadModule extends EcoModule {
             old.running = true;
             job = old;
             fromText = Lang.raw("road.from-saved");
+            if (chosen != null && chosen != old.character) s.sendMessage(keeps(old.character));   // planned as it was: its character stays
         } else {
             Location from;
             boolean fromOrigin = false;
@@ -923,6 +991,9 @@ public final class RoadModule extends EcoModule {
             // a new road to the dock: its number stays, the old road's signs go (a set of its own); a preview touches neither
             RoadJob prev = preview ? null : saved(d.name());
             j.route = preview ? 0 : prev != null && prev.route > 0 ? prev.route : nextRoute();
+            // as asked, else as the dock's road was (built again: its character stays), else normal
+            RoadJob was = prev != null ? prev : saved(d.name());
+            j.character = chosen != null ? chosen : was != null && !was.removed ? was.character : RoadCharacter.NORMAL;
             if (prev != null) {
                 j.signs = prev.signs + 1;
                 RoadSigns.remove(d.name());
@@ -956,6 +1027,61 @@ public final class RoadModule extends EcoModule {
         s.sendMessage(Lang.msg(preview ? "road.preview-started" : "road.started", "dock", job.dock, "phase", phaseName(job.phase),
                 "length", Math.round(Math.hypot(last[0] - job.startX, last[1] - job.startZ)), "from", fromText));
         if (used != null) s.sendMessage(Lang.msg("road.preview-used", "minutes", used));
+        s.sendMessage(dev.stsv.core.util.Text.msg("<gray>성격: " + characterWords(job.character)));
+    }
+
+    /** "/관리자 국도 &lt;하역장&gt; 성격 &lt;쉬운길|보통|어려운길&gt;" */
+    static final String CHARACTER = "성격";
+
+    /** A character in a line: its name and what it changes (README "국도", 성격). */
+    static String characterWords(RoadCharacter c) {
+        RoadCharacter.Shape sh = c.shape();
+        StringBuilder b = new StringBuilder("<white>" + c.word + "<gray>");
+        if (c == RoadCharacter.NORMAL) return b.append(" (예전 그대로)").toString();
+        b.append(" (경사 1:").append(fmt(sh.gradeRun())).append(", 갓길 ").append(sh.shoulder() > 0 ? "+" : "").append(sh.shoulder())
+                .append(", 가로등 간격 ×").append(fmt(sh.lightFactor()));
+        if (sh.speedBonus() > 0) b.append(", 속도 +").append(fmt(sh.speedBonus()));
+        if (sh.warnings()) b.append(", 주의 표지판");
+        if (sh.fare() != 1) b.append(", 버스 운임 ×").append(fmt(sh.fare()));
+        if (sh.dock() != 1) b.append(", 하역 ×").append(fmt(sh.dock()));
+        return b.append(")").toString();
+    }
+
+    private static String fmt(double d) {
+        return d == Math.rint(d) ? String.valueOf((long) d) : String.format(java.util.Locale.ROOT, "%.2f", d).replaceAll("0+$", "");
+    }
+
+    private static Component keeps(RoadCharacter c) {
+        return dev.stsv.core.util.Text.msg("<yellow>이어 짓는 길은 처음 정한 성격(" + c.word + ")대로 지어요. 모양을 바꾸려면 <white>새로<yellow>, "
+                + "이름표(보상·속도)만 바꾸려면 <white>/관리자 국도 <하역장> 성격 <쉬운길|보통|어려운길>");
+    }
+
+    /**
+     * /관리자 국도 &lt;하역장&gt; 성격 &lt;쉬운길|보통|어려운길&gt;: a road already built (or being built) labelled another character
+     * without building it again: its speed bonus and rewards follow the new one, its blocks and signs stay as they are.
+     */
+    private void relabel(CommandSender s, String dock, String word) {
+        RoadCharacter c = RoadCharacter.parse(word);
+        RoadJob main = saved(dock);
+        if (c == null) {
+            s.sendMessage(dev.stsv.core.util.Text.msg("<gray>/관리자 국도 " + dock + " 성격 <쉬운길|보통|어려운길>"
+                    + (main != null && !main.removed ? " (지금: " + main.character.word + ")" : "")));
+            return;
+        }
+        if (main == null || main.removed) {
+            s.sendMessage(Lang.msg("road.patch-none", "dock", dock));
+            return;
+        }
+        RoadCharacter was = main.character;
+        RoadJob running = job != null && job.dock.equals(dock) ? job : null;
+        for (RoadJob j : new RoadJob[]{main, savedTail(dock), running}) {
+            if (j == null) continue;
+            j.character = c;
+            if (j != running) write(j);
+        }
+        if (running != null) save();
+        s.sendMessage(dev.stsv.core.util.Text.msg("<green>" + dock + " 국도의 성격: " + was.word + " → " + characterWords(c)
+                + " <gray>(블록·표지판은 그대로: 속도·보상만 바로 바뀜)"));
     }
 
     /**
@@ -1028,6 +1154,7 @@ public final class RoadModule extends EcoModule {
         j.world = old.world;
         j.route = old.route;
         j.signs = old.signs;
+        j.character = old.character;
         List<double[]> pts = old.points();
         double[] end = old.last(), from = pts.isEmpty() ? end : pts.get(Math.max(0, pts.size() - 1 - TAIL_BACK));
         j.startX = from[0];
@@ -1249,7 +1376,7 @@ public final class RoadModule extends EcoModule {
                     "length", Math.round(r.length()), "pct", Math.round(100 * (r.length() / Math.max(1, r.freeLength()) - 1))));
         }
         tell(Lang.msg("road.planned", "dock", job.dock, "length", job.ground.size(), "corners", job.corners.size(),
-                "cost", Math.round(RoadPlanner.cost(job.field(net), r.cells(), RoadPlanner.Weights.DEFAULT))));
+                "cost", Math.round(RoadPlanner.cost(job.field(net), r.cells(), job.character.shape().weights()))));
         next(job.preview ? RoadJob.Phase.PEEK : RoadJob.Phase.PREPARE);
     }
 
@@ -1349,12 +1476,14 @@ public final class RoadModule extends EcoModule {
             water[n - 1] = false;
         }
         int[] cross = net.crossings(points);
-        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross, net.headroom(points));
+        RoadCharacter.Shape sh = job.character.shape();   // (README "국도", 성격: normal builds as roads always were)
+        RoadProfile.Grade grade = sh.grade();
+        RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross, net.headroom(points), grade, sh.follow());
         // sharp corners level (no crease of steps on their inside), but where it meets or goes over another road
         boolean[] fixed = new boolean[n];
         for (int i = 0; i < n; i++) fixed[i] = plan.over()[i] || cross[i] != Integer.MIN_VALUE;
-        RoadProfile.levelBends(points, plan.halves(), fixed);
-        RoadProfile.Part[] parts = RoadProfile.partsHalves(plan.halves(), ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
+        RoadProfile.levelBends(points, plan.halves(), fixed, grade);
+        RoadProfile.Part[] parts = RoadProfile.partsHalves(plan.halves(), ground, water, sh.bridgeGap(), sh.tunnelCover(), sh.minRun());
         for (int i = 0; i < n; i++) if (plan.over()[i]) parts[i] = RoadProfile.Part.BRIDGE;   // over another road
         return new Profile(plan.halves(), plan.over(), parts, cross, ground);
     }
@@ -1370,7 +1499,7 @@ public final class RoadModule extends EcoModule {
         List<double[]> pts = o.points();
         int upTo = o.phase == RoadJob.Phase.DONE ? pts.size() : Math.min(o.cursor, pts.size());
         if (upTo <= 0 || o.ground.size() < pts.size()) return null;
-        return new RoadNetwork.Road(o.dock, pts.subList(0, upTo), java.util.Arrays.copyOf(halvesOf(o, pts.size()), upTo));
+        return new RoadNetwork.Road(o.dock, pts.subList(0, upTo), java.util.Arrays.copyOf(halvesOf(o, pts.size()), upTo), o.character);
     }
 
     /** A saved road's heights at all n of its points: as saved, or (saved before heights were) as that road was built. */
@@ -1396,7 +1525,7 @@ public final class RoadModule extends EcoModule {
     }
 
     static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF,
-            REACH = HALF + RoadSection.WIDEN + (int) Math.ceil(RoadSection.MAX_WIDE) + 1;
+            REACH = HALF + 1 + RoadSection.WIDEN + (int) Math.ceil(RoadSection.MAX_WIDE) + 1;   // (+1: an easy road's wider shoulder)
 
     // ------------------------------------------------------------------------------------------
     // Signs put up again (/관리자 국도 표지판 다시세우기), rails' plinths (/관리자 국도 난간고치기)
@@ -1420,8 +1549,22 @@ public final class RoadModule extends EcoModule {
         if (m == null) return null;
         Spliced s = new Spliced(m.points(), m.halves(), parts(main, m.halves()));
         RoadNetwork.Road t = tail != null && tail.phase == RoadJob.Phase.DONE ? built(tail) : null;
-        if (t != null) s = splice(s, t, parts(tail, t.halves()));
-        return new RoadGuide.Road(main.dock, s.points(), s.halves(), s.parts(), main.route, home);
+        int[] ground = groundOf(main, s.points().size());
+        if (t != null) {
+            int cut = Math.max(0, s.points().size() - 1 - TAIL_BACK);
+            s = splice(s, t, parts(tail, t.halves()));
+            ground = java.util.Arrays.copyOf(ground, s.points().size());
+            int[] tg = groundOf(tail, t.points().size());
+            System.arraycopy(tg, 0, ground, cut, Math.min(tg.length, ground.length - cut));
+        }
+        return new RoadGuide.Road(main.dock, s.points(), s.halves(), s.parts(), main.route, home, main.character, ground);
+    }
+
+    /** The ground's top block under a road's first n points (MIN_VALUE: not read). */
+    static int[] groundOf(RoadJob j, int n) {
+        int[] out = new int[n];
+        for (int i = 0; i < n; i++) out[i] = i < j.ground.size() ? j.ground.get(i).ground : Integer.MIN_VALUE;
+        return out;
     }
 
     /** A road's points, heights and parts. */
@@ -1458,7 +1601,8 @@ public final class RoadModule extends EcoModule {
             ground[n - 1] = j.gateY;
             water[n - 1] = false;
         }
-        return RoadProfile.partsHalves(halves, ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
+        RoadCharacter.Shape sh = j.character.shape();
+        return RoadProfile.partsHalves(halves, ground, water, sh.bridgeGap(), sh.tunnelCover(), sh.minRun());
     }
 
     /** Every saved road (its job and its patch, or null) by world, then dock: {@link SavedRoads} (a file that cannot be read left out alone). */
@@ -1624,7 +1768,7 @@ public final class RoadModule extends EcoModule {
             for (TunnelRepair.Entry e : all) {
                 TunnelRepair.Road r = e.road();
                 if (r == null || !(target.equals(ALL) || r.dock().equalsIgnoreCase(target))) continue;
-                mine.computeIfAbsent(r.world(), k -> new ArrayList<>()).add(new RoadGuide.Road(r.dock(), r.points(), r.halves(), r.parts(), r.route(), ""));
+                mine.computeIfAbsent(r.world(), k -> new ArrayList<>()).add(new RoadGuide.Road(r.dock(), r.points(), r.halves(), r.parts(), r.route(), "", r.character(), null));
             }
             mine.keySet().forEach(w -> nets.put(w, RoadNetwork.of(built.get(w))));
             Bukkit.getScheduler().runTask(eco, () -> fixRails(to, bar, mine, nets));
@@ -1765,7 +1909,7 @@ public final class RoadModule extends EcoModule {
                 RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
                 RoadNetwork round = others.get(w.getName() + "\0" + r.dock());
                 RoadSection sec = new RoadSection(site(w, rec, guardBase, round), settings.style(), r.points(),
-                        r.halves(), r.parts(), r.dock(), r.route());
+                        r.halves(), r.parts(), r.dock(), r.route()).character(r.character(), null);
                 if (curves && round != null) {   // where it meets the other roads (a junction's corners: room for a bus turning)
                     int[] cross = round.crossings(r.points());
                     boolean[] over = new boolean[cross.length];
@@ -1780,7 +1924,7 @@ public final class RoadModule extends EcoModule {
                     points++;
                     int at = i;
                     boolean road = r.parts()[i] == RoadProfile.Part.ROAD;
-                    b.add(p[0], p[1], RoadSection.HALF + RoadSection.WIDEN + (int) Math.ceil(RoadSection.MAX_WIDE) + 2, () -> {
+                    b.add(p[0], p[1], RoadSection.HALF + 1 + RoadSection.WIDEN + (int) Math.ceil(RoadSection.MAX_WIDE) + 2, () -> {
                         int c = curves ? sec.tidyCurve(at, keepClear) : 0;   // (first: a light moved out stands on the shoulder laid out)
                         int[] t = road ? sec.tidyLight(at, keepClear) : new int[3];
                         n[0] += t[0];
@@ -1845,7 +1989,7 @@ public final class RoadModule extends EcoModule {
         Map<String, List<RoadNetwork.Road>> out = new HashMap<>();
         for (TunnelRepair.Entry e : all) {
             TunnelRepair.Road r = e.road();
-            if (r != null) out.computeIfAbsent(r.world(), k -> new ArrayList<>()).add(new RoadNetwork.Road(r.dock(), r.points(), r.halves()));
+            if (r != null) out.computeIfAbsent(r.world(), k -> new ArrayList<>()).add(new RoadNetwork.Road(r.dock(), r.points(), r.halves(), r.character()));
         }
         return out;
     }
@@ -1922,7 +2066,7 @@ public final class RoadModule extends EcoModule {
             roadsN++;
             RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
             RoadSection sec = new RoadSection(site(w, rec, guardBase, sel.others().get(e.world() + "\0" + e.dock())), settings.style(), r.points(),
-                    r.halves(), r.parts(), r.dock(), r.route());
+                    r.halves(), r.parts(), r.dock(), r.route()).character(r.character(), null);
             for (int i = 0; i < r.parts().length; i++) {
                 if (r.parts()[i] != RoadProfile.Part.TUNNEL) continue;
                 points++;
@@ -2045,7 +2189,7 @@ public final class RoadModule extends EcoModule {
                 List<TunnelRepair.Entry> here = new ArrayList<>();
                 for (TunnelRepair.Entry e : all) if (e.road() != null && (e.world().equals(wn) || !worlds.contains(e.world()))) here.add(e);
                 List<RoadNetwork.Road> roads = new ArrayList<>();
-                for (TunnelRepair.Entry e : here) roads.add(new RoadNetwork.Road(e.dock(), e.road().points(), e.road().halves()));
+                for (TunnelRepair.Entry e : here) roads.add(new RoadNetwork.Road(e.dock(), e.road().points(), e.road().halves(), e.road().character()));
                 for (TunnelRepair.Entry e : here) {
                     if (e.why() != TunnelRepair.Why.OK && e.why() != TunnelRepair.Why.NO_WORLD) continue;
                     List<Integer> at = e.road().tunnelsNear(px + 0.5, pz + 0.5, radius);
@@ -2075,7 +2219,8 @@ public final class RoadModule extends EcoModule {
             for (Near n : near) {
                 TunnelRepair.Road r = n.road();
                 RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
-                RoadSection sec = new RoadSection(site(w, rec, guardBase, n.others()), settings.style(), r.points(), r.halves(), r.parts(), r.dock(), r.route());
+                RoadSection sec = new RoadSection(site(w, rec, guardBase, n.others()), settings.style(), r.points(), r.halves(), r.parts(), r.dock(),
+                        r.route()).character(r.character(), null);
                 for (int i : n.at()) {
                     points++;
                     double[] p = r.points().get(i);
@@ -2339,7 +2484,8 @@ public final class RoadModule extends EcoModule {
                 job.route = nextRoute();
                 save();
             }
-            builder = new RoadSection(site(w, recorder(), jobGuard()), settings.style(), points, halves, parts, job.dock, job.route).network(cross, over);
+            builder = new RoadSection(site(w, recorder(), jobGuard()), settings.style(), points, halves, parts, job.dock, job.route).network(cross, over)
+                    .character(job.character, groundOf(job, points.size()));
         }
         int[] land = builder.build(i);
         if (land == null) return true;
@@ -2469,6 +2615,7 @@ public final class RoadModule extends EcoModule {
         save();
         String from = Lang.raw("road.from-here", "x", Math.round(Math.floor(job.asked()[0])), "z", Math.round(Math.floor(job.asked()[1])));
         tell(Lang.msg("road.preview-head", "dock", job.dock, "from", from));
+        tell(dev.stsv.core.util.Text.msg("<gray>성격: " + characterWords(job.character)));
         tell(Lang.msg("road.preview-length", "length", sm.length(), "corners", sm.corners(), "chunks", sm.chunks()));
         tell(Lang.msg("road.preview-parts", "bridges", sm.bridges(), "blen", sm.bridgeLength(), "tunnels", sm.tunnels(), "tlen", sm.tunnelLength()));
         tell(Lang.msg("road.preview-earth", "cut", sm.cut(), "fill", sm.fill(), "bore", sm.bore(), "width", RoadPreview.WIDTH));
@@ -2918,7 +3065,7 @@ public final class RoadModule extends EcoModule {
 
             public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
                 if (!inside((int) Math.floor(y))) return;
-                RoadSigns.place(w, x, y, z, yaw, RoadSign.words(kind, dock, km, route), dock, job.signs, view());
+                RoadSigns.place(w, x, y, z, yaw, RoadSign.words(kind, dock, km, route, job.character), dock, job.signs, view());
                 setCount += ENTITY_COST;
             }
 

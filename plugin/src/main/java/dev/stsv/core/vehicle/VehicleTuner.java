@@ -26,6 +26,7 @@ import org.bukkit.Sound;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Display;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
@@ -317,6 +318,63 @@ final class VehicleTuner {
     void remove(LiveVehicle v) {
         if (v.underglow != null) v.underglow.remove();
         v.underglow = null;
+        v.underglowHeld = null;
+    }
+
+    /** How often (ticks) a car with an underglow looks at the blocks under it. */
+    static final int GLOW_WATCH = 5;
+
+    /**
+     * The glow is a half see-through plane: the game draws it (translucent entity pass, with depth) before translucent
+     * terrain, so ice, water or stained glass under it would vanish where the glow lies over it. Over such blocks the
+     * glow is hidden (its item taken off), and put back once the car is off them. Every {@link #GLOW_WATCH} ticks,
+     * only for cars that have a glow.
+     */
+    void watchGlow(LiveVehicle v, long ticks) {
+        ItemDisplay g = v.underglow;
+        if (g == null || (ticks + v.id) % GLOW_WATCH != 0 || !g.isValid()) return;
+        boolean hide = overSeeThrough(v);
+        if (hide && v.underglowHeld == null) {
+            v.underglowHeld = g.getItemStack();
+            g.setItemStack(ItemStack.empty());
+        } else if (!hide && v.underglowHeld != null) {
+            g.setItemStack(v.underglowHeld);
+            v.underglowHeld = null;
+        }
+    }
+
+    /** Whether any block under the glow's area (the block the car stands on and the one under it) is see-through. */
+    private static boolean overSeeThrough(LiveVehicle v) {
+        double hw = (v.spec.width() + GLOW_MARGIN) / 2, hl = (v.spec.length() + GLOW_MARGIN) / 2;
+        int nx = Math.max(1, (int) Math.ceil(hw * 2)), nz = Math.max(1, (int) Math.ceil(hl * 2));
+        int top = (int) Math.floor(v.st.y - 0.01);
+        Set<Long> seen = new HashSet<>();
+        for (int i = 0; i <= nx; i++) {
+            for (int k = 0; k <= nz; k++) {
+                double lx = -hw + 2 * hw * i / nx, lz = -hl + 2 * hl * k / nz;
+                double[] c = VehiclePhysics.world(v.st.x, v.st.y, v.st.z, v.st.yaw, new VehicleSpec.Vec(lx, 0, lz));
+                int bx = (int) Math.floor(c[0]), bz = (int) Math.floor(c[2]);
+                if (!seen.add(((long) bx << 32) ^ (bz & 0xffffffffL))) continue;
+                if (!v.world.isChunkLoaded(bx >> 4, bz >> 4)) continue;
+                for (int y = top; y >= top - 1; y--) {
+                    org.bukkit.block.Block b = v.world.getBlockAt(bx, y, bz);
+                    org.bukkit.block.data.BlockData d = b.getBlockData();
+                    boolean wet = d instanceof org.bukkit.block.data.Waterlogged w && w.isWaterlogged();
+                    if (seeThrough(b.getType(), wet)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Blocks drawn half see-through (ice, water, glass, slime, honey): a glow over them would hide them. */
+    static boolean seeThrough(org.bukkit.Material t, boolean waterlogged) {
+        if (waterlogged) return true;
+        return switch (t) {
+            case ICE, PACKED_ICE, BLUE_ICE, FROSTED_ICE, WATER, BUBBLE_COLUMN, KELP, KELP_PLANT, SEAGRASS, TALL_SEAGRASS,
+                 SLIME_BLOCK, HONEY_BLOCK, TINTED_GLASS -> true;
+            default -> t.name().endsWith("_GLASS") || t.name().endsWith("GLASS_PANE") || t == org.bukkit.Material.GLASS;
+        };
     }
 
     void teleport(LiveVehicle v, Location at) {

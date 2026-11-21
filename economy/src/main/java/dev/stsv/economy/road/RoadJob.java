@@ -106,6 +106,11 @@ public final class RoadJob {
      * signs (an old sign still in an unloaded chunk goes when it loads). Counts as no road.
      */
     public boolean removed;
+    /**
+     * Its character (README "국도", 성격: 쉬운길, 보통, 어려운길): how it is planned and built, what it pays. Saved as
+     * {@code character=<id>} when not normal; a road saved without it (before characters) is normal.
+     */
+    public RoadCharacter character = RoadCharacter.NORMAL;
 
     public static long key(int cx, int cz) {
         return ((long) cx << 32) ^ (cz & 0xffffffffL);
@@ -143,7 +148,7 @@ public final class RoadJob {
         for (Ground g : ground) if (!g.read()) return false;
         double[] a = asked(), b = j.asked();
         return near(a[0], b[0]) && near(a[1], b[1]) && near(endX, j.endX) && near(endZ, j.endZ) && same(gateX, j.gateX) && same(gateZ, j.gateZ)
-                && gateY == j.gateY && same(leadX, j.leadX) && same(leadZ, j.leadZ);
+                && gateY == j.gateY && same(leadX, j.leadX) && same(leadZ, j.leadZ) && character == j.character;
     }
 
     private static boolean near(double a, double b) {
@@ -312,6 +317,7 @@ public final class RoadJob {
         j.askedX = askedX;
         j.askedZ = askedZ;
         j.removed = removed;
+        j.character = character;
         return j;
     }
 
@@ -331,6 +337,7 @@ public final class RoadJob {
         if (tail) b.append("tail=true\n");
         if (preview) b.append("preview=true\n");
         if (removed) b.append("removed=true\n");
+        if (character != null && character != RoadCharacter.NORMAL) b.append("character=").append(character.id).append('\n');
         if (!Double.isNaN(askedX)) b.append("asked=").append(num(askedX)).append(',').append(num(askedZ)).append('\n');
         if (!Double.isNaN(leadX)) b.append("lead=").append(num(leadX)).append(',').append(num(leadZ)).append('\n');
         if (branchOf != null) b.append("branch=").append(branchOf).append(',').append(num(branchKm)).append('\n');
@@ -408,6 +415,7 @@ public final class RoadJob {
                 case "tail" -> j.tail = Boolean.parseBoolean(v);
                 case "preview" -> j.preview = Boolean.parseBoolean(v);
                 case "removed" -> j.removed = Boolean.parseBoolean(v);
+                case "character" -> j.character = RoadCharacter.ofId(v);
                 case "asked" -> {
                     j.askedX = Double.parseDouble(p[0]);
                     j.askedZ = Double.parseDouble(p[1]);

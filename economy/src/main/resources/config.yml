@@ -86,6 +86,67 @@ roads:
   #     x2: 180
   #     z2: 10
   avoid: []
+  # 국도 성격 (README "국도", 성격): /관리자 국도 <하역장> [쉬운길|보통|어려운길]. 보통 = 예전 그대로(짓는 모양은 바꿀 수 없고
+  # 보상 줄만 읽음). 빠진 값은 아래 기본값. 바꾸면 새로 짓는 길부터(이미 지은 길의 모양은 그대로, 속도·보상은 바로)
+  #   grade: 경사 (1칸 오르내림에 몇 칸, 2~8) · climb / steep / turn: 길 찾기 값(높이 1칸 / 경사 넘는 1칸 / 45도 꺾임)
+  #   straighten: 곧게 펴기 여유 (1.02 = 2% 더 비싸도 곧게) · follow: 땅을 몇 칸 평균 내어 따라갈지 (작을수록 오르내림이 많음)
+  #   bridge-gap / tunnel-cover / min-run: 이만큼 높으면 다리, 이만큼 덮이면 굴, 이보다 짧은 다리·굴은 메우거나 깎음
+  #   shoulder: 갓길 폭 더하기 (-1~1) · light-factor: 가로등 간격 × · reflect-every: 반사 기둥 간격 (0 = 없음)
+  #   rail-drop: 땅보다 이만큼 높은 갓길에 가드레일 · bend-room: 굽은 곳 여유 × (1 = 보통, 0.5 이상) · rough: 기운 자리·닳은 가장자리
+  #   warnings: 급커브·경사·낙석 주의 표지판 · speed-bonus: speed-bonus 에 더함 · fare: 버스 운임 × (그 길의 정류장에서 타거나 내림)
+  #   streak: 안전 운전 연속 보너스 × · outdoor-weight: 그 정류장의 등산객·캠핑족 비중 × · dock-pay: 그 길의 하역장 하역 값 ×
+  characters:
+    easy:
+      grade: 5
+      climb: 0.04
+      steep: 1.2
+      turn: 0.5
+      straighten: 1.10
+      follow: 6
+      bridge-gap: 3
+      tunnel-cover: 4
+      min-run: 4
+      shoulder: 1
+      light-factor: 0.75
+      reflect-every: 12
+      rail-drop: 2
+      bend-room: 1
+      rough: false
+      warnings: false
+      speed-bonus: 0.15
+      fare: 1
+      streak: 1
+      outdoor-weight: 1
+      dock-pay: 1
+    normal:
+      speed-bonus: 0
+      fare: 1
+      streak: 1
+      outdoor-weight: 1
+      dock-pay: 1
+    hard:
+      grade: 2.5
+      climb: 0.01
+      steep: 0.3
+      turn: 0
+      straighten: 1.0
+      follow: 1
+      bridge-gap: 5
+      tunnel-cover: 8
+      min-run: 8
+      shoulder: -1
+      light-factor: 2
+      reflect-every: 0
+      rail-drop: 3
+      bend-room: 0.6
+      rough: true
+      warnings: true
+      speed-bonus: 0
+      fare: 1.4
+      streak: 2
+      outdoor-weight: 2
+      # 하역 값 보너스: 1 = 없음 (예: 1.2 = 어려운길 하역장 +20%)
+      dock-pay: 1
 
 # 땅 타임머신 (/땅 타임머신): 땅 주인이 관리자 없이 자기 땅의 청크를 백업 시각으로 되돌림 (README "땅 타임머신").
 # 주인이 하면 블록만 돌아오고(상자는 빈 채로, 지금 물건이 든 상자는 그대로), 돈이 되는 블록은 그 값을 치름

@@ -21,7 +21,11 @@ final class TunnelRepair {
     private TunnelRepair() {}
 
     /** A built road (or what of it is built) as the builder made it: what a repair goes by. */
-    record Road(String world, String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route) {
+    record Road(String world, String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route, RoadCharacter character) {
+
+        Road(String world, String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route) {
+            this(world, dock, points, halves, parts, route, RoadCharacter.NORMAL);
+        }
 
         /** How many points are in a tunnel. */
         int tunnelPoints() {
@@ -44,7 +48,7 @@ final class TunnelRepair {
 
         /** The same road in another world (the one it was saved in is not on this server: renamed). */
         Road in(String w) {
-            return new Road(w, dock, points, halves, parts, route);
+            return new Road(w, dock, points, halves, parts, route, character);
         }
 
         /** Its tunnel points within r blocks (across) of (x, z). */
@@ -137,7 +141,7 @@ final class TunnelRepair {
         // its patch once that is finished too (a patch cut short: the road as it was, its old end still standing)
         RoadNetwork.Road t = tail != null && main.phase == RoadJob.Phase.DONE && tail.phase == RoadJob.Phase.DONE && !tail.removed ? RoadModule.built(tail) : null;
         if (t != null) s = RoadModule.splice(s, t, java.util.Arrays.copyOf(RoadModule.partsOf(tail), t.points().size()));
-        return new Road(main.world, main.dock, s.points(), s.halves(), s.parts(), main.route);
+        return new Road(main.world, main.dock, s.points(), s.halves(), s.parts(), main.route, main.character);
     }
 
     /** The counts of a selection (unreadable: the files that could not be read). */

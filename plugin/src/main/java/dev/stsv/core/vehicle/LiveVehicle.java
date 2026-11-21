@@ -36,6 +36,8 @@ final class LiveVehicle {
     /** the tuning shop: what it looks like now (paid for, or being tried on), and the glow under it (VehicleTuner) */
     VehicleTuning.Custom custom = VehicleTuning.Custom.NONE;
     ItemDisplay underglow;
+    /** the glow's model while it is hidden over ice, water or glass (VehicleTuner#watchGlow), else null */
+    org.bukkit.inventory.ItemStack underglowHeld;
     final List<ItemDisplay> wheels = new ArrayList<>();
     /** parts turned with the wheels (VehicleSpec.Extras#spinners: a pedal crank), in the spec's order */
     final List<ItemDisplay> spinners = new ArrayList<>();

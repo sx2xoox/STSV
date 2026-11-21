@@ -37,8 +37,20 @@ public final class RoadSign {
         /** just before the gate: "서해 하역장 도착" */
         ARRIVAL,
         /** facing the traffic going back: where the road started ("본사 출발 터미널") and how far ({@link RoadGuide}) */
-        RETURN
+        RETURN,
+        /** a hard road's warnings (README "국도", 성격): before a sharp bend, a steep grade, a deep cut or a tunnel */
+        CURVE, GRADE, ROCKS;
+
+        /** A warning (no distance on it). */
+        public boolean warning() {
+            return this == CURVE || this == GRADE || this == ROCKS;
+        }
     }
+
+    /** The warnings' words. */
+    public static final String CURVE_WORDS = "급커브 주의", GRADE_WORDS = "경사 주의", ROCKS_WORDS = "낙석 주의";
+    /** An easy road's route line (고속도로 style: the green sign it always had, its own name). */
+    public static final String EASY_ROUTE = "고속국도";
 
     /** How far right of the road's middle the sign stands (blocks): its panel spans 2.5 .. 5.5, over the kerb and shoulder. */
     public static final double LATERAL = 4.0;
@@ -67,14 +79,23 @@ public final class RoadSign {
 
     /** The words of a sign of a kind: dock is the dock's name (RETURN: the name of where the road started, as it is). */
     public static Words words(Kind kind, String dock, double km, int route) {
+        return words(kind, dock, km, route, RoadCharacter.NORMAL);
+    }
+
+    /** {@link #words(Kind, String, double, int)} on a road of this character (an easy road: 고속국도 n호선). */
+    public static Words words(Kind kind, String dock, double km, int route, RoadCharacter character) {
         String name = dock + " 하역장";
         String big = switch (kind) {
             case START -> name + " 방면";
             case KM -> name;
             case ARRIVAL -> name + " 도착";
             case RETURN -> dock;
+            case CURVE -> CURVE_WORDS;
+            case GRADE -> GRADE_WORDS;
+            case ROCKS -> ROCKS_WORDS;
         };
-        return new Words(big, kind == Kind.ARRIVAL ? "" : km(km), "국도 " + route + "호선", String.valueOf(route));
+        String line = (character == RoadCharacter.EASY ? EASY_ROUTE : "국도") + " " + route + "호선";
+        return new Words(big, kind == Kind.ARRIVAL || kind.warning() ? "" : km(km), line, String.valueOf(route));
     }
 
     // ------------------------------------------------------------------------------------------

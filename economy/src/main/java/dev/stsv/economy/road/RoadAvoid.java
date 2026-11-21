@@ -56,7 +56,7 @@ final class RoadAvoid {
         int ex = (int) Math.floor(job.endX) >> 4, ez = (int) Math.floor(job.endZ) >> 4;
         long startK = key(sx, sz), endK = key(ex, ez);
         RoadPlanner.Field base = job.field(net);
-        RoadPlanner.Weights w = RoadPlanner.Weights.DEFAULT;
+        RoadPlanner.Weights w = job.character.shape().weights();
         // nothing shut: how it would have gone
         List<int[]> free = RoadPlanner.path(shut(base, k -> false), sx, sz, ex, ez, w, maxNodes);
         int[] avoided = new int[4];

@@ -1560,6 +1560,7 @@ public final class VehicleModule implements StsvModule, Listener {
             removeParts(v, false);
             spawnParts(v);
         }
+        tuner.watchGlow(v, ticks);   // the underglow hidden over ice, water and glass (drawn before them, it hid them)
         Player driver = v.spec.pulled() ? null : v.rider(0);
         Player puller = puller(v);
         DriveInput in = driver != null && !v.frozen ? DriveInput.of(driver.getCurrentInput()) : DriveInput.NONE;

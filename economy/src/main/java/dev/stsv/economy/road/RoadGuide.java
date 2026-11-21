@@ -35,10 +35,20 @@ import java.util.Map;
 public final class RoadGuide {
 
     /** A built road: its dock, points (one a block), heights (half blocks), parts, number, and where it started (a name). */
-    public record Road(String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route, String home) {}
+    public record Road(String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route, String home,
+                       RoadCharacter character, int[] ground) {
+        public Road(String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route, String home) {
+            this(dock, points, halves, parts, route, home, RoadCharacter.NORMAL, null);
+        }
+
+        /** Its character, never null. */
+        public RoadCharacter character() {
+            return character == null ? RoadCharacter.NORMAL : character;
+        }
+    }
 
     /** What a sign is for, the more useful first (when two would stand too close, the first stays). */
-    public enum Type { GORE, ADVANCE, START, ARRIVAL, CONFIRM, KM, RETURN }
+    public enum Type { GORE, ADVANCE, START, ARRIVAL, WARNING, CONFIRM, KM, RETURN }
 
     /**
      * A sign to put up: its point (between its posts, on the road's level: y = level + 1) and yaw; host the dock whose road
@@ -442,7 +452,7 @@ public final class RoadGuide {
             int idx = spot(r, out.at() + CONFIRM_AT, 1);
             int n = road.points().size();
             if (idx < 0 || idx > n - 1 - RoadSection.SIGN_END - 10) continue;
-            RoadSign.Words w = RoadSign.words(RoadSign.Kind.KM, road.dock(), (n - 1 - idx) / 1000.0, road.route());
+            RoadSign.Words w = RoadSign.words(RoadSign.Kind.KM, road.dock(), (n - 1 - idx) / 1000.0, road.route(), road.character());
             Sign s = side(Type.CONFIRM, r, idx, 1, false, roads.get(r == j.a() ? j.b() : j.a()).dock(), RoadSign.Kind.KM, w, null);
             if (s != null) signs.add(s);
         }
@@ -499,8 +509,9 @@ public final class RoadGuide {
         for (int k = 0; k < 40; k++) {
             int i = from + k * dir;
             if (i - 3 < 0 || i + 3 >= p.length) return -1;
-            int m = Math.floorMod(i, lights);
-            if (m < 3 + RoadSection.LIGHT_SHIFT || lights - m < 3) continue;   // (a light may take one of the next points: RoadSection)
+            int every = roads.get(r).character().shape().lightEvery(lights);   // (its own lights: README "국도", 성격)
+            int m = Math.floorMod(i, every);
+            if (m < 3 + RoadSection.LIGHT_SHIFT || every - m < 3) continue;   // (a light may take one of the next points: RoadSection)
             if (RoadSection.plain(p, i, dir, 1) == i) return i;
         }
         return -1;
@@ -530,15 +541,21 @@ public final class RoadGuide {
     private void own(int r, List<Integer> junctions, List<Sign> signs, List<Paint> paints) {
         Road road = roads.get(r);
         int n = road.points().size();
-        for (Map.Entry<Integer, RoadSign.Kind> e : RoadSection.signs(parts[r], every).entrySet()) {
+        Map<Integer, RoadSign.Kind> mine = new java.util.TreeMap<>(RoadSection.signs(parts[r], every));
+        if (road.character().shape().warnings())   // a hard road's warnings (README "국도", 성격), as RoadSection puts them
+            mine.putAll(RoadSection.warnings(road.points(), road.halves(), parts[r], road.ground(), mine.keySet(),
+                    road.character().shape().lightEvery(lights)));
+        for (Map.Entry<Integer, RoadSign.Kind> e : mine.entrySet()) {
             int i = e.getKey();
             if (i < own[r] + 10) continue;   // on the stretch it shares with the road it left: that road's signs
             Type type = switch (e.getValue()) {
                 case START -> Type.START;
                 case ARRIVAL -> Type.ARRIVAL;
+                case CURVE, GRADE, ROCKS -> Type.WARNING;
                 default -> Type.KM;
             };
-            Sign s = side(type, r, i, 1, false, null, e.getValue(), RoadSign.words(e.getValue(), road.dock(), (n - 1 - i) / 1000.0, road.route()), null);
+            Sign s = side(type, r, i, 1, false, null, e.getValue(),
+                    RoadSign.words(e.getValue(), road.dock(), (n - 1 - i) / 1000.0, road.route(), road.character()), null);
             if (s != null) signs.add(s);
         }
         // the words painted before the gate (RoadSection: where it has widened)
@@ -556,7 +573,7 @@ public final class RoadGuide {
             int i = spot(r, want, -1);
             if (i < own[r] + 10) continue;
             Sign s = side(Type.RETURN, r, i, -1, false, null, RoadSign.Kind.RETURN,
-                    RoadSign.words(RoadSign.Kind.RETURN, home(r), back(r, i) / 1000.0, road.route()), null);
+                    RoadSign.words(RoadSign.Kind.RETURN, home(r), back(r, i) / 1000.0, road.route(), road.character()), null);
             if (s != null) signs.add(s);
         }
     }

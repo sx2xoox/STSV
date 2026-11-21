@@ -283,4 +283,19 @@ class VehicleTuningTest {
             assertTrue(messages.isList("tuning." + key), key);
         }
     }
+
+    @Test
+    void theUnderglowHidesOverSeeThroughBlocks() {
+        for (org.bukkit.Material t : List.of(org.bukkit.Material.ICE, org.bukkit.Material.PACKED_ICE, org.bukkit.Material.BLUE_ICE,
+                org.bukkit.Material.FROSTED_ICE, org.bukkit.Material.WATER, org.bukkit.Material.GLASS, org.bukkit.Material.TINTED_GLASS,
+                org.bukkit.Material.RED_STAINED_GLASS, org.bukkit.Material.GLASS_PANE, org.bukkit.Material.SLIME_BLOCK,
+                org.bukkit.Material.HONEY_BLOCK)) {
+            assertTrue(VehicleTuner.seeThrough(t, false), t.name());
+        }
+        assertTrue(VehicleTuner.seeThrough(org.bukkit.Material.OAK_SLAB, true), "a waterlogged slab");
+        for (org.bukkit.Material t : List.of(org.bukkit.Material.STONE, org.bukkit.Material.GRASS_BLOCK, org.bukkit.Material.AIR,
+                org.bukkit.Material.OAK_SLAB, org.bukkit.Material.SNOW_BLOCK)) {
+            assertFalse(VehicleTuner.seeThrough(t, false), t.name());
+        }
+    }
 }

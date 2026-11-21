@@ -31,6 +31,9 @@ public enum RoadCharacter {
      * @param climb       planner: cost a block of height changed (normal 0.02)
      * @param steep       planner: cost a block over the grade (normal 0.6)
      * @param turn        planner: cost each 45 degrees the route turns cell to cell (normal 0: none)
+     * @param straighten  planner: a straight line replaces the planned cells when it costs no more than this × theirs (normal 1.02)
+     * @param follow      profile: the ground is smoothed over this many points either way before the road is fitted to it
+     *                    (normal 4; fewer: the road follows the ground's crests and dips more)
      * @param bridgeGap   a bridge where the road runs more than this over the ground (normal 3)
      * @param tunnelCover a tunnel where the ground stands this much over the road (normal 5)
      * @param minRun      shorter bridges / tunnels are filled / cut open (normal 4)
@@ -38,6 +41,9 @@ public enum RoadCharacter {
      * @param lightFactor street lights every roads.light-every × this
      * @param reflectEvery a reflector post every this many points (0: none)
      * @param railDrop    a guardrail where the shoulder stands this much or more over the ground
+     * @param bendScale   how much of the bend widening ({@link RoadClearance#bend}) the cross-section makes room for (normal 1;
+     *                    less: only what a careful driver slowing for the bend needs, a fast one scrapes)
+     * @param rough       rough patches: more patched / cracked surface, a coarse edge here and there (cosmetic, full blocks)
      * @param warnings    warning signs (급커브 / 경사 / 낙석 주의) before sharp bends, steep grades and deep cuts
      * @param speedBonus  added to roads.speed-bonus on its surface
      * @param fare        bus fares to or from a stop on it ×
@@ -45,14 +51,15 @@ public enum RoadCharacter {
      * @param outdoors    hikers' and campers' weight at such a stop ×
      * @param dock        what its dock pays for unloading ×
      */
-    public record Shape(double gradeRun, double climb, double steep, double turn, int bridgeGap, int tunnelCover, int minRun,
-                        int shoulder, double lightFactor, int reflectEvery, int railDrop, boolean warnings, double speedBonus,
+    public record Shape(double gradeRun, double climb, double steep, double turn, double straighten, int follow, int bridgeGap,
+                        int tunnelCover, int minRun, int shoulder, double lightFactor, int reflectEvery, int railDrop, double bendScale,
+                        boolean rough, boolean warnings, double speedBonus,
                         double fare, double streak, double outdoors, double dock) {
 
         /** The planner's weights ({@link RoadPlanner.Weights}): normal's are {@link RoadPlanner.Weights#DEFAULT}. */
         public RoadPlanner.Weights weights() {
             RoadPlanner.Weights d = RoadPlanner.Weights.DEFAULT;
-            return new RoadPlanner.Weights(climb, steep, d.rough(), d.water(), d.depth(), d.reuse(), d.beside(), gradeRun, turn);
+            return new RoadPlanner.Weights(climb, steep, d.rough(), d.water(), d.depth(), d.reuse(), d.beside(), gradeRun, turn, straighten);
         }
 
         /** The grade in half blocks ({@link RoadProfile.Grade}). */
@@ -62,14 +69,20 @@ public enum RoadCharacter {
 
         /** Street lights every this many points, for roads.light-every. */
         public int lightEvery(int every) {
-            return Math.max(8, (int) Math.round(every * lightFactor));
+            return lightFactor == 1 ? every : Math.max(8, (int) Math.round(every * lightFactor));
         }
     }
 
+    /**
+     * Hard roads' bend widening: only what the long vehicles need slowing for the bend (RoadBendTest / RoadCharacterTest:
+     * the limousine bus at 4 b/s on its lane gets round every hard shape clean); never under {@link #MIN_BEND}.
+     */
+    static final double HARD_BEND = 0.6, MIN_BEND = 0.5;
+
     static final Map<RoadCharacter, Shape> DEFAULTS = new EnumMap<>(Map.of(
-            EASY, new Shape(5, 0.04, 1.2, 0.5, 3, 4, 4, 1, 0.75, 12, 2, false, 0.15, 1, 1, 1, 1),
-            NORMAL, new Shape(3, 0.02, 0.6, 0, 3, 5, 4, 0, 1, 20, 3, false, 0, 1, 1, 1, 1),
-            HARD, new Shape(2.5, 0.01, 0.3, 0, 5, 8, 8, -1, 2, 0, 3, true, 0, 1.4, 2, 2, 1)));
+            EASY, new Shape(5, 0.04, 1.2, 0.5, 1.10, 6, 3, 4, 4, 1, 0.75, 12, 2, 1, false, false, 0.15, 1, 1, 1, 1),
+            NORMAL, new Shape(3, 0.02, 0.6, 0, 1.02, 4, 3, 5, 4, 0, 1, 20, 3, 1, false, false, 0, 1, 1, 1, 1),
+            HARD, new Shape(2.5, 0.01, 0.3, 0, 1.0, 1, 5, 8, 8, -1, 2, 0, 3, HARD_BEND, true, true, 0, 1.4, 2, 2, 1)));
 
     private static volatile Map<RoadCharacter, Shape> shapes = DEFAULTS;
 
@@ -93,8 +106,9 @@ public enum RoadCharacter {
         // normal never changes how a road is built (only what it pays)
         if (m != null && m.get(NORMAL) != null) {
             Shape n = m.get(NORMAL), d = DEFAULTS.get(NORMAL);
-            out.put(NORMAL, new Shape(d.gradeRun(), d.climb(), d.steep(), d.turn(), d.bridgeGap(), d.tunnelCover(), d.minRun(), d.shoulder(),
-                    d.lightFactor(), d.reflectEvery(), d.railDrop(), d.warnings(), Math.max(0, n.speedBonus()), Math.max(0, n.fare()),
+            out.put(NORMAL, new Shape(d.gradeRun(), d.climb(), d.steep(), d.turn(), d.straighten(), d.follow(), d.bridgeGap(), d.tunnelCover(),
+                    d.minRun(), d.shoulder(), d.lightFactor(), d.reflectEvery(), d.railDrop(), d.bendScale(), d.rough(), d.warnings(),
+                    Math.max(0, n.speedBonus()), Math.max(0, n.fare()),
                     Math.max(0, n.streak()), Math.max(0, n.outdoors()), Math.max(0, n.dock())));
         }
         shapes = out;
@@ -103,8 +117,9 @@ public enum RoadCharacter {
     /** A shape kept in bounds the builder can take. */
     static Shape clean(Shape s) {
         return new Shape(Math.clamp(s.gradeRun(), 2, 8), Math.max(0, s.climb()), Math.max(0, s.steep()), Math.max(0, s.turn()),
-                Math.clamp(s.bridgeGap(), 2, 12), Math.clamp(s.tunnelCover(), 3, 16), Math.clamp(s.minRun(), 1, 32), Math.clamp(s.shoulder(), -1, 1),
-                Math.clamp(s.lightFactor(), 0.25, 4), Math.max(0, s.reflectEvery()), Math.clamp(s.railDrop(), 1, 8), s.warnings(),
+                Math.clamp(s.straighten(), 1, 1.5), Math.clamp(s.follow(), 0, 8), Math.clamp(s.bridgeGap(), 2, 12), Math.clamp(s.tunnelCover(), 3, 16),
+                Math.clamp(s.minRun(), 1, 32), Math.clamp(s.shoulder(), -1, 1), Math.clamp(s.lightFactor(), 0.25, 4), Math.max(0, s.reflectEvery()),
+                Math.clamp(s.railDrop(), 1, 8), Math.clamp(s.bendScale(), MIN_BEND, 1.5), s.rough(), s.warnings(),
                 Math.clamp(s.speedBonus(), 0, 1), Math.max(0, s.fare()), Math.max(0, s.streak()), Math.max(0, s.outdoors()), Math.max(0, s.dock()));
     }
 

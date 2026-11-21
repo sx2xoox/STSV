@@ -27,7 +27,16 @@ import java.util.Set;
 public final class RoadNetwork {
 
     /** A built road: its dock, its points (x, z, one a block) and its surface at each, in half blocks. */
-    public record Road(String dock, List<double[]> points, int[] halves) {}
+    public record Road(String dock, List<double[]> points, int[] halves, RoadCharacter character) {
+        public Road(String dock, List<double[]> points, int[] halves) {
+            this(dock, points, halves, RoadCharacter.NORMAL);
+        }
+
+        /** Its character (README "국도", 성격), never null. */
+        public RoadCharacter character() {
+            return character == null ? RoadCharacter.NORMAL : character;
+        }
+    }
 
     /**
      * An old road at a column: which road and point it belongs to, the surface there (half blocks), how far from the
@@ -113,6 +122,33 @@ public final class RoadNetwork {
         return columns.get(key(x, z));
     }
 
+    /** The character of the road at a column (its lanes, kerbs or shoulders), or null: no road there. */
+    public RoadCharacter character(int x, int z) {
+        Spot s = at(x, z);
+        return s == null ? null : roads.get(s.road()).character();
+    }
+
+    /**
+     * The character of the nearest road within r blocks of (x, z) (a bus stop's bay beside it), or null: none. A column
+     * of a road counts at its own distance from the centre line plus how far (x, z) is from it.
+     */
+    public RoadCharacter characterNear(int x, int z, int r) {
+        Spot best = null;
+        double bd = Double.MAX_VALUE;
+        for (int dx = -r; dx <= r; dx++) {
+            for (int dz = -r; dz <= r; dz++) {
+                Spot s = at(x + dx, z + dz);
+                if (s == null) continue;
+                double d = s.lat() + Math.hypot(dx, dz);
+                if (d < bd) {
+                    bd = d;
+                    best = s;
+                }
+            }
+        }
+        return best == null ? null : roads.get(best.road()).character();
+    }
+
     /** Whether an old road runs through this chunk cell. */
     public boolean cell(int cx, int cz) {
         return cells.contains(key(cx, cz));
@@ -147,11 +183,12 @@ public final class RoadNetwork {
         double bestD = Double.MAX_VALUE;
         for (Road r : roads) {
             List<double[]> pts = r.points();
+            int every = r.character().shape().lightEvery(lightEvery);   // (its own lights: README "국도", 성격)
             for (int i = 0; i < pts.size(); i++) {
                 double[] p = pts.get(i);
                 if (((int) Math.floor(p[0]) >> 4) != cx || ((int) Math.floor(p[1]) >> 4) != cz) continue;
-                int m = Math.floorMod(i, lightEvery);
-                if (m < CLEAR_OF_LIGHTS + RoadSection.LIGHT_SHIFT || lightEvery - m < CLEAR_OF_LIGHTS) continue;   // (a light may take one of the next points)
+                int m = Math.floorMod(i, every);
+                if (m < CLEAR_OF_LIGHTS + RoadSection.LIGHT_SHIFT || every - m < CLEAR_OF_LIGHTS) continue;   // (a light may take one of the next points)
                 double d = Math.hypot(p[0] - tx, p[1] - tz);
                 if (d < bestD) {
                     bestD = d;
