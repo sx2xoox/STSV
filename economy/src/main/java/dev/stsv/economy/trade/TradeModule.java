@@ -454,7 +454,7 @@ public final class TradeModule extends EcoModule {
 
     /** A vehicle or 지게 item (or a box holding one): bound to its owner, never traded. */
     private boolean locked(ItemStack it) {
-        return it != null && !it.isEmpty() && core.vehicles() != null && core.vehicles().noTrade(it);
+        return it != null && !it.isEmpty() && (core.vehicles() != null && core.vehicles().noTrade(it) || dev.stsv.economy.util.Items.trial(it));
     }
 
     @EventHandler

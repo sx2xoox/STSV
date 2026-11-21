@@ -70,6 +70,10 @@ final class Commands {
      * fit goes to the mailbox.
      */
     static void starter(EcoPlugin eco, org.bukkit.entity.Player p) {
+        if (eco.guide() != null && eco.guide().active(p)) {   // 길라잡이: its things and experience are put back afterwards
+            p.sendMessage(Lang.msg("guide.not-now"));
+            return;
+        }
         String key = "starter." + p.getUniqueId();
         if (eco.kv().has(key)) {
             p.sendMessage(Lang.msg("starter.already"));

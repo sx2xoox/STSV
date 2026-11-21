@@ -37,6 +37,29 @@ public final class Items {
         return STSVPlugin.get().content().itemOf(item).map(CustomItem::isFurniture).orElse(false);
     }
 
+    /**
+     * 길라잡이: a trial thing (given in the tutorial, or made, caught, mined or harvested there). Worth nothing: the shop, the
+     * 거래소 and its orders, auctions, trades, requests and the codex refuse it, and it is taken away when the tutorial ends.
+     */
+    public static final org.bukkit.NamespacedKey TRIAL = new org.bukkit.NamespacedKey("economy", "guide_trial");
+
+    public static boolean trial(ItemStack item) {
+        return item != null && !item.isEmpty() && item.hasItemMeta()
+                && item.getItemMeta().getPersistentDataContainer().has(TRIAL, org.bukkit.persistence.PersistentDataType.BYTE);
+    }
+
+    /** Marks a stack as a trial thing (with a lore line saying so, once). Returns the same stack. */
+    public static ItemStack markTrial(ItemStack item) {
+        if (item == null || item.isEmpty() || trial(item)) return item;
+        item.editMeta(m -> {
+            m.getPersistentDataContainer().set(TRIAL, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1);
+            java.util.List<Component> lore = m.hasLore() ? new java.util.ArrayList<>(m.lore()) : new java.util.ArrayList<>();
+            lore.add(dev.stsv.core.util.Lang.item("guide.trial-lore"));
+            m.lore(lore);
+        });
+        return item;
+    }
+
     public static boolean shopBought(ItemStack item) {
         return item != null && item.hasItemMeta()
                 && item.getItemMeta().getPersistentDataContainer().has(SHOP_BOUGHT, org.bukkit.persistence.PersistentDataType.BYTE);
@@ -80,7 +103,7 @@ public final class Items {
     public static boolean plain(ItemStack item, String id) {
         if (item == null || item.isEmpty()) return false;
         String key = normalize(id), have = key(item);
-        if (!have.equals(key) || shopBought(item)) return false;
+        if (!have.equals(key) || shopBought(item) || trial(item)) return false;
         if (!key.startsWith("minecraft:") || !item.hasItemMeta()) return plain(have, key, false, false);
         var meta = item.getItemMeta();
         boolean changed = meta.hasCustomName() || meta.hasEnchants() || meta.hasLore()

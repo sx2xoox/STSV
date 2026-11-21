@@ -1,6 +1,7 @@
 # 치장 · 요원 K 세트 (3종, 전설): 마을버스 '수상한 선글라스 남자' 비밀 임무 보상. 검은 세단 · 요원 K (vehicles.yml agent_sedan),
 # 칭호 비밀 요원 (economy titles.yml secret_agent) 과 함께 마을버스 모듈이 준다.
 # 뽑기(gacha.yml pool)에 넣지 않고, 교환권도 없고, 어느 상점에도 없음. 치장은 계정에 묶이므로 거래할 수 없음.
+# hidden: true = 얻은 사람에게만 /치장 목록 · 개수에 보임 (얻기 전엔 존재도 모름)
 # 모델: tools/assetgen/models/cosmetics_agent.py
 
 agent_sunglasses:
@@ -9,7 +10,7 @@ agent_sunglasses:
   lore: ["<gray>빛 한 줄 새지 않는 검은 선글라스", "<dark_gray>…아무것도 못 본 겁니다."]
   model: agent_sunglasses
   max-stack: 1
-  cosmetic: { slot: head, rarity: legendary, obtain: "한정 · 마을버스 비밀 임무" }
+  cosmetic: { slot: head, rarity: legendary, obtain: "한정 · 마을버스 비밀 임무", hidden: true }
 
 agent_earpiece:
   material: paper
@@ -17,7 +18,7 @@ agent_earpiece:
   lore: ["<gray>귀 뒤로 말려 내려가는 투명 코일 선", "<gray>가슴엔 작은 마이크"]
   model: agent_earpiece
   max-stack: 1
-  cosmetic: { slot: neck, rarity: legendary, obtain: "한정 · 마을버스 비밀 임무" }
+  cosmetic: { slot: neck, rarity: legendary, obtain: "한정 · 마을버스 비밀 임무", hidden: true }
 
 agent_coat:
   material: paper
@@ -25,4 +26,4 @@ agent_coat:
   lore: ["<gray>금단추 두 개, 갈라진 검은 연미복 자락", "<gray>안감은 짙은 남색"]
   model: agent_coat
   max-stack: 1
-  cosmetic: { slot: back, rarity: legendary, obtain: "한정 · 마을버스 비밀 임무", motion: { kind: sway, amount: 5, period: 70 } }
+  cosmetic: { slot: back, rarity: legendary, obtain: "한정 · 마을버스 비밀 임무", hidden: true, motion: { kind: sway, amount: 5, period: 70 } }

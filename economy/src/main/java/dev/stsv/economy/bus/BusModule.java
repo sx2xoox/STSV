@@ -767,6 +767,7 @@ public final class BusModule extends EcoModule {
         for (Player p : Bukkit.getOnlinePlayers()) {
             VehicleModule.Driven d = vm.drivenBy(p);
             if (d == null || !spec.vehicles().contains(d.itemKey())) continue;
+            if (eco.guide() != null && eco.guide().active(p)) continue;   // 길라잡이: the tutorial's own bus, no real stops
             Run run = runs.computeIfAbsent(d.id(), k -> new Run());
             run.id = d.id();
             run.driver = p.getUniqueId();
@@ -1330,6 +1331,7 @@ public final class BusModule extends EcoModule {
 
     /** /버스 렌트: a server bus in the bay of the nearest stop (within the rental's range), the player at its wheel. */
     public void rent(Player p) {
+        if (eco.guide() != null && eco.guide().busRent(p)) return;   // 길라잡이: the tutorial's bus
         BusSpec.Rental rn = spec.rental();
         VehicleModule vm = core.vehicles();
         var item = rn.vehicle().isEmpty() || vm == null ? java.util.Optional.<dev.stsv.core.content.CustomItem>empty() : core.content().item(rn.vehicle());
@@ -1379,6 +1381,7 @@ public final class BusModule extends EcoModule {
 
     /** /버스 반납: the rented bus goes back (not with passengers aboard: they get off first). */
     public void giveBack(Player p) {
+        if (eco.guide() != null && eco.guide().busReturn(p)) return;   // 길라잡이: the tutorial's bus
         long[] r = rentals.get(p.getUniqueId());
         VehicleModule vm = core.vehicles();
         if (r == null || vm == null || !vm.temporaryAlive(r[0])) {

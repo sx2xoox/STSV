@@ -296,6 +296,8 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         ItemStack it = Items.create(s.item(), count).orElse(new ItemStack(Material.COD, count));
         double factor = FishSpec.priceFactor(s, size);
         if (!pearl && r.index() >= 2) markSize(it, size, factor);   // rare and legend fish keep their size (they do not stack, the shop pays by it)
+        boolean trial = eco.guide() != null && eco.guide().active(p);   // 길라잡이: a trial fish, and no records
+        if (trial) Items.markTrial(it);
         for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
         // what vanilla would have given: experience, rod wear, the statistic
         p.giveExp(1 + rnd.nextInt(6), true);   // applyMending: like the orb a vanilla catch drops, Mending gear takes it first
@@ -313,7 +315,7 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f + r.index() * 0.1f);
         p.sendMessage(Lang.msg(pearl ? "fishing.caught-pearl" : "fishing.caught",
                 "color", r.color(), "fish", s.name(), "size", String.format("%.1f", size), "count", count > 1 ? " ×" + count : ""));
-        if (pearl) return;
+        if (pearl || trial) return;
         boolean first = store.record(u, s.id(), size, now());
         // the codex takes one of the fish to register it (/도감)
         if (first && !eco.codex().registered(u).contains(dev.stsv.economy.shop.ShopCatalog.norm(s.item()))) {

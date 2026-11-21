@@ -50,8 +50,20 @@ import java.util.stream.Stream;
  */
 public final class ProfileModule implements StsvModule, Listener {
 
-    /** category: one of {@link TitleCategories#ORDER} (the /칭호 tab it is listed under). */
-    public record Title(String id, String name, String description, String category) {}
+    /**
+     * category: one of {@link TitleCategories#ORDER} (the /칭호 tab it is listed under). hidden ({@code hidden: true}):
+     * left out of every player's list and count until they have it ({@link dev.stsv.core.util.HiddenUntilOwned}).
+     */
+    public record Title(String id, String name, String description, String category, boolean hidden) {
+        public Title(String id, String name, String description, String category) {
+            this(id, name, description, category, false);
+        }
+    }
+
+    /** The titles a player sees in their lists: every one but the hidden ones they do not have. */
+    public static List<Title> visible(Collection<Title> all, java.util.Set<String> owned) {
+        return dev.stsv.core.util.HiddenUntilOwned.filter(all, Title::hidden, t -> owned.contains(t.id()));
+    }
 
     private STSVPlugin plugin;
     private ProfileStore store;
@@ -158,7 +170,7 @@ public final class ProfileModule implements StsvModule, Listener {
                             plugin.getLogger().warning("[칭호] " + id + ": 모르는 category '" + cat + "' (" + String.join(", ", TitleCategories.ORDER) + ")");
                         }
                         titles.put(id, new Title(id, y.getString(key + ".name", key), y.getString(key + ".description", ""),
-                                TitleCategories.of(cat, stem)));
+                                TitleCategories.of(cat, stem), y.getBoolean(key + ".hidden")));
                     }
                 }
             }
@@ -411,10 +423,10 @@ public final class ProfileModule implements StsvModule, Listener {
         return plugin.banners() != null && plugin.banners().usable(p);
     }
 
-    /** The titles of a tab ({@link TitleCategories#ALL}: every one), worn first, then owned, then the rest. */
+    /** The titles of a tab ({@link TitleCategories#ALL}: every one, less the hidden ones not owned), worn first, then owned, then the rest. */
     static List<Title> inTab(java.util.Collection<Title> all, String tab, java.util.Set<String> owned, String equipped) {
         List<Title> l = new ArrayList<>();
-        for (Title t : all) if (tab.equals(TitleCategories.ALL) || tab.equals(t.category())) l.add(t);
+        for (Title t : visible(all, owned)) if (tab.equals(TitleCategories.ALL) || tab.equals(t.category())) l.add(t);
         l.sort(java.util.Comparator.comparingInt(t -> t.id().equals(equipped) ? 0 : owned.contains(t.id()) ? 1 : 2));
         return l;
     }
@@ -437,19 +449,21 @@ public final class ProfileModule implements StsvModule, Listener {
         @Override
         public Map<String, String> placeholders(MenuView v) {
             Map<String, String> out = new java.util.HashMap<>();
-            long have = titles.values().stream().filter(t -> mine.owned().contains(t.id())).count();
+            // hidden titles the player has not got count nowhere (HiddenUntilOwned)
+            List<Title> seen = visible(titles.values(), mine.owned());
+            long have = seen.stream().filter(t -> mine.owned().contains(t.id())).count();
             out.put("owned", String.valueOf(have));
-            out.put("total", String.valueOf(titles.size()));
+            out.put("total", String.valueOf(seen.size()));
             out.put("worn", mine.equipped() == null ? Lang.raw("common.none") : title(mine.equipped()).map(Title::name).orElse(mine.equipped()));
             out.put("tab", Lang.raw("profile.title-tab." + tab));
             for (String c : TitleCategories.ORDER) {
-                long n = titles.values().stream().filter(t -> t.category().equals(c)).count();
-                long o = titles.values().stream().filter(t -> t.category().equals(c) && mine.owned().contains(t.id())).count();
+                long n = seen.stream().filter(t -> t.category().equals(c)).count();
+                long o = seen.stream().filter(t -> t.category().equals(c) && mine.owned().contains(t.id())).count();
                 out.put("n_" + c, o + "/" + n);
             }
-            out.put("n_all", have + "/" + titles.size());
+            out.put("n_all", have + "/" + seen.size());
             var b = plugin.banners();
-            out.put("n_banner", b == null || b.catalog() == null ? "0" : b.owned(v.player()) + "/" + b.catalog().themes().size());
+            out.put("n_banner", b == null || b.catalog() == null ? "0" : b.owned(v.player()) + "/" + b.listed(v.player()).size());
             out.put("banner", b == null ? Lang.raw("common.none")
                     : b.wornId(v.player().getUniqueId()).map(id -> b.catalog().theme(id)).map(dev.stsv.core.banner.BannerCatalog.Theme::name)
                     .orElse(Lang.raw("common.none")));
@@ -500,7 +514,7 @@ public final class ProfileModule implements StsvModule, Listener {
             var b = plugin.banners();
             if (b == null || !b.usable(p)) return List.of();
             // the player's own first, then the locked ones (each with a preview in their own name)
-            List<dev.stsv.core.banner.BannerCatalog.Theme> order = new ArrayList<>(b.themes());
+            List<dev.stsv.core.banner.BannerCatalog.Theme> order = new ArrayList<>(b.listed(p));
             order.sort(java.util.Comparator.comparingInt(t -> b.may(p, t.id()) ? 0 : 1));
             banners = order;
             String worn = b.wornId(p.getUniqueId()).orElse(null);
@@ -621,7 +635,8 @@ public final class ProfileModule implements StsvModule, Listener {
         final String name;
         final Map<String, Double> all, current;
         ProfileStore.Titles titlesOf;
-        final List<Title> list = new ArrayList<>(titles.values());
+        /** the target's titles to see: hidden ones only if the target has them */
+        final List<Title> list;
         /** null when there is no achievement module */
         final dev.stsv.core.achievement.AchievementModule.Summary achievements;
 
@@ -632,6 +647,7 @@ public final class ProfileModule implements StsvModule, Listener {
             this.all = all;
             this.current = current;
             this.titlesOf = t;
+            this.list = visible(titles.values(), t.owned());
             this.achievements = achievements;
         }
 

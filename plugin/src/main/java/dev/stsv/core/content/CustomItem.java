@@ -139,9 +139,15 @@ public record CustomItem(
      * @param set    the cosmetic set it belongs to (cosmetic.set, contents/stsv/cosmetic_sets.yml), or null
      * @param glow   its model is drawn at full light, also in the dark (cosmetic.glow)
      * @param motion how its model moves while worn (cosmetic.motion), or null
+     * @param hidden left out of the wardrobe and every count until the player owns it (cosmetic.hidden: a secret reward)
      */
     public record Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx,
-                           boolean donation, String set, boolean glow, Motion motion, Premium premium) {
+                           boolean donation, String set, boolean glow, Motion motion, Premium premium, boolean hidden) {
+        public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx,
+                        boolean donation, String set, boolean glow, Motion motion, Premium premium) {
+            this(slot, rarity, obtain, offset, scale, bob, fx, donation, set, glow, motion, premium, false);
+        }
+
         public Cosmetic(CosmeticSlot slot, Rarity rarity, String obtain, org.bukkit.util.Vector offset, float scale, boolean bob, Fx fx,
                         boolean donation, String set, boolean glow, Motion motion) {
             this(slot, rarity, obtain, offset, scale, bob, fx, donation, set, glow, motion, null);

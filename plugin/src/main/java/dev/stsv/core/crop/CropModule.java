@@ -970,6 +970,17 @@ public final class CropModule implements StsvModule, Listener {
         remove(s);
     }
 
+    /**
+     * Takes the crop at this block away (nothing drops, no event): a content's own area putting itself back in order (the
+     * economy server's tutorial field). Returns true when there was one.
+     */
+    public boolean clear(Block b) {
+        CropState s = b == null ? null : at(b.getWorld(), b.getX(), b.getY(), b.getZ());
+        if (s == null) return false;
+        remove(s);
+        return true;
+    }
+
     private void remove(CropState s) {
         hide(s.id);
         if (render == Render.BLOCKS) clearBlock(s);

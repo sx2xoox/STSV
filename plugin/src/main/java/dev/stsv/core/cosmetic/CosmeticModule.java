@@ -402,6 +402,11 @@ public final class CosmeticModule implements StsvModule, Listener {
      * rank can be given a specific cosmetic with the permission stsv.cosmetic.&lt;id&gt; (only if explicitly set,
      * so operators do not silently own everything).
      */
+    /** The cosmetics a player sees in their lists and counts: every one but the hidden ones they do not own (cosmetic.hidden). */
+    public List<CustomItem> listed(Player p) {
+        return dev.stsv.core.util.HiddenUntilOwned.filter(cosmetics(), c -> c.cosmetic().hidden(), c -> owns(p, c));
+    }
+
     public boolean owns(Player p, CustomItem c) {
         if (plugin.getConfig().getBoolean("cosmetics.op-owns-all") && p.hasPermission("stsv.cosmetic.*")) return true;
         String node = "stsv.cosmetic." + c.key().getKey();
@@ -1316,10 +1321,10 @@ public final class CosmeticModule implements StsvModule, Listener {
         return w != null && w.key().equals(c.key());
     }
 
-    /** Cosmetics of the open tab (every one, owned or not), before the 보기 filter. */
+    /** Cosmetics of the open tab (every one, owned or not, less the hidden ones not owned), before the 보기 filter. */
     private List<CustomItem> onTab(Player p, Session s) {
         Map<CosmeticSlot, CustomItem> worn = worn(p);
-        return cosmetics().stream().filter(c -> s.tab.equals("worn") ? isWorn(worn, c)
+        return listed(p).stream().filter(c -> s.tab.equals("worn") ? isWorn(worn, c)
                 : CosmeticBrowser.inTab(s.tab, c.cosmetic().slot())).toList();
     }
 
@@ -1373,7 +1378,7 @@ public final class CosmeticModule implements StsvModule, Listener {
             Player p = v.player();
             Map<CosmeticSlot, CustomItem> worn = worn(p);
             Map<String, String> out = new HashMap<>();
-            List<CustomItem> all = cosmetics();
+            List<CustomItem> all = listed(p);
             List<CustomItem> tab = onTab(p, s);
             out.put("owned", String.valueOf(tab.stream().filter(c -> owns(p, c)).count()));
             out.put("total", String.valueOf(tab.size()));

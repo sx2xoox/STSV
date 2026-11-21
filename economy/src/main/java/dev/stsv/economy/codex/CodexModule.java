@@ -173,6 +173,7 @@ public final class CodexModule extends EcoModule {
             }
         }
         if (taken == null) return "codex.missing";
+        if (Items.trial(taken)) return "codex.trial";   // 길라잡이: a trial thing registers nothing
         taken.subtract(1);
         put(p.getUniqueId(), item, System.currentTimeMillis());
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);

@@ -147,6 +147,7 @@ public final class AccessoryModule extends EcoModule {
     /** What the player did (mine, harvest, fish, ...): XP for every worn accessory whose effect levels on it. */
     public void activity(UUID player, String activity, double times) {
         if (player == null || times <= 0) return;
+        if (eco.guide() != null && eco.guide().active(player)) return;   // 길라잡이: practice levels nothing
         Double w = spec.activities().get(activity);
         if (w == null) return;
         ItemStack[] worn = store.worn(player);
@@ -169,6 +170,7 @@ public final class AccessoryModule extends EcoModule {
 
     /** A chance of a new accessory while doing something (drops: mine, harvest, fish, kill, machine). */
     public void drop(Player p, String kind) {
+        if (eco.guide() != null && eco.guide().active(p.getUniqueId())) return;   // 길라잡이: no drops in the tutorial
         Double base = spec.drops().get(kind);
         if (base == null || base <= 0) return;
         double chance = base * (1 + value(p.getUniqueId(), "fortune_find"));
@@ -832,6 +834,10 @@ public final class AccessoryModule extends EcoModule {
         public void onPlayerInventoryClick(MenuView v, int clicked, ClickType click) {
             Accessory a = read(v.player().getInventory().getItem(clicked));
             if (a == null) return;
+            if (Items.trial(v.player().getInventory().getItem(clicked))) {   // 길라잡이: a trial accessory is not worked on
+                HudModule.flash(v.player(), Lang.mm("guide.no-trial-workshop"));
+                return;
+            }
             slot = clicked;
             serial = a.serial;
             subPick = 0;

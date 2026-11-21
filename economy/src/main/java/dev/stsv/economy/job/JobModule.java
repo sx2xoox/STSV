@@ -309,6 +309,8 @@ public final class JobModule extends EcoModule {
     }
 
     private void reward(Player p, String action, String thing, double times) {
+        // 길라잡이: what is done in the tutorial counts there only (no XP, stats, missions or achievements)
+        if (eco.guide() != null && eco.guide().jobAction(p, action, thing, times)) return;
         // 업적 stats: counted for everyone, job or not
         String stat = switch (action) {
             case "break" -> "ores_mined";
@@ -701,6 +703,7 @@ public final class JobModule extends EcoModule {
             chance *= 1 + eco.accessories().value(u, "rare_find");   // 장신구 귀한 발견
             if (chance <= 0 || r.nextDouble() >= chance) continue;
             Items.create(s.item(), 1).ifPresent(g -> {
+                if (eco.guide() != null && eco.guide().active(p)) Items.markTrial(g);   // 길라잡이: found in the tutorial
                 if (at == null) {
                     for (ItemStack left : p.getInventory().addItem(g).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
                 } else {
@@ -919,7 +922,7 @@ public final class JobModule extends EcoModule {
         switch (e.action()) {
             case PLANT -> {
                 String job = e.crop().extra().get("job");
-                if (job == null || p.hasPermission("stsv.economy.admin")) return;
+                if (job == null || p.hasPermission("stsv.economy.admin") || eco.guide() != null && eco.guide().active(p)) return;
                 int need = Integer.parseInt(e.crop().extra().getOrDefault("level", "1"));
                 if (!job.equals(job(u)) || level(u) < need) {
                     e.setCancelled(true);

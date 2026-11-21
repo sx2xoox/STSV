@@ -271,6 +271,7 @@ public final class RankModule extends EcoModule implements WeeklyListener {
         List<String> list = new java.util.ArrayList<>(eco.getConfig().getStringList("rank.weekly-legendary"));
         core.cosmetics().cosmetics().stream()
                 .filter(c -> c.cosmetic().rarity() == dev.stsv.core.content.CustomItem.Rarity.LEGENDARY)
+                .filter(c -> !c.cosmetic().hidden())   // 숨긴 치장(cosmetic.hidden): 얻는 길로만
                 .map(c -> c.key().asString()).sorted()
                 .filter(id -> !id.startsWith("stsv:agent_"))   // 마을버스 비밀 의뢰 보상: 그 의뢰로만
                 .filter(id -> !list.contains(id)).forEach(list::add);

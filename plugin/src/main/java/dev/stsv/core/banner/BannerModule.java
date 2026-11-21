@@ -138,6 +138,16 @@ public final class BannerModule implements StsvModule, Listener {
         return List.copyOf(catalog.themes().values());
     }
 
+    /** Themes kept out of the lists until owned (config title-banners.hidden: the secret mission's secret_agent). */
+    public boolean hidden(String themeId) {
+        return plugin.getConfig().getStringList("title-banners.hidden").contains(themeId);
+    }
+
+    /** The themes a player sees in the banner list: every one but the hidden ones they may not wear (admins see all). */
+    public List<BannerCatalog.Theme> listed(Player p) {
+        return dev.stsv.core.util.HiddenUntilOwned.filter(catalog.themes().values(), t -> hidden(t.id()), t -> may(p, t.id()));
+    }
+
     // ------------------------------------------------------------------------------------------
     // Wearing
     // ------------------------------------------------------------------------------------------

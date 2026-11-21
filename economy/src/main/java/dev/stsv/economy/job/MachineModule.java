@@ -230,6 +230,31 @@ public final class MachineModule extends EcoModule {
         }
     }
 
+    /** 길라잡이: a trial machine works this many times faster (the tutorial does not wait a minute for a ruby). */
+    static final int TRIAL_SPEED = 15;
+
+    /** 길라잡이: a machine a player placed in the tutorial (its things are trial things, it is taken away afterwards). */
+    private boolean trial(Machine m) {
+        return eco.guide() != null && eco.guide().trialMachine(m.id);
+    }
+
+    /** 길라잡이: the window of the machine on this furniture (its display's id), or null. */
+    public org.bukkit.inventory.Inventory inventory(UUID machine) {
+        Machine m = machines.get(machine);
+        return m == null ? null : m.inv;
+    }
+
+    /** 길라잡이: the machine (its furniture display's id) whose window this is, or null. */
+    public UUID machineOf(org.bukkit.inventory.Inventory inv) {
+        return inv != null && inv.getHolder(false) instanceof Machine m ? m.id : null;
+    }
+
+    /** 길라잡이: the kind of the machine on this furniture (machines.yml id), or null. */
+    public String typeOf(UUID machine) {
+        Machine m = machines.get(machine);
+        return m == null ? null : m.spec.id();
+    }
+
     public Map<String, MachineSpec> specs() {
         return specs;
     }
@@ -424,6 +449,7 @@ public final class MachineModule extends EcoModule {
      */
     private ItemStack product(Machine m, MachineSpec.Recipe r, int amount, UUID op) {
         ItemStack it = Items.create(r.output(), amount).orElse(null);
+        if (it != null && trial(m)) Items.markTrial(it);   // 길라잡이: what a trial machine makes is a trial thing too
         if (it == null || op == null) return it;
         // the account name: goods stack by this line, a nickname change must not split them
         String name = Players.accountName(op);
@@ -515,13 +541,13 @@ public final class MachineModule extends EcoModule {
                 l.blocked = l.mixed || !(slot == null || slot.isEmpty() || slot.getAmount() + maxAmount(m, r, op) <= slot.getMaxStackSize());
                 if (l.blocked) continue;
                 any = true;
-                l.progress += 1;
+                l.progress += trial(m) ? TRIAL_SPEED : 1;
                 m.dirty = true;
                 if (l.progress >= seconds(m, r, op) * (l.focused ? 0.5 : 1)) {
                     l.progress = 0;
                     l.focused = false;
                     complete(m, k, r, op);
-                    if (op != null && eco.accessories() != null) {
+                    if (op != null && eco.accessories() != null && !trial(m)) {
                         eco.accessories().activity(op, "machine", 1);
                         if (eco.accessories().roll(op, "focus")) l.focused = true;   // 장인의 집중
                         Player opp = Bukkit.getPlayer(op);
@@ -597,11 +623,12 @@ public final class MachineModule extends EcoModule {
         ItemStack slot = m.inv.getItem(output(lane));
         if (slot == null || slot.isEmpty()) m.inv.setItem(output(lane), product);
         else slot.setAmount(Math.min(slot.getMaxStackSize(), slot.getAmount() + product.getAmount()));
-        if (op != null && job != null) eco.jobs().addXp(op, job, value(r.output()) * amount * settings.xpPerGold());
+        boolean counts = op != null && job != null && !trial(m);   // 길라잡이 trial machines give no XP and count for nothing
+        if (counts) eco.jobs().addXp(op, job, value(r.output()) * amount * settings.xpPerGold());
         // 미션·업적 '직업 기계로 만들기': the press (no job) does not count
-        if (op != null && job != null) core.profiles().add(op, "machine_made", amount);
+        if (counts) core.profiles().add(op, "machine_made", amount);
         // 미션: what was made on each job's machine (made_miner = 세공대 ...)
-        if (op != null && job != null) core.profiles().add(op, "made_" + job, amount);
+        if (counts) core.profiles().add(op, "made_" + job, amount);
         m.dirty = true;
         for (var v : m.inv.getViewers()) if (v instanceof Player p) p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.5f, 1.2f);
         Player p = op == null ? null : Bukkit.getPlayer(op);
@@ -838,6 +865,10 @@ public final class MachineModule extends EcoModule {
     }
 
     private void upgrade(Player p, Machine m) {
+        if (trial(m)) {
+            HudModule.flash(p, Lang.mm("guide.no-trial-upgrade"));
+            return;
+        }
         MachineSpec.Settings settings = settings(m);
         int next = m.tier + 1;
         if (next > settings.maxTier()) {

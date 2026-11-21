@@ -171,3 +171,4 @@ secret_agent:
   name: "<gradient:#fff3c4:#e8b84a><b>[비밀 요원]</b></gradient>"
   description: "수상한 선글라스 남자의 비밀 임무를 끝까지 해냈다"
   category: event
+  hidden: true        # 얻은 사람에게만 /칭호 · /프로필 목록과 개수에 보임

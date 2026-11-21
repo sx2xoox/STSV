@@ -230,6 +230,8 @@ public final class ShopModule extends EcoModule implements DailyListener {
 
     /** The same, taking the clicked storage slot first (-1: none), so a clicked small fish is sold and not the trophy before it. */
     public Object sell(Player p, ItemStack sample, int count, int first) {
+        // 길라잡이: a trial thing sells for practice only (shows its price, pays nothing)
+        if (eco.guide() != null && eco.guide().active(p) && Items.trial(sample)) return eco.guide().practiceSell(p, sample, count, first);
         String id = Items.key(sample);
         ShopCatalog.SellEntry e = catalog.sell().get(id);
         if (e == null || !Items.plain(sample, id)) return "shop.not-buying";

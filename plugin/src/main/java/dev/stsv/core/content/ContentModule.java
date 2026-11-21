@@ -421,7 +421,8 @@ public final class ContentModule implements StsvModule, org.bukkit.event.Listene
             if (set != null && !set.matches("[a-z0-9_]{1,32}")) throw new IllegalArgumentException("cosmetic.set 은 a-z 0-9 _ (1 ~ 32자)");
             cosmetic = new CustomItem.Cosmetic(slot, rarity, sec.getString("cosmetic.obtain"),
                     off.size() == 3 ? new org.bukkit.util.Vector(off.get(0), off.get(1), off.get(2)) : new org.bukkit.util.Vector(),
-                    (float) scale, sec.getBoolean("cosmetic.bob"), fx, exclusive != null, set, sec.getBoolean("cosmetic.glow"), motion, premium);
+                    (float) scale, sec.getBoolean("cosmetic.bob"), fx, exclusive != null, set, sec.getBoolean("cosmetic.glow"), motion, premium,
+                    sec.getBoolean("cosmetic.hidden"));
         }
 
         CustomItem.Effects effects = sec.isConfigurationSection("effects")

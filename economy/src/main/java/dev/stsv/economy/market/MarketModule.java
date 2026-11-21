@@ -80,6 +80,7 @@ public final class MarketModule extends EcoModule {
         if (it == null || it.isEmpty()) return "market.hold-item";
         if (core.economy().isCheque(it)) return "market.no-cheques";
         if (core.vehicles() != null && core.vehicles().noTrade(it)) return "market.no-vehicles";
+        if (Items.trial(it)) return "market.no-trial";
         if (store.count(p.getUniqueId()) >= limit(p.getUniqueId())) return "market.full";
         return null;
     }
