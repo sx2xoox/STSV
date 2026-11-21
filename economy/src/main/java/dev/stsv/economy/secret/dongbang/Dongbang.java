@@ -13,10 +13,12 @@ import dev.stsv.economy.stock.StockGraph;
 import dev.stsv.economy.stock.StockModule;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.block.Block;
@@ -28,6 +30,7 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -37,6 +40,7 @@ import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -49,13 +53,15 @@ import java.util.UUID;
  * its ship went down during a shareholders' meeting held on board, and the twelve shareholders are "missing". One share
  * is left, and the meeting has waited ever since for its thirteenth member.
  * <ol>
- *     <li>보유: once a day, for one minute, a grey "동방해운 (거래정지)" sits at the bottom of the player's /주식 list. They
- *     buy its one share; its price then follows them only (up while online, down while away, swinging by water).</li>
- *     <li>통지: the next day a soaked 주주총회 소집 통지서 comes to the mailbox: the 본사 address is the price at two
- *     midnights (east-west, then north-south), the last candle's colour the sign ({@link Ticker}).</li>
- *     <li>소집: after the second midnight the share is halted at |z|; at the 본사 a wet boardroom only they see waits
- *     ({@link Boardroom}). Sitting in the empty 13th chair brings the vote: 찬성 frees them (solved), 반대 floods the
- *     room (try again after the next midnight).</li>
+ *     <li>보유: rarely (offer.chance a day), for one minute while they are on, a grey "동방해운 (거래정지)" sits at the
+ *     bottom of a player's /주식 list (a ghost news line in chat says so). They buy its one share; its price then follows
+ *     them only (up while online, down while away, swinging by water).</li>
+ *     <li>교신: after ~30 minutes of play holding it, a soaked 주주총회 소집 통지서 comes to the mailbox: the 본사 address is
+ *     동방호's last radio log, six numbered lines spread over the notice, their news, the company window and its chart
+ *     ({@link Radio}).</li>
+ *     <li>총회: at the 본사 a wet boardroom only they see waits ({@link Boardroom}). Twelve faceless shareholders each say
+ *     one line; one of them was never aboard ({@link Inquest}). Naming the right one frees the eleven (solved); a wrong
+ *     name floods the room (shut until the next day, with new lines next time).</li>
  * </ol>
  * Selling the share ends it for that player for good (a letter: "…또 혼자 남았군요."). The solver gets a daily dividend.
  */
@@ -70,6 +76,12 @@ public final class Dongbang extends Secret {
     private final Map<UUID, Long> offered = new HashMap<>();
     /** Admin 연출 목록: the row shows regardless of the minute, until then (ms). */
     private final Map<UUID, Long> forced = new HashMap<>();
+    /** The day's one minute is up for them until then (ms). */
+    private final Map<UUID, Long> offerUntil = new HashMap<>();
+    /** Online minutes today toward the day's offer minute: day key → minutes (only for players whose day it is). */
+    private final Map<UUID, Map.Entry<String, Integer>> offerClock = new HashMap<>();
+    /** Holding seconds online toward the notice (saved now and then as "held-s"). */
+    private final Map<UUID, Long> held = new HashMap<>();
     private final Map<UUID, Long> sellConfirm = new HashMap<>();
     private final Map<UUID, Boolean> water = new HashMap<>();
     /** Players whose 본사 is being chosen, with what waits for it. */
@@ -94,7 +106,7 @@ public final class Dongbang extends Secret {
         return "동방해운";
     }
 
-    /** 1 보유 · 2 통지 · 3 소집 (4 = solved). */
+    /** 1 보유 · 2 교신 (notice in hand, finding the 본사) · 3 총회 (entered the boardroom) (4 = solved). */
     @Override
     public int stages() {
         return 3;
@@ -159,12 +171,9 @@ public final class Dongbang extends Secret {
         return Math.max(1, cfg.getLong("share.price", 1987));
     }
 
-    private Ticker.Rules rules(Ticker.Clock clock) {
-        double hours = cfg.getDouble("price.approach-hours", 3);
-        int candles = (int) Math.round(hours / 24 * clock.candlesPerDay());
+    private Ticker.Rules rules() {
         return new Ticker.Rules(cfg.getDouble("price.online", 0.005), cfg.getDouble("price.offline", 0.003), cfg.getDouble("price.noise", 0.004),
-                cfg.getDouble("price.water", 0.05), cfg.getDouble("price.last-candle", 0.04), Math.max(clock.test() ? 4 : 2, candles),
-                cfg.getDouble("price.min", 100), cfg.getDouble("price.max", 20_000));
+                cfg.getDouble("price.water", 0.05), cfg.getDouble("price.min", 100), cfg.getDouble("price.max", 20_000));
     }
 
     static String money(double v) {
@@ -189,19 +198,11 @@ public final class Dongbang extends Secret {
         } catch (NumberFormatException e) {
             price = buyPrice();
         }
-        k = new Ticker(clock, rules(clock), price, m.getLong(this, u, "t", now));
+        k = new Ticker(clock, rules(), price, m.getLong(this, u, "t", now));
         Ticker.decode(m.get(this, u, "m10"), k.m10);
         Ticker.decode(m.get(this, u, "h2"), k.h2);
         Ticker.decode(m.get(this, u, "d1"), k.d1);
         Ticker.decodeCloses(m.get(this, u, "closes"), k.closes);
-        k.kx = m.getLong(this, u, "kx", 0);
-        k.x = (int) m.getLong(this, u, "x", 0);
-        k.z = (int) m.getLong(this, u, "z", 0);
-        try {
-            k.p0 = Double.parseDouble(m.get(this, u, "p0", "-1"));
-        } catch (NumberFormatException e) {
-            k.p0 = -1;
-        }
         tickers.put(u, k);
         k.advance(now, Ticker.Mood.OFFLINE, rnd);
         save(u, k);
@@ -215,8 +216,6 @@ public final class Dongbang extends Secret {
         m.set(this, u, "h2", Ticker.encode(k.h2));
         m.set(this, u, "d1", Ticker.encode(k.d1));
         m.set(this, u, "closes", Ticker.encodeCloses(k.closes));
-        m.set(this, u, "kx", k.kx);
-        m.set(this, u, "p0", Ticker.num(k.p0));
     }
 
     private boolean holding(UUID u) {
@@ -245,7 +244,7 @@ public final class Dongbang extends Secret {
         long now = System.currentTimeMillis();
         m.set(this, u, "bought", now);
         Ticker.Clock clock = new Ticker.Clock(m.test(u), m.day(u));
-        Ticker k = new Ticker(clock, rules(clock), buyPrice(), now);
+        Ticker k = new Ticker(clock, rules(), buyPrice(), now);
         k.record(now, buyPrice());
         tickers.put(u, k);
         save(u, k);
@@ -255,7 +254,10 @@ public final class Dongbang extends Secret {
     /** Forgets the share (not the stage). */
     private void wipe(UUID u) {
         cleanup(u);
-        for (String k : List.of("price", "t", "m10", "h2", "d1", "closes", "kx", "p0", "bought", "notice-at", "lost-day", "sold", "sold-at", "x", "z", "news-end", "news-echo"))
+        held.remove(u);
+        for (String k : List.of("price", "t", "m10", "h2", "d1", "closes", "bought", "held-s", "notice-at", "found", "news-n", "run", "names",
+                "locked-until", "sold", "sold-at", "x", "z", "news-end", "news-echo", "offer-min", "offer-day",
+                "kx", "p0", "lost-day"))
             m.remove(this, u, k);
     }
 
@@ -271,27 +273,12 @@ public final class Dongbang extends Secret {
         if (stage == 1) return;
         pick(u, () -> {
             if (!p.isOnline()) return;
-            Ticker k = ticker(u);
-            long now = System.currentTimeMillis();
-            if (stage == 2) {
-                notice(p, k, now);
-                return;
-            }
-            // 3: both midnights have passed (yesterday's end = |x|, today's start = |z|), halted at |z|
-            long today = k.clock.dayStart(now), len = k.clock.length();
-            k.x = (int) m.getLong(this, u, "x", 0);
-            k.z = (int) m.getLong(this, u, "z", 0);
-            k.kx = today - len;
-            k.closes.clear();
-            k.closes.add(new Ticker.Close(today - len, Math.abs(k.x), k.x > 0));
-            k.closes.add(new Ticker.Close(today, Math.abs(k.z), k.z > 0));
-            k.price = Math.abs(k.z);
-            k.t = now;
-            k.record(today - 1, Math.abs(k.z));
-            save(u, k);
-            m.set(this, u, "notice-at", today - 2 * len);
+            notice(p, System.currentTimeMillis());
+            if (stage < 3) return;
+            // 3: every line of the log is known, the notice is in hand; the room opens at the 본사
+            m.set(this, u, "found", 0x3f);
             m.stage(this, u, 3);
-            p.getInventory().addItem(noticeItem(k, now));
+            p.getInventory().addItem(noticeItem(u));
         });
     }
 
@@ -301,8 +288,12 @@ public final class Dongbang extends Secret {
         if (k != null && holding(u)) save(u, k);
         Boardroom r = rooms.remove(u);
         if (r != null) r.teardown();
+        Long h = held.remove(u);
+        if (h != null && m.stage(this, u) == 1) m.set(this, u, "held-s", h);
         offered.remove(u);
         forced.remove(u);
+        offerUntil.remove(u);
+        offerClock.remove(u);
         sellConfirm.remove(u);
         water.remove(u);
         echoed.remove(u);
@@ -319,18 +310,26 @@ public final class Dongbang extends Secret {
         }
         if (holding(u)) {
             Ticker k = tickers.get(u);
-            String price = k != null ? money(k.price) : money(parse(m.get(this, u, "price")));
-            out.add("주가 " + price + (k != null && k.halted(System.currentTimeMillis()) ? " (거래정지)" : ""));
-            long kx = m.getLong(this, u, "kx", 0);
-            if (kx > 0) {
-                Ticker.Clock c = new Ticker.Clock(m.test(u), m.day(u));
-                out.add("자정 " + when(c, kx) + " / " + when(c, kx + c.length()));
+            out.add("주가 " + (k != null ? money(k.price) : money(parse(m.get(this, u, "price")))));
+            if (st == 1) out.add("통지서까지 " + Math.max(0, noticeAfter(u) - heldSeconds(u)) + "초 (접속한 채로)");
+            if (st >= 2) {
+                int found = (int) m.getLong(this, u, "found", 0);
+                out.add("교신 " + Radio.count(found) + "/6 (" + Radio.list(found) + ")");
+                Inquest q = inquest(u);
+                String names = m.get(this, u, "names");
+                String who = names == null ? "" : " " + names.split("\n", -1)[q.liar];
+                out.add("<yellow>정답 " + seatLabel(q.liar) + who + "</yellow> · 시도 " + (m.getLong(this, u, "run", 0) + 1) + "번째");
+                long lock = m.getLong(this, u, "locked-until", 0);
+                if (lock > System.currentTimeMillis()) out.add("회의실 닫힘 (" + when(lock) + "까지)");
             }
-            String lost = m.get(this, u, "lost-day");
-            if (lost != null && lost.equals(m.today(u))) out.add("오늘 반대함 (다음 자정 뒤 다시)");
         }
         if (st > stages()) out.add(m.getLong(this, u, "test-solved", 0) != 0 ? "테스트로 풂 (배당 없음)" : "배당 마지막 " + m.get(this, u, "div-day", "-"));
         return String.join(" · ", out);
+    }
+
+    /** "서쪽 줄 3번째 (3번 자리)": rows are counted from the door. */
+    static String seatLabel(int seat) {
+        return (Inquest.row(seat) == 0 ? "서쪽" : "동쪽") + " 줄 문에서 " + (seat % Inquest.ROW + 1) + "번째 (" + (seat + 1) + "번 자리)";
     }
 
     private static double parse(String s) {
@@ -341,12 +340,10 @@ public final class Dongbang extends Secret {
         }
     }
 
-    private static String when(Ticker.Clock c, long midnight) {
-        if (c.test()) {
-            long s = (midnight - System.currentTimeMillis()) / 1000;
-            return s >= 0 ? s + "초 뒤" : -s + "초 전";
-        }
-        return DateTimeFormatter.ofPattern("M/d HH:mm").format(Instant.ofEpochMilli(midnight).atZone(SecretModule.KST));
+    private static String when(long at) {
+        long s = (at - System.currentTimeMillis()) / 1000;
+        if (s < 3600) return s + "초 뒤";
+        return DateTimeFormatter.ofPattern("M/d HH:mm").format(Instant.ofEpochMilli(at).atZone(SecretModule.KST));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -440,28 +437,39 @@ public final class Dongbang extends Secret {
                 dividend(p);
                 continue;
             }
+            if (st == 0) {
+                if (newMinute) offerClock(p, now);
+                continue;
+            }
             if (st < 1 || st > stages() || !open(u)) continue;
             Ticker k = ticker(u);
             long bucket = k.m10.isEmpty() ? 0 : k.m10.getLast().t();
             boolean wet = wet(p);
             List<Ticker.Close> crossed = k.advance(now, wet ? Ticker.Mood.WATER : Ticker.Mood.ONLINE, rnd);
-            for (Ticker.Close c : crossed) {
-                if (k.kx != 0 && (c.at() == k.kx || c.at() == k.kz())) midnight(p);
-            }
             if (!crossed.isEmpty() || (!k.m10.isEmpty() && k.m10.getLast().t() != bucket)) save(u, k);
-            if (st == 1 && k.clock.dayStart(now) > k.clock.dayStart(m.getLong(this, u, "bought", now))) {
-                pick(u, () -> {
-                    if (p.isOnline() && m.stage(this, u) == 1) notice(p, ticker(u), System.currentTimeMillis());
+            if (st == 1) {
+                long h = heldSeconds(u) + 1;
+                held.put(u, h);
+                if (h % 15 == 0) m.set(this, u, "held-s", h);
+                if (h >= noticeAfter(u)) pick(u, () -> {
+                    if (p.isOnline() && m.stage(this, u) == 1) notice(p, System.currentTimeMillis());
                 });
-            } else if (st == 2 && k.kx != 0 && now >= k.kz()) {
-                m.stage(this, u, 3);
-                p.sendMessage(Text.mm(line("haunt.convene")));
-                m.haunt().sound(p, p.getLocation(), Sound.EVENT_RAID_HORN, 0.4f, 0.5f);
-            } else if (st == 3) {
+            } else {
                 meet(p);
             }
             if (newMinute) haunt(p, wet);
         }
+    }
+
+    /** Seconds held while online (toward the notice). */
+    private long heldSeconds(UUID u) {
+        Long h = held.get(u);
+        return h != null ? h : m.getLong(this, u, "held-s", 0);
+    }
+
+    /** Online seconds holding the share before the notice comes. */
+    private long noticeAfter(UUID u) {
+        return m.test(u) ? Math.max(1, cfg.getLong("notice.test-after-seconds", 20)) : Math.max(1, cfg.getLong("notice.after-minutes", 30)) * 60L;
     }
 
     /** By water: in it, or water within 2 blocks (checked every 2 seconds). */
@@ -489,12 +497,6 @@ public final class Dongbang extends Secret {
         if (wet && rnd.nextDouble() < 0.5) m.haunt().behind(p, Sound.BLOCK_POINTED_DRIPSTONE_DRIP_WATER, 0.7f, 0.8f + rnd.nextFloat() * 0.3f);
     }
 
-    /** A key midnight while they are on: a ship's horn far off, and a reminder. */
-    private void midnight(Player p) {
-        m.haunt().sound(p, p.getLocation().add(p.getLocation().getDirection().multiply(-40)), Sound.EVENT_RAID_HORN, 0.5f, 0.5f);
-        m.haunt().whisper(p, line("haunt.midnight"));
-    }
-
     private void dividend(Player p) {
         UUID u = p.getUniqueId();
         if (m.getLong(this, u, "test-solved", 0) != 0) return;
@@ -511,29 +513,51 @@ public final class Dongbang extends Secret {
     // the notice and the letter
     // ------------------------------------------------------------------------------------------
 
-    /** Day 2: the notice comes to the mailbox and the two key midnights are set. */
-    void notice(Player p, Ticker k, long now) {
+    /** The notice comes to the mailbox: stage 2, and the first line of the radio log is theirs. */
+    void notice(Player p, long now) {
         UUID u = p.getUniqueId();
-        k.notice(now, (int) m.getLong(this, u, "x", 0), (int) m.getLong(this, u, "z", 0));
-        save(u, k);
         m.set(this, u, "notice-at", now);
+        m.remove(this, u, "held-s");
+        held.remove(u);
         m.stage(this, u, 2);
-        eco.mail().store().send(u, Items.bytes(noticeItem(k, now)), "dongbang", now);
+        found(u, 1);
+        eco.mail().store().send(u, Items.bytes(noticeItem(u)), "dongbang", now);
         p.sendMessage(Text.msg(line("notice.arrived")));
         m.haunt().behind(p, Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 0.6f);
     }
 
-    ItemStack noticeItem(Ticker k, long now) {
-        String first = dateOf(k, k.kx, now), second = dateOf(k, k.kz(), now);
+    ItemStack noticeItem(UUID u) {
+        String first = radio(u).getFirst();
         List<String> lore = new ArrayList<>();
-        for (String l : lines("notice.lore")) lore.add(l.replace("{first}", first).replace("{second}", second));
+        for (String l : lines("notice.lore")) lore.add(l.replace("{fragment}", first));
         return paper(NOTICE, line("notice.name"), lore);
     }
 
-    private String dateOf(Ticker k, long midnight, long now) {
-        if (k.clock.test()) return line("notice.test-date").replace("{seconds}", String.valueOf(Math.max(0, (midnight - now) / 1000)));
-        ZonedDateTime day = Instant.ofEpochMilli(midnight - 1).atZone(SecretModule.KST);
-        return DateTimeFormatter.ofPattern(cfg.getString("notice.date-format", "M월 d일 밤 12시"), Locale.KOREAN).format(day);
+    // ------------------------------------------------------------------------------------------
+    // the radio log (마지막 교신)
+    // ------------------------------------------------------------------------------------------
+
+    /** Their six lines (the 본사 if chosen; an example address otherwise, for previews). */
+    List<String> radio(UUID u) {
+        int x = (int) m.getLong(this, u, "x", -1352), z = (int) m.getLong(this, u, "z", 392);
+        Radio.Words w = new Radio.Words(cfg.getString("radio.east", "해 뜨는 쪽"), cfg.getString("radio.west", "해 지는 쪽"),
+                cfg.getString("radio.south", "남"), cfg.getString("radio.north", "북"));
+        return Radio.lines(x, z, lines("radio.lines"), w);
+    }
+
+    /** They have seen line n (1..6). */
+    private void found(UUID u, int n) {
+        int f = (int) m.getLong(this, u, "found", 0), g = Radio.mark(f, n);
+        if (g != f) m.set(this, u, "found", g);
+    }
+
+    /** The next news line of the log for them (2 → 4 → 6 → 2 …), marked seen. */
+    private String nextNewsLine(UUID u) {
+        long n = m.getLong(this, u, "news-n", 0);
+        m.set(this, u, "news-n", n + 1);
+        int line = Radio.NEWS[(int) Math.floorMod(n + (u.getLeastSignificantBits() & 0xff), Radio.NEWS.length)];
+        found(u, line);
+        return radio(u).get(line - 1);
     }
 
     ItemStack paper(String id, String name, List<String> lore) {
@@ -561,7 +585,7 @@ public final class Dongbang extends Secret {
         double dx = p.getX() - (hq.getBlockX() + 0.5), dz = p.getZ() - (hq.getBlockZ() + 0.5);
         int r = cfg.getInt("meeting.radius", 16);
         if (dx * dx + dz * dz > (double) r * r) return;
-        if (m.today(u).equals(m.get(this, u, "lost-day"))) {
+        if (m.getLong(this, u, "locked-until", 0) > System.currentTimeMillis()) {
             if (rnd.nextInt(20) == 0) m.haunt().whisper(p, line("meeting.closed-today"));
             return;
         }
@@ -569,12 +593,54 @@ public final class Dongbang extends Secret {
     }
 
     Boardroom room(Player p, Location center, boolean preview) {
-        Boardroom old = rooms.remove(p.getUniqueId());
+        UUID u = p.getUniqueId();
+        Boardroom old = rooms.remove(u);
         if (old != null) old.teardown();
-        Boardroom r = new Boardroom(this, p, center, preview);
-        rooms.put(p.getUniqueId(), r);
+        List<String> names = new ArrayList<>();
+        for (String n : names(u, !preview)) names.add(MiniMessage.miniMessage().escapeTags(n));
+        Boardroom r = new Boardroom(this, p, center, preview, inquest(u), names);
+        rooms.put(u, r);
         r.build();
         return r;
+    }
+
+    /** This run's puzzle: the same until a wrong answer (kv "run" counts those). */
+    Inquest inquest(UUID u) {
+        long run = m.getLong(this, u, "run", 0);
+        long seed = u.getMostSignificantBits() * 31 ^ u.getLeastSignificantBits() ^ (run + 1) * 0x9E3779B97F4A7C15L ^ 0x1987L;
+        return Inquest.make(seed, new Inquest.Sizes(lines("meeting.testimony.fact-true").size(), lines("meeting.testimony.fact-false").size()));
+    }
+
+    /** The testimony wordings, by kind key. */
+    Map<String, List<String>> testimonies() {
+        Map<String, List<String>> out = new HashMap<>();
+        var sec = cfg.getConfigurationSection("meeting.testimony");
+        if (sec != null) for (String k : sec.getKeys(false)) out.put(k, sec.getStringList(k));
+        return out;
+    }
+
+    /**
+     * The twelve names on the chairs (plain text): the twelve most recently seen players other than them, kept for the
+     * whole run (kv "names") so the lines keep pointing at the same people; "주주 n번" for the empty places.
+     */
+    List<String> names(UUID u, boolean keep) {
+        String saved = m.get(this, u, "names");
+        if (saved != null) {
+            String[] w = saved.split("\n", -1);
+            if (w.length == Inquest.SEATS) return List.of(w);
+        }
+        List<OfflinePlayer> all = new ArrayList<>(List.of(Bukkit.getOfflinePlayers()));
+        all.removeIf(o -> o.getUniqueId().equals(u) || o.getName() == null);
+        all.sort(Comparator.comparingLong(OfflinePlayer::getLastSeen).reversed());
+        List<String> out = new ArrayList<>();
+        for (OfflinePlayer o : all) {
+            if (out.size() == Inquest.SEATS) break;
+            out.add(o.getName());
+        }
+        String empty = cfg.getString("meeting.empty-name", "주주 {seat}번");
+        while (out.size() < Inquest.SEATS) out.add(empty.replace("{seat}", String.valueOf(out.size() + 1)));
+        if (keep) m.set(this, u, "names", String.join("\n", out));
+        return out;
     }
 
     /** The room says it is gone (teardown). */
@@ -582,7 +648,15 @@ public final class Dongbang extends Secret {
         rooms.remove(r.viewer(), r);
     }
 
-    /** 찬성: the end. */
+    /** First step into the real room: the meeting is in session (stage 3). */
+    void entered(Player p) {
+        UUID u = p.getUniqueId();
+        if (m.stage(this, u) != 2) return;
+        m.stage(this, u, 3);
+        m.haunt().sound(p, p.getLocation(), Sound.EVENT_RAID_HORN, 0.4f, 0.5f);
+    }
+
+    /** Named the right one: the end. */
     void solved(Player p) {
         UUID u = p.getUniqueId();
         boolean test = m.test(u);
@@ -604,9 +678,16 @@ public final class Dongbang extends Secret {
         return paper(CERTIFICATE, line("meeting.certificate.name"), lore);
     }
 
-    /** 반대: nothing more today. */
-    void lost(Player p) {
-        m.set(this, p.getUniqueId(), "lost-day", m.today(p.getUniqueId()));
+    /** Named the wrong one: the room is shut until the next day (test: a few minutes), and the next run is a new puzzle. */
+    void lost(Player p, boolean preview) {
+        if (preview) return;
+        UUID u = p.getUniqueId();
+        long now = System.currentTimeMillis();
+        long until = m.test(u) ? now + Math.max(1, cfg.getLong("meeting.test-retry-minutes", 10)) * 60_000L
+                : new Ticker.Clock(false, 0).nextMidnight(now);
+        m.set(this, u, "locked-until", until);
+        m.set(this, u, "run", m.getLong(this, u, "run", 0) + 1);
+        m.remove(this, u, "names");
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -620,12 +701,22 @@ public final class Dongbang extends Secret {
     public void onInteract(PlayerInteractEvent e) {
         if (e.getHand() != EquipmentSlot.HAND || !e.getAction().isRightClick()) return;
         Boardroom r = rooms.get(e.getPlayer().getUniqueId());
-        if (r != null && r.clicked()) e.setCancelled(true);
+        if (r != null && r.clicked(null)) e.setCancelled(true);
     }
 
     @EventHandler
-    public void onBallotClick(InventoryClickEvent e) {
-        if (!(e.getView().getTopInventory().getHolder(false) instanceof Boardroom.Ballot b)) return;
+    public void onInteractEntity(PlayerInteractEntityEvent e) {
+        if (e.getHand() != EquipmentSlot.HAND) return;
+        Boardroom r = rooms.get(e.getPlayer().getUniqueId());
+        if (r != null && r.seatOf(e.getRightClicked()) >= 0) {
+            e.setCancelled(true);
+            r.clicked(e.getRightClicked());
+        }
+    }
+
+    @EventHandler
+    public void onMotionClick(InventoryClickEvent e) {
+        if (!(e.getView().getTopInventory().getHolder(false) instanceof Boardroom.Motion b)) return;
         e.setCancelled(true);
         if (e.getClickedInventory() != e.getView().getTopInventory()) return;
         Boardroom r = rooms.get(b.viewer());
@@ -633,38 +724,67 @@ public final class Dongbang extends Secret {
             e.getWhoClicked().closeInventory();
             return;
         }
-        if (e.getRawSlot() == Boardroom.Ballot.YES) r.vote(true);
-        else if (e.getRawSlot() == Boardroom.Ballot.NO) r.vote(false);
+        if (e.getRawSlot() == Boardroom.Motion.YES) r.accuse(b.seat);
+        else if (e.getRawSlot() == Boardroom.Motion.NO) e.getWhoClicked().closeInventory();
     }
 
     @EventHandler
-    public void onBallotDrag(InventoryDragEvent e) {
-        if (e.getView().getTopInventory().getHolder(false) instanceof Boardroom.Ballot) e.setCancelled(true);
-    }
-
-    @EventHandler
-    public void onBallotClose(InventoryCloseEvent e) {
-        if (!(e.getInventory().getHolder(false) instanceof Boardroom.Ballot b)) return;
-        Boardroom r = rooms.get(b.viewer());
-        if (r != null) r.ballotClosed();
+    public void onMotionDrag(InventoryDragEvent e) {
+        if (e.getView().getTopInventory().getHolder(false) instanceof Boardroom.Motion) e.setCancelled(true);
     }
 
     // ------------------------------------------------------------------------------------------
     // /주식: the row and the window
     // ------------------------------------------------------------------------------------------
 
-    /** Is the offer up for them now: one minute a day, at a time of its own for each player and day. */
+    /** Is the row up for them now: their one minute today (when the day's roll came up), a preview, or test mode. */
     private boolean offerNow(UUID u, long now) {
-        if (m.test(u) || forced.getOrDefault(u, 0L) > now) return true;
-        List<Integer> h = cfg.getIntegerList("offer.hours");
-        int from = h.size() > 0 ? h.get(0) : 0, to = h.size() > 1 ? h.get(1) : 24;
-        ZonedDateTime t = Instant.ofEpochMilli(now).atZone(SecretModule.KST);
-        int span = Math.floorMod(to * 60 - from * 60 - 1, 24 * 60) + 1;
-        int len = Math.max(1, cfg.getInt("offer.minutes", 1));
-        long seed = u.getMostSignificantBits() * 31 + u.getLeastSignificantBits() + t.toLocalDate().toEpochDay() * 1_000_003L;
-        int start = Math.floorMod(from * 60 + new Random(seed).nextInt(Math.max(1, span - len + 1)), 24 * 60);
-        int nowMin = t.getHour() * 60 + t.getMinute();
-        return Math.floorMod(nowMin - start, 24 * 60) < len;
+        return m.test(u) || forced.getOrDefault(u, 0L) > now || offerUntil.getOrDefault(u, 0L) > now;
+    }
+
+    /**
+     * The day's roll, the same all day for a player: whether today is their day (offer.chance) and after how many minutes
+     * online (offer.online-minutes [from, to]) the row comes up. Null when today is not their day.
+     */
+    private Integer offerMinute(UUID u, String day) {
+        Random r = new Random(u.getMostSignificantBits() * 31 + u.getLeastSignificantBits() + day.hashCode() * 1_000_003L);
+        if (r.nextDouble() >= cfg.getDouble("offer.chance", 0.03)) return null;
+        List<Integer> span = cfg.getIntegerList("offer.online-minutes");
+        int from = span.size() > 0 ? Math.max(0, span.get(0)) : 5, to = span.size() > 1 ? Math.max(from, span.get(1)) : 120;
+        return from + r.nextInt(to - from + 1);
+    }
+
+    /** Each new minute for a player who never held it: count their minutes online on their day, and raise the row. */
+    private void offerClock(Player p, long now) {
+        UUID u = p.getUniqueId();
+        if (m.test(u) || sold(u) || !open(u)) return;
+        String day = m.today(u);
+        if (day.equals(m.get(this, u, "offer-day"))) return;          // had today's already
+        Integer at = offerMinute(u, day);
+        if (at == null) return;
+        Map.Entry<String, Integer> c = offerClock.get(u);
+        int minutes;
+        if (c != null && c.getKey().equals(day)) minutes = c.getValue() + 1;
+        else {
+            // a relog the same day goes on counting from what was saved
+            String saved = m.get(this, u, "offer-min", "");
+            minutes = saved.startsWith(day + ":") ? Integer.parseInt(saved.substring(day.length() + 1)) + 1 : 1;
+        }
+        offerClock.put(u, Map.entry(day, minutes));
+        if (minutes % 5 == 0) m.set(this, u, "offer-min", day + ":" + minutes);
+        if (minutes < at) return;
+        m.set(this, u, "offer-day", day);
+        m.remove(this, u, "offer-min");
+        offerClock.remove(u);
+        offerUntil.put(u, now + Math.max(1, cfg.getLong("offer.minutes", 1)) * 60_000L);
+        cue(p);
+    }
+
+    /** The minute begins: a ghost "[뉴스]" line in their chat and a far horn, pointing at /주식. */
+    private void cue(Player p) {
+        String l = line("offer.cue");
+        if (!l.isEmpty()) p.sendMessage(Lang.msg("stock.news", "line", l));
+        m.haunt().sound(p, p.getLocation().add(p.getLocation().getDirection().multiply(-40)), Sound.EVENT_RAID_HORN, 0.35f, 0.5f);
     }
 
     private ItemStack listIcon(Player viewer, String tab) {
@@ -679,7 +799,7 @@ public final class Dongbang extends Secret {
                 l = fill(l, k, now);
                 if (!l.isBlank()) lore.add(l);
             }
-            return icon(line(k.halted(now) ? "share.halted-name" : "share.name"), lore);
+            return icon(line("share.name"), lore);
         }
         if (m.stage(this, u) != 0 || !tab.equals("all") || sold(u) || !open(u) || !offerNow(u, now)) return null;
         offered.put(u, now + Math.max(1, cfg.getLong("offer.grace-minutes", 5)) * 60_000L);
@@ -700,7 +820,7 @@ public final class Dongbang extends Secret {
 
     private String fill(String l, Ticker k, long now) {
         return l.replace("{price}", money(k.price)).replace("{change}", change(k)).replace("{pl}", pl(k.price, buyPrice()))
-                .replace("{halted}", k.halted(now) ? Lang.raw("stock.icon-halted") : "");
+                .replace("{halted}", "");
     }
 
     private String change(Ticker k) {
@@ -719,6 +839,12 @@ public final class Dongbang extends Secret {
     }
 
     void window(Player p, String period) {
+        UUID u = p.getUniqueId();
+        if (holding(u) && open(u) && m.stage(this, u) >= 2) {
+            // the window's info carries line 3, its "어제" (the chart's close) line 5
+            found(u, 3);
+            found(u, 5);
+        }
         m.core().menus().open(p, "economy:stock", new Window(period));
     }
 
@@ -800,29 +926,30 @@ public final class Dongbang extends Secret {
                 return ph;
             }
             Ticker k = ticker(u);
-            boolean halted = k.halted(now);
+            int st = m.stage(Dongbang.this, u);
+            List<String> log = st >= 2 ? radio(u) : null;
             double lo = k.price, hi = k.price;
             if (!k.d1.isEmpty() && k.d1.getLast().t() == k.clock.dayStart(now)) {
                 lo = k.d1.getLast().low();
                 hi = k.d1.getLast().high();
             }
             ph.put("graph", graph(k));
-            ph.put("name", line(halted ? "share.halted-name" : "share.name"));
+            ph.put("name", line("share.name"));
             ph.put("price", money(k.price));
             ph.put("change", change(k));
             ph.put("high", money(hi));
             ph.put("low", money(lo));
-            ph.put("close", money(k.prevClose(buyPrice())));
+            // from the notice on, "어제" always reads |z|: line 5 of the radio log
+            ph.put("close", log != null ? log.get(4) : money(k.prevClose(buyPrice())));
             ph.put("pl", pl(k.price, buyPrice()));
             ph.put("have", "1");
-            ph.put("sellable", halted ? "0" : "1");
+            ph.put("sellable", "1");
             ph.put("value", money(k.price));
             ph.put("profit", money(Math.abs(k.price - buyPrice())));
             ph.put("sign", k.price >= buyPrice() ? "+" : "-");
             ph.put("p1", line("share.no-more"));
             ph.put("fee", line("share.fee"));
-            ph.put("halted", halted ? Lang.raw("stock.icon-halted") : "");
-            int st = m.stage(Dongbang.this, u);
+            ph.put("halted", "");
             ph.put("news", line(st >= 3 ? "share.news.convened" : st == 2 ? "share.news.notice" : "share.news.held"));
             return ph;
         }
@@ -834,16 +961,13 @@ public final class Dongbang extends Secret {
             String a = b.action();
             if (a.equals("stock:buy:10") || a.equals("stock:buy:100") || a.equals("stock:sell:10") || a.equals("stock:sell:100")) return null;
             if (!holder && (a.equals("stock:sell:1") || a.equals("stock:sell:all"))) return null;
-            if (holder && b.key() == 'I') {
-                // the info button also lists the midnight closes (the address is in them)
-                Ticker k = ticker(u);
-                if (!k.closes.isEmpty()) base.editMeta(meta -> {
+            if (holder && b.key() == 'I' && m.stage(Dongbang.this, u) >= 2) {
+                // the info button carries line 3 of the radio log, as if written on the company's papers
+                String l3 = radio(u).get(2);
+                base.editMeta(meta -> {
                     List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-                    lore.add(Text.item(line("share.closes-title")));
-                    for (Ticker.Close c : k.closes) {
-                        lore.add(Text.item(line("share.close-line").replace("{date}", closeDate(k, c.at())).replace("{color}", c.up() ? "#ff5f57" : "#4d9bff")
-                                .replace("{price}", money(c.price())).replace("{arrow}", c.up() ? "▲" : "▼")));
-                    }
+                    lore.add(Component.empty());
+                    lore.add(Text.item(l3));
                     meta.lore(lore);
                 });
             }
@@ -866,11 +990,6 @@ public final class Dongbang extends Secret {
                 if (holder(u)) sell(p);
             }
         }
-    }
-
-    private static String closeDate(Ticker k, long midnight) {
-        if (k.clock.test()) return "T" + (midnight / k.clock.length());
-        return DateTimeFormatter.ofPattern("M/d").format(Instant.ofEpochMilli(midnight - 1).atZone(SecretModule.KST));
     }
 
     private void buy(Player p) {
@@ -904,11 +1023,6 @@ public final class Dongbang extends Secret {
         UUID u = p.getUniqueId();
         long now = System.currentTimeMillis();
         Ticker k = ticker(u);
-        if (k.halted(now)) {
-            HudModule.flash(p, Text.mm(line("share.halted")));
-            p.playSound(p.getLocation(), Sound.BLOCK_CHEST_LOCKED, 0.6f, 0.6f);
-            return;
-        }
         if (sellConfirm.getOrDefault(u, 0L) < now) {
             sellConfirm.put(u, now + 5000);
             HudModule.flash(p, Text.mm(line("share.sell-confirm")));
@@ -972,9 +1086,14 @@ public final class Dongbang extends Secret {
         if (offering(u, now)) return NewsWarp.offer(real, offerNews(), newsSeed(u));
         int st = m.stage(this, u);
         if (holding(u) && open(u)) {
-            if (!m.roll(u, cfg.getDouble("news.held.chance", 0.15))) return real;
-            String l = heldNews(st);
-            return l == null ? real : NewsWarp.among(real, l, rnd, NEWS_LINES);
+            List<String> out = real;
+            // from the notice on, every opening carries the next news line of the radio log (2 → 4 → 6 → 2 …)
+            if (st >= 2) out = NewsWarp.among(out, nextNewsLine(u), rnd, NEWS_LINES);
+            if (m.roll(u, cfg.getDouble("news.held.chance", 0.15))) {
+                String l = heldNews(st);
+                if (l != null) out = NewsWarp.among(out, l, rnd, NEWS_LINES);
+            }
+            return out;
         }
         // the last word, once: the company is wound up, or its last shareholder left
         String end = st == stages() + 1 ? line("news.solved") : st == 0 && sold(u) ? line("news.sold") : "";
@@ -993,7 +1112,8 @@ public final class Dongbang extends Secret {
 
     /**
      * A real news went out to everyone. Someone in the offer gets one more "[뉴스]" line a moment later (once an offer);
-     * a holder now and then gets one of their stage's headlines (once a day at most).
+     * a holder now and then gets one of their stage's headlines, or from the notice on the next news line of the radio
+     * log (once a day at most).
      */
     private void newsEcho() {
         if (!newsOn()) return;
@@ -1009,7 +1129,7 @@ public final class Dongbang extends Secret {
                 if (!l.isEmpty()) echoed.put(u, today);
             } else if (holding(u) && open(u)) {
                 if (today.equals(m.get(this, u, "news-echo")) || !m.roll(u, cfg.getDouble("news.held.echo-chance", 0.1))) continue;
-                l = heldNews(m.stage(this, u));
+                l = m.stage(this, u) >= 2 ? nextNewsLine(u) : heldNews(m.stage(this, u));
                 if (l != null) m.set(this, u, "news-echo", today);
             }
             if (l == null || l.isEmpty()) continue;
@@ -1029,8 +1149,10 @@ public final class Dongbang extends Secret {
             case "뉴스청산" -> NewsWarp.last(real, line("news.solved"), NEWS_LINES);
             case "뉴스매도" -> NewsWarp.last(real, line("news.sold"), NEWS_LINES);
             default -> {
-                String l = heldNews(word.charAt(word.length() - 1) - '0');
-                yield l == null ? real : NewsWarp.among(real, l, rnd, NEWS_LINES);
+                int st = word.charAt(word.length() - 1) - '0';
+                List<String> out = st >= 2 ? NewsWarp.among(real, radio(p.getUniqueId()).get(1), rnd, NEWS_LINES) : real;
+                String l = heldNews(st);
+                yield l == null ? out : NewsWarp.among(out, l, rnd, NEWS_LINES);
             }
         };
         eco.stocks().showNews(p, view);
@@ -1047,7 +1169,8 @@ public final class Dongbang extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("목록", "창", "통지서", "편지", "속삭임", "자정", "회의실", "착석", "찬성", "반대", "증서", "배당", "뉴스", "뉴스1", "뉴스2", "뉴스3", "뉴스청산", "뉴스매도");
+        return List.of("목록", "창", "통지서", "편지", "속삭임", "교신", "회의실", "착석", "증언", "지목성공", "지목실패", "증서", "배당",
+                "뉴스", "뉴스1", "뉴스2", "뉴스3", "뉴스청산", "뉴스매도");
     }
 
     @Override
@@ -1057,6 +1180,7 @@ public final class Dongbang extends Secret {
         switch (word) {
             case "목록" -> {
                 forced.put(u, now + 60_000L);
+                cue(p);
                 eco.stocks().open(p);
             }
             case "창" -> {
@@ -1064,24 +1188,28 @@ public final class Dongbang extends Secret {
                 offered.put(u, now + 60_000L);
                 window(p, "m10");
             }
-            case "통지서" -> {
-                Ticker.Clock c = new Ticker.Clock(m.test(u), m.day(u));
-                Ticker k = new Ticker(c, rules(c), buyPrice(), now);
-                k.notice(now, (int) m.getLong(this, u, "x", 412), (int) m.getLong(this, u, "z", -1207));
-                p.getInventory().addItem(noticeItem(k, now));
-            }
+            case "통지서" -> p.getInventory().addItem(noticeItem(u));
             case "편지" -> p.getInventory().addItem(letter());
             case "속삭임" -> haunt(p, true);
-            case "자정" -> midnight(p);
-            case "회의실", "착석", "찬성", "반대" -> {
+            case "교신" -> {
+                // the whole log at once, each line with where it is found (nothing is marked seen)
+                List<String> log = radio(u);
+                String[] where = {"통지서", "뉴스", "회사 창 · 정보", "뉴스", "회사 창 · 어제 종가", "뉴스"};
+                p.sendMessage(Text.mm(line("radio.title")));
+                for (int i = 0; i < log.size(); i++) p.sendMessage(Text.mm(log.get(i) + " <dark_gray>(" + where[i] + ")"));
+            }
+            case "회의실", "착석", "증언", "지목성공", "지목실패" -> {
                 Location at = p.getLocation().add(p.getLocation().getDirection().setY(0).normalize().multiply(12));
                 at.setY(at.getWorld().getHighestBlockYAt(at.getBlockX(), at.getBlockZ(), HeightMap.MOTION_BLOCKING_NO_LEAVES));
                 Boardroom r = room(p, new Location(at.getWorld(), at.getBlockX(), at.getBlockY(), at.getBlockZ()), true);
+                int liar = r.inquest().liar;
+                admin.sendMessage(Text.msg("<gray>[연출] 정답: " + seatLabel(liar) + " " + r.names().get(liar)));
                 if (!word.equals("회의실")) Bukkit.getScheduler().runTaskLater(eco, () -> {
                     if (!r.alive()) return;
                     r.sit();
-                    if (!word.equals("착석")) Bukkit.getScheduler().runTaskLater(eco, () -> {
-                        if (r.alive()) r.vote(word.equals("찬성"));
+                    if (word.equals("증언")) r.sayAll();
+                    if (word.startsWith("지목")) Bukkit.getScheduler().runTaskLater(eco, () -> {
+                        if (r.alive()) r.accuse(word.equals("지목성공") ? liar : (liar + 1 + rnd.nextInt(Inquest.SEATS - 1)) % Inquest.SEATS);
                     }, 60L);
                 }, 20L);
             }

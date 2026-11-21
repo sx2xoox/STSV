@@ -6,7 +6,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.OfflinePlayer;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -43,25 +42,32 @@ import java.util.UUID;
  * The 최종 주주총회: a wet boardroom only one player sees, standing on the 본사's ground. Fake blocks (dark planks, a long
  * table, 13 stair chairs, black portholes, two soul lanterns), puddles as thin glass displays, and twelve faceless
  * mannequins in suits sitting (riding invisible seats), each under the name of a real player who was on lately. The
- * thirteenth chair, at the head of the table, is empty. Sitting there turns every head, then the vote: 찬성 and the
- * twelve fall into water one by one (solved); 반대 and the door locks while the room fills with water (failed today).
+ * thirteenth chair, at the head of the table, is empty.
+ * <p>
+ * The agenda: name the one of the twelve who was never aboard ({@link Inquest}). Looking at a shareholder makes them say
+ * their line (over their head and in chat); right-clicking one opens a small menu to name them. Right: the one who was
+ * never there fades, and the eleven fall into water one by one (solved). Wrong: the door locks while the room fills
+ * with water (the room stays shut until the next day, and the lines are new next time).
  * <p>
  * Room plan around the middle (x0, y0 = ground, z0): walls at x ±4 and z ±7, the door in the north wall (z -7), the
- * table along x 0 from z -5 to 5, six chairs a side at x ±1, z -5, -3, ... 5, the empty one at (0, 6).
+ * table along x 0 from z -5 to 5, six chairs a side at x ±1, z -5, -3, ... 5, the empty one at (0, 6). Seat s (0..11):
+ * row s / 6 (0 = west, x -1; 1 = east, x +1), place s % 6 from the door (z -5) to the empty chair (z 5).
  */
 final class Boardroom {
 
     static final int HALF_X = 4, HALF_Z = 7;
     private static final int[] SIDE_Z = {-5, -3, -1, 1, 3, 5};
 
-    /** The voting window (a plain chest inventory, not a menu file). */
-    static final class Ballot implements InventoryHolder {
-        static final int AGENDA = 4, YES = 11, NO = 15;
+    /** The small "name this one" menu (a plain chest inventory, not a menu file). */
+    static final class Motion implements InventoryHolder {
+        static final int AGENDA = 4, YES = 11, WHO = 13, NO = 15;
         private final UUID viewer;
+        final int seat;
         private Inventory inv;
 
-        Ballot(UUID viewer) {
+        Motion(UUID viewer, int seat) {
             this.viewer = viewer;
+            this.seat = seat;
         }
 
         UUID viewer() {
@@ -74,7 +80,7 @@ final class Boardroom {
         }
     }
 
-    private record Seat(Mannequin figure, TextDisplay seat, TextDisplay tag, Location chair, BlockData chairData) {}
+    private record Seat(int index, Mannequin figure, TextDisplay seat, TextDisplay tag, Location chair, BlockData chairData, Location head, String name, String line) {}
 
     private final Dongbang d;
     private final Haunt h;
@@ -84,16 +90,21 @@ final class Boardroom {
     private final int x0, y0, z0;
     private final boolean preview;
     private final Random rnd;
+    private final Inquest q;
+    /** The twelve names as shown (MiniMessage-safe). */
+    private final List<String> names;
     /** Real blocks we covered: put back on teardown. */
     private final Map<Location, BlockData> covered = new HashMap<>();
     private final List<Entity> shown = new ArrayList<>();
     private final List<Seat> seats = new ArrayList<>();
     private BukkitTask task;
     private TextDisplay mySeat;
-    private boolean seated, entered, voting, voted, flooding, ended, gone, mustLeave;
-    private int age, reopenAt = -1;
+    private boolean seated, entered, resolving, flooding, ended, gone, mustLeave;
+    private int age, looked = -1, lookAge, shownTag = -1;
+    /** When (age) each seat last spoke in chat. */
+    private final int[] spoke = new int[Inquest.SEATS];
 
-    Boardroom(Dongbang d, Player p, Location center, boolean preview) {
+    Boardroom(Dongbang d, Player p, Location center, boolean preview, Inquest q, List<String> names) {
         this.d = d;
         this.h = d.m().haunt();
         this.p = p;
@@ -104,6 +115,17 @@ final class Boardroom {
         this.z0 = center.getBlockZ();
         this.preview = preview;
         this.rnd = new Random(u.getLeastSignificantBits() ^ 0x13L);
+        this.q = q;
+        this.names = List.copyOf(names);
+        java.util.Arrays.fill(spoke, -1000);
+    }
+
+    Inquest inquest() {
+        return q;
+    }
+
+    List<String> names() {
+        return names;
     }
 
     UUID viewer() {
@@ -177,12 +199,12 @@ final class Boardroom {
         }
         shown.add(h.text(p, new Location(w, x0 + 0.5, y0 + 3.3, z0 + 0.5), d.line("meeting.table-text")));
 
-        // the twelve: nearest the empty chair first
-        List<String> names = names();
+        // the twelve, each with their line for this run
         double sh = d.cfg().getDouble("meeting.seat-height", 0.6);
         String skin = d.cfg().getString("meeting.skin", "");
-        for (int i = 0; i < 12; i++) {
-            int side = i % 2 == 0 ? -1 : 1, dz = SIDE_Z[5 - i / 2];
+        var templates = d.testimonies();
+        for (int i = 0; i < Inquest.SEATS; i++) {
+            int side = Inquest.row(i) == 0 ? -1 : 1, dz = SIDE_Z[i % Inquest.ROW];
             BlockFace back = side < 0 ? BlockFace.WEST : BlockFace.EAST;
             BlockData cd = chair(back);
             fake(side, 1, dz, cd);
@@ -194,29 +216,13 @@ final class Boardroom {
             m.setRotation(side < 0 ? -90 : 90, 8);
             m.setBodyYaw(side < 0 ? -90 : 90);
             TextDisplay tag = h.text(p, seatAt.clone().add(0, 1.55, 0), d.line("meeting.tag").replace("{name}", names.get(i)));
-            seats.add(new Seat(m, seat, tag, at(side, 1, dz), cd));
+            tag.setLineWidth(160);
+            seats.add(new Seat(i, m, seat, tag, at(side, 1, dz), cd, seatAt.clone().add(0, 0.9, 0), names.get(i), q.text(i, templates, names)));
             shown.add(seat);
             shown.add(m);
             shown.add(tag);
         }
         task = Bukkit.getScheduler().runTaskTimer(d.plugin(), this::tick, 5L, 5L);
-    }
-
-    /** The twelve most recently seen players other than the viewer, "—" for the empty places. */
-    private List<String> names() {
-        List<OfflinePlayer> all = new ArrayList<>(List.of(Bukkit.getOfflinePlayers()));
-        all.removeIf(o -> o.getUniqueId().equals(u) || o.getName() == null);
-        all.sort(Comparator.comparingLong(OfflinePlayer::getLastSeen).reversed());
-        List<String> out = new ArrayList<>();
-        for (OfflinePlayer o : all) {
-            if (out.size() == 12) break;
-            out.add(o.getName());
-        }
-        String empty = d.line("meeting.empty-tag").isEmpty() ? "—" : d.line("meeting.empty-tag");
-        while (out.size() < 12) out.add(empty);
-        // tags are MiniMessage: a name with < > is shown as it is
-        out.replaceAll(n -> n.equals(empty) ? n : net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(n));
-        return out;
     }
 
     private void dress(Mannequin m) {
@@ -258,7 +264,7 @@ final class Boardroom {
         }
         Location l = p.getLocation();
         double dx = l.getX() - (x0 + 0.5), dz = l.getZ() - (z0 + 0.5);
-        if (!seated && !ended && dx * dx + dz * dz > 48 * 48) {
+        if (!seated && !resolving && !ended && dx * dx + dz * dz > 48 * 48) {
             teardown();
             return;
         }
@@ -266,31 +272,96 @@ final class Boardroom {
         if (age % 6 == 0 || rnd.nextInt(5) == 0) {
             Location drip = new Location(w, x0 + 0.5 + rnd.nextInt(7) - 3, y0 + 4.9, z0 + 0.5 + rnd.nextInt(13) - 6);
             p.spawnParticle(Particle.DRIPPING_WATER, drip, 1);
-            if (rnd.nextInt(3) == 0) h.sound(p, drip, Sound.BLOCK_POINTED_DRIPSTONE_DRIP_WATER, 0.6f, 0.8f + rnd.nextFloat() * 0.4f);
+            if (rnd.nextInt(3) == 0) h.sound(p, drip, Sound.BLOCK_POINTED_DRIPSTONE_DRIP_WATER, 0.6f, 0.8f + rnd.nextFloat() * 0.3f);
         }
         boolean inside = Math.abs(dx) < HALF_X && Math.abs(dz) < HALF_Z && Math.abs(l.getY() - (y0 + 1)) < 3;
-        if (inside && !entered) {
-            entered = true;
-            h.dark(p, 4);
-            h.whisper(p, d.line("meeting.enter"));
-            h.sound(p, at(0, 1, -HALF_Z), Sound.BLOCK_WOODEN_TRAPDOOR_CLOSE, 0.5f, 0.5f);
-        }
+        if (inside && !entered) enter();
+        if (!resolving && !ended && (inside || seated)) watch();
         if (seated) {
             for (Seat s : seats) if (s.figure().isValid()) look(s.figure(), p.getEyeLocation());
-            if (reopenAt >= 0 && age >= reopenAt && !voted) {
-                reopenAt = -1;
-                h.whisper(p, d.line("meeting.vote-again"));
-                ballot();
-            }
             return;
         }
-        if (ended) return;
+        if (ended || resolving) return;
         double cd = l.toVector().setY(0).distance(chairTop().toVector().setY(0));
         if (mustLeave) {
             if (cd > 1.8) mustLeave = false;
             return;
         }
         if (inside && (cd < 0.8 && Math.abs(l.getY() - (y0 + 1)) < 1.2 || p.isSneaking() && cd < 1.8)) sit();
+    }
+
+    /** First step inside: the door creaks, and the chair reads the agenda. */
+    private void enter() {
+        entered = true;
+        h.dark(p, 4);
+        h.whisper(p, d.line("meeting.enter"));
+        h.sound(p, at(0, 1, -HALF_Z), Sound.BLOCK_WOODEN_TRAPDOOR_CLOSE, 0.5f, 0.5f);
+        List<String> agenda = d.lines("meeting.agenda");
+        for (int i = 0; i < agenda.size(); i++) {
+            String a = agenda.get(i);
+            Bukkit.getScheduler().runTaskLater(d.plugin(), () -> {
+                if (!gone && p.isOnline()) p.sendMessage(Text.mm(a));
+            }, 30L + i * 30L);
+        }
+        if (!preview) d.entered(p);
+    }
+
+    /** Whom they are looking at: the shareholder nearest the middle of their view, or -1. */
+    private int lookAt() {
+        Location eye = p.getEyeLocation();
+        Vector dir = eye.getDirection();
+        int best = -1;
+        double bestAngle = Double.MAX_VALUE;
+        for (Seat s : seats) {
+            if (!s.figure().isValid()) continue;
+            Vector to = s.head().toVector().subtract(eye.toVector());
+            double dist = to.length();
+            if (dist > 10 || dist < 0.3) continue;
+            double angle = dir.angle(to.normalize());
+            if (angle > Math.atan2(0.5, dist) + 0.03 || angle >= bestAngle) continue;
+            best = s.index();
+            bestAngle = angle;
+        }
+        return best;
+    }
+
+    /** Looking at someone for half a second: they turn, their line shows over their head, and is said in chat. */
+    private void watch() {
+        int t = lookAt();
+        if (t != looked) {
+            looked = t;
+            lookAge = age;
+            if (shownTag >= 0 && shownTag != t) tag(shownTag, false);
+            return;
+        }
+        if (t < 0 || age - lookAge < 2) return;
+        Seat s = seats.get(t);
+        if (!seated) look(s.figure(), p.getEyeLocation());
+        if (shownTag != t) {
+            tag(t, true);
+            h.sound(p, s.head(), Sound.BLOCK_POINTED_DRIPSTONE_DRIP_WATER, 0.5f, 0.7f);
+        }
+        if (age - spoke[t] > 40) {
+            spoke[t] = age;
+            say(s);
+        }
+    }
+
+    private void say(Seat s) {
+        p.sendMessage(Text.mm(d.line("meeting.say").replace("{name}", s.name()).replace("{line}", s.line())));
+    }
+
+    private void tag(int i, boolean open) {
+        Seat s = seats.get(i);
+        if (!s.tag().isValid()) return;
+        String base = d.line("meeting.tag").replace("{name}", s.name());
+        s.tag().text(Text.mm(open ? base + "\n" + d.line("meeting.tag-line").replace("{line}", s.line()) : base));
+        shownTag = open ? i : -1;
+    }
+
+    /** Admin 증언: every line in chat at once. */
+    void sayAll() {
+        for (Seat s : seats) say(s);
     }
 
     private static void look(Mannequin m, Location target) {
@@ -301,9 +372,25 @@ final class Boardroom {
         m.setRotation(yaw, pitch);
     }
 
-    /** A right click: on (or looking at) the empty chair from nearby sits them. True when it was for us. */
-    boolean clicked() {
-        if (seated || ended || gone) return false;
+    /** The seat an entity of ours belongs to, or -1. */
+    int seatOf(Entity e) {
+        for (Seat s : seats) if (s.figure().equals(e) || s.seat().equals(e) || s.tag().equals(e)) return s.index();
+        return -1;
+    }
+
+    /**
+     * A right click (on `e` when it hit an entity, else null): on a shareholder it opens the motion; on (or looking at) the
+     * empty chair from nearby it sits them. True when it was for us.
+     */
+    boolean clicked(Entity e) {
+        if (ended || gone || resolving) return false;
+        int s = e != null ? seatOf(e) : -1;
+        if (s < 0) s = lookAt();
+        if (s >= 0) {
+            motion(s);
+            return true;
+        }
+        if (e != null || seated) return false;
         Location eye = p.getEyeLocation();
         Vector to = chairTop().toVector().subtract(eye.toVector());
         if (to.length() > 3.5) return false;
@@ -314,13 +401,13 @@ final class Boardroom {
     }
 
     // ------------------------------------------------------------------------------------------
-    // sitting and the vote
+    // sitting and naming
     // ------------------------------------------------------------------------------------------
 
     void sit() {
         if (seated || ended || gone) return;
         seated = true;
-        entered = true;
+        if (!entered) enter();
         double sh = d.cfg().getDouble("meeting.seat-height", 0.6);
         Location at = new Location(w, x0 + 0.5, y0 + 1 + sh, z0 + 6.5, 180, 0);
         p.teleport(at.clone().add(0, 0.5, 0));
@@ -334,54 +421,52 @@ final class Boardroom {
         }
         h.sound(p, at(0, 2, 0), Sound.AMBIENT_CAVE, 0.6f, 0.6f);
         h.whisper(p, d.line("meeting.sit"));
-        Bukkit.getScheduler().runTaskLater(d.plugin(), () -> {
-            if (!gone && seated && !voted) ballot();
-        }, 50L);
     }
 
-    private void ballot() {
-        if (!p.isOnline()) return;
-        Ballot b = new Ballot(u);
-        Inventory inv = Bukkit.createInventory(b, 27, Text.mm(d.line("meeting.ballot.title")));
+    /** The small menu: the agenda, who, name them or not. */
+    void motion(int seat) {
+        if (!p.isOnline() || resolving || ended || gone) return;
+        Seat s = seats.get(seat);
+        Motion b = new Motion(u, seat);
+        Inventory inv = Bukkit.createInventory(b, 27, Text.mm(d.line("meeting.motion.title")));
         b.inv = inv;
-        inv.setItem(Ballot.AGENDA, item(Material.PAPER, "meeting.ballot.agenda-name", "meeting.ballot.agenda-lore"));
-        inv.setItem(Ballot.YES, item(Material.WHITE_STAINED_GLASS_PANE, "meeting.ballot.yes-name", "meeting.ballot.yes-lore"));
-        inv.setItem(Ballot.NO, item(Material.BLACK_STAINED_GLASS_PANE, "meeting.ballot.no-name", "meeting.ballot.no-lore"));
-        voting = true;
+        inv.setItem(Motion.AGENDA, item(Material.PAPER, d.line("meeting.motion.agenda-name"), d.lines("meeting.motion.agenda-lore")));
+        List<String> who = new ArrayList<>();
+        for (String l : d.lines("meeting.motion.who-lore")) who.add(l.replace("{line}", s.line()));
+        inv.setItem(Motion.WHO, item(Material.NAME_TAG, d.line("meeting.motion.who-name").replace("{name}", s.name()), who));
+        inv.setItem(Motion.YES, item(Material.BLACK_STAINED_GLASS_PANE, d.line("meeting.motion.yes-name").replace("{name}", s.name()), d.lines("meeting.motion.yes-lore")));
+        inv.setItem(Motion.NO, item(Material.WHITE_STAINED_GLASS_PANE, d.line("meeting.motion.no-name"), d.lines("meeting.motion.no-lore")));
         p.openInventory(inv);
         p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, 0.6f);
     }
 
-    private ItemStack item(Material m, String name, String lore) {
+    private static ItemStack item(Material m, String name, List<String> lore) {
         ItemStack it = new ItemStack(m);
         it.editMeta(meta -> {
-            meta.itemName(Text.item(d.line(name)));
-            meta.lore(Text.itemLines(d.lines(lore)));
+            meta.itemName(Text.item(name));
+            meta.lore(Text.itemLines(lore));
         });
         return it;
     }
 
-    void ballotClosed() {
-        if (!voting || voted || gone) return;
-        voting = false;
-        if (seated) reopenAt = age + 12;      // three seconds, then once more
-    }
-
-    void vote(boolean yes) {
-        if (voted || gone) return;
-        if (!seated) sit();
-        voted = true;
-        voting = false;
-        reopenAt = -1;
-        p.closeInventory();
-        if (yes) release();
-        else flood();
+    /** They named a seat: right (the one never aboard) or wrong. */
+    void accuse(int seat) {
+        if (resolving || ended || gone) return;
+        resolving = true;
+        if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Motion) p.closeInventory();
+        if (shownTag >= 0) tag(shownTag, false);
+        h.whisper(p, d.line("meeting.named").replace("{name}", seats.get(seat).name()));
+        Bukkit.getScheduler().runTaskLater(d.plugin(), () -> {
+            if (gone || !p.isOnline()) return;
+            if (seat == q.liar) release(seat);
+            else flood();
+        }, 30L);
     }
 
     /** A seat entity left: the player standing up. Returns true to keep them seated (the room is filling). */
     boolean dismount(Entity vehicle) {
         if (vehicle != mySeat) return false;
-        if (flooding || (voted && !ended)) return true;
+        if (flooding || (resolving && !ended)) return true;
         stand();
         return false;
     }
@@ -389,7 +474,6 @@ final class Boardroom {
     private void stand() {
         seated = false;
         mustLeave = true;
-        reopenAt = -1;
         if (mySeat != null) {
             shown.remove(mySeat);
             h.remove(p, mySeat);
@@ -406,9 +490,18 @@ final class Boardroom {
     // the endings
     // ------------------------------------------------------------------------------------------
 
-    /** 찬성: from the far end toward the chair, each one falls into water and its name goes blank. */
-    private void release() {
+    /** Right: the one never aboard fades like smoke; then from the far end the eleven fall into water one by one. */
+    private void release(int liar) {
+        Seat out = seats.get(liar);
+        Location ol = out.head().clone();
+        p.spawnParticle(Particle.LARGE_SMOKE, ol, 40, 0.25, 0.5, 0.25, 0.01);
+        p.spawnParticle(Particle.ASH, ol, 60, 0.4, 0.7, 0.4, 0);
+        h.sound(p, ol, Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 0.8f, 0.5f);
+        remove(out.figure());
+        remove(out.seat());
+        out.tag().text(Text.mm(d.line("meeting.not-aboard")));
         List<Seat> order = new ArrayList<>(seats);
+        order.remove(out);
         order.sort(Comparator.comparingInt(s -> s.chair().getBlockZ()));
         h.sound(p, at(0, 2, 0), Sound.BLOCK_WATER_AMBIENT, 0.8f, 0.6f);
         int[] i = {0};
@@ -420,6 +513,7 @@ final class Boardroom {
             }
             if (i[0] >= order.size()) {
                 t[0].cancel();
+                if (out.tag().isValid()) out.tag().text(net.kyori.adventure.text.Component.empty());
                 epilogue(true);
                 return;
             }
@@ -437,16 +531,18 @@ final class Boardroom {
             if (wet instanceof Waterlogged wl) wl.setWaterlogged(true);
             h.fake(p, s.chair(), wet);
             i[0]++;
-        }, 30L, 16L);
+        }, 50L, 16L);
     }
 
-    /** 반대: the door shuts and the water rises over about six seconds, then black. */
+    /** Wrong: the door shuts and the water rises over about six seconds, then black. */
     private void flood() {
         flooding = true;
+        for (Seat s : seats) if (s.figure().isValid()) look(s.figure(), p.getEyeLocation());
         fake(0, 1, -HALF_Z, data("minecraft:dark_oak_planks"));
         fake(0, 2, -HALF_Z, data("minecraft:dark_oak_planks"));
         h.sound(p, at(0, 1, -HALF_Z), Sound.BLOCK_IRON_DOOR_CLOSE, 1f, 0.5f);
         h.sound(p, at(0, 1, -HALF_Z), Sound.BLOCK_CHEST_LOCKED, 1f, 0.5f);
+        h.whisper(p, d.line("meeting.wrong"));
         h.dark(p, 12);
         BlockData water = Material.WATER.createBlockData();
         int[] layer = {1};
@@ -505,7 +601,7 @@ final class Boardroom {
         ended = true;
         List<String> lines = d.lines(yes ? "meeting.yes" : "meeting.no");
         if (!yes) {
-            if (!preview) d.lost(p);
+            d.lost(p, preview);
             teardown();
         }
         for (int i = 0; i < lines.size(); i++) {
@@ -541,7 +637,7 @@ final class Boardroom {
             flooding = false;
             mySeat.removePassenger(p);
         }
-        if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Ballot) p.closeInventory();
+        if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Motion) p.closeInventory();
         for (Entity e : List.copyOf(shown)) h.remove(p, e);
         shown.clear();
         if (p.isOnline()) for (Map.Entry<Location, BlockData> e : covered.entrySet()) p.sendBlockChange(e.getKey(), e.getKey().getBlock().getBlockData());
