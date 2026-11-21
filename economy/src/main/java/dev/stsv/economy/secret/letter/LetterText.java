@@ -89,7 +89,7 @@ final class LetterText {
         }
         String out = s.toString();
         // never accidentally right: a swap of two equal letters changes nothing, so force one visible slip
-        if (out.equals(name)) out = name.substring(1) + name.charAt(0);
+        if (out.equals(name)) out = lookAlike(name.charAt(name.length() - 1)) + name.substring(0, name.length() - 1);
         return out;
     }
 
@@ -121,6 +121,15 @@ final class LetterText {
         } catch (RuntimeException e) {
             return 0;
         }
+    }
+
+    /** A length as a letter says it: "30분", "40초", "1분 30초". */
+    static String duration(long seconds) {
+        long sec = Math.max(0, seconds);
+        if (sec < 60) return sec + "초";
+        long min = sec / 60, rest = sec % 60;
+        if (min >= 60 && min % 60 == 0 && rest == 0) return (min / 60) + "시간";
+        return rest == 0 ? min + "분" : min + "분 " + rest + "초";
     }
 
     /** A coordinate as a letter writes it, "about": to the nearest ten. */

@@ -10,7 +10,6 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
-import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Waterlogged;
@@ -433,16 +432,12 @@ final class Boardroom {
             h.sound(p, l, Sound.BLOCK_POINTED_DRIPSTONE_DRIP_WATER, 1f, 0.6f);
             remove(s.figure());
             remove(s.seat());
-            s.tag().text(Component_empty());
+            s.tag().text(net.kyori.adventure.text.Component.empty());
             BlockData wet = s.chairData().clone();
             if (wet instanceof Waterlogged wl) wl.setWaterlogged(true);
             h.fake(p, s.chair(), wet);
             i[0]++;
         }, 30L, 16L);
-    }
-
-    private static net.kyori.adventure.text.Component Component_empty() {
-        return net.kyori.adventure.text.Component.empty();
     }
 
     /** 반대: the door shuts and the water rises over about six seconds, then black. */
@@ -552,10 +547,5 @@ final class Boardroom {
         if (p.isOnline()) for (Map.Entry<Location, BlockData> e : covered.entrySet()) p.sendBlockChange(e.getKey(), e.getKey().getBlock().getBlockData());
         covered.clear();
         d.gone(this);
-    }
-
-    @SuppressWarnings("unused")
-    private Block ground() {
-        return w.getBlockAt(x0, y0, z0);
     }
 }

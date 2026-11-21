@@ -94,7 +94,7 @@ final class LetterBook {
                 then.accept(new Written(book(p, n, l, v), t));
             });
             case 3 -> {
-                v.put("silence", l.getString(m.test(u) ? "silence-test" : "silence-real", "30분"));
+                v.put("silence", LetterText.duration(s.silenceMs(u) / 1000));
                 then.accept(new Written(book(p, n, l, v), Target.none()));
             }
             case 4 -> {
@@ -110,7 +110,7 @@ final class LetterBook {
             }
             default -> {
                 v.put("home", l.getString(s.hasHome(u) ? "home-land" : "home-none", "내 집"));
-                v.put("chase", l.getString(m.test(u) ? "chase-test" : "chase-real", "3분"));
+                v.put("chase", LetterText.duration(m.test(u) ? cfg().getLong("chase.test-seconds", 60) : cfg().getLong("chase.seconds", 180)));
                 then.accept(new Written(book(p, n, l, v), Target.none()));
             }
         }

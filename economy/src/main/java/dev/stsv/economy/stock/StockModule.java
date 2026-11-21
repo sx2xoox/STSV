@@ -57,6 +57,24 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
     /** industry -> today's move from activity (a fraction for the whole day) */
     private final Map<String, Double> drift = new HashMap<>();
     private TextDisplay board;
+    private Hidden hidden;
+
+    /**
+     * A company only some players see (the 숨은 비밀 동방해운): not stored with the others, it only adds a last row to a
+     * player's list and opens its own window. Errors in it never break /주식.
+     */
+    public interface Hidden {
+        /** The row to add at the end of this player's list on a tab ("all", "mine" or an industry id), or null for none. */
+        ItemStack icon(Player viewer, String tab);
+
+        /** They clicked that row. */
+        void open(Player viewer);
+    }
+
+    /** Sets (or with null, clears) the hidden company. */
+    public void hidden(Hidden h) {
+        hidden = h;
+    }
 
     public StockModule(EcoPlugin eco) {
         super(eco);
@@ -785,6 +803,8 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         private final String tab;
         private final String sort;
         private List<StockStore.Co> shown = List.of();
+        /** The hidden company's row is last in the list. */
+        private boolean extra;
 
         ListMenu(String tab, String sort) {
             this.tab = tab;
@@ -831,12 +851,25 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             shown = l;
             List<ItemStack> out = new ArrayList<>();
             for (StockStore.Co c : l) out.add(companyIcon(c, u));
+            extra = false;
+            if (hidden != null) {
+                try {
+                    ItemStack it = hidden.icon(v.player(), tab);
+                    if (it != null) {
+                        out.add(it);
+                        extra = true;
+                    }
+                } catch (RuntimeException e) {
+                    eco.getLogger().log(java.util.logging.Level.WARNING, "숨은 회사 오류", e);
+                }
+            }
             return out;
         }
 
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
             if (index < shown.size()) openCompany(v.player(), shown.get(index), "h24");
+            else if (extra && index == shown.size() && hidden != null) hidden.open(v.player());
         }
 
         @Override

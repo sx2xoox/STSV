@@ -63,6 +63,7 @@ mail:
     fish_trap_reset: "야생월드 초기화로 돌려받은 통발·가두리"
     starter: "기본템"
     guide: "길라잡이에서 돌려받은 물건"
+    dongbang: "발신: 동방해운 · 봉투가 젖어 있다"
 
 shop:
   not-buying: "<red>상점이 사지 않는 물건입니다. <gray>(이름 바꾼·인챈트·닳은 것 포함)"

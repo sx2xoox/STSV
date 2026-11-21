@@ -151,14 +151,17 @@ final class UsherPlan {
     /** The room: floor y 55, air 56..59, ceiling 60; walls at x -3 (the door) and 7, z ±5. */
     static final int ROOM_Y = 55, ROOM_X1 = -3, ROOM_X2 = 7, ROOM_Z = 5;
 
-    /** Standing on the (seen) opening: down they go. */
+    /**
+     * On the opening (it looks open to them, so they may already be sinking onto the first step): down they go. The real
+     * floor is still there for everyone else, so they are carried past it to the fourth step.
+     */
     static boolean onOpening(int bx, double y, int bz) {
-        return bz == OPEN_Z && bx >= OPEN_X1 && bx <= OPEN_X2 && y >= FLOOR + 0.5 && y <= FLOOR + 1.7;
+        return bz == OPEN_Z && bx >= OPEN_X1 && bx <= OPEN_X2 && y >= FLOOR - 0.5 && y <= FLOOR + 1.7;
     }
 
-    /** In the stairwell's top, under the real floor: up they go. */
+    /** Back up the stairs past the fourth step (under the real floor): up they go, beside the opening. */
     static boolean underOpening(int bx, double y, int bz) {
-        return bz == OPEN_Z && bx >= OPEN_X1 - 1 && bx <= OPEN_X2 && y < FLOOR + 0.5 && y > ROOM_Y;
+        return bz == OPEN_Z && bx >= OPEN_X1 - 1 && bx <= OPEN_X2 && y < FLOOR - 0.5 && y > ROOM_Y;
     }
 
     /** Inside the room. */

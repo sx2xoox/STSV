@@ -38,12 +38,10 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -74,7 +72,8 @@ public final class Dongbang extends Secret {
     private final Map<UUID, Long> forced = new HashMap<>();
     private final Map<UUID, Long> sellConfirm = new HashMap<>();
     private final Map<UUID, Boolean> water = new HashMap<>();
-    private final Set<UUID> picking = new HashSet<>();
+    /** Players whose 본사 is being chosen, with what waits for it. */
+    private final Map<UUID, List<Runnable>> picking = new HashMap<>();
     final Map<UUID, Boardroom> rooms = new HashMap<>();
     private long lastMinute;
     private int ticks;
@@ -118,6 +117,18 @@ public final class Dongbang extends Secret {
     // ------------------------------------------------------------------------------------------
     // settings
     // ------------------------------------------------------------------------------------------
+
+    SecretModule m() {
+        return m;
+    }
+
+    org.bukkit.configuration.file.YamlConfiguration cfg() {
+        return cfg;
+    }
+
+    org.bukkit.plugin.Plugin plugin() {
+        return eco;
+    }
 
     String line(String path) {
         return cfg.getString(path, "");
@@ -337,31 +348,36 @@ public final class Dongbang extends Secret {
             then.run();
             return;
         }
-        if (!picking.add(u)) return;
+        List<Runnable> waiting = picking.get(u);
+        if (waiting != null) {
+            waiting.add(then);
+            return;
+        }
+        picking.put(u, new ArrayList<>(List.of(then)));
         World w = world();
         List<int[]> c = Ticker.candidates(u.getMostSignificantBits() ^ u.getLeastSignificantBits() ^ 0x1987L,
                 cfg.getInt("headquarters.min", 300), cfg.getInt("headquarters.max", 1500), Math.max(1, cfg.getInt("headquarters.tries", 12)));
-        tryPick(w, u, c, 0, null, Integer.MAX_VALUE, then);
+        tryPick(w, u, c, 0, null, Integer.MAX_VALUE);
     }
 
-    private void tryPick(World w, UUID u, List<int[]> c, int i, int[] best, int bestScore, Runnable then) {
+    private void tryPick(World w, UUID u, List<int[]> c, int i, int[] best, int bestScore) {
         if (i >= c.size() || bestScore <= 2) {
             int[] at = best != null ? best : c.getFirst();
             m.set(this, u, "x", at[0]);
             m.set(this, u, "z", at[1]);
-            picking.remove(u);
-            then.run();
+            List<Runnable> waiting = picking.remove(u);
+            if (waiting != null) waiting.forEach(Runnable::run);
             return;
         }
         int[] at = c.get(i);
         if (!w.getWorldBorder().isInside(new Location(w, at[0], 64, at[1]))) {
-            tryPick(w, u, c, i + 1, best, bestScore, then);
+            tryPick(w, u, c, i + 1, best, bestScore);
             return;
         }
         w.getChunkAtAsync(at[0] >> 4, at[1] >> 4, true, chunk -> {
             int score = roughness(w, at[0], at[1]);
-            if (score < bestScore) tryPick(w, u, c, i + 1, at, score, then);
-            else tryPick(w, u, c, i + 1, best, bestScore, then);
+            if (score < bestScore) tryPick(w, u, c, i + 1, at, score);
+            else tryPick(w, u, c, i + 1, best, bestScore);
         });
     }
 
