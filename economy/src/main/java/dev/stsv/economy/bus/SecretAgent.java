@@ -274,6 +274,11 @@ public final class SecretAgent implements Listener {
         return m >= at && m < at + span;
     }
 
+    /** {@link #finalTime} on a 12-hour clock: 3:33 counts in the night and in the afternoon (03:33 and 15:33). */
+    static boolean finalTimeEitherHalf(int hour, int minute, int fh, int fm, int span) {
+        return finalTime(hour % 12, minute, fh % 12, fm, span);
+    }
+
     /** Honk times (millis) within the window, the newest at `now`: whether `n` of them came. */
     static boolean honked(Deque<Long> times, long now, int n, long windowMs) {
         times.addLast(now);
@@ -837,6 +842,34 @@ public final class SecretAgent implements Listener {
         end(j, p);
     }
 
+    /**
+     * Notes already handed out follow bus.yml as it is now (name, riddle line, number, wording): rewritten when their holder
+     * joins or opens a container (their own inventory and the one opened), keeping how many there are.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoinNotes(org.bukkit.event.player.PlayerJoinEvent e) {
+        refreshNotes(e.getPlayer().getInventory());
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onOpenNotes(org.bukkit.event.inventory.InventoryOpenEvent e) {
+        refreshNotes(e.getPlayer().getInventory());
+        refreshNotes(e.getInventory());
+    }
+
+    private void refreshNotes(org.bukkit.inventory.Inventory inv) {
+        ItemStack[] all = inv.getContents();
+        for (int i = 0; i < all.length; i++) {
+            ItemStack it = all[i];
+            if (it == null || !it.hasItemMeta()) continue;
+            Integer n = it.getItemMeta().getPersistentDataContainer().get(NOTE, PersistentDataType.INTEGER);
+            if (n == null || n < 1 || n > cfg.notes().size()) continue;
+            ItemStack now = note(n);
+            now.setAmount(it.getAmount());
+            if (!now.isSimilar(it)) inv.setItem(i, now);
+        }
+    }
+
     /** Note n (1..5): a line of the final riddle and a number on its back. Not sold to the shop; may be traded or given. */
     ItemStack note(int n) {
         Note no = cfg.notes().get(n - 1);
@@ -862,7 +895,7 @@ public final class SecretAgent implements Listener {
         d.clear();
         if (!on() || closed() || jobs.containsKey(u) || agent(u) || run.atStop == null) return;
         ZonedDateTime t = ZonedDateTime.now(KST);
-        if (!finalTime(t.getHour(), t.getMinute(), cfg.finalHour(), cfg.finalMinute(), cfg.finalSpan())) return;
+        if (!finalTimeEitherHalf(t.getHour(), t.getMinute(), cfg.finalHour(), cfg.finalMinute(), cfg.finalSpan())) return;
         if (!hasAll(earned(u), cfg.notes().size())) return;
         BusStop here = bus.stopMap().get(run.atStop);
         if (here == null || !terminalSide(here)) return;

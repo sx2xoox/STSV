@@ -38,7 +38,7 @@ class SecretAgentTest {
         // the final riddle across the notes
         StringBuilder r = new StringBuilder();
         for (SecretAgent.Note n : c.notes()) r.append(n.line()).append(" / ");
-        assertEquals("새벽 3시 33분 / 종점 터미널 / 경적을 / 세 번 / 울려라 / ", r.toString());
+        assertEquals("3시 33분 / 종점 터미널 / 경적을 / 세 번 / 울려라 / ", r.toString());
         assertTrue(c.line("mission5", 0, "a", "가", "b", "나").contains("가"));
     }
 
@@ -181,6 +181,10 @@ class SecretAgentTest {
         assertTrue(SecretAgent.finalTime(3, 33, 3, 33, 2));
         assertTrue(SecretAgent.finalTime(3, 34, 3, 33, 2));
         assertFalse(SecretAgent.finalTime(3, 35, 3, 33, 2));
+        assertTrue(SecretAgent.finalTimeEitherHalf(15, 33, 3, 33, 2));
+        assertTrue(SecretAgent.finalTimeEitherHalf(3, 34, 3, 33, 2));
+        assertFalse(SecretAgent.finalTimeEitherHalf(15, 35, 3, 33, 2));
+        assertFalse(SecretAgent.finalTimeEitherHalf(9, 33, 3, 33, 2));
         assertFalse(SecretAgent.finalTime(15, 33, 3, 33, 2));
         ArrayDeque<Long> h = new ArrayDeque<>();
         assertFalse(SecretAgent.honked(h, 0, 3, 5000));

@@ -327,7 +327,7 @@ secret:
   all-notes-tip: 2.0
   agent-tip: 2.0
   window: [420, 450]
-  # 최종 미션: hour:minute 부터 minutes 분 동안, 노선 첫 정류장(터미널 쪽)에 선 버스에서 honk-window 초 안에 경적 honks 번.
+  # 최종 미션: hour:minute 부터 minutes 분 동안 (오전 · 오후 무관: 3 이면 03:33 과 15:33 둘 다), 노선 첫 정류장(터미널 쪽)에 선 버스에서 honk-window 초 안에 경적 honks 번.
   # ??? 가 폐쇄된 정류장 좌표만 말해 줌 (repeat 초마다 다시, /버스 에도): 출발 자리에서 직선 distance 블록의 국도 점
   # (쪽지 숫자와 플레이어로 정해짐; 그런 점이 없으면 가장 가까운 거리의 점 + 서버 로그 경고). 탄 뒤 time-limit 분 안에 도착.
   # 그 정류장 10칸 안에 멈추면 그가 내려 서류 가방을 둠: case-range 칸 안에서 우클릭 → 번호 (쪽지 숫자 1→5 순서) 입력,
@@ -356,7 +356,7 @@ secret:
     chance: 0.25
   # 쪽지 1~5 (미션 1~5): 이름, 최종 수수께끼 한 줄, 뒷면 숫자 (1→5 순서로 읽은 숫자 다섯 개 = 서류 가방 번호, 폐쇄된 정류장 자리도 정함)
   notes:
-    - {name: "…침묵", line: "새벽 3시 33분", number: 4}
+    - {name: "…침묵", line: "3시 33분", number: 4}
     - {name: "빈 버스", line: "종점 터미널", number: 7}
     - {name: "되돌아가는 길", line: "경적을", number: 1}
     - {name: "정확히 7분", line: "세 번", number: 9}
