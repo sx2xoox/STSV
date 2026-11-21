@@ -242,8 +242,10 @@ def raft():
         z = c.p[2]
         return ("bamboo", 1.2) if math.floor(z + 40) % 7 == 0 else ("bamboo", 3.0 if c.face == "up" else 2.0)
     m.box("bamboo_rod", (4.1, 9, -39), (4.9, 9.8, -6), Paint("bamboo", 2, noise=0, rim=0.3, decal=bamboo_rod), rotation=("x", 22.5, (4.5, 9.4, -6)))
+    # the line is solid (a hair-thin box: a see-through one sat between the riders' eyes and the water, which vanished
+    # behind it: item-display models with half see-through pixels are drawn before translucent terrain)
     m.box("line", (4.35, 2, -36.9), (4.65, 21.6, -36.6), Paint("feather", 3, noise=0, light=False,
-                                                              decal=lambda c: ("raw", (236, 60, 48, 255)) if 4 <= c.p[1] < 6 else ("raw", (250, 250, 250, 255)) if c.p[1] < 7 else ("raw", (225, 228, 235, 160))))
+                                                              decal=lambda c: ("raw", (236, 60, 48, 255)) if 4 <= c.p[1] < 6 else ("raw", (250, 250, 250, 255)) if c.p[1] < 7 else ("raw", (176, 182, 194, 255))))
     # the thole post of the sweep at the stern
     m.box("thole", (-1, 6.5, 22.2), (1, 10.5, 24), _pole_paint("wood_dark", "y", 48))
     m.display = _held_display(m)
