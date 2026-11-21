@@ -12,11 +12,8 @@ import java.util.Random;
  * 동방해운's one share as one holder sees it: the price, its candles (10-minute, 2-hour, day) and the closes at each
  * midnight. Pure (unit-tested): time comes in as ms, nothing here touches the server.
  * <p>
- * Before the notice the price only follows the holder (online it climbs, away it sinks, by the water it swings). After
- * the notice there are two "key" midnights, {@link #kx} and the one a day after it. In the last {@link #approach} before
- * each, the price is pulled along a fixed path so that it closes exactly on |x| (then |z|), and the last candle before
- * that midnight is red when the coordinate is positive and blue when it is negative. Between the two it stands still at
- * |x| (halted: no candles), and after the second it stands at |z| for good.
+ * The price only follows the holder: online it climbs, away it sinks, by the water it swings. It is atmosphere; the
+ * 본사 address comes from the radio log ({@link Radio}), not from the price.
  */
 final class Ticker {
 
@@ -71,13 +68,8 @@ final class Ticker {
         }
     }
 
-    /**
-     * up/down: log change per candle online/away; noise: per candle; water: per candle swing; delta: how far the last
-     * candle before a key midnight moves (a share of the price); approach: candles of the pull before a key midnight.
-     */
-    record Rules(double up, double down, double noise, double water, double delta, int approach, double min, double max) {
-        static final Rules DEFAULT = new Rules(0.006, 0.009, 0.004, 0.05, 0.04, 18, 100, 20_000);
-    }
+    /** up/down: log change per candle online/away; noise: per candle; water: per candle swing; min/max: the range. */
+    record Rules(double up, double down, double noise, double water, double min, double max) {}
 
     static final int M10 = 16, H2 = 12, D1 = 7, CLOSES = 7;
 
@@ -90,12 +82,6 @@ final class Ticker {
     final List<Candle> h2 = new ArrayList<>();
     final List<Candle> d1 = new ArrayList<>();
     final List<Close> closes = new ArrayList<>();
-    /** The first key midnight (ms), 0 before the notice. */
-    long kx;
-    /** The coordinates (signed); the prices are their sizes. */
-    int x, z;
-    /** The free price when the pull toward |x| began (-1: not yet). */
-    double p0 = -1;
 
     Ticker(Clock clock, Rules rules, double price, long t) {
         this.clock = clock;
@@ -104,70 +90,13 @@ final class Ticker {
         this.t = t;
     }
 
-    long kz() {
-        return kx == 0 ? 0 : kx + clock.length();
-    }
-
-    /** The pull before a key midnight, in ms. */
-    long approach() {
-        return Math.max(2, rules.approach()) * clock.candle();
-    }
-
-    /** No trading and no candles: between the two key midnights' pulls, and after the second for good. */
-    boolean halted(long at) {
-        if (kx == 0) return false;
-        return (at >= kx && at < kz() - approach()) || at >= kz();
-    }
-
     /** The day's reference: the last midnight's close, or the first price. */
     double prevClose(double fallback) {
         return closes.isEmpty() ? fallback : closes.getLast().price();
     }
 
-    /**
-     * The notice came at `at`: the first key midnight is that day's end, or the next day's when the pull would already
-     * have begun (so it is always whole).
-     */
-    void notice(long at, int x, int z) {
-        this.x = x;
-        this.z = z;
-        long k = clock.nextMidnight(at);
-        if (at > k - approach() - clock.candle()) k += clock.length();
-        kx = k;
-        p0 = -1;
-    }
-
-    /**
-     * The path of a pull: from `from` (at a0) to pre = target*(1 - sign*delta) one candle before the last, eased in log;
-     * it waits at pre for that candle, then goes straight to the target over the last candle, so that candle is red for a
-     * positive sign and blue for a negative.
-     */
-    static double pull(double from, long a0, double target, int sign, long end, long candle, double delta, long at) {
-        if (at >= end) return target;
-        double pre = target * (1 - sign * delta);
-        long f = end - candle;
-        if (at >= f) return pre + (target - pre) * (at - f) / (double) candle;
-        // the candle before the last waits at `pre`, so the last one opens there however the price was sampled
-        long g = f - candle;
-        if (at >= g) return pre;
-        double s = g <= a0 ? 1 : Math.clamp((at - a0) / (double) (g - a0), 0, 1);
-        double e = s * s * (3 - 2 * s);
-        return Math.exp(Math.log(from) + (Math.log(pre) - Math.log(from)) * e);
-    }
-
-    /** The price at `at`, from the free price before it (`dtCandles` candles of it under `mood`). */
-    private double priceAt(long at, double dtCandles, Mood mood, Random rnd) {
-        if (kx != 0) {
-            long kz = kz(), a = approach(), c = clock.candle();
-            int ax = Math.abs(x), az = Math.abs(z);
-            if (at >= kz) return az;
-            if (at >= kz - a) return pull(ax, kz - a, az, Integer.signum(z), kz, c, rules.delta(), at);
-            if (at >= kx) return ax;
-            if (at >= kx - a) {
-                if (p0 < 0) p0 = price;
-                return pull(p0, kx - a, ax, Integer.signum(x), kx, c, rules.delta(), at);
-            }
-        }
+    /** The next free price (`dtCandles` candles of it under `mood`). */
+    private double priceAt(double dtCandles, Mood mood, Random rnd) {
         double g = rnd.nextGaussian(), sq = Math.sqrt(Math.max(0, dtCandles));
         double d = switch (mood) {
             case ONLINE -> rules.up() * dtCandles + rules.noise() * sq * g;
@@ -179,7 +108,7 @@ final class Ticker {
 
     /**
      * Moves the price on to `to`, in steps that stop at every 10-minute line (so an away stretch still leaves one candle
-     * per 10 minutes) and at every boundary that matters. Returns the midnights crossed.
+     * per 10 minutes). Returns the midnights crossed.
      */
     List<Close> advance(long to, Mood mood, Random rnd) {
         List<Close> crossed = new ArrayList<>();
@@ -189,10 +118,7 @@ final class Ticker {
         if (t < floor) t = clock.bucket(floor, c);
         while (t < to) {
             long next = Math.min(to, clock.bucket(t, c) + c);
-            if (kx != 0) {
-                for (long b : new long[]{kx - approach(), kz() - approach()}) if (b > t && b < next) next = b;
-            }
-            double p = priceAt(next, (next - t) / (double) c, mood, rnd);
+            double p = priceAt((next - t) / (double) c, mood, rnd);
             price = p;
             t = next;
             if (next == clock.dayStart(next)) {
@@ -203,7 +129,7 @@ final class Ticker {
                 closes.add(cl);
                 while (closes.size() > CLOSES) closes.removeFirst();
                 crossed.add(cl);
-            } else if (!halted(next)) {
+            } else {
                 record(next, p);
             }
         }

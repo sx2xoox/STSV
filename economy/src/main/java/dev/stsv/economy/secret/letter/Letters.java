@@ -176,7 +176,7 @@ public final class Letters extends Secret {
         } else {
             b.append(" · 의식 대기");
             long gone = LetterText.dayNo(m.today(u)) - LetterText.dayNo(m.get(this, u, "day"));
-            b.append(" · 방치 ").append(gone).append("/").append(lostDays()).append("일");
+            b.append(" · 방치 ").append(gone).append("/").append(lostDays(u)).append("일");
         }
         Target t = Target.decode(m.get(this, u, "target"));
         if (t.kind() != Target.Kind.NONE) b.append(" · 목표 ").append(t.describe());
@@ -202,8 +202,8 @@ public final class Letters extends Secret {
     }
 
     /** Korean days (test days in test mode) a letter may lie undone before the letters stop. */
-    private long lostDays() {
-        return Math.max(1, cfg.getLong("delivery.lost-days", 3));
+    private long lostDays(UUID u) {
+        return Math.max(1, secs(u, "delivery.lost-days", "delivery.test-lost-days", 3));
     }
 
     long silenceMs(UUID u) {
@@ -295,7 +295,13 @@ public final class Letters extends Secret {
             return;
         }
         if (finale.running(u)) return;
-        if (LetterText.dayNo(m.today(u)) - LetterText.dayNo(day) >= lostDays()) {
+        String today = m.today(u);
+        if (today.startsWith("t") != day.startsWith("t")) {
+            // test mode was switched on or off: count the days from now
+            m.set(this, u, "day", today);
+            return;
+        }
+        if (LetterText.dayNo(today) - LetterText.dayNo(day) >= lostDays(u)) {
             broken(p);
             return;
         }
