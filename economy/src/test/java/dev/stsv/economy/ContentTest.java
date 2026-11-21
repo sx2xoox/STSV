@@ -353,7 +353,7 @@ class ContentTest {
                 makeable.add(id);
             }
         }
-        for (String id : ours) if (id.startsWith("economy:lost_") && !makeable.contains(id)) problems.add("a lost item no kind leaves: " + id);
+        for (String id : ours) if (id.startsWith("economy:lost_") && !makeable.contains(id) && !yaml("items/secrets.yml").contains(id.substring(8))) problems.add("a lost item no kind leaves: " + id);
         for (String title : lost.titles().keySet()) if (!titles.contains(title.substring(title.indexOf(':') + 1))) problems.add("lost title: " + title);
         // 숨은 비밀 (items/secrets.yml): only the secrets' own code gives them (by id, in secret/), the shop never trades them
         String secretCode;
