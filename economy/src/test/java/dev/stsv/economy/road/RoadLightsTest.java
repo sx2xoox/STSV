@@ -539,7 +539,8 @@ class RoadLightsTest {
                 Material from = was.getOrDefault(Flat.key(k[0], k[1], k[2]), new Flat().get(k[0], k[1], k[2])), to = f.get(k[0], k[1], k[2]);
                 for (Material m : new Material[]{from, to})
                     assertTrue(m == Material.AIR || m == Material.STONE_BRICK_WALL || m == Material.LANTERN || m == Material.STONE_BRICKS
-                            || m == Material.DIRT_PATH || m == Material.GRASS_BLOCK || m == Material.DIRT || m == Material.END_ROD || m == Material.ANDESITE_WALL, shape + ": " + m + " at " + java.util.Arrays.toString(k));
+                            || m == Material.DIRT_PATH || m == Material.GRASS_BLOCK || m == Material.DIRT || m == Material.END_ROD || m == Material.ANDESITE_WALL
+                            || m == Material.WHITE_CARPET, shape + ": " + m + " at " + java.util.Arrays.toString(k));
                 assertTrue(clearance(r.points(), k[0], k[2]) <= 5.75 + RoadSection.WIDEN, shape + ": on the road's cross-section: " + java.util.Arrays.toString(k));
             }
             assertEquals(Material.CHEST, f.get(vx, vy, vz));

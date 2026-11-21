@@ -512,7 +512,8 @@ public final class RoadSection {
      * yellow and black striped blocks (drop or not).
      */
     Material[] rail(int i, int x, int z, boolean high) {
-        boolean cap = blockClear(i, x, z) || narrow;
+        // (커브정리 moves a guardrail out, never adds its cap: 가드레일교체 does)
+        boolean cap = !mending && (blockClear(i, x, z) || narrow);
         switch (character) {
             case EASY -> {
                 if (!high) return null;
