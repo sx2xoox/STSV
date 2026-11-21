@@ -133,7 +133,7 @@ class RoadGuideTest {
                 new RoadSign.Row(RoadSign.Arrow.UP, HOME, RoadSign.km(back.at() / 1000.0))), back.rows());
         // the trunk's next own sign is 900 on: a confirmation a little past the fork
         RoadGuide.Sign confirm = plan.signs().stream().filter(s -> s.type() == RoadGuide.Type.CONFIRM && s.host().equals("서해")).findFirst().orElseThrow();
-        assertEquals(1163, confirm.at(), "60 past the fork, clear of the light at 1160");
+        assertEquals(1160 + 3 + RoadSection.LIGHT_SHIFT, confirm.at(), "60 past the fork, clear of the light at 1160 (or the next points it may take)");
         assertEquals(new RoadSign.Words("서해 하역장", RoadSign.km((3000 - 1163) / 1000.0), "국도 1호선", "1"), confirm.words());
         // the branch's own start sign is near: no confirmation on it
         assertTrue(plan.signs().stream().noneMatch(s -> s.type() == RoadGuide.Type.CONFIRM && s.host().equals("남해")));

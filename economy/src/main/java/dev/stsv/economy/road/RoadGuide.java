@@ -490,8 +490,9 @@ public final class RoadGuide {
 
     /**
      * Where one of the guide's signs on road r may stand, from point `from` on (stepping dir, at most 40): plain road 3
-     * points either way (RoadSection's rule), and 3 or more points from a street light (every roads.light-every points,
-     * on either side: the road's own signs make its light change sides, these come later). -1: none.
+     * points either way (RoadSection's rule), and 3 or more points from a street light (every roads.light-every points, or
+     * up to {@link RoadSection#LIGHT_SHIFT} after; on either side: the road's own signs make its light change sides, these
+     * come later). -1: none.
      */
     int spot(int r, int from, int dir) {
         RoadProfile.Part[] p = parts[r];
@@ -499,7 +500,7 @@ public final class RoadGuide {
             int i = from + k * dir;
             if (i - 3 < 0 || i + 3 >= p.length) return -1;
             int m = Math.floorMod(i, lights);
-            if (Math.min(m, lights - m) < 3) continue;
+            if (m < 3 + RoadSection.LIGHT_SHIFT || lights - m < 3) continue;   // (a light may take one of the next points: RoadSection)
             if (RoadSection.plain(p, i, dir, 1) == i) return i;
         }
         return -1;

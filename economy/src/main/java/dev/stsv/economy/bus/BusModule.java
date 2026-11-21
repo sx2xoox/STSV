@@ -62,6 +62,8 @@ public final class BusModule extends EcoModule {
     /** 수상한 선글라스 남자 (SecretAgent: docs/admin/버스_비밀_의뢰.md) */
     private SecretAgent secret;
     private PassengerPreview preview;
+    /** 버스 내비게이션 (/버스 내비) */
+    private BusNavigator navigator;
     private final Map<Integer, BusStop> stops = new LinkedHashMap<>();
     private int nextId = 1;
     private StopBuilder builder;
@@ -294,6 +296,8 @@ public final class BusModule extends EcoModule {
         readStops();
         secret = new SecretAgent(this, eco, core);
         preview = new PassengerPreview(this, eco);
+        navigator = new BusNavigator(this, eco, core);
+        every(10L, navigator::tick);
         Bukkit.getPluginManager().registerEvents(secret, eco);
         every(1L, this::tick);
         every(20L, this::second);
@@ -313,6 +317,7 @@ public final class BusModule extends EcoModule {
     protected void stop() {
         if (core != null && core.hud() != null) core.hud().removeOverlay("eco-bus");
         if (preview != null) preview.stop();
+        if (navigator != null) navigator.stop();
         if (secret != null) {
             secret.stop();
             org.bukkit.event.HandlerList.unregisterAll(secret);
@@ -1618,13 +1623,17 @@ public final class BusModule extends EcoModule {
 
     /** The driver's line: the next stop (the nearest any passenger gets off at), how far, how many get off; else the nearest stop. */
     private void hud(Player p, Run r) {
+        // 버스 내비게이션: its line takes the place of the line's (the bell below still rings)
+        net.kyori.adventure.text.Component navLine = navigator.hud(p, r, hudExtra(p, r));
+        boolean nav = navLine != null;
+        if (nav) HudModule.flash(p, navLine, 1500);
         Net n = nets.get(p.getWorld().getName());
         BusLine line = n == null ? null : n.line(r.line);
         if (line != null) {
             double[] off = new double[1];
             int idx = line.nearest(p.getX(), p.getZ(), off);
             if (off[0] > 40) {
-                HudModule.flash(p, Lang.mm("bus.hud-off", "line", line.name()), 1500);
+                if (!nav) HudModule.flash(p, Lang.mm("bus.hud-off", "line", line.name()), 1500);
                 return;
             }
             Integer nextId = line.next(idx, r.dir);
@@ -1634,7 +1643,7 @@ public final class BusModule extends EcoModule {
             String junction = turn == null ? "" : Lang.raw("bus.hud-junction", "m", Math.round(turn.distance()),
                     "turn", Lang.raw(turn.turn() < 0 ? "bus.turn-left" : turn.turn() > 0 ? "bus.turn-right" : "bus.turn-straight"));
             if (next == null) {
-                HudModule.flash(p, Lang.mm("bus.hud-end", "line", line.name(), "arrow", arrow, "riders", r.riders.size(), "seats", r.seats,
+                if (!nav) HudModule.flash(p, Lang.mm("bus.hud-end", "line", line.name(), "arrow", arrow, "riders", r.riders.size(), "seats", r.seats,
                         "extra", hudExtra(p, r)), 1500);
                 return;
             }
@@ -1660,7 +1669,7 @@ public final class BusModule extends EcoModule {
                 HudModule.flash(p, Lang.mm("bus.bell", "stop", next.name(), "n", offN), 3000);
                 return;
             }
-            HudModule.flash(p, Lang.mm("bus.hud-line", "line", line.name(), "arrow", arrow, "stop", next.name(), "km", km(dist),
+            if (!nav) HudModule.flash(p, Lang.mm("bus.hud-line", "line", line.name(), "arrow", arrow, "stop", next.name(), "km", km(dist),
                     "off", offN > 0 ? Lang.raw("bus.hud-off-n", "n", offN) : "", "junction", junction, "riders", r.riders.size(),
                     "seats", r.seats, "extra", hudExtra(p, r)), 1500);
             return;
@@ -1675,6 +1684,7 @@ public final class BusModule extends EcoModule {
                 near = s;
             }
         }
+        if (nav) return;
         if (near == null || best > 3000) HudModule.flash(p, Lang.mm("bus.hud-none"), 1500);
         else HudModule.flash(p, Lang.mm("bus.hud-empty", "stop", near.name(), "km", km(best), "waiting",
                 (int) Math.floor(waiting.getOrDefault(near.id(), 0.0)), "extra", hudExtra(p, r)), 1500);
@@ -2286,6 +2296,28 @@ public final class BusModule extends EcoModule {
 
     Map<Long, Run> runMap() {
         return runs;
+    }
+
+    // ---- for BusNavigator (버스 내비게이션)
+
+    /** The stops an event waits at: stop id -> what (구조, 단체 손님 n팀, 특급 손님). */
+    Map<Integer, List<String>> eventStops() {
+        Map<Integer, List<String>> out = new LinkedHashMap<>();
+        if (rescueStop != null && stops.containsKey(rescueStop)) out.computeIfAbsent(rescueStop, k -> new ArrayList<>()).add(Lang.raw("bus.nav-ev-rescue"));
+        Map<Integer, Integer> waitingTeams = new HashMap<>();
+        for (Team t : teams.values()) if (t.boarded < t.size) waitingTeams.merge(t.stop, 1, Integer::sum);
+        waitingTeams.forEach((s, n) -> out.computeIfAbsent(s, k -> new ArrayList<>()).add(Lang.raw("bus.nav-ev-team", "n", n)));
+        for (BusStop s : stops.values()) if (hasSpecial(s.id())) out.computeIfAbsent(s.id(), k -> new ArrayList<>()).add(Lang.raw("bus.nav-ev-special"));
+        return out;
+    }
+
+    /** /버스 내비 … (args after 내비). */
+    public void nav(Player p, String[] args) {
+        navigator.command(p, args);
+    }
+
+    public List<String> navComplete(String[] args) {
+        return navigator == null ? List.of() : navigator.complete(args);
     }
 
     /** /버스 요원정류장 <이름> (the first to solve the bus's secret). */

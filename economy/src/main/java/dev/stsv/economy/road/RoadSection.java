@@ -431,8 +431,7 @@ public final class RoadSection {
         int h = halves[i];
         RoadProfile.Part part = parts[i];
         int dj = junction(i);
-        // wider at the dock's gate, and round a junction's corners
-        int e = Math.max(widen(i), dj <= 2 ? WIDEN : dj <= 5 ? 1 : 0);
+        int e = extra(i);
         List<Col> cols = new ArrayList<>();
         int[] stop = columns(i, e, cols);
         if (stop != null) return stop;
@@ -476,17 +475,326 @@ public final class RoadSection {
                 case TUNNEL -> tunnel(c.x(), c.z(), h, ao, at(top, half), i, c.lat() > 0, portal);
             }
         }
-        if (i % style.lightEvery() == 0 && part != RoadProfile.Part.TUNNEL && i > 0 && i < points.size() - 1) {
-            int side = (i / style.lightEvery()) % 2 == 0 && !signs.containsKey(i) ? 1 : -1;   // never in a sign's posts
-            // on the bridge on its railing, else on the shoulder's verge: never in the lanes; its arm over the edge lane
-            boolean deck = part == RoadProfile.Part.BRIDGE;
-            Col post = nearest(cols, side * ((deck ? 3.0 : 4.0) + e), (deck ? 2.5 : 3.5) + e);
-            if (post != null) lamp(post, cols, side, e, h, deck, ceilings[i]);
-        }
+        light(i, cols, e, h);
         RoadSign.Kind sign = signs.get(i);
         if (sign != null) sign(p, rx, rz, h, RoadSign.yaw(-hx, -hz), i, sign);
         if (d == WORDS_AT && e > 0 && part == RoadProfile.Part.ROAD) site.roadText(p[0], top(h) + 0.01, p[1], RoadSign.yaw(-hx, -hz), GATE_WORDS);
         return null;
+    }
+
+    /** How much wider each side the road is at point i: at the dock's gate ({@link #widen}), and round a junction's corners. */
+    private int extra(int i) {
+        int dj = junction(i);
+        return Math.max(widen(i), dj <= 2 ? WIDEN : dj <= 5 ? 1 : 0);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Street lights
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * How far from the road's centre line (the nearest point of it, round a bend too) a street light's post stays at the
+     * least: 0.75 beyond the kerb (3.5). Lights used to stand on the verge right by the kerb (the column whose centre is
+     * nearest 4 out): on a straight road its post 3.75 out, but on a diagonal or a bend that column can stand half in the
+     * kerb's line (3.2 out at 45 degrees), and a vehicle's collision squares do not turn with it (VehiclePhysics: a bus 2.4
+     * wide reaches 1.53 to each side at 45 degrees): a bus a little over the edge line, or cutting a bend, caught on them.
+     */
+    public static final double LIGHT_CLEAR = 4.5;
+    /** A light's point with no column far enough out on its side (a diagonal's columns): the next points (up to this many) take it. */
+    public static final int LIGHT_SHIFT = 2;
+    /** A light's post: a wall's post, 0.5 across in the middle of its column. */
+    static final double POST_HALF = 0.25;
+
+    /** Lights as roads were built before (tests: what /관리자 국도 가로등정리 mends). */
+    private boolean oldLights;
+
+    /** Builds the street lights as roads were built before (on the verge by the kerb). */
+    RoadSection oldLights() {
+        this.oldLights = true;
+        return this;
+    }
+
+    /**
+     * The street light at point i, if one goes here: every {@code lightEvery} (sides taking turns; never on a sign's side).
+     * On a bridge on its railing; else on the shoulder, its post's column {@link #LIGHT_CLEAR} or more from the centre line
+     * (the nearest such column to the road), at this point or, when it has none, one of the next {@link #LIGHT_SHIFT}.
+     */
+    private void light(int i, List<Col> cols, int e, int h) {
+        int every = style.lightEvery(), k = Math.floorMod(i, every), base = i - k;
+        if (base <= 0 || i >= points.size() - 1 || parts[i] == RoadProfile.Part.TUNNEL) return;
+        if (oldLights || parts[base] == RoadProfile.Part.BRIDGE) {
+            if (k != 0) return;
+            int side = (i / every) % 2 == 0 && !signs.containsKey(i) ? 1 : -1;   // never in a sign's posts
+            // on the bridge on its railing, else (as before) on the shoulder's verge by the kerb
+            boolean deck = parts[i] == RoadProfile.Part.BRIDGE;
+            Col post = nearest(cols, side * ((deck ? 3.0 : 4.0) + e), (deck ? 2.5 : 3.5) + e);
+            if (post != null) lamp(post, cols, side, e, h, deck, ceilings[i]);
+            return;
+        }
+        if (k > LIGHT_SHIFT || parts[i] != RoadProfile.Part.ROAD) return;
+        int side = lightSide(base);
+        for (int j = base; j < i; j++) if (parts[j] == RoadProfile.Part.ROAD && lightPost(j, side, null) != null) return;   // an earlier point took it
+        Col post = lightPost(i, side, cols);
+        if (post != null) lamp(post, cols, side, e, h, false, ceilings[i]);
+    }
+
+    /**
+     * The side the light of the point `base` (a multiple of lightEvery) stands on: sides take turns, never a sign's side,
+     * never the inside of a bend ({@link #insideBend}: then the outside, its sign or not).
+     */
+    private int lightSide(int base) {
+        boolean sign = false;
+        for (int j = base; j <= Math.min(points.size() - 1, base + LIGHT_SHIFT); j++) sign |= signs.containsKey(j);
+        int side = (base / style.lightEvery()) % 2 == 0 && !sign ? 1 : -1;
+        return insideBend(base, side) ? -side : side;
+    }
+
+    /** A bend this sharp or more (degrees, over {@link #BEND_REACH} points either way) keeps the lights off its inside. */
+    public static final double BEND = 10;
+    /** Points either way a bend is measured over: twice the longest vehicle's length (a bus cuts a bend from well before it). */
+    static final int BEND_REACH = 2 * (int) Math.ceil(RoadClearance.LENGTH);
+
+    /**
+     * Whether `side` is the inside of a bend at point i (the road turning that way by {@link #BEND} degrees or more over
+     * {@link #BEND_REACH} points either way): a long bus cuts a bend's inside (its squares reach in over the kerb), so a
+     * post there caught it even 4 out.
+     */
+    boolean insideBend(int i, int side) {
+        double[] a = points.get(Math.max(0, i - BEND_REACH)), p = points.get(i), b = points.get(Math.min(points.size() - 1, i + BEND_REACH));
+        double ax = p[0] - a[0], az = p[1] - a[1], bx = b[0] - p[0], bz = b[1] - p[1];
+        if (Math.hypot(ax, az) < 1e-6 || Math.hypot(bx, bz) < 1e-6) return false;
+        double cross = ax * bz - az * bx, dot = ax * bx + az * bz;
+        double turn = Math.toDegrees(Math.atan2(Math.abs(cross), dot));
+        return turn >= BEND && Math.signum(cross) == side;   // turning right (cross > 0): the right is the inside
+    }
+
+    /**
+     * The column of point i's cross-section (cols, or worked out when null) on this side where a light's post may stand:
+     * on the shoulder, its post {@link #LIGHT_CLEAR} (and the widening) or more from the centre line; of those the one
+     * nearest the road (then nearest the point). Null: none.
+     */
+    private Col lightPost(int i, int side, List<Col> cols) {
+        int e = extra(i);
+        if (cols == null) {
+            cols = new ArrayList<>();
+            if (columns(i, e, cols) != null) return null;
+        }
+        Col best = null;
+        double bestClear = 0, bestAlong = 0;
+        double[] p = points.get(i);
+        double[] hd = heading(i);
+        for (Col c : cols) {
+            if (Math.signum(c.lat()) != side || Math.abs(c.lat()) <= 3.5 + e) continue;
+            double clear = clearance(i, c.x(), c.z());
+            if (clear < LIGHT_CLEAR + e - 1e-9) continue;
+            double along = Math.abs((c.x() + 0.5 - p[0]) * hd[0] + (c.z() + 0.5 - p[1]) * hd[1]);
+            if (best == null || clear < bestClear - 1e-9 || (clear < bestClear + 1e-9 && along < bestAlong)) {
+                best = c;
+                bestClear = clear;
+                bestAlong = along;
+            }
+        }
+        return best;
+    }
+
+    /** The way the road runs at point i (unit x, z: over 2 points either way). */
+    private double[] heading(int i) {
+        double[] a = points.get(Math.max(0, i - 2)), b = points.get(Math.min(points.size() - 1, i + 2));
+        double hx = b[0] - a[0], hz = b[1] - a[1], len = Math.max(1e-6, Math.hypot(hx, hz));
+        return new double[]{hx / len, hz / len};
+    }
+
+    /**
+     * How far a light's post in column (x, z) is from the road's centre line: the nearest point of its post (0.5 across in
+     * the column's middle) to the line through the points near i ({@link #NEIGHBOURS} either way), so a bend's inside counts.
+     */
+    double clearance(int i, int x, int z) {
+        double x0 = x + 0.5 - POST_HALF, x1 = x + 0.5 + POST_HALF, z0 = z + 0.5 - POST_HALF, z1 = z + 0.5 + POST_HALF;
+        double best = Double.MAX_VALUE;
+        int from = Math.max(0, i - NEIGHBOURS), to = Math.min(points.size() - 1, i + NEIGHBOURS);
+        for (int j = from; j < Math.max(from + 1, to); j++) {
+            double[] a = points.get(j), b = points.get(Math.min(points.size() - 1, j + 1));
+            best = Math.min(best, boxToSegment(x0, z0, x1, z1, a[0], a[1], b[0], b[1]));
+        }
+        return best;
+    }
+
+    /** The distance from a box (x0, z0)-(x1, z1) to the segment a-b (0: they meet). */
+    static double boxToSegment(double x0, double z0, double x1, double z1, double ax, double az, double bx, double bz) {
+        if (segmentMeetsBox(x0, z0, x1, z1, ax, az, bx, bz)) return 0;
+        double d = Double.MAX_VALUE;
+        for (double[] c : new double[][]{{x0, z0}, {x1, z0}, {x0, z1}, {x1, z1}}) d = Math.min(d, pointToSegment(c[0], c[1], ax, az, bx, bz));
+        for (double[] q : new double[][]{{ax, az}, {bx, bz}}) {
+            double dx = Math.max(0, Math.max(x0 - q[0], q[0] - x1)), dz = Math.max(0, Math.max(z0 - q[1], q[1] - z1));
+            d = Math.min(d, Math.hypot(dx, dz));
+        }
+        return d;
+    }
+
+    static double pointToSegment(double px, double pz, double ax, double az, double bx, double bz) {
+        double vx = bx - ax, vz = bz - az, l2 = vx * vx + vz * vz;
+        double t = l2 < 1e-12 ? 0 : Math.clamp(((px - ax) * vx + (pz - az) * vz) / l2, 0, 1);
+        return Math.hypot(px - ax - t * vx, pz - az - t * vz);
+    }
+
+    private static boolean segmentMeetsBox(double x0, double z0, double x1, double z1, double ax, double az, double bx, double bz) {
+        // Liang-Barsky clip of a-b against the box
+        double t0 = 0, t1 = 1, dx = bx - ax, dz = bz - az;
+        double[] p = {-dx, dx, -dz, dz}, q = {ax - x0, x1 - ax, az - z0, z1 - az};
+        for (int k = 0; k < 4; k++) {
+            if (Math.abs(p[k]) < 1e-12) {
+                if (q[k] < 0) return false;
+                continue;
+            }
+            double r = q[k] / p[k];
+            if (p[k] < 0) t0 = Math.max(t0, r);
+            else t1 = Math.min(t1, r);
+            if (t0 > t1) return false;
+        }
+        return true;
+    }
+
+    /**
+     * A street light already built at point i mended (/관리자 국도 가로등정리): a light ({@link RoadLights}: its exact shape)
+     * whose post stands on this point's shoulder (as roads put them before, on the verge by the kerb) is taken away when its
+     * post is nearer the centre line than {@link #LIGHT_CLEAR}, or it stands where `keepClear` says nothing may (a bus
+     * stop's bay and the road before and after it, on the bay's side: {x, z} of its post or its lantern); then, but by a bay,
+     * put up again where a road puts it now (on the same side; only where its post, arm and lantern find nothing but air,
+     * the shoulder's grass and verge, a reflector or a guardrail). Only this road's shoulder and only a light's own blocks
+     * (never a bridge's or a tunnel's point, protected land, another road's lanes, anything a player put). How many blocks
+     * changed: {lights taken away, put up again, blocks}.
+     */
+    public int[] tidyLight(int i, java.util.function.BiPredicate<Integer, Integer> keepClear) {
+        int[] out = {0, 0, 0};
+        if (parts[i] != RoadProfile.Part.ROAD || i == 0 || i >= points.size() - 1) return out;
+        int e = extra(i), h = halves[i], base = RoadProfile.block(h);
+        List<Col> cols = new ArrayList<>();
+        if (columns(i, e, cols) != null) return out;
+        RoadLights.Blocks b = world::get;
+        int changed = 0;
+        for (Col c : cols) {
+            double ao = Math.abs(c.lat()) - e;
+            if (ao <= 3.5 || ao > 5.5) continue;
+            RoadLights.Light l = RoadLights.post(b, c.x(), c.z(), base + 1);
+            if (l == null) continue;
+            int side = (int) Math.signum(c.lat());
+            boolean byBay = keepClear.test(l.x(), l.z()) || (l.lantern() != null && keepClear.test(l.lantern()[0], l.lantern()[2]));
+            if (!byBay && clearance(i, c.x(), c.z()) >= LIGHT_CLEAR + e - 1e-9 && !insideBend(i, side)) continue;   // where it may stay
+            // its blocks, only if they are still the light's (the arm's walls over the lanes, the post, the lantern)
+            for (int[] k : l.blocks()) {
+                Material m = world.get(k[0], k[1], k[2]);
+                if (m != RoadLights.POST && m != RoadLights.LANTERN) continue;
+                site.set(k[0], k[1], k[2], Material.AIR);
+                changed++;
+            }
+            if (ao <= 4.5 && world.get(c.x(), base, c.z()) == RoadLights.FOOTING) {   // the verge's path back over its footing
+                site.set(c.x(), base, c.z(), VERGE);
+                changed++;
+            }
+            out[0]++;
+            if (!byBay) {
+                int put = relight(i, insideBend(i, side) ? -side : side, keepClear);
+                if (put > 0) out[1]++;
+                changed += put;
+            }
+        }
+        out[2] = changed;
+        return out;
+    }
+
+    /** The light of point i put up again on this side where a road puts it now (point i or the next ones), if all its place is free. */
+    private int relight(int i, int side, java.util.function.BiPredicate<Integer, Integer> keepClear) {
+        for (int j = i; j <= Math.min(points.size() - 2, i + LIGHT_SHIFT); j++) {
+            if (parts[j] != RoadProfile.Part.ROAD) return 0;
+            int e = extra(j);
+            List<Col> cols = new ArrayList<>();
+            if (columns(j, e, cols) != null) return 0;
+            Col post = lightPost(j, side, cols);
+            if (post == null) continue;
+            Col end = nearest(cols, side * (2.0 + e), 1.5 + e);
+            if (end == null || keepClear.test(post.x(), post.z()) || keepClear.test(end.x(), end.z())) return 0;
+            int h = halves[j], y = surfaceY(h), base = RoadProfile.block(h), arm = Math.max(y + 6, ceilings[j] + 1);
+            for (int k = base + 1; k <= arm; k++) if (!free(world.get(post.x(), k, post.z()))) return 0;
+            for (Col c : cols) {
+                double l = Math.abs(c.lat());
+                if (Math.signum(c.lat()) != side || l < Math.abs(end.lat()) - 0.01 || l > Math.abs(post.lat()) + 0.01) continue;
+                if (!free(world.get(c.x(), arm, c.z())) || !free(world.get(c.x(), arm - 1, c.z()))) return 0;
+            }
+            Material under = world.get(post.x(), base, post.z());
+            if (under == null || !(under == VERGE || under == Material.GRASS_BLOCK || under == Material.DIRT || under == RoadLights.FOOTING
+                    || under == DRAIN || under == APRON_BLOCK)) return 0;
+            int[] n = {0};
+            Site was = site;
+            site = counting(was, n);
+            try {
+                lamp(post, cols, side, e, h, false, ceilings[j]);
+            } finally {
+                site = was;
+            }
+            return n[0];
+        }
+        return 0;
+    }
+
+    /** What a mended light may take the place of: air, snow, plants, a reflector or a guardrail. */
+    private static boolean free(Material m) {
+        if (m == null) return false;
+        if (m == Material.AIR || m == Material.CAVE_AIR || m == Material.SNOW || m == REFLECTOR || m == GUARDRAIL) return true;
+        return switch (m) {
+            case SHORT_GRASS, TALL_GRASS, FERN, LARGE_FERN, DANDELION, POPPY, DEAD_BUSH, SWEET_BERRY_BUSH -> true;
+            default -> false;
+        };
+    }
+
+    /** The site, counting the blocks set. */
+    private static Site counting(Site s, int[] n) {
+        return new Site() {
+            public boolean inside(int y) {
+                return s.inside(y);
+            }
+
+            public boolean air(int x, int y, int z) {
+                return s.air(x, y, z);
+            }
+
+            public boolean liquid(int x, int y, int z) {
+                return s.liquid(x, y, z);
+            }
+
+            public boolean natural(int x, int y, int z) {
+                return s.natural(x, y, z);
+            }
+
+            public boolean fillable(int x, int y, int z) {
+                return s.fillable(x, y, z);
+            }
+
+            public void set(int x, int y, int z, Material m) {
+                n[0]++;
+                s.set(x, y, z, m);
+            }
+
+            public void set(int x, int y, int z, String data) {
+                n[0]++;
+                s.set(x, y, z, data);
+            }
+
+            public boolean protectedLand(int x, int z) {
+                return s.protectedLand(x, z);
+            }
+
+            public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {
+                s.roadSign(x, y, z, yaw, dock, km, route, kind);
+            }
+
+            public RoadNetwork.Spot road(int x, int z) {
+                return s.road(x, z);
+            }
+
+            public Material get(int x, int y, int z) {
+                return s.get(x, y, z);
+            }
+        };
     }
 
     /** A column of a cross-section and how far right of the middle its centre is (left: below 0). */

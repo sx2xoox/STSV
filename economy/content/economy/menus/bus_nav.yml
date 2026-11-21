@@ -1,0 +1,46 @@
+# /버스 내비 (버스 내비게이션): 정류장 고르기. 목록은 칸마다 정류장 하나, 줄 머리에 구역 이름 (지금 태운 손님이 내릴 곳 →
+# 이벤트 정류장 → 즐겨찾기 → 노선마다 전체, 도로 거리 가까운 순). 클릭 = 길 안내, 우클릭 = 즐겨찾기. 배경은 우편함과 같은 칸 모양.
+bus_nav:
+  title: "<#f0e2b0>버스 내비 <#b9a6d6>· 정류장 {count}곳"
+  rows: 6
+  background: economy:gui/mail
+  layout:
+    - "....I...."
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P..A.X..N"
+  list: L
+  buttons:
+    I:
+      action: "busnav:off"
+      icon: stsv:gui/compass
+      material: COMPASS
+      name: "<white>안내 중: <#4fd1ff>{target}"
+      lore: ["<gray>정류장 클릭: 길 안내", "<gray>정류장 우클릭: 즐겨찾기", "<yellow>이 버튼 클릭: 안내 끄기"]
+    A:
+      action: "busnav:riders"
+      icon: economy:gui/checklist
+      material: BELL
+      name: "<green>손님 순서대로"
+      lore: ["<gray>손님이 내릴 가장 가까운 정류장부터", "<gray>차례로 이어서 안내 (/버스 내비 손님)"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"

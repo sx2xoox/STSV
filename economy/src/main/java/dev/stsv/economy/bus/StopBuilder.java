@@ -92,6 +92,10 @@ final class StopBuilder {
                 }
             }
         }
+        // the street lights on the bay's side along it and BusStop.LIGHT_CLEAR before and after it (a bus swings in and out
+        // over the shoulder there: posts stood in its way), each whole (its post, arm and lantern), found by its exact shape
+        for (int[] b : s.lightsInTheWay(cfg.bayLength(), (x, by, z) -> w.getBlockAt(x, by, z).getType()))
+            out.putIfAbsent(w.getBlockAt(b[0], b[1], b[2]), Material.AIR.createBlockData());
         // the shelter, 5 along, 3 out, behind the bay; how it looks follows the stop's theme (the same shape for every theme).
         // The country stop: walls of whitewashed cement (white terracotta) on a cobblestone footing at the back and the sides,
         // a little window in the back, log posts at the open front, a lean-to roof of old tin (weathered copper, waxed: it

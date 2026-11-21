@@ -99,6 +99,46 @@ public record BusStop(int id, String name, String world, double x, double z, int
         return new ArrayList<>(out.values());
     }
 
+    /**
+     * How far before and after the bay (along the road) its side of the road is kept clear of street lights: a bus 8.5
+     * long pulls in from the lane and out again at a slant, its collision squares crossing the shoulder up to 14 blocks
+     * before the bay starts and after it ends (RoadLightsTest drives every bus in and out); a little more for a margin.
+     */
+    public static final int LIGHT_CLEAR = 18;
+
+    /** Whether a column (x, z) is where no street light may stand by this stop: its side of the road, along the bay and {@link #LIGHT_CLEAR} either way. */
+    public boolean keepsClearOfLights(int bx, int bz, int length) {
+        if (!bay) return false;
+        double[] l = local(bx + 0.5, bz + 0.5);
+        return Math.abs(l[0]) <= length / 2.0 + LIGHT_CLEAR && l[1] > 0.5 && l[1] <= ROAD_HALF + 3;
+    }
+
+    /**
+     * The street lights by this stop's bay that a bus pulling in or out would meet ({@link #keepsClearOfLights}): every block
+     * of each (its post, arm and lantern: {@link dev.stsv.economy.road.RoadLights}, found by its exact shape), {x, y, z}.
+     * Only a light on the bay's side (its arm reaching back over the road), its post on the shoulder; none for a simple stop.
+     */
+    public List<int[]> lightsInTheWay(int length, dev.stsv.economy.road.RoadLights.Blocks blocks) {
+        List<int[]> out = new ArrayList<>();
+        if (!bay) return out;
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        int y = y();
+        double reach = length / 2.0 + LIGHT_CLEAR;
+        for (double a = -reach; a <= reach; a += 0.5) {
+            for (double o = KERB - 0.5; o <= ROAD_HALF + 2.5; o += 0.5) {
+                double[] p = at(a, o);
+                int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
+                if (!seen.add(((long) bx << 32) ^ (bz & 0xffffffffL))) continue;
+                dev.stsv.economy.road.RoadLights.Light l = dev.stsv.economy.road.RoadLights.at(blocks, bx, bz, y - 12, y + 12);
+                if (l == null) continue;
+                double[] post = local(l.x() + 0.5, l.z() + 0.5), lantern = local(l.lantern()[0] + 0.5, l.lantern()[2] + 0.5);
+                if (lantern[1] >= post[1]) continue;   // the other side's light (its arm reaching the other way)
+                out.addAll(l.blocks());
+            }
+        }
+        return out;
+    }
+
     /** How far out the shelter's road side is (behind the bay, or the shoulder for a simple stop). */
     public double shelterOut(int width) {
         return ROAD_HALF + (bay ? width : 0) + 1;

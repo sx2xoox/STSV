@@ -145,6 +145,63 @@ public final class BusRoutes {
         return d;
     }
 
+    /**
+     * The shortest ways from one node (버스 내비게이션): every node's road distance and the node before it on its shortest way,
+     * so the way to any node can be read back ({@link Tree#path}). The same graph and weights as {@link #distances}.
+     */
+    public record Tree(int from, double[] dist, int[] prev) {
+        /** The nodes from {@code from} to {@code to} in order (empty: no way). */
+        public int[] path(int to) {
+            if (to < 0 || to >= dist.length || !Double.isFinite(dist[to])) return new int[0];
+            int n = 1;
+            for (int k = to; k != from && prev[k] >= 0; k = prev[k]) n++;
+            int[] out = new int[n];
+            int i = n - 1;
+            for (int k = to; i >= 0; k = prev[k]) {
+                out[i--] = k;
+                if (k == from || prev[k] < 0) break;
+            }
+            return out;
+        }
+    }
+
+    /** The shortest ways from node `from` to every node ({@link Tree}). */
+    public Tree tree(int from) {
+        double[] d = new double[xs.length];
+        int[] prev = new int[xs.length];
+        Arrays.fill(d, Double.POSITIVE_INFINITY);
+        Arrays.fill(prev, -1);
+        if (from < 0 || from >= xs.length) return new Tree(from, d, prev);
+        d[from] = 0;
+        PriorityQueue<double[]> q = new PriorityQueue<>((a, b) -> Double.compare(a[0], b[0]));
+        q.add(new double[]{0, from});
+        while (!q.isEmpty()) {
+            double[] top = q.poll();
+            int k = (int) top[1];
+            if (top[0] > d[k]) continue;
+            int r = roadOf[k];
+            if (k > base[r]) step(d, prev, q, k, k - 1);
+            if (k + 1 < base[r + 1]) step(d, prev, q, k, k + 1);
+            List<Integer> l = links.get(k);
+            if (l != null) for (int o : l) step(d, prev, q, k, o);
+        }
+        return new Tree(from, d, prev);
+    }
+
+    private void step(double[] d, int[] prev, PriorityQueue<double[]> q, int a, int b) {
+        double w = d[a] + Math.hypot(xs[a] - xs[b], zs[a] - zs[b]);
+        if (w < d[b]) {
+            d[b] = w;
+            prev[b] = a;
+            q.add(new double[]{w, b});
+        }
+    }
+
+    /** A node's road surface (half blocks). */
+    public int half(int node) {
+        return half[node];
+    }
+
     private void relax(double[] d, PriorityQueue<double[]> q, int a, int b) {
         double w = d[a] + Math.hypot(xs[a] - xs[b], zs[a] - zs[b]);
         if (w < d[b]) {

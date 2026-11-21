@@ -355,8 +355,11 @@ class RoadPreviewTest {
         assertEquals(0.5 + RoadSign.LATERAL, km.z(), 1e-9);
         assertEquals(b.levels()[1000] + 1, km.y(), 1e-9);
         assertEquals(90f, km.yaw(), 1e-3f);
-        // the light at the sign: on the other side, its post on the verge, its arm over the edge lane, 4 clear under the lantern
-        assertEquals(Material.STONE_BRICK_WALL, land.get(1000, b.top(1000) + 3, -4), "the post");
+        // the light at the sign: on the other side, its post at the shoulder's outer edge (RoadSection.LIGHT_CLEAR: clear of
+        // a bus over the kerb), its arm over the verge, the kerb and the edge lane, 4 clear under the lantern
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1000, b.top(1000) + 3, -5), "the post");
+        assertEquals(Material.AIR, land.get(1000, b.top(1000) + 3, -4), "nothing by the kerb");
+        assertEquals(Material.STONE_BRICK_WALL, land.get(1000, b.top(1000) + 6, -4), "the arm");
         assertEquals(Material.STONE_BRICK_WALL, land.get(1000, b.top(1000) + 6, -3), "the arm");
         assertEquals(Material.LANTERN, land.get(1000, b.top(1000) + 5, -2), "the lantern hangs over the edge lane");
         // the panel hangs over the kerb and the shoulder, never the lanes, and nothing the road built is in it or in the posts' way
