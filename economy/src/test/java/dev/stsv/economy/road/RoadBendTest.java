@@ -177,7 +177,7 @@ class RoadBendTest {
     }
 
     /** A contact: what, where (lat from the road's centre line, + right of the way driven), on a bend's inside or outside. */
-    record Hit(String block, int x, int y, int z, double lat, String side, double rise) {}
+    record Hit(String block, int x, int y, int z, double lat, String side, double rise, String how) {}
 
     record Drive(String stuck, int bumps, int refused, List<Hit> hits) {
         boolean clean() {
@@ -229,13 +229,23 @@ class RoadBendTest {
      * Drives along the road points `pts` (as given), its line lat out, at `cruise`, slowing to `bend` where the way ahead
      * turns 30 degrees or more, steering A / D towards a point ahead. jitter: a sloppy driver (steers late, overshoots).
      */
-    static Drive drive(VehicleSpec s, Terra w, List<double[]> pts, IntToDoubleFunction lat, double cruise, double bend, boolean sloppy) {
+    static Drive drive(VehicleSpec s, Road r, boolean back, IntToDoubleFunction lat, double cruise, double bend, boolean sloppy) {
+        return drive(s, r.land(), back ? reversed(r.points()) : r.points(), back ? reversed(r.halves()) : r.halves(), lat, cruise, bend, sloppy);
+    }
+
+    static int[] reversed(int[] h) {
+        int[] out = new int[h.length];
+        for (int i = 0; i < h.length; i++) out[i] = h[h.length - 1 - i];
+        return out;
+    }
+
+    static Drive drive(VehicleSpec s, Terra w, List<double[]> pts, int[] halves, IntToDoubleFunction lat, double cruise, double bend, boolean sloppy) {
         VehiclePhysics.Terrain t = terrain(w);
         List<double[]> path = path(pts, lat);
         double[] p0 = path.get(3), p1 = path.get(6);
-        int y = 160;
-        while (y > -60 && RoadClearanceTest.isOpen(w.get((int) Math.floor(p0[0]), y, (int) Math.floor(p0[1])))) y--;
-        VehiclePhysics.State st = new VehiclePhysics.State(p0[0], y + 1.01, p0[1], (float) Math.toDegrees(Math.atan2(-(p1[0] - p0[0]), p1[1] - p0[1])));
+        double y = Double.NEGATIVE_INFINITY;
+        for (int k = 0; k <= 3 + (int) Math.ceil(s.length()); k++) y = Math.max(y, RoadSection.top(halves[k]));
+        VehiclePhysics.State st = new VehiclePhysics.State(p0[0], y + 0.01, p0[1], (float) Math.toDegrees(Math.atan2(-(p1[0] - p0[0]), p1[1] - p0[1])));
         List<Hit> hits = new ArrayList<>();
         int seg = 3, since = 0, best = 0, bumps = 0, refused = 0, hold = 0, lastSteer = 0;
         for (int tick = 0; tick < 40_000; tick++) {
@@ -264,10 +274,13 @@ class RoadBendTest {
             }
             lastSteer = steer;
             float yawBefore = st.yaw;
+            double x0 = st.x, z0 = st.z;
             VehiclePhysics.step(st, new DriveInput(st.speed < want, st.speed > want + 1.5, steer == 1, steer == -1, false, false), s, t, 20);
+            boolean clipped = Math.hypot(st.x - x0, st.z - z0) < Math.abs(st.speed) * VehiclePhysics.DT * 0.98 - 1e-3;
+            boolean turnRefused = steer != 0 && st.speed > 0.5 && st.yaw == yawBefore;
             if (st.bumped) bumps++;
-            if (steer != 0 && st.speed > 0.5 && st.yaw == yawBefore) refused++;
-            contacts(s, st, w, pts, hits);
+            if (turnRefused) refused++;
+            if (st.bumped || clipped || turnRefused) contacts(s, st, w, pts, hits, (st.bumped ? "B" : "") + (clipped ? "C" : "") + (turnRefused ? "T" : ""));
             if (seg > best) {
                 best = seg;
                 since = 0;
@@ -314,7 +327,7 @@ class RoadBendTest {
     }
 
     /** What the vehicle's squares touch now (within 0.03) above its floor: rise is how far over its bottom the box's top is. */
-    static void contacts(VehicleSpec s, VehiclePhysics.State st, Terra w, List<double[]> pts, List<Hit> out) {
+    static void contacts(VehicleSpec s, VehiclePhysics.State st, Terra w, List<double[]> pts, List<Hit> out, String how) {
         List<double[]> bx = new ArrayList<>();
         for (double[] q : VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s)) {
             for (int x = (int) Math.floor(q[0] - 0.05); x <= (int) Math.floor(q[3] + 0.05); x++)
@@ -330,7 +343,7 @@ class RoadBendTest {
                                 if (rise <= 0.55) continue;   // a half step: stepped up smoothly
                                 double[] l = latOf(pts, x + 0.5, z + 0.5);
                                 String side = l[1] == 0 ? "straight" : Math.signum(l[0]) == l[1] ? "inside" : "outside";
-                                Hit h = new Hit(role(m, w, x, y, z), x, y, z, Math.round(l[0] * 100) / 100.0, side, Math.round(rise * 100) / 100.0);
+                                Hit h = new Hit(role(m, w, x, y, z), x, y, z, Math.round(l[0] * 100) / 100.0, side, Math.round(rise * 100) / 100.0, how);
                                 boolean seen = false;
                                 for (Hit e : out) seen |= e.x() == x && e.y() == y && e.z() == z;
                                 if (!seen) out.add(h);
@@ -400,11 +413,10 @@ class RoadBendTest {
                 for (double lat : LATS) {
                     for (boolean back : new boolean[]{false, true}) {
                         for (int mode = 0; mode < 2; mode++) {
-                            List<double[]> pts = back ? reversed(r.points()) : r.points();
-                            Drive d = mode == 0 ? drive(v.getValue(), r.land(), pts, k -> lat, 9, 4.5, false) : drive(v.getValue(), r.land(), pts, k -> lat, 10, 10, true);
+                            Drive d = mode == 0 ? drive(v.getValue(), r, back, k -> lat, 9, 4.5, false) : drive(v.getValue(), r, back, k -> lat, 10, 10, true);
                             if (d.clean()) continue;
                             sb.append(sc.getKey()).append(" | ").append(v.getKey()).append(" lat ").append(lat).append(back ? " back" : "").append(mode == 1 ? " sloppy" : "").append(": ").append(d).append('\n');
-                            for (Hit h : d.hits()) roles.merge(sc.getKey() + " " + h.block() + " " + h.side() + " lat~" + Math.round(Math.abs(h.lat())), 1, Integer::sum);
+                            for (Hit h : d.hits()) roles.merge(sc.getKey() + " " + h.block() + " " + h.side() + " lat~" + Math.round(Math.abs(h.lat())) + " " + h.how(), 1, Integer::sum);
                         }
                     }
                 }
