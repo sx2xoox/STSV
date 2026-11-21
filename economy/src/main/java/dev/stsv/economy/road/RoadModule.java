@@ -160,7 +160,7 @@ public final class RoadModule extends EcoModule {
                         + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체|여기 [반경]] | 눈치우기 [반경|전체] | "
                         + "가로등정리 [하역장|전체|여기 [반경]] | 커브정리 [하역장|전체|여기 [반경]] | 가드레일교체 [하역장|전체|여기 [반경]]",
                 "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (성격: 쉬운길 = 완만·넓게·빠르게, "
-                        + "보통 = 예전 그대로(기본), 어려운길 = 가파르고 굽은 산길·보상 큼; 멈췄던 것은 이어서, 새로 = 처음부터, "
+                        + "보통 = 기본(예전보다 조금 가파르고 굽음), 어려운길 = 가파르고 굽은 산길·보상 큼; 멈췄던 것은 이어서, 새로 = 처음부터, "
                         + "이어짓기 = 다 지은 길의 끝에서 입구까지 모자란 곳만, 개인·서버 땅과 roads.avoid 는 피함) / 미리보기 = 살피고 길만 찾아 "
                         + "입자·요약·땅 밖 건물 경고 (짓지 않음, 60분 안에 같은 출발이면 그 길로 지음) / 되돌리기 = 그 길이 바꾼 블록을 원래대로 "
                         + "(그사이 바뀐 블록은 그대로) / 기준점 정하기 / 멈추기 / 진행 상황 / 그 길의 표지판 모두 치우기 / "
@@ -808,6 +808,7 @@ public final class RoadModule extends EcoModule {
         Map<RoadCharacter, RoadCharacter.Shape> out = new java.util.EnumMap<>(RoadCharacter.class);
         if (all == null) return out;
         for (RoadCharacter c : RoadCharacter.values()) {
+            if (c == RoadCharacter.LEGACY) continue;   // (the old roads' shape: never configured)
             org.bukkit.configuration.ConfigurationSection s = all.getConfigurationSection(c.id);
             if (s == null) continue;
             RoadCharacter.Shape d = c.defaults();
@@ -948,7 +949,7 @@ public final class RoadModule extends EcoModule {
         }
         if (how.equals("이어짓기") && !preview) {
             patch(s, d, w);
-            if (chosen != null && job != null && job.dock.equals(d.name()) && chosen != job.character) s.sendMessage(keeps(job.character));
+            if (chosen != null && job != null && job.dock.equals(d.name()) && chosen != job.character.label()) s.sendMessage(keeps(job.character));
             return;
         }
         RoadJob old = here || fresh || atOrigin ? null : saved(d.name());
@@ -959,7 +960,7 @@ public final class RoadModule extends EcoModule {
             old.running = true;
             job = old;
             fromText = Lang.raw("road.from-saved");
-            if (chosen != null && chosen != old.character) s.sendMessage(keeps(old.character));   // planned as it was: its character stays
+            if (chosen != null && chosen != old.character.label()) s.sendMessage(keeps(old.character));   // planned as it was: its character stays
         } else {
             Location from;
             boolean fromOrigin = false;
@@ -992,9 +993,9 @@ public final class RoadModule extends EcoModule {
             // a new road to the dock: its number stays, the old road's signs go (a set of its own); a preview touches neither
             RoadJob prev = preview ? null : saved(d.name());
             j.route = preview ? 0 : prev != null && prev.route > 0 ? prev.route : nextRoute();
-            // as asked, else as the dock's road was (built again: its character stays), else normal
+            // as asked, else as the dock's road was (built again: its character stays; an old 보통 road: today's 보통), else normal
             RoadJob was = prev != null ? prev : saved(d.name());
-            j.character = chosen != null ? chosen : was != null && !was.removed ? was.character : RoadCharacter.NORMAL;
+            j.character = chosen != null ? chosen : was != null && !was.removed ? was.character.label() : RoadCharacter.NORMAL;
             if (prev != null) {
                 j.signs = prev.signs + 1;
                 RoadSigns.remove(d.name());
@@ -1038,7 +1039,7 @@ public final class RoadModule extends EcoModule {
     static String characterWords(RoadCharacter c) {
         RoadCharacter.Shape sh = c.shape();
         StringBuilder b = new StringBuilder("<white>" + c.word + "<gray>");
-        if (c == RoadCharacter.NORMAL) return b.append(" (예전 그대로)").toString();
+        if (c == RoadCharacter.LEGACY) return b.append(" (예전 모양 그대로: 새로 지으면 지금의 보통)").toString();
         b.append(" (경사 1:").append(fmt(sh.gradeRun())).append(", 갓길 ").append(sh.shoulder() > 0 ? "+" : "").append(sh.shoulder())
                 .append(", 가로등 간격 ×").append(fmt(sh.lightFactor()));
         if (sh.speedBonus() > 0) b.append(", 속도 +").append(fmt(sh.speedBonus()));
@@ -1074,6 +1075,7 @@ public final class RoadModule extends EcoModule {
             return;
         }
         RoadCharacter was = main.character;
+        if (c == RoadCharacter.NORMAL && was == RoadCharacter.LEGACY) c = was;   // already 보통 (as built before normal got harder)
         RoadJob running = job != null && job.dock.equals(dock) ? job : null;
         for (RoadJob j : new RoadJob[]{main, savedTail(dock), running}) {
             if (j == null) continue;
@@ -1477,7 +1479,7 @@ public final class RoadModule extends EcoModule {
             water[n - 1] = false;
         }
         int[] cross = net.crossings(points);
-        RoadCharacter.Shape sh = job.character.shape();   // (README "국도", 성격: normal builds as roads always were)
+        RoadCharacter.Shape sh = job.character.shape();   // (README "국도", 성격: legacy builds as roads used to be)
         RoadProfile.Grade grade = sh.grade();
         RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross, net.headroom(points), grade, sh.follow());
         // sharp corners level (no crease of steps on their inside), but where it meets or goes over another road

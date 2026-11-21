@@ -29,12 +29,12 @@ public final class RoadNetwork {
     /** A built road: its dock, its points (x, z, one a block) and its surface at each, in half blocks. */
     public record Road(String dock, List<double[]> points, int[] halves, RoadCharacter character) {
         public Road(String dock, List<double[]> points, int[] halves) {
-            this(dock, points, halves, RoadCharacter.NORMAL);
+            this(dock, points, halves, RoadCharacter.LEGACY);
         }
 
         /** Its character (README "국도", 성격), never null. */
         public RoadCharacter character() {
-            return character == null ? RoadCharacter.NORMAL : character;
+            return character == null ? RoadCharacter.LEGACY : character;
         }
     }
 

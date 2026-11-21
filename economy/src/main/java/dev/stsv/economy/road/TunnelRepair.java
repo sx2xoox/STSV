@@ -24,7 +24,7 @@ final class TunnelRepair {
     record Road(String world, String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route, RoadCharacter character) {
 
         Road(String world, String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route) {
-            this(world, dock, points, halves, parts, route, RoadCharacter.NORMAL);
+            this(world, dock, points, halves, parts, route, RoadCharacter.LEGACY);
         }
 
         /** How many points are in a tunnel. */

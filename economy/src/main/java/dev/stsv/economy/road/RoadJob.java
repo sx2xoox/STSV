@@ -108,7 +108,8 @@ public final class RoadJob {
     public boolean removed;
     /**
      * Its character (README "국도", 성격: 쉬운길, 보통, 어려운길): how it is planned and built, what it pays. Saved as
-     * {@code character=<id>} when not normal; a road saved without it (before characters) is normal.
+     * {@code character=<id>}; a road saved without it (built before normal got harder, or before characters) is
+     * {@link RoadCharacter#LEGACY}: 보통 as it used to be built.
      */
     public RoadCharacter character = RoadCharacter.NORMAL;
 
@@ -337,7 +338,7 @@ public final class RoadJob {
         if (tail) b.append("tail=true\n");
         if (preview) b.append("preview=true\n");
         if (removed) b.append("removed=true\n");
-        if (character != null && character != RoadCharacter.NORMAL) b.append("character=").append(character.id).append('\n');
+        if (character != null && character != RoadCharacter.LEGACY) b.append("character=").append(character.id).append('\n');
         if (!Double.isNaN(askedX)) b.append("asked=").append(num(askedX)).append(',').append(num(askedZ)).append('\n');
         if (!Double.isNaN(leadX)) b.append("lead=").append(num(leadX)).append(',').append(num(leadZ)).append('\n');
         if (branchOf != null) b.append("branch=").append(branchOf).append(',').append(num(branchKm)).append('\n');
@@ -384,6 +385,7 @@ public final class RoadJob {
 
     public static RoadJob read(String text) {
         RoadJob j = new RoadJob();
+        j.character = RoadCharacter.LEGACY;   // no character= line: a road saved before normal got harder (or before characters)
         if (text.startsWith("\uFEFF")) text = text.substring(1);   // saved again by an editor (moving the server): its byte order mark
         for (String line : text.split("\n")) {
             int eq = line.indexOf('=');

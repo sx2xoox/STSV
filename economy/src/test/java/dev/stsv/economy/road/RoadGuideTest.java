@@ -22,9 +22,13 @@ class RoadGuideTest {
 
     static final String HOME = "본사 출발 터미널";
 
-    /** A finished road saved as RoadModule saves it (flat ground), read back. */
+    /**
+     * A finished road saved as RoadModule saves it (flat ground), read back: a 보통 road built before normal got harder
+     * (legacy: its lights every roads.light-every, as these signs keep clear of).
+     */
     static RoadJob saved(String dock, int route, String branchOf, double[]... corners) {
         RoadJob j = new RoadJob();
+        j.character = RoadCharacter.LEGACY;
         j.dock = dock;
         j.world = "world";
         j.route = route;

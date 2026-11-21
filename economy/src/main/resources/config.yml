@@ -86,8 +86,9 @@ roads:
   #     x2: 180
   #     z2: 10
   avoid: []
-  # 국도 성격 (README "국도", 성격): /관리자 국도 <하역장> [쉬운길|보통|어려운길]. 보통 = 예전 그대로(짓는 모양은 바꿀 수 없고
-  # 보상 줄만 읽음). 빠진 값은 아래 기본값. 바꾸면 새로 짓는 길부터(이미 지은 길의 모양은 그대로, 속도·보상은 바로)
+  # 국도 성격 (README "국도", 성격): /관리자 국도 <하역장> [쉬운길|보통|어려운길]. 빠진 값은 아래 기본값. 바꾸면 새로 짓는 길부터
+  # (이미 지은 길의 모양은 그대로, 속도·보상은 바로). 보통은 예전보다 어려움(경사 1:2.75, 땅을 더 따라감, 굽은 곳 여유 0.8):
+  # 예전에 지은 보통 길(파일에 character= 줄 없음)은 이름표만 보통이고 예전 모양 그대로 고쳐짐 · 새 모양은 새로 지어야
   #   grade: 경사 (1칸 오르내림에 몇 칸, 2~8) · climb / steep / turn: 길 찾기 값(높이 1칸 / 경사 넘는 1칸 / 45도 꺾임)
   #   straighten: 곧게 펴기 여유 (1.02 = 2% 더 비싸도 곧게) · follow: 땅을 몇 칸 평균 내어 따라갈지 (작을수록 오르내림이 많음)
   #   bridge-gap / tunnel-cover / min-run: 이만큼 높으면 다리, 이만큼 덮이면 굴, 이보다 짧은 다리·굴은 메우거나 깎음
@@ -119,6 +120,22 @@ roads:
       outdoor-weight: 1
       dock-pay: 1
     normal:
+      grade: 2.75
+      climb: 0.015
+      steep: 0.45
+      turn: 0
+      straighten: 1.01
+      follow: 3
+      bridge-gap: 4
+      tunnel-cover: 6
+      min-run: 4
+      shoulder: 0
+      light-factor: 1.25
+      reflect-every: 24
+      rail-drop: 3
+      bend-room: 0.8
+      rough: false
+      warnings: false
       speed-bonus: 0
       fare: 1
       streak: 1

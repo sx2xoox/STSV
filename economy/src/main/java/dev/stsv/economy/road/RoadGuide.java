@@ -38,12 +38,12 @@ public final class RoadGuide {
     public record Road(String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route, String home,
                        RoadCharacter character, int[] ground) {
         public Road(String dock, List<double[]> points, int[] halves, RoadProfile.Part[] parts, int route, String home) {
-            this(dock, points, halves, parts, route, home, RoadCharacter.NORMAL, null);
+            this(dock, points, halves, parts, route, home, RoadCharacter.LEGACY, null);
         }
 
         /** Its character, never null. */
         public RoadCharacter character() {
-            return character == null ? RoadCharacter.NORMAL : character;
+            return character == null ? RoadCharacter.LEGACY : character;
         }
     }
 

@@ -20,9 +20,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 국도 성격 (README "국도", 성격): 쉬운길 / 보통 / 어려운길. The character read and saved (an older road: 보통), what each one
- * plans and builds with (보통 exactly as roads always were), what it pays, and the hard roads driven by the long vehicles'
- * own physics (RoadBendTest's harness): a careful driver (on his lane, at most 4.5 b/s) gets through every hard shape
+ * 국도 성격 (README "국도", 성격): 쉬운길 / 보통 / 어려운길. The character read and saved (an older road: legacy 보통, kept to
+ * the shape it was built with), what each one plans and builds with (legacy exactly as roads always were; 보통 between
+ * that and 어려운길), what it pays, and the normal and hard roads driven by the long vehicles' own physics (RoadBendTest's
+ * harness): a careful driver (on his lane, at most 4.5 b/s on a hard road, 5 on a normal one) gets through every shape
  * without getting stuck or touching anything, a fast sloppy one scrapes and bumps.
  */
 class RoadCharacterTest {
@@ -52,18 +53,26 @@ class RoadCharacterTest {
         assertEquals(RoadCharacter.EASY, RoadCharacter.parse("EASY"));
         assertNull(RoadCharacter.parse("기준점"));
         assertNull(RoadCharacter.parse("새로"));
-        assertEquals(RoadCharacter.NORMAL, RoadCharacter.ofId(null));
-        assertEquals(RoadCharacter.NORMAL, RoadCharacter.ofId("무엇"));
+        assertEquals(RoadCharacter.LEGACY, RoadCharacter.ofId(null));
+        assertEquals(RoadCharacter.LEGACY, RoadCharacter.ofId("무엇"));
+        assertEquals(RoadCharacter.LEGACY, RoadCharacter.ofId("legacy"));
+        assertEquals(RoadCharacter.NORMAL, RoadCharacter.ofId("normal"));
+        assertNull(RoadCharacter.parse("legacy"), "never chosen");
     }
 
     @Test
-    void savedWithTheRoadAndOldRoadsAreNormal() {
+    void savedWithTheRoadAndOldRoadsAreLegacyNormal() {
         RoadJob j = new RoadJob();
         j.dock = "서해";
         j.world = "world";
         j.corners.add(new double[]{0.5, 0.5});
         j.corners.add(new double[]{40.5, 0.5});
-        assertFalse(j.write().contains("character="), "a normal road's file is as it always was");
+        assertEquals(RoadCharacter.NORMAL, j.character, "a new road: today's normal");
+        assertTrue(j.write().contains("character=normal\n"), "a new normal road says so");
+        assertEquals(RoadCharacter.NORMAL, RoadJob.read(j.write()).character);
+        j.character = RoadCharacter.LEGACY;
+        assertFalse(j.write().contains("character="), "an old normal road's file is as it always was");
+        assertEquals(RoadCharacter.LEGACY, RoadJob.read(j.write()).character);
         j.character = RoadCharacter.HARD;
         String text = j.write();
         assertTrue(text.contains("character=hard\n"));
@@ -71,9 +80,17 @@ class RoadCharacterTest {
         assertEquals(RoadCharacter.HARD, j.snapshot().character);
         j.character = RoadCharacter.EASY;
         assertEquals(RoadCharacter.EASY, RoadJob.read(j.write()).character);
-        // a road saved before characters
+        // a road saved before characters (or before normal got harder): 보통 as it was built
         String old = "dock=서해\nworld=world\nstart=0,0\nend=40,0\nphase=DONE\nrunning=false\ncursor=0\nstarted=0\nroute=3\nsigns=1\n";
-        assertEquals(RoadCharacter.NORMAL, RoadJob.read(old).character);
+        RoadJob legacy = RoadJob.read(old);
+        assertEquals(RoadCharacter.LEGACY, legacy.character);
+        assertEquals(RoadCharacter.NORMAL, legacy.character.label());
+        assertEquals("보통", legacy.character.word);
+        // continuing an old road keeps its old shape
+        legacy.corners.add(new double[]{0.5, 0.5});
+        legacy.corners.add(new double[]{40.5, 0.5});
+        for (int i = 0; i < legacy.points().size(); i++) legacy.ground.add(new RoadJob.Ground());
+        assertEquals(RoadCharacter.LEGACY, RoadModule.tailJob(legacy, new int[]{60, 64, 0}).character);
         // continuing a road keeps it; its patch keeps it
         RoadJob done = RoadJob.read(j.write());
         done.phase = RoadJob.Phase.DONE;
@@ -97,12 +114,13 @@ class RoadCharacterTest {
         RoadNetwork n = RoadNetwork.of(List.of(new RoadNetwork.Road("a", a, new int[a.size()], RoadCharacter.HARD),
                 new RoadNetwork.Road("b", b, new int[b.size()])));
         assertEquals(RoadCharacter.HARD, n.character(50, 0));
-        assertEquals(RoadCharacter.NORMAL, n.character(50, 50));
+        assertEquals(RoadCharacter.LEGACY, n.character(50, 50), "a road without a character: as built before");
         assertNull(n.character(50, 25));
         assertEquals(RoadCharacter.HARD, n.characterNear(50, 8, RoadRewards.STOP_REACH), "a stop's bay beside the road");
         assertNull(n.characterNear(50, 25, RoadRewards.STOP_REACH));
         // the speed bonus: an easy road's more, the others as roads.speed-bonus
         assertEquals(1.2, RoadModule.speedBonus(1.2, RoadCharacter.NORMAL), 1e-9);
+        assertEquals(1.2, RoadModule.speedBonus(1.2, RoadCharacter.LEGACY), 1e-9);
         assertEquals(1.2, RoadModule.speedBonus(1.2, null), 1e-9);
         assertEquals(1.2, RoadModule.speedBonus(1.2, RoadCharacter.HARD), 1e-9);
         assertEquals(1.35, RoadModule.speedBonus(1.2, RoadCharacter.EASY), 1e-9);
@@ -114,8 +132,8 @@ class RoadCharacterTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
-    void normalPlansAndBuildsAsRoadsAlwaysDid() {
-        RoadCharacter.Shape n = RoadCharacter.NORMAL.shape();
+    void legacyPlansAndBuildsAsRoadsAlwaysDid() {
+        RoadCharacter.Shape n = RoadCharacter.LEGACY.shape();
         assertEquals(RoadPlanner.Weights.DEFAULT, n.weights());
         assertEquals(RoadProfile.Grade.NORMAL, n.grade());
         assertEquals(RoadModule.BRIDGE_GAP, n.bridgeGap());
@@ -126,19 +144,71 @@ class RoadCharacterTest {
         assertEquals(40, n.lightEvery(40));
         assertEquals(RoadSection.REFLECT_EVERY, n.reflectEvery());
         assertEquals(RoadSection.RAIL_DROP, n.railDrop());
-        // the config cannot change how a normal road is built, only what it pays
+        assertEquals(1, n.bendScale(), 1e-9);
+        // the explicit old numbers (what 보통 was): 1:3, climb 0.02, steep 0.6, straighten 2%, follow 4, bridge 3, tunnel 5,
+        // lights ×1, reflectors 20, bend room 1
+        assertEquals(new RoadCharacter.Shape(3, 0.02, 0.6, 0, 1.02, 4, 3, 5, 4, 0, 1, 20, 3, 1, false, false, 0, 1, 1, 1, 1), n);
+        // the config cannot change how a legacy road is built; it pays (and speeds) as normal is configured
         Map<RoadCharacter, RoadCharacter.Shape> m = new HashMap<>();
-        RoadCharacter.Shape d = RoadCharacter.HARD.defaults();
-        m.put(RoadCharacter.NORMAL, d);
+        m.put(RoadCharacter.LEGACY, RoadCharacter.HARD.defaults());
+        RoadCharacter.Shape d = RoadCharacter.NORMAL.defaults();
+        m.put(RoadCharacter.NORMAL, new RoadCharacter.Shape(d.gradeRun(), d.climb(), d.steep(), d.turn(), d.straighten(), d.follow(), d.bridgeGap(),
+                d.tunnelCover(), d.minRun(), d.shoulder(), d.lightFactor(), d.reflectEvery(), d.railDrop(), d.bendScale(), d.rough(), d.warnings(),
+                0.1, 1.3, 1.5, 1.1, 1.2));
         RoadCharacter.configure(m);
-        assertEquals(RoadPlanner.Weights.DEFAULT, RoadCharacter.NORMAL.shape().weights());
-        assertEquals(0, RoadCharacter.NORMAL.shape().shoulder());
-        assertEquals(1.4, RoadCharacter.NORMAL.shape().fare(), 1e-9);
-        // the same road built as normal and with the normal character set: block for block the same
+        RoadCharacter.Shape l = RoadCharacter.LEGACY.shape();
+        assertEquals(RoadPlanner.Weights.DEFAULT, l.weights());
+        assertEquals(0, l.shoulder());
+        assertEquals(1, l.bendScale(), 1e-9);
+        assertEquals(1.3, l.fare(), 1e-9);
+        assertEquals(1.2, l.dock(), 1e-9);
+        assertEquals(1.3, RoadRewards.fare(RoadCharacter.LEGACY, null), 1e-9);
+        assertEquals(1.3, RoadModule.speedBonus(1.2, RoadCharacter.LEGACY), 1e-9);
+        RoadCharacter.configure(null);
+        // the same road built through the old calls (before characters) and as legacy: block for block the same
         BuiltRoad a = build(new RoadBendTest.Terra(RoadBendTest.HILL, RoadBendTest.DRY), RoadBendTest.corners(0, 30, 35, 30, 60, 5, 85, 30, 85, 100), null);
         BuiltRoad b = build(new RoadBendTest.Terra(RoadBendTest.HILL, RoadBendTest.DRY), RoadBendTest.corners(0, 30, 35, 30, 60, 5, 85, 30, 85, 100),
-                RoadCharacter.NORMAL);
+                RoadCharacter.LEGACY);
         assertEquals(a.land().put, b.land().put);
+        // ... and a new normal road is not
+        BuiltRoad c = build(new RoadBendTest.Terra(RoadBendTest.HILL, RoadBendTest.DRY), RoadBendTest.corners(0, 30, 35, 30, 60, 5, 85, 30, 85, 100),
+                RoadCharacter.NORMAL);
+        assertFalse(a.land().put.equals(c.land().put));
+    }
+
+    @Test
+    void normalSitsBetweenTheOldRoadsAndHard() {
+        RoadCharacter.Shape n = RoadCharacter.NORMAL.shape(), l = RoadCharacter.LEGACY.shape(), h = RoadCharacter.HARD.shape();
+        assertEquals(new RoadCharacter.Shape(2.75, 0.015, 0.45, 0, 1.01, 3, 4, 6, 4, 0, 1.25, 24, 3, 0.8, false, false, 0, 1, 1, 1, 1), n);
+        assertEquals(new RoadProfile.Grade(11, 8), n.grade(), "4 blocks in 11");
+        assertEquals(50, n.lightEvery(40));
+        // steeper, closer to the ground, tighter round bends than the old roads; hard more so still
+        assertTrue(h.gradeRun() < n.gradeRun() && n.gradeRun() < l.gradeRun());
+        assertTrue(h.climb() < n.climb() && n.climb() < l.climb() && h.steep() < n.steep() && n.steep() < l.steep());
+        assertTrue(h.straighten() < n.straighten() && n.straighten() < l.straighten());
+        assertTrue(h.follow() < n.follow() && n.follow() < l.follow());
+        assertTrue(l.tunnelCover() < n.tunnelCover() && n.tunnelCover() < h.tunnelCover() && l.bridgeGap() < n.bridgeGap() && n.bridgeGap() < h.bridgeGap());
+        assertTrue(h.bendScale() < n.bendScale() && n.bendScale() < l.bendScale());
+        assertTrue(l.lightEvery(40) < n.lightEvery(40) && n.lightEvery(40) < h.lightEvery(40));
+        assertTrue(l.reflectEvery() < n.reflectEvery());
+        // unchanged: the shoulder, the guardrails, the speed bonus, what it pays
+        assertEquals(l.shoulder(), n.shoulder());
+        assertEquals(l.railDrop(), n.railDrop());
+        assertEquals(0, n.speedBonus(), 1e-9);
+        assertEquals(1.2, RoadModule.speedBonus(1.2, RoadCharacter.NORMAL), 1e-9);
+        assertEquals(1, RoadRewards.fare(RoadCharacter.NORMAL, RoadCharacter.NORMAL), 1e-9);
+        assertEquals(1, RoadRewards.streak(RoadCharacter.NORMAL), 1e-9);
+        // configurable like the others (roads.characters.normal.*), kept in bounds
+        Map<RoadCharacter, RoadCharacter.Shape> m = new HashMap<>();
+        m.put(RoadCharacter.NORMAL, l);
+        RoadCharacter.configure(m);
+        assertEquals(RoadPlanner.Weights.DEFAULT, RoadCharacter.NORMAL.shape().weights(), "the owner can set normal back to the old numbers");
+        assertEquals(40, RoadCharacter.NORMAL.shape().lightEvery(40));
+        m.put(RoadCharacter.NORMAL, new RoadCharacter.Shape(1, -1, -1, -1, 9, -3, 99, -5, 0, 7, 0, 0, -1, 0, true, true, 5, -1, -1, -1, -1));
+        RoadCharacter.configure(m);
+        assertEquals(2, RoadCharacter.NORMAL.shape().gradeRun(), 1e-9);
+        assertTrue(RoadCharacter.NORMAL.shape().bendScale() >= RoadCharacter.MIN_BEND);
+        assertEquals(RoadCharacter.LEGACY_SHAPE.gradeRun(), RoadCharacter.LEGACY.shape().gradeRun(), 1e-9, "legacy never follows");
     }
 
     @Test
@@ -180,8 +250,10 @@ class RoadCharacterTest {
         assertFalse(pe.isEmpty() || pn.isEmpty() || ph.isEmpty());
         assertTrue(RoadPlanner.turns(pe) <= RoadPlanner.turns(pn), "easy " + RoadPlanner.turns(pe) + " vs normal " + RoadPlanner.turns(pn));
         assertTrue(climb(f, ph) >= climb(f, pn), "hard " + climb(f, ph) + " vs normal " + climb(f, pn));
-        // the same as roads always were without a turn cost
-        assertEquals(cells(RoadPlanner.path(f, 0, 0, 30, 12, RoadPlanner.Weights.DEFAULT, 100_000)), cells(pn));
+        // legacy: the same as roads always were without a turn cost
+        List<int[]> pl = RoadPlanner.path(f, 0, 0, 30, 12, RoadCharacter.LEGACY.shape().weights(), 100_000);
+        assertEquals(cells(RoadPlanner.path(f, 0, 0, 30, 12, RoadPlanner.Weights.DEFAULT, 100_000)), cells(pl));
+        assertTrue(climb(f, pn) >= climb(f, pl), "normal " + climb(f, pn) + " vs legacy " + climb(f, pl));
     }
 
     static int[] fill(int n) {
@@ -380,7 +452,7 @@ class RoadCharacterTest {
 
         // 가드레일교체: an old (normal) road's guardrails restyled to hard and to easy in place, nothing else; twice is once
         for (RoadCharacter to : List.of(RoadCharacter.HARD, RoadCharacter.EASY)) {
-            BuiltRoad old = build(new RoadBendTest.Terra(CAUSEWAY, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 150, 0), RoadCharacter.NORMAL);
+            BuiltRoad old = build(new RoadBendTest.Terra(CAUSEWAY, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 150, 0), RoadCharacter.LEGACY);
             RoadBendTest.Terra land = old.land();
             Map<Long, Material> before = new HashMap<>(land.put);
             RoadSection sec = new RoadSection(land, RoadBendTest.STYLE, old.road().points(), old.road().halves(), old.road().parts(), "a", 1)
@@ -413,6 +485,7 @@ class RoadCharacterTest {
         assertEquals(1.4, RoadRewards.fare(RoadCharacter.HARD, RoadCharacter.NORMAL), 1e-9);
         assertEquals(1, RoadRewards.fare(RoadCharacter.EASY, null), 1e-9);
         assertEquals(1, RoadRewards.fare(null, null), 1e-9);
+        assertEquals(1, RoadRewards.fare(RoadCharacter.LEGACY, RoadCharacter.NORMAL), 1e-9);
         assertEquals(2, RoadRewards.streak(RoadCharacter.HARD), 1e-9);
         assertEquals(1, RoadRewards.streak(RoadCharacter.EASY), 1e-9);
         assertEquals(2, RoadRewards.weight("hiker", RoadCharacter.HARD), 1e-9);
@@ -495,8 +568,12 @@ class RoadCharacterTest {
 
     /** The hard shapes: hairpins, S-bends, steep grades with bends, crests and dips. */
     static Map<String, BuiltRoad> hardShapes() {
+        return shapes(RoadCharacter.HARD);
+    }
+
+    /** The hard shapes built as roads of this character. */
+    static Map<String, BuiltRoad> shapes(RoadCharacter h) {
         Map<String, BuiltRoad> out = new LinkedHashMap<>();
-        RoadCharacter h = RoadCharacter.HARD;
         out.put("hairpin", build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 70, 0, 70, 24, 0, 24), h));
         out.put("switchback", build(new RoadBendTest.Terra(SIDE, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 70, 0, 80, 16, 70, 32, 0, 32, -10, 48, 0, 64, 70, 64), h));
         out.put("S-bends", build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 40, 0, 56, 16, 56, 32, 72, 48, 88, 48, 104, 32, 140, 32), h));
@@ -518,6 +595,27 @@ class RoadCharacterTest {
         BuiltRoad rollH = build(new RoadBendTest.Terra(BUMPY, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 200, 0), RoadCharacter.HARD);
         assertTrue(range(rollH.road().halves()) > range(rollN.road().halves()), "crests and dips: " + range(rollH.road().halves()) + " vs "
                 + range(rollN.road().halves()));
+        // and normal is steeper and follows the ground more than the old roads did
+        BuiltRoad legacy = build(new RoadBendTest.Terra(STEEP, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 140, 0), RoadCharacter.LEGACY);
+        assertTrue(steepest(normal.road().halves(), 15) > steepest(legacy.road().halves(), 15), "steeper: " + steepest(normal.road().halves(), 15)
+                + " vs " + steepest(legacy.road().halves(), 15));
+        // over rolling ground it keeps closer to the ground (less cut and fill) than the old roads, hard closer still
+        Map<RoadCharacter, Double> off = new HashMap<>();
+        for (RoadCharacter c : List.of(RoadCharacter.LEGACY, RoadCharacter.NORMAL, RoadCharacter.HARD))
+            off.put(c, off(build(new RoadBendTest.Terra(ROLL, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 200, 0), c), ROLL));
+        assertTrue(off.get(RoadCharacter.HARD) < off.get(RoadCharacter.NORMAL) && off.get(RoadCharacter.NORMAL) < off.get(RoadCharacter.LEGACY) * 0.9,
+                "cut and fill: " + off);
+    }
+
+    /** How far the road's surface stands off the ground under its middle, all told (blocks), but for its ends. */
+    static double off(BuiltRoad b, RoadBendTest.Ground g) {
+        double s = 0;
+        int[] h = b.road().halves();
+        for (int i = 20; i < h.length - 20; i++) {
+            double[] p = b.road().points().get(i);
+            s += Math.abs(RoadProfile.block(h[i]) - g.top((int) Math.floor(p[0]), (int) Math.floor(p[1])));
+        }
+        return s;
     }
 
     static int steepest(int[] h, int over) {
@@ -568,5 +666,39 @@ class RoadCharacterTest {
         assertEquals(List.of(), bad, "a careful driver gets through every hard shape");
         assertTrue(rough >= 3, "a fast sloppy driver scrapes or bumps on several hard shapes (the switchback, the steep 90, the rolling bends, "
                 + "round the hill), shapes: " + rough);
+    }
+
+    /**
+     * 보통's tighter bends (bend room 0.8) and steeper grade (1:2.75) on the hard shapes: every long vehicle driven carefully
+     * (on its lane, 5 b/s, both ways) gets through without getting stuck or touching anything; a fast sloppy one may not.
+     */
+    @Test
+    void aCarefulDriverGetsThroughEveryNormalShape() {
+        Map<String, BuiltRoad> shapes = shapes(RoadCharacter.NORMAL);
+        List<String> bad = new ArrayList<>();
+        List<String> rough = new ArrayList<>();
+        for (var e : shapes.entrySet()) {
+            RoadBendTest.Road r = e.getValue().road();
+            assertEquals(List.of(), RoadBendTest.inTheWay(r, r.section()), e.getKey() + ": nothing in the normal road's reach");
+            for (String id : LONG) {
+                VehicleSpec s = all.get(id);
+                assertNotNull(s, id);
+                for (double lat : new double[]{1.25, -1.25}) {
+                    for (boolean back : new boolean[]{false, true}) {
+                        // careful: on his lane, 5 b/s, round a bend too
+                        RoadBendTest.Drive d = RoadBendTest.drive(s, r, back, k -> lat, 5.0, 5.0, false);
+                        if (!d.clean()) bad.add(e.getKey() + " " + id + " " + lat + (back ? " back" : "") + ": " + d);
+                    }
+                }
+            }
+            for (String id : List.of("limousine_bus", "village_bus")) {
+                for (double lat : new double[]{2.0, -2.0}) {
+                    RoadBendTest.Drive d = RoadBendTest.drive(all.get(id), r, false, k -> lat, 10, 10, true);
+                    if (!d.clean()) rough.add(e.getKey() + " " + id + " " + lat);
+                }
+            }
+        }
+        assertEquals(List.of(), bad, "a careful driver gets through every normal shape");
+        assertFalse(rough.isEmpty(), "a fast sloppy driver scrapes or bumps somewhere (the switchback, the steep 90, the rolling bends, round the hill)");
     }
 }

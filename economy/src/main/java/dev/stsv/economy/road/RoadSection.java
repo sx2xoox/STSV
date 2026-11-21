@@ -163,8 +163,8 @@ public final class RoadSection {
     private final String dock;
     private final int route;
     private final Map<Integer, RoadSign.Kind> signs;
-    /** its character (README "국도", 성격) and what of it the cross-section goes by: normal is the roads as they always were */
-    private RoadCharacter character = RoadCharacter.NORMAL;
+    /** its character (README "국도", 성격) and what of it the cross-section goes by: legacy (as roads used to be) till set */
+    private RoadCharacter character = RoadCharacter.LEGACY;
     private int shoulder, reflectEvery = REFLECT_EVERY, railDrop = RAIL_DROP, lightEvery;
     private double bendScale = 1;
     private boolean rough;
