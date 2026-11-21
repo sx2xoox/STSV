@@ -34,6 +34,50 @@ public final class RoadClearance {
 
     private RoadClearance() {}
 
+    // ------------------------------------------------------------------------------------------
+    // Room beside the road (README "국도", 굽은 길 여유): how far from the centre line nothing may stand
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * The widest vehicle {@link #LONG} long or more (the luxury SUV, 2.7: content/stsv/items/vehicles*.yml size[1]). Its
+     * collision squares are this wide times {@link #SQUARE} (VehiclePhysics: axis-aligned, they do not turn with it, so on a
+     * slant they reach out {@link #diagonal} times as far as on a road along x or z: a bus 2.4 wide 1.53 to a side at 45
+     * degrees, where its body reaches 1.2).
+     */
+    public static final double WIDTH = 2.7, SQUARE = 0.9, LONG = 4.5;
+    /** The furthest from the centre line the middle of a vehicle runs in its lane: on the edge line. */
+    public static final double LANE_EDGE = 2.0;
+    /** And a little more (a driver steering A / D swings a few hundredths either side of his line). */
+    public static final double SIDE_MARGIN = 0.1;
+    /**
+     * Round a bend more: a vehicle turns about its middle, so its ends swing out of the way its middle takes, and a driver
+     * cuts the bend's inside and runs wide out of it (a bend's polyline corner is sharp: the road turns at a point). This
+     * many blocks for every {@link #BEND_PER} degrees the road turns within {@link RoadSection#BEND_REACH} points either way,
+     * at most {@link #BEND_MAX} (RoadBendTest measured: the long vehicles slowing for a bend reach 4.5 from the centre line
+     * round a 30 to 60 degree corner, 5.5 out of a right angle).
+     */
+    public static final double BEND_PER = 30, BEND_MAX = 3;
+
+    /** How many times as far as along x or z an axis-aligned square reaches across a road running at this heading (1 .. √2). */
+    public static double diagonal(double hx, double hz) {
+        double l = Math.hypot(hx, hz);
+        return l < 1e-9 ? 1 : (Math.abs(hx) + Math.abs(hz)) / l;
+    }
+
+    /** The extra room round a bend that turns this many degrees. */
+    public static double bend(double degrees) {
+        return Math.clamp(degrees / BEND_PER, 0, BEND_MAX);
+    }
+
+    /**
+     * How far from the centre line the vehicles reach (nothing may stand nearer): a vehicle on the edge line, its squares
+     * at the road's slant (diag: {@link #diagonal}), round a bend turning `degrees`. Straight along x or z 3.32, on a
+     * diagonal 3.82, more round a bend.
+     */
+    public static double reach(double diag, double degrees) {
+        return LANE_EDGE + WIDTH * SQUARE / 2 * diag + SIDE_MARGIN + bend(degrees);
+    }
+
     /** The highest surface top (blocks: {@link RoadSection#top}) within reach points either way of each point. */
     public static double[] highest(int[] halves, int reach) {
         int n = halves.length;

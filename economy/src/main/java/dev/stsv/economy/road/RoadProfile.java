@@ -271,6 +271,62 @@ public final class RoadProfile {
         return new Plan(h, over);
     }
 
+    /** A corner turning this many degrees or more is built level ({@link #levelBends}). */
+    public static final double LEVEL_FROM = 30;
+    /** Points either way of a corner held level at most. */
+    public static final int LEVEL_MAX = 12;
+
+    /**
+     * Sharp corners made level (README "국도", 굽은 길): the road turns at a corner point, so the columns on a corner's inside
+     * belong to points on both legs (each column takes its nearest point's height); on a grade those are far apart along
+     * the road and the inside of the corner was a crease of full-block steps (1.5 high round a right angle at 1 in 3: a bus
+     * cutting the corner hit it as a wall). Within as many points of a corner as its inside reaches (the shoulder's width
+     * × tan(half the turn), plus one) the road is held at the corner's level, the grade pulled in round it ({@link #relax});
+     * a level crossing or an overpass near it stays as it is (then that corner is not levelled). Changes h in place.
+     */
+    public static void levelBends(java.util.List<double[]> points, int[] h, boolean[] fixed) {
+        int n = h.length;
+        boolean[] fix = fixed.clone();
+        if (n > 0) {
+            fix[0] = true;
+            fix[n - 1] = true;
+        }
+        for (int v = 1; v + 1 < n && v + 1 < points.size(); v++) {
+            double[] a = points.get(v - 1), p = points.get(v), b = points.get(v + 1);
+            double ax = p[0] - a[0], az = p[1] - a[1], bx = b[0] - p[0], bz = b[1] - p[1];
+            double turn = Math.toDegrees(Math.atan2(Math.abs(ax * bz - az * bx), ax * bx + az * bz));
+            if (turn < LEVEL_FROM) continue;
+            int want = Math.min(LEVEL_MAX, (int) Math.ceil((RoadSection.HALF + 0.5) * Math.tan(Math.toRadians(turn / 2))) + 1);
+            // as wide as the grade lets it (on a long climb at 1 in 3 there is no room to hold it level: then less, or none)
+            for (int w = want; w >= 2; w--) {
+                int from = Math.max(1, v - w), to = Math.min(n - 2, v + w);
+                boolean free = true;
+                for (int k = from; k <= to && free; k++) free = !fix[k];
+                if (!free) continue;
+                int[] t = h.clone();
+                boolean[] f = fix.clone();
+                for (int k = from; k <= to; k++) {
+                    t[k] = h[v];
+                    f[k] = true;
+                }
+                relax(t, f);
+                if (!graded(t)) continue;
+                System.arraycopy(t, 0, h, 0, n);
+                System.arraycopy(f, 0, fix, 0, n);
+                break;
+            }
+        }
+    }
+
+    /** Whether half levels keep the grade: never more than half a block between neighbours, nor a block in three points. */
+    static boolean graded(int[] h) {
+        for (int k = 1; k < h.length; k++) {
+            if (Math.abs(h[k] - h[k - 1]) > 1) return false;
+            if (k >= 3 && Math.abs(h[k] - h[k - 3]) > 2) return false;
+        }
+        return true;
+    }
+
     /**
      * Half levels pulled into the grade round the fixed ones (a junction's, an overpass's): never more than half a block
      * between neighbours, nor a block in three points; the fixed stay as they are.

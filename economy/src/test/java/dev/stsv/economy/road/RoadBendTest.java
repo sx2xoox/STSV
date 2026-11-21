@@ -152,9 +152,15 @@ class RoadBendTest {
         }
         int[] cross = land.net.crossings(pts);
         RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross, land.net.headroom(pts));
+        if (!old) {   // as RoadModule.profileOf: sharp corners level
+            boolean[] fixed = new boolean[n];
+            for (int i = 0; i < n; i++) fixed[i] = plan.over()[i] || cross[i] != Integer.MIN_VALUE;
+            RoadProfile.levelBends(pts, plan.halves(), fixed);
+        }
         RoadProfile.Part[] parts = RoadProfile.partsHalves(plan.halves(), ground, water, RoadModule.BRIDGE_GAP, RoadModule.TUNNEL_COVER, RoadModule.MIN_RUN);
         for (int i = 0; i < n; i++) if (plan.over()[i]) parts[i] = RoadProfile.Part.BRIDGE;
         RoadSection sec = new RoadSection(land, STYLE, pts, plan.halves(), parts, dock, 1).network(cross, plan.over());
+        if (old) sec.narrow();
         for (int i = 0; i < n; i++) assertNull(sec.build(i));
         return new Road(land, pts, plan.halves(), parts, sec, dock);
     }
@@ -340,7 +346,6 @@ class RoadBendTest {
         return at;
     }
 
-    @Test
     void measureReach() {
         for (int ang : new int[]{20, 30, 45, 60, 90, 120, 135}) {
             double r = Math.toRadians(ang);
@@ -469,8 +474,21 @@ class RoadBendTest {
     static final double[] LATS = {1.25, 2.0, -1.25, -2.0};
 
     @Test
+    void dbg() {
+        Ground hill = (x, z) -> (int) Math.floor(63 + Math.clamp(0.7 * (46 - Math.hypot(x - 60, z - 60)), -8, 20));
+        Road r = build(new Terra(hill, DRY), corners(0, 30, 35, 30, 60, 5, 85, 30, 85, 60, 85, 100), "a", true);
+        int[] h = r.halves().clone();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 55; i < 100; i++) sb.append(i).append(':').append(h[i]).append(' ');
+        System.out.println(sb);
+        RoadProfile.levelBends(r.points(), h, new boolean[h.length]);
+        sb = new StringBuilder();
+        for (int i = 55; i < 100; i++) sb.append(i).append(':').append(h[i]).append(' ');
+        System.out.println(sb);
+    }
+
+    @Test
     void survey() {
-        if (true) return;
         Map<String, Road> scenes = scenes();
         Map<String, Integer> roles = new TreeMap<>();
         StringBuilder sb = new StringBuilder();

@@ -205,7 +205,107 @@ public final class RoadSection {
             if (cross[i] == Integer.MIN_VALUE || over[i]) continue;
             for (int k = Math.max(0, i - 12); k <= Math.min(n - 1, i + 12); k++) toJunction[k] = Math.min(toJunction[k], Math.abs(k - i));
         }
+        reach = null;
         return this;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Room beside the road (RoadClearance#reach): bridges' railings, tunnels' walls, guardrails, banks
+    // ------------------------------------------------------------------------------------------
+
+    /** How far out (blocks) a bend widens the cross-section at most: the road's chunks round it are loaded ({@link RoadModule#REACH}). */
+    public static final double MAX_WIDE = 3;
+    /** Points within this many of a level crossing count as a right-angled bend (a bus turns there from one road onto the other). */
+    static final int JUNCTION_BEND = 12;
+    /** Degrees a junction counts as. */
+    static final double JUNCTION_TURN = 90;
+
+    /** how far the vehicles reach from the centre line at each point (RoadClearance#reach), worked out on first use */
+    private double[] reach, slants;
+    /** roads as built before: no room made for the vehicles' reach (bridges 2.5 clear, tunnels 3.5, guardrails at 4.5) */
+    private boolean narrow;
+
+    /** Builds as roads were built before this room was made (tests: what /관리자 국도 커브정리 mends). */
+    RoadSection narrow() {
+        this.narrow = true;
+        this.reach = null;
+        return this;
+    }
+
+    /** How many degrees the road turns at point i (its way over {@link #BEND_REACH} points before against the same after). */
+    double turn(int i) {
+        double[] a = points.get(Math.max(0, i - BEND_REACH)), p = points.get(i), b = points.get(Math.min(points.size() - 1, i + BEND_REACH));
+        double ax = p[0] - a[0], az = p[1] - a[1], bx = b[0] - p[0], bz = b[1] - p[1];
+        if (Math.hypot(ax, az) < 1e-6 || Math.hypot(bx, bz) < 1e-6) return 0;
+        return Math.toDegrees(Math.atan2(Math.abs(ax * bz - az * bx), ax * bx + az * bz));
+    }
+
+    /**
+     * How far from the centre line the vehicles reach at point i ({@link RoadClearance#reach}): the slant the most of the
+     * road's within {@link RoadClearance#REACH} points (a bus is still slanted a length after the road straightens), the
+     * bend the sharpest within {@link #BEND_REACH} points (a bus runs wide out of a bend well after its corner); a level
+     * crossing near counts as a right angle. Nothing a vehicle can hit stands nearer.
+     */
+    public double reach(int i) {
+        if (reach == null) {
+            int n = points.size();
+            double[] bend = new double[n], diag = new double[n];
+            for (int k = 0; k < n; k++) {
+                bend[k] = turn(k);
+                double[] h = heading(k);
+                diag[k] = RoadClearance.diagonal(h[0], h[1]);
+            }
+            double[] out = new double[n];
+            slants = new double[n];
+            for (int k = 0; k < n; k++) {
+                double b = 0, d = 1;
+                for (int j = Math.max(0, k - BEND_REACH); j <= Math.min(n - 1, k + BEND_REACH); j++) b = Math.max(b, bend[j]);
+                if (junction(k) <= JUNCTION_BEND) b = Math.max(b, JUNCTION_TURN);
+                for (int j = Math.max(0, k - RoadClearance.REACH); j <= Math.min(n - 1, k + RoadClearance.REACH); j++) d = Math.max(d, diag[j]);
+                if (RoadClearance.bend(b) > 0) d = Math.sqrt(2);   // round a bend it is slanted every way
+                out[k] = RoadClearance.reach(d, b);
+                slants[k] = d;
+            }
+            reach = out;
+        }
+        return reach[i];
+    }
+
+    /** How much a column's box (a post's, a block's) reaches out of its middle across the road at point i (half × the slant). */
+    private double slant(int i, double half) {
+        reach(i);
+        return half * slants[i];
+    }
+
+    /** How much further out a bridge's railing stands at point i than roads built it before (2.5 out): its post clear of the reach. */
+    public double bridgeWide(int i) {
+        return narrow ? 0 : Math.max(0, reach(i) + slant(i, POST_HALF) - 2.5);
+    }
+
+    /** How much further out a tunnel's lined walls stand at point i than before (3.5 out): their blocks clear of the reach. */
+    public double tunnelWide(int i) {
+        return narrow ? 0 : Math.max(0, reach(i) + slant(i, 0.5) - 3.5);
+    }
+
+    /** How much further out the shoulder's guardrails (and reflectors) stand at point i than before (4.5 out), the banks with them. */
+    public double shoulderWide(int i) {
+        return narrow ? 0 : Math.max(0, reach(i) + slant(i, POST_HALF) - 4.5);
+    }
+
+    /** How much further out than {@link #HALF} the cross-section at point i reaches (the widest of the above, at most {@link #MAX_WIDE}). */
+    public double wide(int i) {
+        if (narrow) return 0;
+        double w = switch (parts[i]) {
+            case ROAD -> shoulderWide(i);
+            case BRIDGE -> bridgeWide(i) - 2;
+            case TUNNEL -> tunnelWide(i) - 1;
+        };
+        return Math.clamp(w, 0, MAX_WIDE);
+    }
+
+    /** Whether a post in column (x, z) (a guardrail's, a railing's, a reflector, a light) stands clear of the vehicles' reach at point i. */
+    boolean postClear(int i, int x, int z) {
+        return narrow || clearance(i, x, z) >= reach(i) - 1e-9;
     }
 
     private RoadNetwork.Spot old(int x, int z) {
@@ -471,9 +571,13 @@ public final class RoadSection {
             }
             switch (part) {
                 case ROAD -> road(c.x(), c.z(), h, ao, at(top, half), i, c.lat());
-                case BRIDGE -> bridge(c.x(), c.z(), h, ao, at(top, half), i % 10 == 0, ceilings[i]);
+                case BRIDGE -> bridge(c.x(), c.z(), h, ao, at(top, half), i % 10 == 0, ceilings[i], i);
                 case TUNNEL -> tunnel(c.x(), c.z(), h, ao, at(top, half), i, c.lat() > 0, portal);
             }
+        }
+        if (mending) {   // (/관리자 국도 커브정리: a bridge's light put up again on its railing; signs and words stay as they are)
+            if (part == RoadProfile.Part.BRIDGE) light(i, cols, e, h);
+            return null;
         }
         light(i, cols, e, h);
         RoadSign.Kind sign = signs.get(i);
@@ -501,6 +605,11 @@ public final class RoadSection {
      * degrees): a bus a little over the edge line, or cutting a bend, caught on them (RoadLightsTest).
      */
     public static final double LIGHT_CLEAR = 4.5;
+    /** How far from the centre line a light's post stands at point i at the least: {@link #LIGHT_CLEAR}, more round a bend (the vehicles' reach). */
+    double lightClear(int i) {
+        return narrow ? LIGHT_CLEAR : Math.max(LIGHT_CLEAR, reach(i));
+    }
+
     /** A light's point with no column far enough out on its side (a diagonal's columns): the next points (up to this many) take it. */
     public static final int LIGHT_SHIFT = 2;
     /** A light's post: a wall's post, 0.5 across in the middle of its column. */
@@ -528,8 +637,9 @@ public final class RoadSection {
             int side = (i / every) % 2 == 0 && !signs.containsKey(i) ? 1 : -1;   // never in a sign's posts
             // on the bridge on its railing, else (as before) on the shoulder's verge by the kerb
             boolean deck = parts[i] == RoadProfile.Part.BRIDGE;
-            Col post = nearest(cols, side * ((deck ? 3.0 : 4.0) + e), (deck ? 2.5 : 3.5) + e);
-            if (post != null) lamp(post, cols, side, e, h, deck, ceilings[i]);
+            double w = deck ? bridgeWide(i) : 0;
+            Col post = nearest(cols, side * ((deck ? 3.0 : 4.0) + e + w), (deck ? 2.5 : 3.5) + e + w);
+            if (post != null && (!deck || postClear(i, post.x(), post.z()))) lamp(post, cols, side, e, h, deck, ceilings[i]);
             return;
         }
         if (k > LIGHT_SHIFT || parts[i] != RoadProfile.Part.ROAD || parts[base] != RoadProfile.Part.ROAD) return;
@@ -593,7 +703,7 @@ public final class RoadSection {
         for (Col c : cols) {
             if (Math.signum(c.lat()) != side || Math.abs(c.lat()) <= 3.5 + e) continue;
             double clear = clearance(i, c.x(), c.z());
-            if (clear < LIGHT_CLEAR + e - 1e-9) continue;
+            if (clear < lightClear(i) + e - 1e-9) continue;
             double along = Math.abs((c.x() + 0.5 - p[0]) * hd[0] + (c.z() + 0.5 - p[1]) * hd[1]);
             if (best == null || clear < bestClear - 1e-9 || (clear < bestClear + 1e-9 && along < bestAlong)) {
                 best = c;
@@ -681,12 +791,12 @@ public final class RoadSection {
         int changed = 0;
         for (Col c : cols) {
             double ao = Math.abs(c.lat()) - e;
-            if (ao <= 3.5 || ao > 5.5) continue;
+            if (ao <= 3.5 || ao > 5.5 + wide(i)) continue;
             RoadLights.Light l = RoadLights.post(b, c.x(), c.z(), base + 1);
             if (l == null) continue;
             int side = (int) Math.signum(c.lat());
             boolean byBay = keepClear.test(l.x(), l.z()) || (l.lantern() != null && keepClear.test(l.lantern()[0], l.lantern()[2]));
-            if (!byBay && clearance(i, c.x(), c.z()) >= LIGHT_CLEAR + e - 1e-9 && !insideBend(i, side)) continue;   // where it may stay
+            if (!byBay && clearance(i, c.x(), c.z()) >= lightClear(i) + e - 1e-9 && !insideBend(i, side)) continue;   // where it may stay
             // its blocks, only if they are still the light's (the arm's walls over the lanes, the post, the lantern)
             for (int[] k : l.blocks()) {
                 Material m = world.get(k[0], k[1], k[2]);
@@ -819,10 +929,10 @@ public final class RoadSection {
         hx /= len;
         hz /= len;
         double rx = -hz, rz = hx;   // the right hand
-        int reach = HALF + e;
-        int px = (int) Math.floor(p[0]), pz = (int) Math.floor(p[1]);
-        for (int bx = px - reach - 1; bx <= px + reach + 1; bx++) {
-            for (int bz = pz - reach - 1; bz <= pz + reach + 1; bz++) {
+        double reach = HALF + e + wide(i);
+        int px = (int) Math.floor(p[0]), pz = (int) Math.floor(p[1]), r = (int) Math.ceil(reach) + 1;
+        for (int bx = px - r; bx <= px + r; bx++) {
+            for (int bz = pz - r; bz <= pz + r; bz++) {
                 double cx = bx + 0.5 - p[0], cz = bz + 0.5 - p[1];
                 double lat = cx * rx + cz * rz, along = cx * hx + cz * hz;
                 if (Math.abs(lat) > reach + 0.5 || !owns(i, bx + 0.5, bz + 0.5)) continue;
@@ -908,6 +1018,8 @@ public final class RoadSection {
         };
         Site was = site;
         site = guard(filtered);
+        boolean wasNarrow = narrow;
+        narrow = true;   // the bore as wide as it was built: only its ceiling raised (/관리자 국도 커브정리 widens it)
         try {
             int dj = junction(i);
             int e = Math.max(widen(i), dj <= 2 ? WIDEN : dj <= 5 ? 1 : 0);
@@ -921,8 +1033,197 @@ public final class RoadSection {
             }
         } finally {
             site = was;
+            narrow = wasNarrow;
         }
         return changed[0];
+    }
+
+    /** set while /관리자 국도 커브정리 builds a cross-section again into its overlay ({@link #tidyCurve}) */
+    private boolean mending;
+
+    /** What a guardrail or a reflector post is (the shoulder's clutter /관리자 국도 커브정리 may take away or move). */
+    static boolean clutter(Material m) {
+        return m == GUARDRAIL || m == REFLECTOR;
+    }
+
+    /**
+     * A built road's cross-section at point i mended to the room roads leave the vehicles now (/관리자 국도 커브정리,
+     * {@link #reach}): the cross-section built again as a road builds it now into an overlay of the world (nothing set yet),
+     * then only what differs and may change is set:
+     * <ul>
+     *   <li>a bridge (every point): its railing (and the light on it) moved out of the vehicles' reach, the deck laid out to
+     *       it, flush with the lanes; only the bridge's own blocks (its plinths, railing walls, lights) and air or water;</li>
+     *   <li>a tunnel on a diagonal or round a bend: its bore widened and lined again further out (as {@link #rebore}: only the
+     *       tunnel's own blocks, the ground's and air; never the lanes and kerbs);</li>
+     *   <li>plain road round a bend (where the shoulder is wider now): guardrails and reflector posts in the vehicles' reach
+     *       taken away (put again further out where the fill is high), the bank cut back and the shoulder laid out to it
+     *       (only the ground's own blocks, air and the shoulder's clutter; never the lanes, kerbs or the verge's path).</li>
+     * </ul>
+     * Never protected land, another road's lanes, a bus stop's bay (keepClear: {x, z}), anything a player put (a block that
+     * is none of those). Twice is once. How many blocks changed.
+     */
+    public int tidyCurve(int i, java.util.function.BiPredicate<Integer, Integer> keepClear) {
+        if (narrow || i == 0 || i >= points.size() - 1) return 0;
+        RoadProfile.Part part = parts[i];
+        boolean need = switch (part) {
+            case ROAD -> shoulderWide(i) > 1e-9;
+            case BRIDGE -> true;
+            case TUNNEL -> tunnelWide(i) > 1e-9;
+        };
+        if (!need) return 0;
+        int e = extra(i), h = halves[i], y = surfaceY(h), base = RoadProfile.block(h);
+        List<Col> cols = new ArrayList<>();
+        if (columns(i, e, cols) != null) return 0;
+        Map<Long, Double> ao = new java.util.HashMap<>();
+        for (Col c : cols) ao.put(RoadNetwork.key(c.x(), c.z()), Math.abs(c.lat()) - e);
+        Overlay o = new Overlay(world);
+        // a bridge's old lights (on its railing, now in the vehicles' reach): taken away, put up again on the new railing
+        java.util.Set<Long> lightBlocks = new java.util.HashSet<>();
+        if (part == RoadProfile.Part.BRIDGE) {
+            for (Col c : cols) {
+                if (Math.abs(c.lat()) - e <= 2.5) continue;
+                RoadLights.Light l = RoadLights.post(world::get, c.x(), c.z(), y + 1);
+                if (l == null) continue;
+                for (int[] k : l.blocks()) {
+                    o.set(k[0], k[1], k[2], Material.AIR);
+                    lightBlocks.add(Overlay.key(k[0], k[1], k[2]));
+                }
+            }
+        }
+        Site was = site;
+        site = guard(o);
+        mending = true;
+        try {
+            if (build(i) != null) return 0;
+        } finally {
+            mending = false;
+            site = was;
+        }
+        int changed = 0;
+        for (Map.Entry<Long, String> w : o.put.entrySet()) {
+            long k = w.getKey();
+            int x = Overlay.x(k), by = Overlay.y(k), z = Overlay.z(k);
+            Double a = ao.get(RoadNetwork.key(x, z));
+            if (a == null || keepClear.test(x, z) || world.protectedLand(x, z)) continue;
+            String data = w.getValue();
+            int b = data.indexOf('[');
+            Material to = Material.matchMaterial(b < 0 ? data : data.substring(0, b)), now = world.get(x, by, z);
+            if (to == null || now == null || now == to) continue;
+            boolean where = switch (part) {
+                case ROAD -> a > 3.5 && (by > base || a > HALF + 0.5);
+                case BRIDGE -> a > 2.5 || by > y + 1;
+                case TUNNEL -> a > 3.5 || by > y;
+            };
+            if (!where || !mayMend(part, now, to, world.liquid(x, by, z), by <= y, by == y + 1 && world.get(x, y, z) == Material.STONE_BRICKS,
+                    lightBlocks.contains(k))) continue;
+            RoadNetwork.Spot other = world.road(x, z);
+            if (other != null && other.paved()) continue;   // another road's lanes and kerbs: never
+            if (b < 0) world.set(x, by, z, to);
+            else world.set(x, by, z, data);
+            changed++;
+        }
+        return changed;
+    }
+
+    /**
+     * What /관리자 국도 커브정리 may change a block from: air and the ground's own blocks (as {@link #carvable}, but on plain
+     * road not the tunnels' and lights' stone bricks), a guardrail or reflector, water to something solid; on a bridge also
+     * its deck's stone bricks (its plinths), its railing (a wall on a plinth) and its lights' blocks; in a tunnel its own
+     * blocks.
+     */
+    static boolean mayMend(RoadProfile.Part part, Material now, Material to, boolean liquid, boolean deck, boolean railing, boolean light) {
+        if (clutter(now) || light) return true;
+        if (liquid) return to != Material.AIR && to.isSolid();
+        boolean own = now == Material.STONE_BRICKS || now == Material.SEA_LANTERN || now == Material.WHITE_CONCRETE
+                || now == Material.YELLOW_TERRACOTTA || now == Material.POLISHED_ANDESITE;
+        return switch (part) {
+            case ROAD -> carvable(now) && !own;
+            case BRIDGE -> (carvable(now) && !own) || (now == Material.STONE_BRICKS && deck) || (now == Material.STONE_BRICK_WALL && railing);
+            case TUNNEL -> carvable(now);
+        };
+    }
+
+    /** The world with blocks set over it, not yet put (what {@link #tidyCurve} builds into first). */
+    static final class Overlay implements Site {
+        final Site world;
+        final Map<Long, String> put = new java.util.LinkedHashMap<>();
+
+        Overlay(Site world) {
+            this.world = world;
+        }
+
+        static long key(int x, int y, int z) {
+            return ((long) (x + (1 << 20)) << 42) | ((long) (z + (1 << 20)) << 21) | (y + 1024);
+        }
+
+        static int x(long k) {
+            return (int) (k >>> 42) - (1 << 20);
+        }
+
+        static int y(long k) {
+            return (int) (k & ((1 << 21) - 1)) - 1024;
+        }
+
+        static int z(long k) {
+            return (int) ((k >> 21) & ((1 << 21) - 1)) - (1 << 20);
+        }
+
+        private Material over(int x, int y, int z) {
+            String d = put.get(key(x, y, z));
+            if (d == null) return null;
+            int b = d.indexOf('[');
+            return Material.matchMaterial(b < 0 ? d : d.substring(0, b));
+        }
+
+        public boolean inside(int y) {
+            return world.inside(y);
+        }
+
+        public boolean air(int x, int y, int z) {
+            Material m = over(x, y, z);
+            return m == null ? world.air(x, y, z) : m == Material.AIR || m == Material.CAVE_AIR;
+        }
+
+        public boolean liquid(int x, int y, int z) {
+            Material m = over(x, y, z);
+            return m == null ? world.liquid(x, y, z) : m == Material.WATER || m == Material.LAVA;
+        }
+
+        public boolean natural(int x, int y, int z) {
+            Material m = over(x, y, z);
+            if (m == null) return world.natural(x, y, z);
+            String n = m.name();
+            return n.endsWith("_LOG") || n.endsWith("_LEAVES") || m == Material.VINE || m == Material.SNOW;
+        }
+
+        public boolean fillable(int x, int y, int z) {
+            Material m = over(x, y, z);
+            if (m == null) return world.fillable(x, y, z);
+            return world.inside(y) && (m == Material.AIR || m == Material.CAVE_AIR || m == Material.WATER || !m.isSolid());
+        }
+
+        public void set(int x, int y, int z, Material m) {
+            if (m != null && world.inside(y)) put.put(key(x, y, z), m.getKey().toString());
+        }
+
+        public void set(int x, int y, int z, String data) {
+            if (data != null && world.inside(y)) put.put(key(x, y, z), data);
+        }
+
+        public boolean protectedLand(int x, int z) {
+            return world.protectedLand(x, z);
+        }
+
+        public void roadSign(double x, double y, double z, float yaw, String dock, double km, int route, RoadSign.Kind kind) {}
+
+        public RoadNetwork.Spot road(int x, int z) {
+            return world.road(x, z);
+        }
+
+        public Material get(int x, int y, int z) {
+            Material m = over(x, y, z);
+            return m != null ? m : world.get(x, y, z);
+        }
     }
 
     /**
@@ -1024,7 +1325,9 @@ public final class RoadSection {
                 if (!site.fillable(x, base - k, z) || site.liquid(x, base - k, z)) break;
                 site.set(x, base - k, z, verge && k == 1 && i % DRAIN_EVERY == DRAIN_EVERY / 2 ? Material.GRAVEL : Material.DIRT);
             }
-            if (!verge && !apron && ao <= 5.5) {
+            // (round a bend and on a diagonal further out: clear of what the vehicles reach, RoadClearance#reach)
+            double w = shoulderWide(i);
+            if (!verge && !apron && ao > 4.5 + w && ao <= 5.5 + w && postClear(i, x, z)) {
                 if (high) site.set(x, base + 1, z, GUARDRAIL);
                 else if (i % REFLECT_EVERY == REFLECT_EVERY / 2) site.set(x, base + 1, z, REFLECTOR);
             }
@@ -1032,16 +1335,20 @@ public final class RoadSection {
         clearTrees(x, z, base + 1);
     }
 
-    private void bridge(int x, int z, int h, double ao, Material top, boolean pillar, int ceiling) {
-        if (ao > 3.5) return;
+    private void bridge(int x, int z, int h, double ao, Material top, boolean pillar, int ceiling, int i) {
+        double w = bridgeWide(i);
+        if (ao > 3.5 + w) return;
         int y = surfaceY(h), base = RoadProfile.block(h);
         boolean half = y != base;
+        // the railing: clear of what the vehicles reach (RoadClearance#reach: 2.5 out the squares of a bus on the edge line
+        // caught its posts), the deck between it and the lanes flush with them (the kerb's block)
+        boolean rail = ao > 2.5 + w && postClear(i, x, z);
         // the edges: always a full block, a plinth the railing (and a light) stands on, also where the deck is a slab
         // (a wall on a slab would float half a block over it)
-        site.set(x, y, z, ao > 2.5 ? Material.STONE_BRICKS : top);
+        site.set(x, y, z, rail ? Material.STONE_BRICKS : top);
         if (half) site.set(x, base, z, Material.STONE_BRICKS);
         for (int k = y + 1; k <= Math.max(y + 4, ceiling - 1); k++) site.set(x, k, z, Material.AIR);
-        if (ao > 2.5) site.set(x, y + 1, z, Material.STONE_BRICK_WALL);   // the railing
+        if (rail) site.set(x, y + 1, z, Material.STONE_BRICK_WALL);   // the railing
         if (pillar && ao <= 2.5 && old(x, z) == null) {   // never a pier on another road
             for (int k = 1; k <= 64; k++) {
                 if (!site.fillable(x, base - k, z)) break;
@@ -1053,9 +1360,10 @@ public final class RoadSection {
 
     private void tunnel(int x, int z, int h, double ao, Material top, int i, boolean right, boolean portal) {
         int y = surfaceY(h), base = RoadProfile.block(h), c = ceilings[i], cap = c;
+        double w = tunnelWide(i);   // the bore wider on a diagonal and round a bend: its walls clear of what the vehicles reach
         // where the ceiling steps (on a grade) the higher bore is closed over by the lower ceiling's columns
         for (int k = Math.max(0, i - 1); k <= Math.min(points.size() - 1, i + 1); k++) cap = Math.max(cap, ceilings[k]);
-        if (ao <= 3.5) {
+        if (ao <= 3.5 + w) {
             site.set(x, y, z, top);
             if (y != base) site.set(x, base, z, Material.STONE);
             for (int k = y + 1; k < c; k++) site.set(x, k, z, Material.AIR);
@@ -1065,7 +1373,7 @@ public final class RoadSection {
         } else if (portal) {
             for (int k = y; k <= cap + 1; k++) site.set(x, k, z, Material.STONE_BRICKS);   // the portal: wider, higher
             clearTrees(x, z, cap + 2);
-        } else if (ao <= 4.5) {
+        } else if (ao <= 4.5 + w) {
             // the lined wall: a stone brick footing, a grey dado, a white band with a yellow stripe (a light in it every 8,
             // between the ceiling's, sides taking turns), stone bricks to the ceiling
             boolean light = i % 8 == 4 && ((i / 8) % 2 == 0) == right;

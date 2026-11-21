@@ -16,7 +16,9 @@ import java.util.List;
  *       never turns in place; reversing turns the other way, like a car.</li>
  *   <li><b>Collision</b>: the footprint is a row of axis-aligned squares along the length ({@link #footprint}) that turn
  *       with the vehicle. Moves are clipped against the blocks' collision boxes axis by axis (as vanilla entities move),
- *       so it never goes into a wall, leaves or a fence; a turn that would push a square into a block is not made.</li>
+ *       so it never goes into a wall, leaves or a fence. A move that only just catches a corner (a post, a railing's end, a
+ *       wall's step on a diagonal) glides round it ({@link #glide}); a turn that would push a square into a block is made
+ *       about its end that touches it, or after sliding a little off it ({@link #turned}), else not at all.</li>
  *   <li><b>Steps</b>: blocked sideways while on the ground, landing, or only just off it ({@link #COYOTE} ticks: down a
  *       block and straight up the next one, as a road's grade makes them), it tries the same move lifted by its step
  *       height and set down again (a block, a slab, stairs). Going down, it follows the ground instead of falling: half a
@@ -387,7 +389,12 @@ public final class VehiclePhysics {
         float turn = yawRate(st.speed, in.steer(), s) * turnScale * (drifting ? (float) drift.turn() : 1f);
         if (turn != 0) {
             float yaw = wrap(st.yaw + turn);
-            if (!collides(st.x, st.y, st.z, yaw, s, t)) st.yaw = yaw;
+            double[] at = turned(st, yaw, s, t);
+            if (at != null) {
+                st.x = at[0];
+                st.z = at[1];
+                st.yaw = yaw;
+            }
         }
         st.steer = nextSteer(st.steer, in.steer());
         if (drift != null) {
@@ -403,7 +410,7 @@ public final class VehiclePhysics {
         double dx = f[0] * dist, dz = f[1] * dist;
 
         List<double[]> sq = footprint(st.x, st.y, st.z, st.yaw, s);
-        double[] m = move(sq, dx, st.vy, dz, canStep(st), s.stepHeight(), t);
+        double[] m = glide(sq, move(sq, dx, st.vy, dz, canStep(st), s.stepHeight(), t), dx, st.vy, dz, canStep(st), s.stepHeight(), t);
         // not onto lava or into deep water (unless already in it: then it may drive out)
         if ((m[0] != 0 || m[2] != 0) && hazard(st.x + m[0], st.y + m[1], st.z + m[2], st.yaw, s, t)
                 && !hazard(st.x, st.y, st.z, st.yaw, s, t)) {
@@ -424,6 +431,70 @@ public final class VehiclePhysics {
         st.y += m[1];
         st.z += m[2];
         st.roll = (st.roll + Math.signum(st.speed) * got / Math.max(0.05, s.wheelRadius())) % (Math.PI * 4);
+    }
+
+    /** How far sideways (blocks, at most the move's own length) a move may glide round a corner it only just caught ({@link #glide}). */
+    public static final double GLIDE = 0.3;
+    /** How far sideways (blocks) a vehicle may slide off a wall it touches to turn ({@link #turned}). */
+    public static final double SLIDE = 0.2;
+
+    /**
+     * A move blocked by a corner it only just caught (a post, a railing's end, the step of a wall on a diagonal: the
+     * collision squares are axis-aligned and do not turn with the vehicle, so on a slant their corners catch what its body
+     * would pass): the same move nudged up to {@link #GLIDE} (and never more than its own length) sideways, when that gets
+     * it further along its way; else m as it was. A wall met head-on or along its face is no corner: nothing changes.
+     */
+    static double[] glide(List<double[]> sq, double[] m, double dx, double dy, double dz, boolean canStep, double stepHeight, Terrain t) {
+        double want = Math.hypot(dx, dz);
+        if (want < 1e-4) return m;
+        double ux = dx / want, uz = dz / want;
+        double best = m[0] * ux + m[2] * uz;
+        if (best >= want * 0.98) return m;
+        double[] out = m;
+        double most = Math.min(GLIDE, want);
+        for (int side = -1; side <= 1; side += 2) {
+            for (int k = 1; k <= 3; k++) {
+                double g = most * k / 3, gx = -uz * side * g, gz = ux * side * g;
+                double[] c = move(sq, dx + gx, dy, dz + gz, canStep, stepHeight, t);
+                double along = c[0] * ux + c[2] * uz;
+                if (along > best + 1e-6 && Math.abs(-c[0] * uz + c[2] * ux) <= g + 1e-6) {
+                    best = along;
+                    out = c;
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * Where the vehicle may stand turned to yaw: where it is; else, its rearmost or foremost square kept where it is
+     * (the end touching a wall stays, the other swings away from it, as a car pulls away from a kerb); else after sliding
+     * up to {@link #SLIDE} sideways (as far as the blocks let it: never through one). {x, z}, or null: the turn is not
+     * made. (Turning about its middle only, a long bus touching a wall with its rear could not steer away from it: the
+     * rear swings in as the front swings out, and it scraped along the wall to its end.)
+     */
+    static double[] turned(State st, float yaw, VehicleSpec s, Terrain t) {
+        if (!collides(st.x, st.y, st.z, yaw, s, t)) return new double[]{st.x, st.z};
+        if (collides(st.x, st.y, st.z, st.yaw, s, t)) return null;   // already in a block: as before, no turn
+        double[] f0 = forward(st.yaw), f1 = forward(yaw);
+        int n = s.squares();
+        if (n > 1) {
+            for (int i : new int[]{0, n - 1}) {
+                double o = s.squareOffset(i), x = st.x + (f0[0] - f1[0]) * o, z = st.z + (f0[1] - f1[1]) * o;
+                if (!collides(x, st.y, z, yaw, s, t)) return new double[]{x, z};
+            }
+        }
+        List<double[]> sq = footprint(st.x, st.y, st.z, st.yaw, s);
+        double rx = -f0[1], rz = f0[0];
+        for (int k = 1; k <= 2; k++) {
+            for (int side = -1; side <= 1; side += 2) {
+                double d = SLIDE * k / 2;
+                double[] m = collide(sq, rx * side * d, 0, rz * side * d, t);
+                double x = st.x + m[0], z = st.z + m[2];
+                if (!collides(x, st.y, z, yaw, s, t)) return new double[]{x, z};
+            }
+        }
+        return null;
     }
 
     /**

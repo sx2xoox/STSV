@@ -155,7 +155,7 @@ public final class RoadModule extends EcoModule {
                 "<하역장> [기준점|여기서|새로|이어짓기] | <하역장> 미리보기 [기준점|여기서] | <하역장> 되돌리기 | 되돌리기 중지 | "
                         + "기준점 [설정|보기|초기화] | 중지 | 상태 | 표지판 정리 <하역장> | "
                         + "표지판 다시세우기 [하역장|전체] | 난간고치기 [하역장|전체] | 터널보수 [하역장|전체|여기 [반경]] | 눈치우기 [반경|전체] | "
-                        + "가로등정리 [하역장|전체|여기 [반경]]",
+                        + "가로등정리 [하역장|전체|여기 [반경]] | 커브정리 [하역장|전체|여기 [반경]]",
                 "국도: 기준점(없으면 건축월드 스폰, 여기서 = 지금 자리)에서 하역장 입구까지 길 놓기 (멈췄던 것은 이어서, 새로 = 처음부터, "
                         + "이어짓기 = 다 지은 길의 끝에서 입구까지 모자란 곳만, 개인·서버 땅과 roads.avoid 는 피함) / 미리보기 = 살피고 길만 찾아 "
                         + "입자·요약·땅 밖 건물 경고 (짓지 않음, 60분 안에 같은 출발이면 그 길로 지음) / 되돌리기 = 그 길이 바꾼 블록을 원래대로 "
@@ -165,11 +165,14 @@ public final class RoadModule extends EcoModule {
                         + "둘레(기본 64, 최대 " + SNOW_MAX + "블록) 도로·하역장·터미널의 눈 치우기 (저장된 길이 없어도 길 블록 위의 눈), "
                         + "눈치우기 전체 = 저장된 모든 길을 처음부터 끝까지 따라가며 (청크를 불러오면서) 치우기 / "
                         + "가로등정리 = 이미 지은 길의 가로등 중 차로에 너무 가깝거나(대각선·굽은 길에서 갓돌에 걸치던 것) 굽은 길 안쪽이거나 "
-                        + "정류장 베이와 그 앞뒤에 있는 것을 치우고 (베이 곁이 아니면) 갓길 바깥쪽에 다시 세우기 (여기 = 둘레(기본 64), 길의 되돌리기 기록에 남김)",
+                        + "정류장 베이와 그 앞뒤에 있는 것을 치우고 (베이 곁이 아니면) 갓길 바깥쪽에 다시 세우기 (여기 = 둘레(기본 64), 길의 되돌리기 기록에 남김) / "
+                        + "커브정리 = 이미 지은 길에서 긴 차(리무진버스·탑차)가 닿던 것을 지금 짓는 대로: 다리 난간을 바깥으로 (다리 바닥을 넓혀), 대각선·굽은 "
+                        + "굴을 넓히고, 굽은 길·갈림길의 가드레일·반사봉·깎은 비탈을 바깥으로, 가로등도 가로등정리처럼 (길이 지은 블록과 땅만, 플레이어 블록·"
+                        + "보호 땅·다른 길의 차로·정류장 베이는 그대로, 여기 = 둘레(기본 64), 길의 되돌리기 기록에 남김)",
                 this::command, (s, a) -> {
                     if (a.length == 1) {
                         List<String> out = new ArrayList<>(eco.docks().names());
-                        out.addAll(List.of("기준점", "중지", "상태", "표지판", "눈치우기", "난간고치기", "터널보수", TIDY, "되돌리기"));
+                        out.addAll(List.of("기준점", "중지", "상태", "표지판", "눈치우기", "난간고치기", "터널보수", TIDY, CURVES, "되돌리기"));
                         return out;
                     }
                     if (a[0].equals("기준점")) return a.length == 2 ? List.of("설정", "보기", "초기화") : List.of();
@@ -185,7 +188,7 @@ public final class RoadModule extends EcoModule {
                     }
                     if (a[0].equals("눈치우기")) return a.length == 2 ? List.of("전체", "32", "64", "128") : List.of();
                     if (a[0].equals("난간고치기")) return a.length == 2 ? withAll() : List.of();
-                    if (a[0].equals(TIDY)) {
+                    if (a[0].equals(TIDY) || a[0].equals(CURVES)) {
                         if (a.length == 2) {
                             List<String> out = withAll();
                             out.add(HERE);
@@ -791,18 +794,19 @@ public final class RoadModule extends EcoModule {
             reboreHere(p, radius(a, 2, 48), answer(s), bar(s));
             return;
         }
-        if (a[0].equals(TIDY)) {
+        if (a[0].equals(TIDY) || a[0].equals(CURVES)) {
+            boolean curves = a[0].equals(CURVES);
             if (a.length > 1 && a[1].equals(HERE)) {
                 if (!(s instanceof Player p)) {
                     s.sendMessage(Lang.msg("road.here-player"));
                     return;
                 }
-                tidyLights(answer(s), bar(s), ALL, p.getLocation(), radius(a, 2, 64));
+                tidyLights(answer(s), bar(s), ALL, p.getLocation(), radius(a, 2, 64), curves);
                 return;
             }
             String target = a.length > 1 ? a[1] : ALL;
             if (!target.equals(ALL) && eco.docks().dock(target) != null) target = eco.docks().dock(target).name();
-            tidyLights(answer(s), bar(s), target, null, 0);
+            tidyLights(answer(s), bar(s), target, null, 0, curves);
             return;
         }
         if (a[0].equals("난간고치기") || a[0].equals("터널보수") || (a[0].equals("표지판") && a.length > 1 && a[1].equals("다시세우기"))) {
@@ -1346,6 +1350,10 @@ public final class RoadModule extends EcoModule {
         }
         int[] cross = net.crossings(points);
         RoadProfile.Plan plan = RoadProfile.planNetwork(ground, water, surface, cross, net.headroom(points));
+        // sharp corners level (no crease of steps on their inside), but where it meets or goes over another road
+        boolean[] fixed = new boolean[n];
+        for (int i = 0; i < n; i++) fixed[i] = plan.over()[i] || cross[i] != Integer.MIN_VALUE;
+        RoadProfile.levelBends(points, plan.halves(), fixed);
         RoadProfile.Part[] parts = RoadProfile.partsHalves(plan.halves(), ground, water, BRIDGE_GAP, TUNNEL_COVER, MIN_RUN);
         for (int i = 0; i < n; i++) if (plan.over()[i]) parts[i] = RoadProfile.Part.BRIDGE;   // over another road
         return new Profile(plan.halves(), plan.over(), parts, cross, ground);
@@ -1387,7 +1395,8 @@ public final class RoadModule extends EcoModule {
         return parts(o, halvesOf(o, o.points().size()));
     }
 
-    static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF, REACH = HALF + RoadSection.WIDEN + 1;
+    static final int BRIDGE_GAP = 3, TUNNEL_COVER = 5, MIN_RUN = 4, HALF = RoadSection.HALF,
+            REACH = HALF + RoadSection.WIDEN + (int) Math.ceil(RoadSection.MAX_WIDE) + 1;
 
     // ------------------------------------------------------------------------------------------
     // Signs put up again (/관리자 국도 표지판 다시세우기), rails' plinths (/관리자 국도 난간고치기)
@@ -1664,7 +1673,10 @@ public final class RoadModule extends EcoModule {
     /** "가로등정리": /관리자 국도 가로등정리 [하역장|전체|여기 [반경]] */
     static final String TIDY = "가로등정리";
 
-    /** A street-light tidy asked for and not finished: another one is refused till then. */
+    /** "커브정리": /관리자 국도 커브정리 [하역장|전체|여기 [반경]] */
+    static final String CURVES = "커브정리";
+
+    /** A street-light (or curve) tidy asked for and not finished: another one is refused till then. */
     private boolean tidying;
 
     /**
@@ -1676,10 +1688,15 @@ public final class RoadModule extends EcoModule {
      * is taken away. Only lights found by their exact shape on the roads' own shoulders; every road built (as
      * {@link #fixRails}); 여기: only the points within the radius (default 64) of the admin. What changes goes into the road's
      * undo record when it has one; chunks loaded a few at a time, roads.blocks-per-tick, roads.max-mspt.
+     *
+     * <p>curves (/관리자 국도 커브정리, the same targets): every point of the roads mended to the room a road leaves the long
+     * vehicles now ({@link RoadSection#tidyCurve}: a bridge's railing out of their reach, a tunnel on a diagonal or round a
+     * bend widened, a bend's or a junction's guardrails, reflector posts and cut bank further out), its lights as above.
      */
-    void tidyLights(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, String target, Location here, int radius) {
+    void tidyLights(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, String target, Location here, int radius,
+                    boolean curves) {
         if (tidying) {
-            to.accept(dev.stsv.core.util.Text.msg("<yellow>가로등 정리가 이미 진행 중이에요."));
+            to.accept(dev.stsv.core.util.Text.msg("<yellow>가로등·커브 정리가 이미 진행 중이에요."));
             return;
         }
         tidying = true;
@@ -1715,7 +1732,7 @@ public final class RoadModule extends EcoModule {
             }
             Bukkit.getScheduler().runTask(eco, () -> {
                 try {
-                    tidyLights(to, bar, mine, others, stops, bay, here, radius);
+                    tidyLights(to, bar, mine, others, stops, bay, here, radius, curves);
                 } catch (RuntimeException ex) {
                     tidying = false;
                     eco.getLogger().log(java.util.logging.Level.WARNING, "[국도] 가로등정리 오류", ex);
@@ -1726,7 +1743,8 @@ public final class RoadModule extends EcoModule {
     }
 
     private void tidyLights(java.util.function.Consumer<Component> to, java.util.function.Consumer<Component> bar, Map<String, List<TunnelRepair.Entry>> mine,
-                            Map<String, RoadNetwork> others, List<dev.stsv.economy.bus.BusStop> stops, int bayLength, Location here, int radius) {
+                            Map<String, RoadNetwork> others, List<dev.stsv.economy.bus.BusStop> stops, int bayLength, Location here, int radius,
+                            boolean curves) {
         int roadsN = 0, points = 0;
         long[] n = {0, 0, 0};   // lights taken away, put up again, blocks changed
         Map<String, RoadUndo.Recorder> recs = new HashMap<>();
@@ -1740,26 +1758,35 @@ public final class RoadModule extends EcoModule {
                 for (dev.stsv.economy.bus.BusStop st : bays) if (st.keepsClearOfLights(x, z, bayLength)) return true;
                 return false;
             };
-            Batch b = new Batch(w, "국도 가로등 정리");
+            Batch b = new Batch(w, curves ? "국도 커브 정리" : "국도 가로등 정리");
             b.blocks = new BlockBudget(settings.blocksPerTick());
             for (TunnelRepair.Entry e : we.getValue()) {
                 TunnelRepair.Road r = e.road();
                 RoadUndo.Recorder rec = hasUndo(r.dock()) ? recs.computeIfAbsent(r.dock(), k -> new RoadUndo.Recorder()) : null;
-                RoadSection sec = new RoadSection(site(w, rec, guardBase, others.get(w.getName() + "\0" + r.dock())), settings.style(), r.points(),
+                RoadNetwork round = others.get(w.getName() + "\0" + r.dock());
+                RoadSection sec = new RoadSection(site(w, rec, guardBase, round), settings.style(), r.points(),
                         r.halves(), r.parts(), r.dock(), r.route());
+                if (curves && round != null) {   // where it meets the other roads (a junction's corners: room for a bus turning)
+                    int[] cross = round.crossings(r.points());
+                    boolean[] over = new boolean[cross.length];
+                    for (int i = 0; i < cross.length; i++) over[i] = cross[i] != Integer.MIN_VALUE && r.parts()[i] == RoadProfile.Part.BRIDGE;
+                    sec.network(cross, over);
+                }
                 int before = points;
                 for (int i = 0; i < r.parts().length; i++) {
-                    if (r.parts()[i] != RoadProfile.Part.ROAD) continue;
+                    if (!curves && r.parts()[i] != RoadProfile.Part.ROAD) continue;
                     double[] p = r.points().get(i);
                     if (here != null && Math.hypot(p[0] - here.getX(), p[1] - here.getZ()) > radius) continue;
                     points++;
                     int at = i;
-                    b.add(p[0], p[1], RoadSection.HALF + RoadSection.WIDEN + 2, () -> {
-                        int[] t = sec.tidyLight(at, keepClear);
+                    boolean road = r.parts()[i] == RoadProfile.Part.ROAD;
+                    b.add(p[0], p[1], RoadSection.HALF + RoadSection.WIDEN + (int) Math.ceil(RoadSection.MAX_WIDE) + 2, () -> {
+                        int c = curves ? sec.tidyCurve(at, keepClear) : 0;   // (first: a light moved out stands on the shoulder laid out)
+                        int[] t = road ? sec.tidyLight(at, keepClear) : new int[3];
                         n[0] += t[0];
                         n[1] += t[1];
-                        n[2] += t[2];
-                        b.cost = t[2];
+                        n[2] += t[2] + c;
+                        b.cost = t[2] + c;
                     });
                 }
                 if (points > before) roadsN++;
@@ -1780,13 +1807,17 @@ public final class RoadModule extends EcoModule {
                     if (t != null) files.append(dock + ".undo", t::record);
                 });
                 tidying = false;
-                to.accept(dev.stsv.core.util.Text.msg("<green>가로등 정리 끝: 차로에 너무 가깝거나 굽은 길 안쪽·정류장 베이 앞뒤에 있던 가로등 " + n[0]
+                if (curves) to.accept(dev.stsv.core.util.Text.msg("<green>커브 정리 끝: 다리 난간·굴 벽·굽은 길과 갈림길의 가드레일·반사봉·비탈을 긴 차가 "
+                        + "닿지 않게 옮기고, 가로등 " + n[0] + "개를 치워 그중 " + n[1] + "개를 다시 세웠어요 (블록 " + n[2] + "칸, 길의 되돌리기 기록에 남김)."));
+                else to.accept(dev.stsv.core.util.Text.msg("<green>가로등 정리 끝: 차로에 너무 가깝거나 굽은 길 안쪽·정류장 베이 앞뒤에 있던 가로등 " + n[0]
                         + "개를 치우고 그중 " + n[1] + "개를 갓길 바깥쪽에 다시 세웠어요 (블록 " + n[2] + "칸, 길의 되돌리기 기록에 남김)."));
             };
             b.bar = bar;
             batches.add(b);
         }
-        to.accept(dev.stsv.core.util.Text.msg("<gray>국도 " + roadsN + "개, 점 " + points + "곳의 가로등을 살펴요 (청크를 불러오며 천천히; 길이 지은 가로등 모양만, 갓길 안에서만)."));
+        to.accept(dev.stsv.core.util.Text.msg(curves
+                ? "<gray>국도 " + roadsN + "개, 점 " + points + "곳의 다리·굴·굽은 길을 살펴요 (청크를 불러오며 천천히; 길이 지은 블록과 땅만)."
+                : "<gray>국도 " + roadsN + "개, 점 " + points + "곳의 가로등을 살펴요 (청크를 불러오며 천천히; 길이 지은 가로등 모양만, 갓길 안에서만)."));
     }
 
     /**
