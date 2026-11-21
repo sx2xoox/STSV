@@ -60,7 +60,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * 설계자 (docs/admin/숨은_비밀/설계자.md; contents/economy/secrets/designer.yml). The one who designed every machine on the
  * server is gone; he wanted his last machine to live.
  * <p>
- * At night, now and then, a product of the player's machine comes out signed "설계자 —" instead of their name (stage 1).
+ * Now and then (any hour; a very low chance per product), a product of the player's machine comes out signed "설계자 —" instead of their name (stage 1).
  * From then on the machines' recipe books have his notes at the back, for that player only, one more for each part made:
  * the rib frame (bone + iron at a forge), the vein hose (redstone + vines at a still), the eye lens (spider eye + glass at a
  * gem bench) and the heart gear (the three parts in one lane of a fourth kind of machine, with something the player made
@@ -200,17 +200,15 @@ public final class Designer extends Secret {
         Player p = Bukkit.getPlayer(op);
         if (p == null || !open(op)) return;
         int st = stage(op);
-        List<Integer> hours = cfg.getIntegerList("start.hours");
-        int from = hours.size() > 1 ? hours.get(0) : 0, to = hours.size() > 1 ? hours.get(1) : 5;
+        // no clock condition: machines run all day here, so the chance per product is kept very low instead
         if (st == 0) {
-            if (!m.hours(op, from, to)) return;
             if (!m.test(op) && level(op, job) < cfg.getInt("start.min-level", 20)) return;
             if (m.today(op).equals(m.get(this, op, "marked"))) return;
-            if (!m.roll(op, cfg.getDouble("start.chance", 0.004))) return;
+            if (!m.roll(op, cfg.getDouble("start.chance", 0.0002))) return;
             sign(product, op);
             begin(p);
-        } else if (st <= stages() && !m.test(op) && m.hours(op, from, to)
-                && ThreadLocalRandom.current().nextDouble() < cfg.getDouble("echo-chance", 0.01)) {
+        } else if (st <= stages() && !m.test(op)
+                && ThreadLocalRandom.current().nextDouble() < cfg.getDouble("echo-chance", 0.002)) {
             sign(product, op);   // now and then, again: he is still there
         }
     }

@@ -180,7 +180,10 @@ class DesignerPartsTest {
         assertEquals(List.of("고마워.", "이제 내가 돌게."), y.getStringList("memo.final"));
         assertEquals(300_000, y.getLong("rewards.money"));
         assertEquals("economy:designer_heir", y.getString("rewards.title"));
-        assertEquals(List.of(0, 5), y.getIntegerList("start.hours"));
+        // no clock condition, and a very low chance per product (machines run thousands of times a day)
+        assertFalse(y.contains("start.hours"), "the designer has no time-of-day condition");
+        assertEquals(0.0002, y.getDouble("start.chance"), 1e-12);
+        assertEquals(0.002, y.getDouble("echo-chance"), 1e-12);
         assertEquals(20, y.getInt("start.min-level"));
         // moving the 13th machine
         assertEquals(4, y.getStringList("thirteenth.move.facings").size());
