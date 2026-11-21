@@ -1,0 +1,310 @@
+package dev.stsv.economy.secret.dongbang;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Random;
+
+/**
+ * 동방해운's one share as one holder sees it: the price, its candles (10-minute, 2-hour, day) and the closes at each
+ * midnight. Pure (unit-tested): time comes in as ms, nothing here touches the server.
+ * <p>
+ * Before the notice the price only follows the holder (online it climbs, away it sinks, by the water it swings). After
+ * the notice there are two "key" midnights, {@link #kx} and the one a day after it. In the last {@link #approach} before
+ * each, the price is pulled along a fixed path so that it closes exactly on |x| (then |z|), and the last candle before
+ * that midnight is red when the coordinate is positive and blue when it is negative. Between the two it stands still at
+ * |x| (halted: no candles), and after the second it stands at |z| for good.
+ */
+final class Ticker {
+
+    /** What the holder is doing now. */
+    enum Mood { ONLINE, OFFLINE, WATER }
+
+    record Candle(long t, double open, double high, double low, double close) {
+        boolean up() {
+            return close >= open;
+        }
+
+        Candle with(double price) {
+            return new Candle(t, open, Math.max(high, price), Math.min(low, price), price);
+        }
+    }
+
+    /** A midnight: when (ms), the price, and whether the last candle before it was red. */
+    record Close(long at, double price, boolean up) {}
+
+    /** Day lines: Korean days, or test "days" of {@code day} ms counted from the epoch (as SecretModule.today does). */
+    record Clock(boolean test, long day) {
+        static final ZoneId KST = ZoneId.of("Asia/Seoul");
+
+        long dayStart(long t) {
+            if (test) return Math.floorDiv(t, day) * day;
+            LocalDate d = Instant.ofEpochMilli(t).atZone(KST).toLocalDate();
+            return d.atStartOfDay(KST).toInstant().toEpochMilli();
+        }
+
+        /** The length of a day here (a Korean day is always 24 hours: no summer time). */
+        long length() {
+            return test ? day : 86_400_000L;
+        }
+
+        long nextMidnight(long t) {
+            return dayStart(t) + length();
+        }
+
+        /** 10 minutes, or a 24th of a test day (so a test day still draws a chart). */
+        long candle() {
+            return test ? Math.max(1000, day / 24) : 600_000L;
+        }
+
+        int candlesPerDay() {
+            return (int) (length() / candle());
+        }
+
+        /** The start of the bucket of `len` ms holding t, counted from that day's start. */
+        long bucket(long t, long len) {
+            long s = dayStart(t);
+            return s + Math.floorDiv(t - s, len) * len;
+        }
+    }
+
+    /**
+     * up/down: log change per candle online/away; noise: per candle; water: per candle swing; delta: how far the last
+     * candle before a key midnight moves (a share of the price); approach: candles of the pull before a key midnight.
+     */
+    record Rules(double up, double down, double noise, double water, double delta, int approach, double min, double max) {
+        static final Rules DEFAULT = new Rules(0.006, 0.009, 0.004, 0.05, 0.04, 18, 100, 20_000);
+    }
+
+    static final int M10 = 16, H2 = 12, D1 = 7, CLOSES = 7;
+
+    final Clock clock;
+    final Rules rules;
+    double price;
+    /** Last update (ms). */
+    long t;
+    final List<Candle> m10 = new ArrayList<>();
+    final List<Candle> h2 = new ArrayList<>();
+    final List<Candle> d1 = new ArrayList<>();
+    final List<Close> closes = new ArrayList<>();
+    /** The first key midnight (ms), 0 before the notice. */
+    long kx;
+    /** The coordinates (signed); the prices are their sizes. */
+    int x, z;
+    /** The free price when the pull toward |x| began (-1: not yet). */
+    double p0 = -1;
+
+    Ticker(Clock clock, Rules rules, double price, long t) {
+        this.clock = clock;
+        this.rules = rules;
+        this.price = price;
+        this.t = t;
+    }
+
+    long kz() {
+        return kx == 0 ? 0 : kx + clock.length();
+    }
+
+    /** The pull before a key midnight, in ms. */
+    long approach() {
+        return Math.max(2, rules.approach()) * clock.candle();
+    }
+
+    /** No trading and no candles: between the two key midnights' pulls, and after the second for good. */
+    boolean halted(long at) {
+        if (kx == 0) return false;
+        return (at >= kx && at < kz() - approach()) || at >= kz();
+    }
+
+    /** The day's reference: the last midnight's close, or the first price. */
+    double prevClose(double fallback) {
+        return closes.isEmpty() ? fallback : closes.getLast().price();
+    }
+
+    /**
+     * The notice came at `at`: the first key midnight is that day's end, or the next day's when the pull would already
+     * have begun (so it is always whole).
+     */
+    void notice(long at, int x, int z) {
+        this.x = x;
+        this.z = z;
+        long k = clock.nextMidnight(at);
+        if (at > k - approach() - clock.candle()) k += clock.length();
+        kx = k;
+        p0 = -1;
+    }
+
+    /**
+     * The path of a pull: from `from` (at a0) to pre = target*(1 - sign*delta) one candle before the last, eased in log;
+     * it waits at pre for that candle, then goes straight to the target over the last candle, so that candle is red for a
+     * positive sign and blue for a negative.
+     */
+    static double pull(double from, long a0, double target, int sign, long end, long candle, double delta, long at) {
+        if (at >= end) return target;
+        double pre = target * (1 - sign * delta);
+        long f = end - candle;
+        if (at >= f) return pre + (target - pre) * (at - f) / (double) candle;
+        // the candle before the last waits at `pre`, so the last one opens there however the price was sampled
+        long g = f - candle;
+        if (at >= g) return pre;
+        double s = g <= a0 ? 1 : Math.clamp((at - a0) / (double) (g - a0), 0, 1);
+        double e = s * s * (3 - 2 * s);
+        return Math.exp(Math.log(from) + (Math.log(pre) - Math.log(from)) * e);
+    }
+
+    /** The price at `at`, from the free price before it (`dtCandles` candles of it under `mood`). */
+    private double priceAt(long at, double dtCandles, Mood mood, Random rnd) {
+        if (kx != 0) {
+            long kz = kz(), a = approach(), c = clock.candle();
+            int ax = Math.abs(x), az = Math.abs(z);
+            if (at >= kz) return az;
+            if (at >= kz - a) return pull(ax, kz - a, az, Integer.signum(z), kz, c, rules.delta(), at);
+            if (at >= kx) return ax;
+            if (at >= kx - a) {
+                if (p0 < 0) p0 = price;
+                return pull(p0, kx - a, ax, Integer.signum(x), kx, c, rules.delta(), at);
+            }
+        }
+        double g = rnd.nextGaussian(), sq = Math.sqrt(Math.max(0, dtCandles));
+        double d = switch (mood) {
+            case ONLINE -> rules.up() * dtCandles + rules.noise() * sq * g;
+            case OFFLINE -> -rules.down() * dtCandles + rules.noise() * 0.5 * sq * g;
+            case WATER -> rules.water() * sq * g;
+        };
+        return Math.clamp(price * Math.exp(d), rules.min(), rules.max());
+    }
+
+    /**
+     * Moves the price on to `to`, in steps that stop at every 10-minute line (so an away stretch still leaves one candle
+     * per 10 minutes) and at every boundary that matters. Returns the midnights crossed.
+     */
+    List<Close> advance(long to, Mood mood, Random rnd) {
+        List<Close> crossed = new ArrayList<>();
+        long c = clock.candle();
+        // a server off for weeks: do not walk every candle of it (only the last 7 days can show)
+        long floor = to - 8 * clock.length();
+        if (t < floor) t = clock.bucket(floor, c);
+        while (t < to) {
+            long next = Math.min(to, clock.bucket(t, c) + c);
+            if (kx != 0) {
+                for (long b : new long[]{kx - approach(), kz() - approach()}) if (b > t && b < next) next = b;
+            }
+            double p = priceAt(next, (next - t) / (double) c, mood, rnd);
+            price = p;
+            t = next;
+            if (next == clock.dayStart(next)) {
+                // a midnight: this price closes the day that ended
+                record(next - 1, p);
+                Candle last = m10.isEmpty() ? null : m10.getLast();
+                Close cl = new Close(next, p, last == null || last.up());
+                closes.add(cl);
+                while (closes.size() > CLOSES) closes.removeFirst();
+                crossed.add(cl);
+            } else if (!halted(next)) {
+                record(next, p);
+            }
+        }
+        return crossed;
+    }
+
+    /** Puts a price into the candles holding `at` (a new candle opens at the last close, as a real chart does). */
+    void record(long at, double p) {
+        long c = clock.candle();
+        put(m10, clock.bucket(at, c), p, M10);
+        put(h2, clock.bucket(at, 12 * c), p, H2);
+        put(d1, clock.dayStart(at), p, D1);
+    }
+
+    private static void put(List<Candle> list, long bucket, double p, int cap) {
+        if (!list.isEmpty() && list.getLast().t() == bucket) {
+            list.set(list.size() - 1, list.getLast().with(p));
+            return;
+        }
+        double open = list.isEmpty() ? p : list.getLast().close();
+        list.add(new Candle(bucket, open, Math.max(open, p), Math.min(open, p), p));
+        while (list.size() > cap) list.removeFirst();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // saving (eco.kv strings)
+    // ------------------------------------------------------------------------------------------
+
+    static String encode(List<Candle> l) {
+        StringBuilder b = new StringBuilder();
+        for (Candle k : l) {
+            if (!b.isEmpty()) b.append(';');
+            b.append(k.t()).append(',').append(num(k.open())).append(',').append(num(k.high())).append(',')
+                    .append(num(k.low())).append(',').append(num(k.close()));
+        }
+        return b.toString();
+    }
+
+    static void decode(String s, List<Candle> into) {
+        into.clear();
+        if (s == null || s.isBlank()) return;
+        for (String part : s.split(";")) {
+            String[] w = part.split(",");
+            try {
+                into.add(new Candle(Long.parseLong(w[0]), Double.parseDouble(w[1]), Double.parseDouble(w[2]), Double.parseDouble(w[3]),
+                        Double.parseDouble(w[4])));
+            } catch (RuntimeException ignored) {
+                // a hand-edited value: that candle is dropped
+            }
+        }
+    }
+
+    static String encodeCloses(List<Close> l) {
+        StringBuilder b = new StringBuilder();
+        for (Close k : l) {
+            if (!b.isEmpty()) b.append(';');
+            b.append(k.at()).append(',').append(num(k.price())).append(',').append(k.up() ? 1 : 0);
+        }
+        return b.toString();
+    }
+
+    static void decodeCloses(String s, List<Close> into) {
+        into.clear();
+        if (s == null || s.isBlank()) return;
+        for (String part : s.split(";")) {
+            String[] w = part.split(",");
+            try {
+                into.add(new Close(Long.parseLong(w[0]), Double.parseDouble(w[1]), w[2].equals("1")));
+            } catch (RuntimeException ignored) {
+                // dropped
+            }
+        }
+    }
+
+    static String num(double v) {
+        return String.format(Locale.ROOT, "%.3f", v);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // where the 본사 is
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Candidate 본사 spots for a seed: block coordinates {x, z}, each a chunk's middle (x ≡ 8 mod 16, so the room fits in
+     * one chunk) with min ≤ |x|, |z| ≤ max.
+     */
+    static List<int[]> candidates(long seed, int min, int max, int n) {
+        Random r = new Random(seed);
+        List<int[]> out = new ArrayList<>();
+        for (int i = 0; i < n; i++) out.add(new int[]{axis(r, min, max), axis(r, min, max)});
+        return out;
+    }
+
+    private static int axis(Random r, int min, int max) {
+        int lo = Math.max(16, min), hi = Math.max(lo + 32, max);
+        int mag = lo + r.nextInt(hi - lo + 1);
+        int sign = r.nextBoolean() ? 1 : -1;
+        int c = Math.floorDiv(sign * mag, 16);
+        int v = c * 16 + 8;
+        while (Math.abs(v) < lo) v += sign * 16;
+        while (Math.abs(v) > hi) v -= sign * 16;
+        return v;
+    }
+}

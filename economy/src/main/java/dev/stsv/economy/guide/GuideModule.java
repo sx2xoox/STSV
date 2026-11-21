@@ -356,12 +356,68 @@ public final class GuideModule extends EcoModule {
 
     /** /길라잡이 그만: back with their things. */
     public void leave(Player p) {
+        if (!active(p) && visiting(p)) {   // walked in by the 안내원 secret
+            unvisit(p, true);
+            p.sendMessage(Lang.msg("guide.left"));
+            return;
+        }
         if (!active(p)) {
             p.sendMessage(Lang.msg("guide.not-in"));
             return;
         }
         end(p, true, true);
         p.sendMessage(Lang.msg("guide.left"));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Visitors (the 안내원 secret, secret/usher): in the tutorial world without a topic
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Takes someone into the tutorial world without a topic. Their things are kept as for a topic ({@link GuideReturn}) and
+     * they walk in with empty hands; a topic they are in ends first (its record is kept, so they still go back to where they
+     * came from). {@link #unvisit} or /길라잡이 그만 puts them back; a crash or a quit puts them back on their next join.
+     */
+    public boolean visit(Player p, Location to) {
+        World w = world == null ? null : world.world();
+        if (w == null || world.building() || to.getWorld() != w) return false;
+        Session s = sessions.remove(p.getUniqueId());
+        if (s != null) {
+            if (p.isInsideVehicle()) p.leaveVehicle();
+            eco.kv().set("guide.last." + p.getUniqueId(), s.progress.topic().id());
+            clearTopic(p, s);
+            removeHelper(s);
+            HudModule.clearFlash(p);
+        } else if (!GuideReturn.has(p)) {
+            if (dev.stsv.core.minigame.ReturnPoint.has(p) || p.isInsideVehicle()
+                    || core.cosmetics() != null && core.cosmetics().inWardrobe(p)) return false;
+            p.closeInventory();
+            GuideReturn.save(p);
+            p.getInventory().clear();
+            p.setGameMode(org.bukkit.GameMode.SURVIVAL);
+        }
+        if (inWorld(p)) return p.teleport(to, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        entering.add(p.getUniqueId());
+        try {
+            return p.teleport(to, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        } finally {
+            entering.remove(p.getUniqueId());
+        }
+    }
+
+    /** A visitor (see {@link #visit}): in the tutorial world, no topic, their things kept aside. */
+    public boolean visiting(Player p) {
+        return !active(p) && GuideReturn.has(p) && inWorld(p);
+    }
+
+    /** Puts a visitor back (back = to where they came from too). Nothing for someone in a topic. */
+    public void unvisit(Player p, boolean back) {
+        if (!active(p) && GuideReturn.has(p)) restore(p, back);
+    }
+
+    /** The tutorial world, when it is loaded. */
+    public World guideWorld() {
+        return world == null ? null : world.world();
     }
 
     /** /길라잡이 다시: the same topic from its first step. */
