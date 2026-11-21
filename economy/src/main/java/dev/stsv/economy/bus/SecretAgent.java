@@ -84,7 +84,7 @@ public final class SecretAgent implements Listener {
     public record Config(boolean enabled, String type, int from, int to, int minTimes, int maxTimes, int stay, int giveUp,
                          long tipMin, long tipMax, double allNotesTip, double agentTip, int windowFrom, int windowTo,
                          int finalHour, int finalMinute, int finalSpan, int honks, int honkWindow, double finalMin, double finalMax,
-                         double slowSpeed, int slowLimit, long money, String vehicle, List<String> cosmetics, String title,
+                         int finalLimit, int finalRepeat, int finalWait, int attempts, double caseRange, long money, String vehicle, List<String> cosmetics, String title,
                          double weeklyMin, double weeklyMax, long weeklyRewardMin, long weeklyRewardMax, double weeklyChance,
                          List<Note> notes, Map<String, String> riddles, Map<String, List<String>> talk) {
 
@@ -108,8 +108,9 @@ public final class SecretAgent implements Listener {
                     c.getInt("stay", 40), c.getInt("give-up", 15), tip.isEmpty() ? 1000 : tip.get(0), tip.size() > 1 ? tip.get(1) : 3000,
                     c.getDouble("all-notes-tip", 2), c.getDouble("agent-tip", 2), win.isEmpty() ? 420 : win.get(0), win.size() > 1 ? win.get(1) : 450,
                     f.getInt("hour", 3), f.getInt("minute", 33), Math.max(1, f.getInt("minutes", 2)), Math.max(1, f.getInt("honks", 3)),
-                    Math.max(1, f.getInt("honk-window", 5)), fd.isEmpty() ? 1000 : fd.get(0), fd.size() > 1 ? fd.get(1) : 3000,
-                    f.getDouble("slow-speed", 4), f.getInt("slow-limit", 15), f.getLong("money", 1_000_000), f.getString("vehicle", ""),
+                    Math.max(1, f.getInt("honk-window", 5)), fd.isEmpty() ? 5000 : fd.get(0), fd.size() > 1 ? fd.get(1) : 8000,
+                    Math.max(1, f.getInt("time-limit", 45)), Math.max(10, f.getInt("repeat", 60)), Math.max(1, f.getInt("wait", 10)),
+                    Math.max(1, f.getInt("attempts", 3)), f.getDouble("case-range", 6), f.getLong("money", 1_000_000), f.getString("vehicle", ""),
                     List.copyOf(f.getStringList("cosmetics")), f.getString("title", ""), wd.isEmpty() ? 1000 : wd.get(0),
                     wd.size() > 1 ? wd.get(1) : 2000, wr.isEmpty() ? 100_000 : wr.get(0), wr.size() > 1 ? wr.get(1) : 300_000,
                     w.getDouble("chance", 0.25), List.copyOf(notes), riddles, talk);
@@ -191,10 +192,41 @@ public final class SecretAgent implements Listener {
         return s;
     }
 
+    /** The seed for one player's closed stop: the notes' numbers and who they are (the same player, the same place). */
+    static long playerSeed(long notes, UUID u) {
+        return notes * 1_000_003L ^ u.getMostSignificantBits() ^ Long.rotateLeft(u.getLeastSignificantBits(), 17);
+    }
+
+    /** The briefcase's code: the notes' numbers read in note order 1 → 5 (4,7,1,9,2 → "47192"). */
+    static String code(List<Note> notes) {
+        StringBuilder b = new StringBuilder();
+        for (Note n : notes) b.append(Math.floorMod(n.number(), 10));
+        return b.toString();
+    }
+
     /**
-     * The closed stop: of the road points (x, z) between `min` and `max` blocks (straight) from (x, z), the one the notes'
-     * seed picks; none that far: the one nearest to half way. Returns {x, z, along-x, along-z} (the road's way there), or
-     * null without roads.
+     * A try at the briefcase: 1 the code is right; 0 wrong, tries left; -1 wrong and that was the last of `max`
+     * (`wrongBefore` = wrong tries before this one).
+     */
+    static int guess(String code, String entered, int wrongBefore, int max) {
+        if (code.equals(entered)) return 1;
+        return wrongBefore + 1 >= max ? -1 : 0;
+    }
+
+    /** Whether `minutes` have passed since `since` (millis). */
+    static boolean timeUp(long since, long now, int minutes) {
+        return now - since > minutes * 60_000L;
+    }
+
+    /** The coordinate as he says it: "X 1234, Z -567". */
+    static String coord(double x, double z) {
+        return "X " + Math.round(Math.floor(x)) + ", Z " + Math.round(Math.floor(z));
+    }
+
+    /**
+     * The closed stop: of the road points (x, z) between `min` and `max` blocks (straight) from (x, z), the one the
+     * seed picks; none that far: the one closest to that range (on a small map, the farthest). Returns {x, z, along-x,
+     * along-z, in-range 1/0} (the road's way there), or null without roads.
      */
     static double[] closedStop(long seed, List<double[]> points, double x, double z, double min, double max) {
         if (points.isEmpty()) return null;
@@ -207,9 +239,9 @@ public final class SecretAgent implements Listener {
         if (!in.isEmpty()) pick = in.get((int) Math.floorMod(seed * 2_654_435_761L, (long) in.size()));
         else {
             pick = 0;
-            double best = Double.MAX_VALUE, mid = (min + max) / 2;
+            double best = Double.MAX_VALUE;
             for (int i = 0; i < points.size(); i++) {
-                double d = Math.abs(Math.hypot(points.get(i)[0] - x, points.get(i)[1] - z) - mid);
+                double h = Math.hypot(points.get(i)[0] - x, points.get(i)[1] - z), d = h < min ? min - h : h - max;
                 if (d < best) {
                     best = d;
                     pick = i;
@@ -219,7 +251,7 @@ public final class SecretAgent implements Listener {
         double[] p = points.get(pick);
         double[] q = points.get(Math.min(points.size() - 1, pick + 1)), o = points.get(Math.max(0, pick - 1));
         double dx = q[0] - o[0], dz = q[1] - o[1], len = Math.hypot(dx, dz);
-        return new double[]{p[0], p[1], len > 0 ? dx / len : 1, len > 0 ? dz / len : 0};
+        return new double[]{p[0], p[1], len > 0 ? dx / len : 1, len > 0 ? dz / len : 0, in.isEmpty() ? 0 : 1};
     }
 
     /** A stop's name read backwards (his way of naming it). */
@@ -268,12 +300,15 @@ public final class SecretAgent implements Listener {
         Integer target;
         long boarded = System.currentTimeMillis();
         boolean bigTip;
-        // the final run
+        // the final run: 0 driving to the coordinate, 1 he walks into the closed stop, 2 the briefcase waits, 3 opened
         double[] closed;
         String world;
-        double slow;
-        boolean moved;
-        Entity car;
+        int phase, wrong;
+        long stopAt, lastSaid;
+        Location shelter;
+        Interaction caseHit;
+        BlockDisplay lid;
+        BukkitTask walk;
         final List<Entity> shown = new ArrayList<>();
     }
 
@@ -360,6 +395,11 @@ public final class SecretAgent implements Listener {
         } else showWaiting(now);
         for (Job j : new ArrayList<>(jobs.values())) {
             Player p = Bukkit.getPlayer(j.driver);
+            if (j.mission == FINAL && j.phase > 0) {   // at the closed stop: they may leave the bus; 10 minutes to open it
+                if (p == null) end(j, null);
+                else if (timeUp(j.stopAt, now, cfg.finalWait())) fail(p, j, "time", "final-timeout");
+                continue;
+            }
             BusModule.Run run = bus.runMap().get(j.bus);
             if (p == null || run == null || !j.rider.m.isValid() || !run.riders.contains(j.rider)) {   // the driver got out, left
                 end(j, p);
@@ -372,39 +412,32 @@ public final class SecretAgent implements Listener {
                     if (s != null) success(p, run, j, s);
                 } else if (window(secs, cfg.windowFrom(), cfg.windowTo()) > 0) fail(p, run, j, "late");
             } else if (j.mission == FINAL) {
-                if (secs > 30 * 60) fail(p, run, j, "fail");
-                else if (j.closed != null) showClosed(p, j);
+                if (timeUp(j.boarded, now, cfg.finalLimit())) fail(p, j, "time", "final-timeout");
+                else if (j.closed != null) {
+                    showClosed(p, j, false);
+                    if (j.lastSaid > 0 && now - j.lastSaid >= cfg.finalRepeat() * 1000L) {   // the coordinate again
+                        j.lastSaid = now;
+                        speak(p, j.rider.m, cfg.line("final-repeat", roll(), "coord", coord(j.closed[0], j.closed[1])));
+                    }
+                }
             } else if (secs > cfg.giveUp() * 60.0 * (j.mission == WEEKLY ? 2 : 1)) fail(p, run, j, "time");
         }
     }
 
-    /** Every tick for a bus being driven: the horn (space) counted, the final run's black car and its speed watched. */
+    /** Every tick for a bus being driven: the horn (space) counted; the final run's bus stopping at the closed stop. */
     void drive(Player p, BusModule.Run run, VehicleModule.Driven d) {
         boolean jump = p.getCurrentInput().isJump();
         Boolean was = jumpWas.put(p.getUniqueId(), jump);
         if (jump && (was == null || !was)) honk(p, run);
         Job j = jobs.get(p.getUniqueId());
-        if (j == null || j.mission != FINAL || j.bus != run.id || j.closed == null) return;
-        double speed = Math.abs(d.speed());
-        double toStop = Math.hypot(d.x() - j.closed[0], d.z() - j.closed[1]);
-        if (speed >= cfg.slowSpeed()) j.moved = true;
-        else if (j.moved && toStop > 60) j.slow += 1 / 20.0;
-        if (j.slow > cfg.slowLimit()) {
-            fail(p, run, j, "slow");
-            return;
-        }
-        if (j.car != null && j.car.isValid() && run.id == d.id()) {   // the black car, 10 blocks behind (only they see it)
-            double yaw = Math.toRadians(d.yaw());
-            Location at = new Location(d.world(), d.x() + Math.sin(yaw) * 10, d.y(), d.z() - Math.cos(yaw) * 10, d.yaw(), 0);
-            if (ThreadLocalRandom.current().nextInt(2) == 0 || j.car.getLocation().distanceSquared(at) > 4) j.car.teleport(at);
-        }
-        if (speed < 0.5 && toStop <= 10) finalDone(p, run, j);
+        if (j == null || j.mission != FINAL || j.phase != 0 || j.bus != run.id || j.closed == null) return;
+        if (Math.abs(d.speed()) < 0.5 && Math.hypot(d.x() - j.closed[0], d.z() - j.closed[1]) <= 10) arriveClosed(p, run, j);
     }
 
-    /** A jolt or a bump: the final run and the weekly delivery fail. */
+    /** A jolt or a bump: the weekly delivery fails. */
     void hurt(Player p, BusModule.Run run) {
         Job j = jobs.get(p.getUniqueId());
-        if (j != null && j.bus == run.id && (j.mission == FINAL || j.mission == WEEKLY)) fail(p, run, j, "shaken");
+        if (j != null && j.bus == run.id && j.mission == WEEKLY) fail(p, run, j, "shaken");
     }
 
     /** Someone else got on (빈 버스: nobody may). */
@@ -708,38 +741,52 @@ public final class SecretAgent implements Listener {
         return s == null ? "???" : s.name();
     }
 
-    /** He says something: a bubble over his head and, for the driver, a line in chat. */
+    /** He says something: a bubble over his head (only the driver sees it when he is theirs alone) and a line in chat. */
     private void speak(Player p, Entity m, String line) {
-        if (m != null && m.isValid()) bus.say(m, line);
+        if (m != null && m.isValid()) {
+            if (!m.isVisibleByDefault() && p != null) {
+                TextDisplay b = bus.bubble(m, line, 60L);
+                b.setVisibleByDefault(false);
+                p.showEntity(eco, b);
+            } else bus.say(m, line);
+        }
         if (p != null) p.sendMessage(Lang.mm("bus.secret-says", "line", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(line)));
     }
 
     /** He gets off the bus (and is gone), the job over; the final's sky and sights put back. */
     private void end(Job j, Player p) {
-        jobs.remove(j.driver);
+        jobs.remove(j.driver, j);
+        if (j.walk != null) j.walk.cancel();
         VehicleModule vm = core.vehicles();
         BusModule.Run run = bus.runMap().get(j.bus);
         if (run != null) run.riders.remove(j.rider);
-        if (vm != null) vm.unseatGuest(j.bus, j.rider.m);
+        if (vm != null && j.phase == 0) vm.unseatGuest(j.bus, j.rider.m);
         Mannequin m = j.rider.m;
         if (m.isValid()) {
             m.getWorld().spawnParticle(Particle.SMOKE, m.getLocation().add(0, 1, 0), 15, 0.2, 0.6, 0.2, 0.01);
             Bukkit.getScheduler().runTaskLater(eco, m::remove, 4L);
         }
-        if (j.car != null) j.car.remove();
         for (Entity e : j.shown) e.remove();
         j.shown.clear();
-        if (j.mission == FINAL && p != null) p.resetPlayerTime();
+        if (j.mission == FINAL && p != null) {
+            p.resetPlayerTime();
+            if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Keypad k && k.job == j) p.closeInventory();
+        }
     }
 
     private void fail(Player p, BusModule.Run run, Job j, String why) {
-        speak(p, j.rider.m, cfg.line("fail", roll()));
+        fail(p, j, why, "fail");
+    }
+
+    /** He is gone: his line (talk key), why in chat, the job over. */
+    private void fail(Player p, Job j, String why, String talk) {
+        speak(p, j.rider.m, cfg.line(talk, roll()));
         String reason = switch (why) {
             case "silence" -> Lang.raw("bus.secret-why-silence");
             case "boarded" -> Lang.raw("bus.secret-why-boarded");
             case "late" -> Lang.raw("bus.secret-why-late");
             case "order" -> Lang.raw("bus.secret-why-order");
-            case "slow" -> Lang.raw("bus.secret-why-slow");
+            case "wrong" -> Lang.raw("bus.secret-why-wrong");
             case "shaken" -> Lang.raw("bus.secret-why-shaken");
             default -> Lang.raw("bus.secret-why-time");
         };
