@@ -28,7 +28,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * the door and they stand outside it; let the knocking run out and, after a silence, they stand inside, behind you. It
  * is you: it looks at you for a moment, then walks exactly where you walked a second ago, and the second shrinks (1.0 s
  * to 0.4 s). Stop, double back, or let it catch up and it touches you: the screen goes black and chat says you left.
- * Keep going for three minutes and it stops, says "그럼 네가 계속 해", and is gone.
+ * Keep going for three minutes and it stops, says "그럼 네가 계속 해", and is gone. Whatever the hour, it is night for
+ * them while it lasts (their own sky only).
  * <p>
  * Everything runs on a one-tick timer per player and is seen and heard by that player only ({@link Haunt}).
  */
@@ -93,6 +94,8 @@ final class Finale {
                 : m.test(p.getUniqueId()) ? s.cfg().getInt("chase.test-seconds", 60) : s.cfg().getInt("chase.seconds", 180);
         r.total = Math.max(5, sec) * 20;
         runs.put(p.getUniqueId(), r);
+        // whatever the hour, for them it is night ("밤이었다")
+        p.setPlayerTime(18000, false);
         if (mode == Mode.CHASE) appearInside(r);
         else {
             r.door = door(p);
@@ -362,6 +365,7 @@ final class Finale {
         if (r == null) return false;
         if (r.task != null) r.task.cancel();
         Player p = Bukkit.getPlayer(u);
+        if (p != null) p.resetPlayerTime();
         if (r.twin != null) {
             if (p != null) haunt().remove(p, r.twin);
             else if (r.twin.isValid()) r.twin.remove();

@@ -33,7 +33,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * The things that come apart, one more with every letter, only for the one player (letter.yml {@code omens}):
  * footsteps behind them when they stand still (1), their own name a second time under the tab list (2), one of their
  * things renamed "내 것" and someone calling their name in chat (3), themselves glimpsed at the edge of sight, gone when
- * looked at (4), and "(name)님이 들어왔습니다" the day the last letter comes (5).
+ * looked at (4), and "(name)님이 들어왔습니다" when the last letter comes (5). The whole chain is one night, so the waits
+ * shrink with every letter ({@code omens.pace}) and each new letter brings its newest omen soon after it arrives.
+ * During the silence (letter 3) the calls close in: anyone at first, then the people they are closest to, then their
+ * own name, typing to them.
  */
 final class Omens {
 
@@ -60,12 +63,28 @@ final class Omens {
         return m.haunt();
     }
 
-    /** A random wait (ms) from "omens.<what>.<key>" — or its "test-<key>" twin in test mode. */
-    private long every(UUID u, String what, String key) {
+    /** A random wait (ms) from "omens.<what>.<key>" — or its "test-<key>" twin in test mode — shortened by letter n's pace. */
+    private long every(UUID u, String what, String key, int n) {
         String base = "omens." + what + ".";
         List<Integer> r = m.test(u) ? s.cfg().getIntegerList(base + "test-" + key) : List.of();
         if (r.isEmpty()) r = s.cfg().getIntegerList(base + key);
-        return LetterText.between(r, 120, ThreadLocalRandom.current()) * 1000L;
+        long w = LetterText.between(r, 120, ThreadLocalRandom.current()) * 1000L;
+        return Math.max(3000, Math.round(w * Riddle.pace(s.cfg().getDoubleList("omens.pace"), n)));
+    }
+
+    /** A new letter came: its newest omen comes soon (not after a whole wait). */
+    void arrived(Player p, int n) {
+        UUID u = p.getUniqueId();
+        long now = System.currentTimeMillis();
+        long soon = Math.max(3, s.cfg().getLong(m.test(u) ? "omens.test-first-after-seconds" : "omens.first-after-seconds", 25)) * 1000L;
+        switch (n) {
+            case 1 -> nextStep.put(u, now + soon);
+            case 4 -> nextGlimpse.put(u, now + soon);
+            default -> {
+                nextStep.put(u, Math.min(nextStep.getOrDefault(u, Long.MAX_VALUE), now + soon * 2));
+                if (n >= 3) nextCall.put(u, now + soon);
+            }
+        }
     }
 
     /** Each second, for someone holding letter n (1..5). */
@@ -80,36 +99,41 @@ final class Omens {
         if (s.finaleRunning(u)) return;
 
         if (n >= 1 && st >= s.cfg().getInt("omens.footsteps.still-seconds", 4)) {
-            long at = nextStep.computeIfAbsent(u, k -> now + every(u, "footsteps", "every"));
+            long at = nextStep.computeIfAbsent(u, k -> now + every(u, "footsteps", "every", n));
             if (now >= at) {
                 footsteps(p);
-                nextStep.put(u, now + every(u, "footsteps", "every"));
+                nextStep.put(u, now + every(u, "footsteps", "every", n));
             }
         }
         if (n >= 2) tab(p, n);
         if (n >= 3) {
             boolean quiet = s.silenceActive(u);
-            long at = nextCall.computeIfAbsent(u, k -> now + (quiet ? callEvery(u) : every(u, "calls", "after-every")));
+            double prog = s.silenceProgress(u);
+            long at = nextCall.computeIfAbsent(u, k -> now + (quiet ? callEvery(u, prog) : every(u, "calls", "after-every", n)));
             if (now >= at) {
-                call(p);
-                nextCall.put(u, now + (quiet ? callEvery(u) : every(u, "calls", "after-every")));
+                call(p, quiet ? Riddle.callTier(prog) : 0);
+                nextCall.put(u, now + (quiet ? callEvery(u, prog) : every(u, "calls", "after-every", n)));
             }
         }
         if (n >= 4 && !glimpse.containsKey(u)) {
-            long at = nextGlimpse.computeIfAbsent(u, k -> now + every(u, "glimpse", "every"));
+            long at = nextGlimpse.computeIfAbsent(u, k -> now + every(u, "glimpse", "every", n));
             // no ground beside them (a cave wall, open water): try again a little later
-            if (now >= at) nextGlimpse.put(u, glimpse(p) ? now + every(u, "glimpse", "every") : now + 5000);
+            if (now >= at) nextGlimpse.put(u, glimpse(p) ? now + every(u, "glimpse", "every", n) : now + 5000);
         }
     }
 
-    private long callEvery(UUID u) {
-        List<Integer> r = s.cfg().getIntegerList(m.test(u) ? "rituals.silence.test-call-every" : "rituals.silence.call-every");
-        return LetterText.between(r, 90, ThreadLocalRandom.current()) * 1000L;
+    /** The wait between calls during the silence: from call-every at its start down to call-every-end as it runs out. */
+    private long callEvery(UUID u, double progress) {
+        String b = m.test(u) ? "rituals.silence.test-" : "rituals.silence.";
+        ThreadLocalRandom r = ThreadLocalRandom.current();
+        long from = LetterText.between(s.cfg().getIntegerList(b + "call-every"), 50, r) * 1000L;
+        long to = LetterText.between(s.cfg().getIntegerList(b + "call-every-end"), 12, r) * 1000L;
+        return Riddle.callGap(progress, from, to);
     }
 
     /** The silence just began: the first call comes soon. */
     void silenceBegan(UUID u) {
-        nextCall.put(u, System.currentTimeMillis() + callEvery(u) / 2);
+        nextCall.put(u, System.currentTimeMillis() + callEvery(u, 0) / 2);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -148,15 +172,35 @@ final class Omens {
         if (footer.remove(p.getUniqueId()) != null) p.sendPlayerListFooter(Component.empty());
     }
 
-    /** Someone they know (or anyone here, or themselves) says their name in chat. */
-    void call(Player p) {
-        List<String> who = new ArrayList<>();
-        for (String f : m.memory().friends(p.getUniqueId())) if (!f.equalsIgnoreCase(p.getName())) who.add(f);
-        for (Player o : Bukkit.getOnlinePlayers()) if (o != p && !who.contains(o.getName())) who.add(o.getName());
-        String speaker = who.isEmpty() ? p.getName() : who.get(ThreadLocalRandom.current().nextInt(Math.min(who.size(), 4)));
-        List<String> lines = s.cfg().getStringList("omens.calls.lines");
+    /**
+     * Someone says their name in chat. Tier 0: anyone (someone online, else a name they know a little); tier 1: the people
+     * they spend the most time with; tier 2: themselves — their own name, typing to them (with a breath behind them).
+     * Each tier has its own lines ({@code omens.calls.lines}, {@code lines-near}, {@code lines-self}).
+     */
+    void call(Player p, int tier) {
+        ThreadLocalRandom r = ThreadLocalRandom.current();
+        List<String> friends = new ArrayList<>();
+        for (String f : m.memory().friends(p.getUniqueId())) if (!f.equalsIgnoreCase(p.getName())) friends.add(f);
+        List<String> anyone = new ArrayList<>();
+        for (Player o : Bukkit.getOnlinePlayers()) if (o != p) anyone.add(o.getName());
+        for (String f : friends) if (!anyone.contains(f)) anyone.add(f);
+        String speaker;
+        String key;
+        if (tier >= 2 || anyone.isEmpty()) {
+            speaker = p.getName();
+            key = "lines-self";
+            haunt().behind(p, Sound.ENTITY_PLAYER_BREATH, 0.35f, 0.6f);
+        } else if (tier == 1 && !friends.isEmpty()) {
+            speaker = friends.get(r.nextInt(Math.min(friends.size(), 2)));
+            key = "lines-near";
+        } else {
+            speaker = anyone.get(r.nextInt(anyone.size()));
+            key = "lines";
+        }
+        List<String> lines = s.cfg().getStringList("omens.calls." + key);
+        if (lines.isEmpty()) lines = s.cfg().getStringList("omens.calls.lines");
         if (lines.isEmpty()) lines = List.of("{name}");
-        String line = lines.get(ThreadLocalRandom.current().nextInt(lines.size())).replace("{name}", p.getName());
+        String line = lines.get(r.nextInt(lines.size())).replace("{name}", p.getName());
         haunt().chat(p, speaker, line);
     }
 

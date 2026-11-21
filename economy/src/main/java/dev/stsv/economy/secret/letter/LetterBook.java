@@ -5,10 +5,12 @@ import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.land.Land;
 import dev.stsv.economy.secret.Memory;
 import dev.stsv.economy.secret.SecretModule;
+import dev.stsv.economy.shop.ShopCatalog;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -59,9 +61,9 @@ final class LetterBook {
     }
 
     /** Writes letter n (1..5) for this player, then hands it over on the main thread. */
-    void write(Player p, int n, boolean repeat, Consumer<Written> then) {
+    void write(Player p, int n, Consumer<Written> then) {
         UUID u = p.getUniqueId();
-        Map<String, String> v = base(p, n, repeat);
+        Map<String, String> v = base(p, n);
         ConfigurationSection l = cfg().getConfigurationSection("letters." + n);
         if (l == null) {
             eco.getLogger().warning("[비밀] letter.yml 에 letters." + n + " 이 없습니다");
@@ -79,17 +81,26 @@ final class LetterBook {
                 v.put("sold", sales.isEmpty() ? null : Items.mmName(sales.getFirst().item()));
                 v.put("friend", m.memory().friends(u).stream().filter(f -> !f.equalsIgnoreCase(p.getName())).findFirst().orElse(null));
                 Target t = landTarget(p, land);
+                Land claimed = null;
                 if (t.kind() == Target.Kind.CHUNK || t.kind() == Target.Kind.LAND) {
-                    v.put("x", String.valueOf(LetterText.round(t.x())));
-                    v.put("z", String.valueOf(LetterText.round(t.z())));
+                    World w = Bukkit.getWorld(t.world());
+                    if (w != null && eco.land() != null) claimed = eco.land().at(new Location(w, t.x(), 64, t.z()));
+                    where(v, t.world(), t.x(), t.z(), l);
+                    v.put("biome", biome(t.world(), t.x(), t.z()));
                 }
-                String which = t.kind() == Target.Kind.CHUNK ? "ritual-first" : t.kind() == Target.Kind.LAND ? "ritual-home" : "ritual-none";
+                String which = t.kind() == Target.Kind.CHUNK ? "ritual-first" : t.kind() == Target.Kind.LAND
+                        ? (claimed != null && claimed.server() ? "ritual-town" : "ritual-home") : "ritual-spawn";
+                v.put("claimed", t.kind() == Target.Kind.CHUNK && claimed != null && claimed.created > 0 ? Riddle.date(claimed.created) : null);
+                v.put("owner", claimed != null && claimed.owner != null ? Bukkit.getOfflinePlayer(claimed.owner).getName() : null);
                 v.put("ritual", LetterText.fill(l.getString(which, ""), v));
                 then.accept(new Written(book(p, n, l, v), t));
             }));
-            case 2 -> m.memory().mostSold(u, most -> {
-                Target t = most.map(Target::item).orElse(Target.anyItem());
-                most.ifPresent(id -> v.put("item", Items.mmName(id)));
+            case 2 -> m.memory().sales(u, sales -> {
+                Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+                for (Memory.Sale sale : sales) counts.merge(Items.normalize(sale.item()), sale.count(), Integer::sum);
+                Optional<Map.Entry<String, Integer>> most = counts.entrySet().stream().max(Map.Entry.comparingByValue());
+                Target t = most.map(e -> Target.item(e.getKey())).orElse(Target.anyItem());
+                most.ifPresent(e -> itemHints(v, l, e.getKey(), e.getValue()));
                 v.put("ritual", LetterText.fill(l.getString(most.isPresent() ? "ritual-most" : "ritual-none", ""), v));
                 then.accept(new Written(book(p, n, l, v), t));
             });
@@ -99,11 +110,14 @@ final class LetterBook {
             }
             case 4 -> {
                 Memory.Place first = m.memory().firstPlace(u).orElseGet(() -> {
-                    Location sp = p.getWorld().getSpawnLocation();
+                    Location sp = Bukkit.getWorlds().getFirst().getSpawnLocation();
                     return new Memory.Place(sp.getWorld().getName(), sp.getBlockX(), sp.getBlockY(), sp.getBlockZ());
                 });
-                v.put("x", String.valueOf(first.x()));
-                v.put("z", String.valueOf(first.z()));
+                long joined = Bukkit.getOfflinePlayer(u).getFirstPlayed();
+                v.put("joined", joined > 0 ? Riddle.dateTime(joined) : null);
+                World w = Bukkit.getWorld(first.world());
+                v.put("world", w == null ? first.world() : worldName(w));
+                where(v, first.world(), first.x(), first.z(), l);
                 v.put("guess", m.memory().firstIsGuess(u) ? l.getString("guess", "") : null);
                 Target t = Target.near(first.world(), first.x(), first.y(), first.z(), cfg().getInt("rituals.place.radius", 4));
                 then.accept(new Written(book(p, n, l, v), t));
@@ -116,17 +130,83 @@ final class LetterBook {
         }
     }
 
+    /**
+     * Letter 2's riddle about the thing they let go of most: the shape of its name (obfuscated, so only its length shows),
+     * the shop shelf it sits on, and one thing about it — a custom item's first lore line or the sounds its name starts
+     * with, a vanilla one's nature (food, a block, one at a time...). And how many they let go.
+     */
+    private void itemHints(Map<String, String> v, ConfigurationSection l, String id, int count) {
+        v.put("item", Items.mmName(id));
+        v.put("count", String.format("%,d", count));
+        String shelf = null;
+        if (eco.shop() != null && eco.shop().catalog() != null) {
+            for (var c : eco.shop().catalog().sellCategories()) {
+                for (String it : c.items()) if (ShopCatalog.norm(it).equals(id)) shelf = c.name();
+                if (shelf != null) break;
+            }
+        }
+        v.put("shelf", shelf);
+        String trait = null;
+        if (!id.startsWith("minecraft:")) {
+            var custom = m.core().content().item(id).orElse(null);
+            if (custom != null) {
+                String lore = custom.lore() == null ? "" : custom.lore().stream().map(Text::plain).filter(x -> !x.isBlank()).findFirst().orElse("");
+                if (!lore.isBlank()) trait = LetterText.fill(l.getString("trait-lore", "'{lore}'"), Map.of("lore", lore.replace("<", "")));
+                else trait = LetterText.fill(l.getString("trait-initials", "{initials}"), Map.of("initials", Riddle.initials(Text.plain(custom.name()))));
+            }
+        } else {
+            Material mt = Material.matchMaterial(id);
+            if (mt != null) {
+                String k = mt.isEdible() ? "food" : mt.isBlock() ? "block" : mt.getMaxStackSize() == 1 ? "single" : mt.getMaxStackSize() == 16 ? "sixteen" : "plain";
+                trait = l.getString("traits." + k);
+            }
+        }
+        v.put("trait", trait == null || trait.isBlank() ? null : trait);
+    }
+
+    /** "From the spawn of that world, which way and how far" — or "right by the spawn" — into {where}. */
+    private void where(Map<String, String> v, String world, int x, int z, ConfigurationSection l) {
+        World w = Bukkit.getWorld(world);
+        if (w == null) {
+            v.put("where", null);
+            return;
+        }
+        Location sp = w.getSpawnLocation();
+        double dx = x - sp.getX(), dz = z - sp.getZ(), d = Math.sqrt(dx * dx + dz * dz);
+        Map<String, String> wv = new HashMap<>();
+        wv.put("world", worldName(w));
+        wv.put("dir", Riddle.direction(dx, dz));
+        wv.put("steps", Riddle.steps(d));
+        v.put("where", LetterText.fill(l.getString(d < 24 ? "where-near" : "where-far", ""), wv));
+    }
+
+    private String worldName(World w) {
+        return m.core().worlds() != null ? m.core().worlds().displayName(w) : w.getName();
+    }
+
+    /** The biome there as a translated name (read in the player's own game language). */
+    private static String biome(String world, int x, int z) {
+        World w = Bukkit.getWorld(world);
+        if (w == null) return null;
+        try {
+            var key = w.getBiome(x, w.getHighestBlockYAt(x, z), z).getKey();
+            return "<lang:biome." + key.getNamespace() + "." + key.getKey() + ">";
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
     /** The last letter of a broken chain. */
     ItemStack broken(Player p) {
         ConfigurationSection l = cfg().getConfigurationSection("letters.broken");
-        return l == null ? null : book(p, BROKEN, l, base(p, 1, false));
+        return l == null ? null : book(p, BROKEN, l, base(p, 1));
     }
 
     /** The letter the solver writes back (dated today, signed straight). */
     ItemStack epilogue(Player p) {
         ConfigurationSection l = cfg().getConfigurationSection("letters.epilogue");
         if (l == null) return null;
-        Map<String, String> v = base(p, 1, false);
+        Map<String, String> v = base(p, 1);
         ItemStack it = book(p, EPILOGUE, l, v);
         if (it != null && it.getItemMeta() instanceof BookMeta bm) {
             bm.setTitle(cut(l.getString("title", "어제의 나에게")));
@@ -135,7 +215,7 @@ final class LetterBook {
         return it;
     }
 
-    private Map<String, String> base(Player p, int n, boolean repeat) {
+    private Map<String, String> base(Player p, int n) {
         Map<String, String> v = new HashMap<>();
         DateTimeFormatter f;
         try {
@@ -144,9 +224,7 @@ final class LetterBook {
             f = DateTimeFormatter.ISO_LOCAL_DATE;
         }
         LocalDate today = LocalDate.now(SecretModule.KST);
-        String date = today.plusDays(1).format(f);
-        if (repeat) date = date + "\n" + cfg().getString("letters.repeat", "");
-        v.put("date", date);
+        v.put("date", today.plusDays(1).format(f));
         v.put("today", today.format(f));
         v.put("name", p.getName());
         v.put("sig", signature(p, n));

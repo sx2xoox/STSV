@@ -305,6 +305,145 @@ def usher_note(c):
     return c
 
 
+@icon
+def eyeless_fish(c):
+    """눈 없는 물고기: a pale grey-blue fish lying flat, its head smooth and blank where the eye should be (only a faint
+    dent), see-through fins with the rays showing, a dark wet sheen along its back and a cold glint on it."""
+    body = ["................",
+            "................",
+            "................",
+            "................",
+            "....BBBBBB......",
+            "..BBBBBBBBBB....",
+            ".BBBBBBBBBBBB...",
+            ".BBBBBBBBBBBBB..",
+            ".BBBBBBBBBBBBB..",
+            "..BBBBBBBBBBB...",
+            "...BBBBBBBBB....",
+            ".....BBBBB......",
+            "................"]
+    _grid(c, body, "B", "fish_silver", 2, 6.5, 6.6, 6.5, lo=1, hi=4, dome=0.9, gloss=0.95)
+    # the fins, thin and see-through: glass with the rays a step darker
+    fins = {(5, 2): 3, (6, 2): 2, (5, 3): 4, (6, 3): 3, (7, 3): 3, (8, 3): 2, (9, 3): 2,            # the dorsal
+            (13, 5): 4, (14, 5): 3, (13, 6): 3, (14, 6): 2, (14, 7): 2, (14, 8): 2, (13, 9): 2,     # the tail
+            (14, 9): 1, (14, 10): 1, (13, 10): 1,
+            (6, 12): 2, (7, 12): 1, (8, 12): 2, (7, 13): 1}                                     # the belly fin
+    for (x, y), s in fins.items():
+        c.put(x, y, "glass", s, z=1)
+    c.dots([(6, 3), (8, 3), (14, 6), (14, 8), (7, 12)], "fish_silver", 2, z=1.5)           # rays, the body showing through
+    c.dots([(12, 6), (12, 7), (12, 8), (12, 9)], "fish_silver", 1, z=3)                    # where the tail joins
+    # the wet sheen: a dark band along the back, a cold line of light on it
+    c.dots([(5, 4), (6, 4), (7, 4), (8, 4), (9, 4), (4, 5), (10, 5), (11, 5)], "tint", 3, z=3)
+    c.dots([(5, 5), (6, 5), (7, 5), (8, 5), (9, 5)], "tint", 4, z=3)
+    c.dots([(5, 5), (6, 5), (7, 5)], "ice", 5, z=4)
+    # the gill line, the mouth, and the blank head: a faint dent where the eye would be
+    c.dots([(5, 7), (5, 8), (4, 9)], "fish_silver", 2, z=3)
+    c.put(1, 8, "tint", 1, z=3)
+    c.put(3, 6, "fish_silver", 3, z=3).put(3, 7, "fish_silver", 5, z=3)
+    c.dots([(9, 9), (10, 8), (8, 10)], "fish_silver", 2, z=3)                              # the belly in shadow
+    return c
+
+
+@icon
+def wet_nametag(c):
+    """젖은 이름표: the old name tag, soaked through: its paper gone dark and blotched, a frayed wet string hanging from
+    the hole, a faint scrawled line across it, and water dripping off its bottom corner."""
+    def frame(u, v):
+        """Tag coordinates (u along it from the hole end, v across) to the canvas, running down-right."""
+        return 4.0 + (u - v) * 0.7071, 3.6 + (u + v) * 0.7071
+    tag = [frame(u, v) for u, v in ((0.0, -1.4), (1.6, -3.0), (11.0, -3.0), (11.0, 3.0), (1.6, 3.0), (0.0, 1.4))]
+    c.poly(tag, "burlap", 1, normal=(-0.25, -0.2, 1), lo=1, hi=3)
+    sheet = c.last()
+    for x, y in _edge(sheet):                                                                # the rim, darkest where it is wettest
+        if (x * 5 + y * 3) % 3 == 0 or x + y > 20:
+            c.tone([(x, y)], -1)
+    for x, y in sheet:                                                                       # soaked blotches
+        if (x * 7 + y * 11) % 9 == 0 or x + y >= 21:
+            c.tone([(x, y)], -1)
+    hx, hy = frame(1.9, 0)
+    c.hole(hx, hy, 0.6, 0.6)
+    c.put(int(hx) + 1, int(hy), "burlap", 0, z=2).put(int(hx), int(hy) + 1, "burlap", 0, z=2)
+    # the scrawl: one faint wavering line along the tag
+    for k, (u, v) in enumerate(((4.4, 0.2), (5.2, -0.6), (6.0, 0.0), (6.9, 0.7), (7.8, 0.0), (8.6, -0.4))):
+        x, y = frame(u, v)
+        c.put(int(x), int(y), "soot", 3 if k % 2 else 4, z=3)
+    # the wet string from the hole, up and over, its end frayed and dripping
+    c.dots([(3, 3), (2, 2), (2, 3), (1, 4), (1, 5), (1, 6), (2, 7)], "stone", 2, z=4)
+    c.dots([(3, 2), (2, 1)], "stone", 4, z=4)
+    c.dots([(1, 8), (3, 8), (2, 9)], "stone", 1, z=4)
+    # the drops falling off the bottom corner
+    c.ellipse(13.5, 13.4, 0.7, 0.9, "water", 3, lo=2, hi=5)
+    c.put(11, 14, "water", 4, z=6).put(3, 11, "water", 3, z=6)
+    return c
+
+
+@icon
+def vein_heart(c):
+    """광맥의 심장: a lump of dark deepslate broken roughly into a heart, its faces chipped flat, threaded with blood-red
+    redstone veins that run out from one bright spot beating near its middle."""
+    rows = ["................",
+            "................",
+            "...AAA...BBB....",
+            "..AAAAA.BBBBB...",
+            ".AAAAAAABBBBBB..",
+            ".AAAAAAABBBBBBB.",
+            ".AAAAAACCBBBBBB.",
+            ".AAAAACCCCBBBBB.",
+            "..AAACCCCCCBBB..",
+            "...ADDCCCCCCB...",
+            "....DDDCCCCE....",
+            ".....DDDDEE.....",
+            "......DDDE......",
+            ".......DE.......",
+            "................",
+            "................"]
+    faces = {"A": (-0.45, -0.45, 1), "B": (0.15, -0.5, 1), "C": (0.1, 0.1, 1), "D": (-0.35, 0.45, 1),
+             "E": (0.5, 0.5, 1)}
+    for ch, n in faces.items():
+        _grid(c, rows, ch, "iron", 1, 8.0, 8.0, 8.0, lo=1, hi=4)
+        for p in c.last():
+            c.px[p][1] = 1 + int(round(max(0.0, min(1.0, (1 - (n[0] * 0.58 + n[1] * 0.68)) / 2)) * 3))
+    pts = [p for p in c.where("iron")]
+    for x, y in _edge(pts):
+        if x + y < 11:
+            c.tone([(x, y)], 1)
+    # the veins
+    vein = [(7, 8), (6, 7), (5, 6), (4, 6), (3, 5), (2, 5), (5, 5), (4, 4),
+            (9, 8), (10, 7), (11, 6), (12, 6), (11, 4), (11, 5), (13, 6),
+            (8, 10), (8, 11), (9, 12), (7, 12), (6, 10), (10, 10)]
+    c.dots(vein, "pepper", 2, z=4)
+    c.dots([(6, 7), (10, 7), (8, 10), (11, 5)], "pepper", 3, z=4)
+    c.dots([(8, 8), (7, 9), (9, 9), (8, 9)], "pepper", 4, z=5)                            # the pulse
+    c.put(8, 8, "pepper", 5, z=5).put(7, 8, "toadstool", 4, z=5)
+    c.dots([(3, 3), (2, 4)], "iron", 5)
+    return c
+
+
+@icon
+def lost_key_nameless(c):
+    """주인 이름이 지워진 열쇠: an old brass key gone dull and tarnished, a scrap of paper tied to its bow with string, and on
+    the scrap the owner's name scratched out until nothing is left of it."""
+    c.tube([(6.2, 6.2), (13.2, 13.2)], [0.85, 0.85], "brass", 2, lo=1, hi=4, gloss=0.9)   # the shaft
+    c.ellipse(4.6, 4.6, 3.5, 3.5, "brass", 2, lo=1, hi=4, gloss=0.88)                     # the bow
+    c.hole(4.6, 4.6, 1.4, 1.4)
+    c.dots([(10, 13), (11, 13), (10, 14), (13, 10), (13, 11), (14, 10)], "brass", 2, z=2)  # the bit
+    c.dots([(10, 14), (14, 10)], "brass", 1, z=2)
+    # tarnish: dark blooms and a speck of verdigris
+    for x, y in c.where("brass"):
+        if (x * 5 + y * 7) % 6 == 0 and c.px[(x, y)][1] < 5:
+            c.tone([(x, y)], -1)
+    c.dots([(6, 3), (2, 6)], "celadon", 1, z=3)
+    # the string from the bow down to the tag
+    c.dots([(2, 8), (2, 9)], "stone", 3, z=3)
+    # the tag, the name scratched out
+    c.rect(1.0, 10.0, 7.0, 15.0, "paper", 2, normal=(-0.2, -0.2, 1), lo=2, hi=4)
+    c.erase([(1, 10), (6, 10)])
+    c.put(3, 11, "paper", 0, z=3)
+    for x, y in ((2, 13), (3, 12), (4, 13), (5, 12), (2, 14), (3, 13), (4, 14), (5, 13)):
+        c.put(x, y, "soot", 2, z=3)
+    return c
+
+
 def main(out=None):
     """Writes only these icons into the economy pack's textures (never touches the others), and a 6x preview sheet to `out`."""
     from pathlib import Path
