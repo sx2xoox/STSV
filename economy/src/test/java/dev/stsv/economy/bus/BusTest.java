@@ -260,10 +260,12 @@ class BusTest {
         assertEquals(44.5, left.at(0, 6)[1], 1e-9);
         // waiting passengers face the road (north for a stop south of an eastward road)
         assertEquals(180, Math.abs(stop.facingRoad()), 1e-3);
-        // a simple stop: anywhere on its half of the road by it (a bus need not squeeze onto the shoulder)
+        // a simple stop: anywhere on the road by it, either lane (a bus need not squeeze onto the shoulder; one coming the
+        // other way stops in its own lane: there is no bay to pull into)
         BusStop simple = new BusStop(4, "x", "world", 100.5, 50.5, 128, 1, 0, 1, 4, false, false, "동항");
         assertTrue(simple.standing(102, 52, s.stops().stopReach(), s.stops().bayWidth()));
-        assertFalse(simple.standing(102, 49, s.stops().stopReach(), s.stops().bayWidth()));
+        assertTrue(simple.standing(102, 49, s.stops().stopReach(), s.stops().bayWidth()));
+        assertFalse(simple.standing(102, 43, s.stops().stopReach(), s.stops().bayWidth()));
         // a simple stop has no bay
         assertTrue(new BusStop(3, "x", "world", 0, 0, 0, 1, 0, 1, 4, false, false, "").bayColumns(24, 3).isEmpty());
     }

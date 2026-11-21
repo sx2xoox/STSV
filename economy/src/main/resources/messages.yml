@@ -1231,6 +1231,7 @@ bus:
   announce-next: "<#3fb34f>🔔</#3fb34f> <gray>다음 정류장은 <white>{stop}</white>입니다"
   transfer: "<#ffd166>환승</#ffd166> {type} <gray>→ {dest}"
   missed: "{type} <red>내릴 곳을 지나쳤어요!</red> <gray>다음 정류장에서 내려요"
+  dest-gone: "<yellow>가려던 정류장이 이 노선에 없어요</yellow> <gray>손님이 다음 정류장에서 내려요 (탄 만큼 운임)"
   next-stop: "다음 정류장"
   dozing: " <gray>Zz"
   bus-only: "<yellow>이 버스는 태울 수 없는 손님이에요 (버스마다 태우는 손님이 달라요)"

@@ -1339,7 +1339,7 @@ public final class SecretAgent implements Listener {
             p.sendMessage(Lang.msg("bus.secret-rename-far"));
             return;
         }
-        String r = bus.rename(near.name(), name.trim());
+        String r = bus.rename(near, name.trim());
         if (r.startsWith("<green>")) eco.kv().set("bus.secret.plaque", String.valueOf(near.id()));
         p.sendMessage(Text.msg(r));
     }

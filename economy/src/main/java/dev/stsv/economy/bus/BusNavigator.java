@@ -143,7 +143,7 @@ final class BusNavigator {
             else start(p, s, false);
             return;
         }
-        BusStop s = bus.stop(word);
+        BusStop s = bus.stop(word);   // its name (with spaces, or in quotes) or its number (#12)
         if (s == null) {
             p.sendMessage(Lang.msg("bus.nav-no-stop", "name", word));
             return;
@@ -155,18 +155,11 @@ final class BusNavigator {
         start(p, s.id(), false);
     }
 
-    /** Tab completion of /버스 내비 …: args after 내비 (a stop name may have spaces: the next word of the names that fit). */
+    /** Tab completion of /버스 내비 …: args after 내비 (a stop's name, quoted when it has spaces, or its number #12: StopNames). */
     List<String> complete(String[] args) {
         List<String> out = new ArrayList<>();
-        if (args.length <= 1) out.addAll(List.of("손님", "끄기", "다시"));
-        String typed = String.join(" ", java.util.Arrays.copyOf(args, Math.max(0, args.length - 1)));
-        int word = Math.max(0, args.length - 1);
-        for (BusStop s : bus.stops()) {
-            String[] w = s.name().split(" ");
-            if (w.length <= word) continue;
-            String head = String.join(" ", java.util.Arrays.copyOf(w, word));
-            if (head.equals(typed)) out.add(w[word]);
-        }
+        if (args.length <= 1) for (String k : List.of("손님", "끄기", "다시")) if (args.length == 0 || k.startsWith(args[0])) out.add(k);
+        out.addAll(StopNames.complete(bus.stops(), args, 0));
         return out.stream().distinct().toList();
     }
 

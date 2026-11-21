@@ -238,6 +238,29 @@ public final class BusRoutes {
         return new double[]{xs[node], zs[node], half[node], hx / len, hz / len};
     }
 
+    /**
+     * The road's surface by each block column of a stop hung on this node (README "마을버스", 정류장 구조): the surface of the
+     * point of the same road nearest the column's middle, within {@code span} points of the node and 12 blocks of the
+     * column; else {@code fallback}. A bay on a slope (a grade of one in three) follows the lane beside it instead of lying
+     * flat at its middle's height (a block or more proud of the lane at its ends: no bus got in).
+     */
+    public BusStop.Levels levels(int node, int span, int fallback) {
+        if (node < 0 || node >= xs.length) return BusStop.Levels.flat(fallback);
+        int r = roadOf[node], lo = Math.max(base[r], node - span), hi = Math.min(base[r + 1] - 1, node + span);
+        return (bx, bz) -> {
+            double cx = bx + 0.5, cz = bz + 0.5, bd = 12 * 12;
+            int best = -1;
+            for (int k = lo; k <= hi; k++) {
+                double d = (xs[k] - cx) * (xs[k] - cx) + (zs[k] - cz) * (zs[k] - cz);
+                if (d < bd) {
+                    bd = d;
+                    best = k;
+                }
+            }
+            return best < 0 ? fallback : half[best];
+        };
+    }
+
     /** The dock of the road a node is on. */
     public String dock(int node) {
         return roads.get(roadOf[node]).dock();

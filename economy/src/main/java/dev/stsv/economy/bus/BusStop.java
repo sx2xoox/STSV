@@ -144,12 +144,49 @@ public record BusStop(int id, String name, String world, double x, double z, int
         return ROAD_HALF + (bay ? width : 0) + 1;
     }
 
-    /** Whether a point (x, z) is where a bus stands to stop here: within reach along the stop, on the bay (or the shoulder). */
+    /**
+     * Whether a point (x, z) is where a bus stands to stop here: within reach along the stop, on the bay (from the kerb's
+     * line: a long bus half in the bay on a diagonal or a bend counts) or, for a simple stop (no bay), anywhere on the road
+     * by it, either half (a bus coming the other way stops in its own lane: it has no bay to pull into).
+     */
     public boolean standing(double px, double pz, double reach, int width) {
         double[] l = local(px, pz);
-        // a simple stop (no bay): anywhere on its half of the road by it
-        double lo = bay ? ROAD_HALF - 1.5 : 0.3, hi = bay ? ROAD_HALF + width + 0.5 : ROAD_HALF + 1;
+        double lo = bay ? KERB - 0.5 : -(ROAD_HALF + 1), hi = bay ? ROAD_HALF + width + 1 : ROAD_HALF + 1;
         return Math.abs(l[0]) <= reach && l[1] >= lo && l[1] <= hi;
+    }
+
+    /**
+     * {@link #standing} with the height too: the bus's y within {@code dy} of the road's surface here (a stop on a road
+     * crossing over or under another is not the one below or above it).
+     */
+    public boolean standing(double px, double py, double pz, double reach, int width, double dy) {
+        return standing(px, pz, reach, width) && Math.abs(py - top()) <= dy;
+    }
+
+    /**
+     * Whether a bus standing still at (x, z) is plainly at this stop though not in its bay (a safety net: in a lane beside
+     * the bay, either side of the road, or a little before or after it): within reach + 6 along, anywhere across the road
+     * or the bay.
+     */
+    public boolean around(double px, double pz, double reach, int width) {
+        double[] l = local(px, pz);
+        return Math.abs(l[0]) <= reach + 6 && l[1] >= -(ROAD_HALF + 1) && l[1] <= ROAD_HALF + (bay ? width : 0) + 1.5;
+    }
+
+    /** The road's surface (half blocks) by a block column of the bay or the shoulder: the bay is paved level with the lane beside it. */
+    @FunctionalInterface
+    public interface Levels {
+        int half(int bx, int bz);
+
+        /** Every column at the stop's own surface (a road with no data: as stops were always paved). */
+        static Levels flat(int half) {
+            return (bx, bz) -> half;
+        }
+    }
+
+    /** The block a half level's surface is in. */
+    public static int surfaceY(int half) {
+        return Math.floorDiv(half + 1, 2);
     }
 
     /** Whether a point is on the road near the stop (a bus stopped in a lane by it: told to pull into the bay). */

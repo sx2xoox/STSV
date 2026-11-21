@@ -210,6 +210,8 @@ public final class BusModule extends EcoModule {
         long joltAt = -1000, bumpAt = -1000, turnAt = -1000, pullInAt = -1000;
         Integer atStop;
         int busy, seats;
+        /** how long (ticks) it has stood still (a stop's safety net: STILL_TICKS) */
+        int stillTicks;
         /** the line it runs (its number, 0 = none yet) and which way (+1 towards the dock, -1 towards the terminal) */
         int line, dir = 1;
         long noLineAt = -1000, talkAt = -1000;
@@ -409,8 +411,16 @@ public final class BusModule extends EcoModule {
         return List.copyOf(stops.values());
     }
 
+    /** The stop typed: its name (words joined, or in quotes) or its number (#12, 12); exactly, then ignoring case and spaces (StopNames). */
     public BusStop stop(String name) {
-        for (BusStop s : stops.values()) if (s.name().equals(name)) return s;
+        return StopNames.find(stops.values(), name);
+    }
+
+    /** A new stop name's problem, or null: empty, read as a number (#12), or another stop's (ignoring case and spaces). */
+    private String badName(String name, Integer except) {
+        if (name.isBlank()) return "<red>이름을 적어 주세요";
+        if (StopNames.numberLike(name)) return "<red>숫자만으로 된 이름은 정류장 번호(#12)와 헷갈려서 쓸 수 없어요: " + name;
+        if (StopNames.taken(stops.values(), name, except)) return "<red>같은 이름의 정류장이 있어요: " + name;
         return null;
     }
 
@@ -448,7 +458,7 @@ public final class BusModule extends EcoModule {
                     }
                     BusLine bl = new BusLine(number, l.dock(), lx, lz, jn);
                     for (int i = 0; i < here.size(); i++) {
-                        Integer k = nodes[i] < 0 ? null : at.get(nodes[i]);
+                        Integer k = onLine(at, nodes[i], bl, here.get(i));
                         if (k != null) bl.addStop(here.get(i).id(), k);
                     }
                     if (bl.stops().size() >= 2) {
@@ -459,10 +469,55 @@ public final class BusModule extends EcoModule {
                 out.put(w, new Net(routes, index, routes.matrix(nodes), lines));
             });
             Bukkit.getScheduler().runTask(eco, () -> {
+                Map<String, Net> old = new HashMap<>(nets);
                 nets.clear();
                 nets.putAll(out);
+                // the lines are numbered again: a bus keeps running the same line (by its dock and stops), not the number
+                for (Run r : runs.values()) {
+                    Player p = Bukkit.getPlayer(r.driver);
+                    if (p != null) r.line = renumber(old.get(p.getWorld().getName()), out.get(p.getWorld().getName()), r.line);
+                }
+                for (Player p : Bukkit.getOnlinePlayers()) {
+                    Integer c = chosenLine.get(p.getUniqueId());
+                    if (c != null) chosenLine.put(p.getUniqueId(), renumber(old.get(p.getWorld().getName()), out.get(p.getWorld().getName()), c));
+                }
             });
         });
+    }
+
+    /** How far (blocks) a stop's road point may be from a line's way and still be on the line. */
+    static final double ON_LINE = 3;
+
+    /**
+     * Where a stop is on a line (its way index), or null: its road point's node on the line's way, else the way's point
+     * within {@link #ON_LINE} of the stop (a stop by where a branch leaves hangs on the branch's first point or the old
+     * road's: the same place, two nodes; it is on the lines of both).
+     */
+    static Integer onLine(Map<Integer, Integer> at, int node, BusLine line, BusStop s) {
+        Integer k = node < 0 ? null : at.get(node);
+        if (k != null) return k;
+        double[] off = new double[1];
+        int i = line.nearest(s.x(), s.z(), off);
+        return off[0] <= ON_LINE ? i : null;
+    }
+
+    /** The number in `now` of line `number` in `before` (the same dock, most stops in common), or 0. */
+    static int renumber(Net before, Net now, int number) {
+        if (number == 0 || now == null) return 0;
+        BusLine was = before == null ? null : before.line(number);
+        if (was == null) return now.line(number) != null ? number : 0;
+        BusLine best = null;
+        int common = -1;
+        for (BusLine l : now.lines()) {
+            if (!l.dock.equals(was.dock)) continue;
+            int c = 0;
+            for (int id : was.stops()) if (l.has(id)) c++;
+            if (c > common) {
+                common = c;
+                best = l;
+            }
+        }
+        return best == null ? 0 : best.number;
     }
 
     /** The routes of a world for placing stops (worked out now, on this thread). */
@@ -476,7 +531,9 @@ public final class BusModule extends EcoModule {
 
     /** Places a stop on the road nearest this spot (on the side the spot is), and builds it. Returns a message. */
     public String install(Location at, String name, int size) {
-        if (stop(name) != null) return "<red>같은 이름의 정류장이 있어요: " + name;
+        name = StopNames.unquote(name);
+        String bad = badName(name, null);
+        if (bad != null) return bad;
         BusRoutes routes = routesNow(at.getWorld().getName());
         int node = routes.attach(at.getX(), at.getZ());
         if (node < 0) return "<red>국도에서 " + (int) BusRoutes.ATTACH + "칸 안에 서서 쓰세요 (지은 국도의 길 점에만 정류장이 붙어요)";
@@ -493,7 +550,8 @@ public final class BusModule extends EcoModule {
         BusSpec.Stops cfg = spec.stops();
         // the side with less hill to dig first (a stop is not buried in a mountainside); a simple stop after
         BusStop a = s, b = flip(s);
-        Map<Block, BlockData> pa = StopBuilder.plan(w, a, cfg, eco.roads().surfaceBlock()), pb = StopBuilder.plan(w, b, cfg, eco.roads().surfaceBlock());
+        BusStop.Levels lv = levels(w, s);
+        Map<Block, BlockData> pa = StopBuilder.plan(w, a, cfg, eco.roads().surfaceBlock(), lv), pb = StopBuilder.plan(w, b, cfg, eco.roads().surfaceBlock(), lv);
         if (StopBuilder.digCost(pb) + 40 < StopBuilder.digCost(pa)) {
             BusStop t = a;
             a = b;
@@ -508,7 +566,7 @@ public final class BusModule extends EcoModule {
         if (whyA == null) tries.add(simple(a));
         if (whyB == null) tries.add(simple(b));
         for (BusStop t : tries) {
-            Map<Block, BlockData> plan = StopBuilder.plan(w, t, cfg, eco.roads().surfaceBlock(), StopBuilder.theme(detectTags(w, t)));
+            Map<Block, BlockData> plan = StopBuilder.plan(w, t, cfg, eco.roads().surfaceBlock(), StopBuilder.theme(detectTags(w, t)), lv);
             int[] bad = StopBuilder.blocked(plan, (x, z) -> eco.roads().guardAt(w.getName(), x, z) != null);
             if (bad != null || (t.bay() && StopBuilder.overVoid(w, t, cfg))) continue;
             try {
@@ -524,6 +582,12 @@ public final class BusModule extends EcoModule {
         }
         add(simple(s));
         return "<yellow>정류장 <white>" + s.name() + "</white>: 주변이 보호 구역이라 아무것도 짓지 않고 표지판 없이 정류장만 만들었어요";
+    }
+
+    /** The road's surface by each column of a stop's bay and shoulder (the lane beside it: BusRoutes.levels). */
+    private BusStop.Levels levels(World w, BusStop s) {
+        BusRoutes routes = routesNow(w.getName());
+        return routes.levels(routes.attach(s.x(), s.z()), spec.stops().bayLength() / 2 + 24, s.half());
     }
 
     private static BusStop flip(BusStop s) {
@@ -543,9 +607,10 @@ public final class BusModule extends EcoModule {
     }
 
     /** Takes a stop away, its blocks back as they were. */
-    public String remove(String name) {
-        BusStop s = stop(name);
-        if (s == null) return "<red>없는 정류장: " + name;
+    public String remove(String typed) {
+        BusStop s = stop(typed);
+        if (s == null) return "<red>없는 정류장: " + typed;
+        String name = s.name();
         World w = Bukkit.getWorld(s.world());
         hide(s.id());
         if (w != null) unboard(w, s);
@@ -565,9 +630,9 @@ public final class BusModule extends EcoModule {
     }
 
     /** Takes a stop's blocks back and builds it again as it is built now (same name and number). */
-    public String rebuild(String name) {
-        BusStop s = stop(name);
-        if (s == null) return "<red>없는 정류장: " + name;
+    public String rebuild(String typed) {
+        BusStop s = stop(typed);
+        if (s == null) return "<red>없는 정류장: " + typed;
         World w = Bukkit.getWorld(s.world());
         if (w == null) return "<red>월드가 없어요: " + s.world();
         hide(s.id());
@@ -594,10 +659,18 @@ public final class BusModule extends EcoModule {
         return r;
     }
 
-    public String rename(String name, String to) {
-        BusStop s = stop(name);
-        if (s == null) return "<red>없는 정류장: " + name;
-        if (stop(to) != null) return "<red>같은 이름의 정류장이 있어요: " + to;
+    public String rename(String typed, String to) {
+        BusStop s = stop(typed);
+        if (s == null) return "<red>없는 정류장: " + typed;
+        return rename(s, to);
+    }
+
+    /** Renames a stop (its sign too). */
+    public String rename(BusStop s, String to) {
+        to = StopNames.unquote(to);
+        String bad = badName(to, s.id());
+        if (bad != null) return bad;
+        String name = s.name();
         BusStop n = s.named(to);
         stops.put(s.id(), n);
         saveStops();
@@ -695,17 +768,18 @@ public final class BusModule extends EcoModule {
      * and without a deep cut into a hill.
      */
     private boolean goodSite(World w, BusStop s) {
+        BusStop.Levels lv = levels(w, s);
         for (BusStop t : new BusStop[]{s, flip(s)}) {
             if (StopBuilder.siteProblem(w, t, spec.stops()) != null) continue;
-            if (StopBuilder.digCost(StopBuilder.plan(w, t, spec.stops(), eco.roads().surfaceBlock())) <= MAX_DIG) return true;
+            if (StopBuilder.digCost(StopBuilder.plan(w, t, spec.stops(), eco.roads().surfaceBlock(), lv)) <= MAX_DIG) return true;
         }
         return false;
     }
 
     /** Moves a stop to the road point nearest this spot (on the side the spot is): its blocks back, then built there. */
-    public String move(String name, Location at) {
-        BusStop s = stop(name);
-        if (s == null) return "<red>없는 정류장: " + name;
+    public String move(String typed, Location at) {
+        BusStop s = stop(typed);
+        if (s == null) return "<red>없는 정류장: " + typed;
         if (!s.world().equals(at.getWorld().getName())) return "<red>정류장과 같은 월드에서 쓰세요";
         BusRoutes routes = routesNow(at.getWorld().getName());
         int node = routes.attach(at.getX(), at.getZ());
@@ -734,14 +808,20 @@ public final class BusModule extends EcoModule {
     }
 
     /** Puts passengers at a stop (an admin's test). */
-    public String addWaiting(String name, int n) {
-        BusStop s = stop(name);
-        if (s == null) return "<red>없는 정류장: " + name;
+    public String addWaiting(String typed, int n) {
+        BusStop s = stop(typed);
+        if (s == null) return "<red>없는 정류장: " + typed;
+        String name = s.name();
         waiting.put(s.id(), (double) Math.max(0, Math.min(s.size(), n)));
         return "<green>" + name + ": 기다리는 손님 " + Math.min(s.size(), n) + "명";
     }
 
     public List<String> listLines(Location me) {
+        return listLines(me, false);
+    }
+
+    /** The stops nearest first; with their numbers (#12: what an admin command takes as well as the name). */
+    public List<String> listLines(Location me, boolean ids) {
         List<String> out = new ArrayList<>();
         List<BusStop> all = new ArrayList<>(stops.values());
         if (me != null) all.sort(Comparator.comparingDouble(s -> s.world().equals(me.getWorld().getName()) ? Math.hypot(s.x() - me.getX(), s.z() - me.getZ()) : 1e12));
@@ -750,7 +830,7 @@ public final class BusModule extends EcoModule {
             String nos = lineNumbers(s);
             boolean cut = nos.isEmpty();
             String km = me != null && s.world().equals(me.getWorld().getName()) ? km(Math.hypot(s.x() - me.getX(), s.z() - me.getZ())) : s.world();
-            out.add(Lang.raw("bus.stops-row", "name", s.name(), "km", km, "waiting", (int) Math.floor(waiting.getOrDefault(s.id(), 0.0)),
+            out.add(Lang.raw("bus.stops-row", "name", ids ? s.name() + " <dark_gray>#" + s.id() + "</dark_gray>" : s.name(), "km", km, "waiting", (int) Math.floor(waiting.getOrDefault(s.id(), 0.0)),
                     "cut", cut ? Lang.raw("bus.stops-cut") : Lang.raw("bus.stops-lines", "lines", nos)));
         }
         return out;
@@ -870,15 +950,9 @@ public final class BusModule extends EcoModule {
     /** At a stop (stopped in its bay): passengers get off, then on, one at a time. */
     private void atStops(Player p, Run run, VehicleModule.Driven d, VehicleModule vm) {
         BusSpec.Stops cfg = spec.stops();
-        BusStop here = null;
         boolean still = Math.abs(d.speed()) < 0.5;
-        for (BusStop s : stops.values()) {
-            if (!s.world().equals(d.world().getName())) continue;
-            if (still && s.standing(d.x(), d.z(), cfg.stopReach(), cfg.bayWidth())) {
-                here = s;
-                break;
-            }
-        }
+        run.stillTicks = still ? run.stillTicks + 5 : 0;
+        BusStop here = still ? stopAt(run, d.world().getName(), d.x(), d.y(), d.z(), cfg) : null;
         if (here == null) {
             if (run.atStop != null) {
                 departed(p, run, run.atStop);   // pulling out: the next stop is announced
@@ -937,8 +1011,8 @@ public final class BusModule extends EcoModule {
             it.remove();
             vm.unseatGuest(d.id(), r.m);
             dropDog(d.id(), r, true);
-            double road = r.dest == here.id() || line == null || !line.has(r.from) ? r.road : line.between(line.at(r.from), line.at(here.id()));
             boolean atDest = r.dest == here.id();
+            double road = atDest ? r.road : rode(n, line, r.from, here.id(), r.road);
             // a 특급 손님: its bonus, or (failed) its fare × fail-fare
             long special = 0;
             String why = null;
@@ -1145,6 +1219,57 @@ public final class BusModule extends EcoModule {
         return true;
     }
 
+    /** How far (blocks) a bus's height may be from a stop's road surface and still be at it (a bay on a slope; not a road over or under it). */
+    static final double STOP_DY = 4;
+    /** How long (ticks) a bus stands still beside a stop (not in its bay) before those going there get off anyway. */
+    static final int STILL_TICKS = 40;
+
+    /**
+     * The stop a bus standing still at (x, y, z) is at, or null. In a stop's bay (or by a simple stop): of two such (stops
+     * close together) the one a passenger aboard is going to, else the nearest along. Standing still beside a stop for
+     * {@link #STILL_TICKS} (in the lane by its bay, a little before or after it) with someone aboard going there: that stop
+     * too (a safety net: they always get off where they are going).
+     */
+    BusStop stopAt(Run run, String world, double x, double y, double z, BusSpec.Stops cfg) {
+        return stopAt(stops.values(), run.riders, run.stillTicks, world, x, y, z, cfg.stopReach(), cfg.bayWidth());
+    }
+
+    static BusStop stopAt(java.util.Collection<BusStop> all, List<Rider> riders, int stillTicks, String world, double x, double y, double z,
+                          double reach, int width) {
+        java.util.Set<Integer> going = new java.util.HashSet<>();
+        for (Rider r : riders) if (!r.secret && r.dest >= 0) going.add(r.dest);
+        BusStop best = null;
+        double bestScore = Double.MAX_VALUE;
+        for (BusStop s : all) {
+            if (!s.world().equals(world) || !s.standing(x, y, z, reach, width, STOP_DY)) continue;
+            double score = Math.abs(s.local(x, z)[0]) - (going.contains(s.id()) ? 1000 : 0);
+            if (score < bestScore) {
+                bestScore = score;
+                best = s;
+            }
+        }
+        if (best != null || stillTicks < STILL_TICKS || going.isEmpty()) return best;
+        for (BusStop s : all) {
+            if (!s.world().equals(world) || !going.contains(s.id()) || Math.abs(y - s.top()) > STOP_DY || !s.around(x, z, reach, width)) continue;
+            double score = Math.abs(s.local(x, z)[0]);
+            if (score < bestScore) {
+                bestScore = score;
+                best = s;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * How far a passenger rode from `from` to `here` (blocks, what they pay for when they get off before where they were
+     * going): along the line when both are on it, else the shortest way on the roads, else what they were to ride.
+     */
+    static double rode(Net n, BusLine line, int from, int here, double planned) {
+        if (line != null && line.has(from) && line.has(here)) return line.between(line.at(from), line.at(here));
+        double r = n == null ? Double.POSITIVE_INFINITY : n.road(from, here);
+        return Double.isFinite(r) ? r : planned;
+    }
+
     /** Pulling out of a stop: "다음 정류장은 …" to the driver (and the riders' bell is reset for it). */
     private void departed(Player p, Run run, int from) {
         Net n = nets.get(p.getWorld().getName());
@@ -1186,7 +1311,7 @@ public final class BusModule extends EcoModule {
         List<BusLine> ls = n.linesOf(here.id());
         if (ls.isEmpty()) return;
         BusLine chosen = n.line(chosenLine.getOrDefault(p.getUniqueId(), 0)), cur = n.line(run.line);
-        BusLine pick = chosen != null && chosen.has(here.id()) ? chosen : cur != null && cur.has(here.id()) ? cur : ls.getFirst();
+        BusLine pick = chosen != null && chosen.has(here.id()) ? chosen : cur != null && cur.has(here.id()) ? cur : mostGoing(ls, run.riders);
         boolean changed = pick.number != run.line;
         run.line = pick.number;
         double r = Math.toRadians(d.yaw());
@@ -1199,6 +1324,21 @@ public final class BusModule extends EcoModule {
             p.sendMessage(Lang.msg("bus.line-set", "line", pick.name(), "end", end == null ? "?" : end.name()));
             if (ls.size() > 1 && chosen == null) p.sendMessage(Lang.msg("bus.line-many", "n", ls.size()));
         }
+    }
+
+    /** Of the lines of a stop, the one most passengers aboard are going on (their stops on it), the first of equals. */
+    static BusLine mostGoing(List<BusLine> ls, List<Rider> riders) {
+        BusLine best = ls.getFirst();
+        int most = -1;
+        for (BusLine l : ls) {
+            int c = 0;
+            for (Rider r : riders) if (!r.secret && r.dest >= 0 && l.has(r.dest)) c++;
+            if (c > most) {
+                most = c;
+                best = l;
+            }
+        }
+        return best;
     }
 
     /** /버스 노선 [번호]: the lines of this world, or choose one. */
@@ -1576,6 +1716,7 @@ public final class BusModule extends EcoModule {
         if (p == null || run.riders.isEmpty()) return;
         Net n = nets.get(p.getWorld().getName());
         BusLine line = n == null ? null : n.line(run.line);
+        lost(run, n == null ? null : line);
         double[] off = new double[1];
         int idx = line == null ? -1 : line.nearest(p.getX(), p.getZ(), off);
         if (off[0] > 40) line = null;   // off the line's road: nothing counts as passed
@@ -1636,6 +1777,31 @@ public final class BusModule extends EcoModule {
                 }
                 break;
             }
+        }
+    }
+
+    /**
+     * A safety net: a passenger going to a stop that is no more (taken away), or that is not on the line the bus now runs
+     * (it changed lines at a stop of two), gets off at the next stop the bus stops at (paid as far as they rode) instead of
+     * riding on for ever. Not the 선글라스 남자 (his own rules). Returns how many.
+     */
+    static int lost(java.util.Map<Integer, BusStop> stops, List<Rider> riders, BusLine line) {
+        int n = 0;
+        for (Rider r : riders) {
+            if (r.secret || r.dest < 0) continue;
+            if (!stops.containsKey(r.dest) || (line != null && !line.has(r.dest))) {
+                r.dest = -1;
+                r.sleepThrough = false;
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private void lost(Run run, BusLine line) {
+        if (lost(stops, run.riders, line) > 0) {
+            Player p = Bukkit.getPlayer(run.driver);
+            if (p != null) HudModule.flash(p, Lang.mm("bus.dest-gone"), 2500);
         }
     }
 
@@ -2319,7 +2485,7 @@ public final class BusModule extends EcoModule {
             if (vm != null) vm.unseatGuest(run.id, r.m);
             dropDog(run.id, r, false);
             boolean atDest = r.dest == here.id();
-            double road = !atDest && line != null && line.has(r.from) && line.has(here.id()) ? line.between(line.at(r.from), line.at(here.id())) : r.road;
+            double road = atDest ? r.road : rode(n, line, r.from, here.id(), r.road);
             pay(p, run, r, here, road, r.special != null && !atDest ? r.special.failFare() : 1);
             if (r.special != null) specialOff(p, run, r, here, 0, Lang.raw("bus.special-why-place"));
             if (r.team != 0) teamOff(p, run, r, here, atDest, false);

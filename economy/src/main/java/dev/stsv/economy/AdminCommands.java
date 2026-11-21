@@ -412,39 +412,54 @@ final class AdminCommands {
             }
         }, (s, args) -> args.length == 1 ? List.of("서버", "서버해제", "해제", "정보") : List.of());
 
-        add("정류장", "설치 <이름> [손님 최대] | 삭제 <이름> | 다시짓기 <이름|전체> | 옮기기 <이름> | 이름짓기 | 이름 <이름> <새 이름> | 목록 | 자동 | 손님 <이름> <수>",
-                "마을버스 정류장: 서 있는 곳에서 가장 가까운 국도 점에 버스 베이·대기소·표지판을 지음 (서 있는 쪽) / 지은 블록을 되돌리며 삭제 / 서 있는 곳 옆 국도로 옮기기 (블록 되돌리고 새 자리에 지음) / 되돌린 뒤 지금 방식으로 다시 짓기 (산에 파묻힌 정류장, 대기소 모양이 바뀐 뒤, 베이 앞뒤 18칸까지 버스가 걸리던 가로등 치우기) / 이름 바꾸기 / 자동 정류장 이름을 주변에 맞는 귀여운 이름으로 (하역장 앞은 그대로) / 목록 / 이 월드의 국도를 따라 자동으로 (터미널 출구 뒤, 하역장 앞, 그 사이 700칸마다) / 기다리는 손님 수 (테스트)",
+        add("정류장", "설치 <이름> [손님 최대] | 삭제 <정류장> | 다시짓기 <정류장|전체> | 옮기기 <정류장> | 이름짓기 | 이름 <정류장> <새 이름> | 목록 | 자동 | 손님 <정류장> <수>   (<정류장>: 띄어쓴 이름 그대로, \"따옴표\", 번호 #12)",
+                "마을버스 정류장: 서 있는 곳에서 가장 가까운 국도 점에 버스 베이·대기소·표지판을 지음 (서 있는 쪽) / 지은 블록을 되돌리며 삭제 / 서 있는 곳 옆 국도로 옮기기 (블록 되돌리고 새 자리에 지음) / 되돌린 뒤 지금 방식으로 다시 짓기 (산에 파묻힌 정류장, 대기소 모양이 바뀐 뒤, 베이 앞뒤 18칸까지 버스가 걸리던 가로등 치우기, 비탈에서 차로와 높이가 안 맞던 베이) / 이름 바꾸기 / 자동 정류장 이름을 주변에 맞는 귀여운 이름으로 (하역장 앞은 그대로) / 목록 / 이 월드의 국도를 따라 자동으로 (터미널 출구 뒤, 하역장 앞, 그 사이 700칸마다) / 기다리는 손님 수 (테스트). 정류장은 띄어쓴 이름 그대로(\"다람쥐 고개\"처럼 따옴표도 됨)나 번호(#12, 목록에 나옴)로",
                 (s, args) -> {
                     var bus = eco.bus();
                     String sub = args.length > 0 ? args[0] : "";
-                    String name = args.length > 1 ? args[1] : null;
+                    // the stop named by the words after the sub-command (a name may have spaces), the words left after it
+                    String all = args.length > 1 ? String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length)) : null;
                     switch (sub) {
                         case "설치" -> {
-                            if (!(s instanceof org.bukkit.entity.Player p) || name == null) {
+                            if (!(s instanceof org.bukkit.entity.Player p) || all == null) {
                                 s.sendMessage(Text.msg("<red>게임 안에서: /관리자 정류장 설치 <이름> [손님 최대]"));
                                 return;
                             }
-                            int size = args.length > 2 ? parseInt(args[2], bus.spec().stops().waitingMax()) : bus.spec().stops().waitingMax();
+                            // a trailing number is the most passengers (a name of several words otherwise)
+                            int max = bus.spec().stops().waitingMax(), size = max;
+                            String name = all;
+                            if (args.length > 2 && args[args.length - 1].matches("\\d+")) {
+                                size = parseInt(args[args.length - 1], max);
+                                name = String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length - 1));
+                            }
                             s.sendMessage(Text.msg(bus.install(p.getLocation(), name, Math.clamp(size, 1, 8))));
                         }
-                        case "삭제" -> s.sendMessage(Text.msg(name == null ? "<red>/관리자 정류장 삭제 <이름>" : bus.remove(name)));
+                        case "삭제" -> s.sendMessage(Text.msg(all == null ? "<red>/관리자 정류장 삭제 <정류장>" : bus.remove(all)));
                         case "이름짓기" -> s.sendMessage(Text.msg("<green>자동 정류장 " + bus.cuteNames() + "곳 이름을 새로 지었어요 (하역장 앞은 그대로)"));
                         case "옮기기" -> {
-                            if (!(s instanceof org.bukkit.entity.Player p) || name == null) {
-                                s.sendMessage(Text.msg("<red>게임 안에서 옮길 자리(국도 옆)에 서서: /관리자 정류장 옮기기 <이름>"));
+                            if (!(s instanceof org.bukkit.entity.Player p) || all == null) {
+                                s.sendMessage(Text.msg("<red>게임 안에서 옮길 자리(국도 옆)에 서서: /관리자 정류장 옮기기 <정류장>"));
                                 return;
                             }
-                            s.sendMessage(Text.msg(bus.move(name, p.getLocation())));
+                            s.sendMessage(Text.msg(bus.move(all, p.getLocation())));
                         }
                         case "다시짓기" -> {
-                            if (name == null) {
-                                s.sendMessage(Text.msg("<red>/관리자 정류장 다시짓기 <이름|전체>"));
+                            if (all == null) {
+                                s.sendMessage(Text.msg("<red>/관리자 정류장 다시짓기 <정류장|전체>"));
                                 return;
                             }
-                            var names = name.equals("전체") ? bus.stops().stream().map(dev.stsv.economy.bus.BusStop::name).toList() : List.of(name);
+                            var names = all.equals("전체") ? bus.stops().stream().map(st -> "#" + st.id()).toList() : List.of(all);
                             for (String n : names) s.sendMessage(Text.msg(bus.rebuild(n)));
                         }
-                        case "이름" -> s.sendMessage(Text.msg(args.length < 3 ? "<red>/관리자 정류장 이름 <이름> <새 이름>" : bus.rename(name, args[2])));
+                        case "이름" -> {
+                            var m = dev.stsv.economy.bus.StopNames.split(bus.stops(), args, 1, 1);
+                            if (m == null || m.rest().length == 0) {
+                                s.sendMessage(Text.msg(args.length < 3 ? "<red>/관리자 정류장 이름 <정류장> <새 이름>"
+                                        : "<red>없는 정류장: " + all + " <gray>(띄어쓴 이름은 \"따옴표\"로 묶거나 번호 #12로)"));
+                                return;
+                            }
+                            s.sendMessage(Text.msg(bus.rename(m.stop(), String.join(" ", m.rest()))));
+                        }
                         case "자동" -> {
                             if (!(s instanceof org.bukkit.entity.Player p)) {
                                 s.sendMessage(Text.msg("<red>게임 안에서 그 월드에 서서 쓰세요"));
@@ -452,9 +467,17 @@ final class AdminCommands {
                             }
                             s.sendMessage(Text.msg(bus.autoPlace(p.getWorld())));
                         }
-                        case "손님" -> s.sendMessage(Text.msg(args.length < 3 ? "<red>/관리자 정류장 손님 <이름> <수>" : bus.addWaiting(name, parseInt(args[2], 0))));
+                        case "손님" -> {
+                            var m = dev.stsv.economy.bus.StopNames.split(bus.stops(), args, 1, 1);
+                            if (m == null || m.rest().length != 1) {
+                                s.sendMessage(Text.msg(args.length < 3 ? "<red>/관리자 정류장 손님 <정류장> <수>" : "<red>없는 정류장: "
+                                        + String.join(" ", java.util.Arrays.copyOfRange(args, 1, args.length - 1))));
+                                return;
+                            }
+                            s.sendMessage(Text.msg(bus.addWaiting("#" + m.stop().id(), parseInt(m.rest()[0], 0))));
+                        }
                         case "목록" -> {
-                            var lines = bus.listLines(s instanceof org.bukkit.entity.Player p ? p.getLocation() : null);
+                            var lines = bus.listLines(s instanceof org.bukkit.entity.Player p ? p.getLocation() : null, true);
                             s.sendMessage(Text.msg("<green>정류장 " + lines.size() + "곳"));
                             lines.forEach(l -> s.sendMessage(Text.mm(l)));
                         }
@@ -462,8 +485,17 @@ final class AdminCommands {
                     }
                 }, (s, args) -> {
                     if (args.length == 1) return List.of("설치", "삭제", "옮기기", "다시짓기", "이름", "이름짓기", "목록", "자동", "손님");
-                    if (args.length == 2 && List.of("삭제", "옮기기", "다시짓기", "이름", "손님").contains(args[0]))
-                        return eco.bus().stops().stream().map(dev.stsv.economy.bus.BusStop::name).filter(n -> n.startsWith(args[1])).toList();
+                    if (args.length >= 2 && List.of("삭제", "옮기기", "다시짓기", "이름", "손님").contains(args[0])) {
+                        var stops = eco.bus().stops();
+                        // past a whole stop name: 손님 offers a number, 이름 nothing (the new name is free)
+                        var m = args.length > 2 ? dev.stsv.economy.bus.StopNames.split(stops, java.util.Arrays.copyOf(args, args.length - 1), 1, 0) : null;
+                        if (m != null && m.rest().length == 0 && (args[1].startsWith("\"") || args[1].startsWith("#")
+                                || dev.stsv.economy.bus.StopNames.complete(stops, args, 1).isEmpty()))
+                            return args[0].equals("손님") ? List.of("1", "3", "5", "8") : List.of();
+                        List<String> out = new java.util.ArrayList<>(dev.stsv.economy.bus.StopNames.complete(stops, args, 1));
+                        if (args.length == 2 && args[0].equals("다시짓기") && "전체".startsWith(args[1])) out.addFirst("전체");
+                        return out;
+                    }
                     return List.of();
                 });
         add("버스", "손님 <종류|전체> [상황] | 비밀 소환 [1-5] | 비밀 쪽지 <플레이어> <1-5|전부> | 비밀 최종 [플레이어] | 비밀 초기화 <플레이어> | 비밀 상태 <플레이어>",

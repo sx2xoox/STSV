@@ -46,18 +46,23 @@ final class StopBuilder {
     }
 
     /** The blocks a country stop changes (the shape, and so what it digs, is the same for every theme). */
-    static Map<Block, BlockData> plan(World w, BusStop s, BusSpec.Stops cfg, Material surface) {
-        return plan(w, s, cfg, surface, Theme.COUNTRY);
+    static Map<Block, BlockData> plan(World w, BusStop s, BusSpec.Stops cfg, Material surface, BusStop.Levels levels) {
+        return plan(w, s, cfg, surface, Theme.COUNTRY, levels);
     }
 
-    /** The blocks the stop changes: block -> what it becomes (in build order: ground, then the shelter, dressed by its theme). */
-    static Map<Block, BlockData> plan(World w, BusStop s, BusSpec.Stops cfg, Material surface, Theme theme) {
+    /**
+     * The blocks the stop changes: block -> what it becomes (in build order: ground, then the shelter, dressed by its theme).
+     * The bay and the shoulder are paved column by column at the road's surface beside them ({@code levels}: a slab where
+     * it is a half step), so a bay on a slope has no step up or down from the lane.
+     */
+    static Map<Block, BlockData> plan(World w, BusStop s, BusSpec.Stops cfg, Material surface, Theme theme, BusStop.Levels levels) {
         Map<Block, BlockData> out = new LinkedHashMap<>();
-        int y = s.y();
+        if (levels == null) levels = BusStop.Levels.flat(s.half());
         Material edge = Material.YELLOW_CONCRETE;
         for (BusStop.Column c : s.bayColumns(cfg.bayLength(), cfg.bayWidth())) {
+            int h = levels.half(c.x(), c.z()), y = BusStop.surfaceY(h);
             Material m = c.edge() ? edge : surface;
-            BlockData top = s.slab() ? slabOf(m) : m.createBlockData();
+            BlockData top = Math.floorMod(h, 2) == 1 ? slabOf(m) : m.createBlockData();
             out.put(w.getBlockAt(c.x(), y, c.z()), top);
             for (int up = 1; up <= DIG; up++) {   // the bay cut out of a hillside, high enough for the bus
                 Block b = w.getBlockAt(c.x(), y + up, c.z());
@@ -75,19 +80,22 @@ final class StopBuilder {
         for (BusStop.Column c : s.bayColumns(cfg.bayLength(), cfg.bayWidth())) bayAt.add(((long) c.x() << 32) ^ (c.z() & 0xffffffffL));
         for (BusStop.Column c : s.shoulderColumns(cfg.bayLength())) {
             if (bayAt.contains(((long) c.x() << 32) ^ (c.z() & 0xffffffffL))) continue;
-            BlockData top = s.slab() ? slabOf(surface) : surface.createBlockData();
+            int h = levels.half(c.x(), c.z()), y = BusStop.surfaceY(h);
+            BlockData top = Math.floorMod(h, 2) == 1 ? slabOf(surface) : surface.createBlockData();
             out.putIfAbsent(w.getBlockAt(c.x(), y, c.z()), top);
             for (int up = 1; up <= DIG; up++) {
                 Block b = w.getBlockAt(c.x(), y + up, c.z());
                 if (!b.getType().isAir()) out.putIfAbsent(b, Material.AIR.createBlockData());
             }
         }
+        int y = s.y();
         for (double a = -cfg.bayLength() / 2.0; a <= cfg.bayLength() / 2.0; a += 0.5) {
             for (double o = 1.5; o <= BusStop.KERB; o += 0.5) {   // over the edge lane: a light's arm and lantern
                 double[] p = s.at(a, o);
                 int bx = (int) Math.floor(p[0]), bz = (int) Math.floor(p[1]);
+                int ly = BusStop.surfaceY(levels.half(bx, bz));
                 for (int up = 3; up <= 7; up++) {
-                    Block b = w.getBlockAt(bx, y + up, bz);
+                    Block b = w.getBlockAt(bx, ly + up, bz);
                     if (isLight(b.getType())) out.putIfAbsent(b, Material.AIR.createBlockData());
                 }
             }
