@@ -7,7 +7,7 @@ import java.util.Objects;
 
 /**
  * The designer's rules that need no server (unit-tested): which part a stage asks for, whether a lane holds exactly a
- * part's materials, which machine kinds may make it, and where the 13th machine's eye looks.
+ * part's materials, which machine kinds may make it, where the 13th machine's eye looks and how it turns.
  */
 final class Parts {
 
@@ -64,6 +64,52 @@ final class Parts {
     /** A piece of the breathing body grown by f about the body's centre: its new centre (size grows by f too). */
     static float[] breathe(float[] center, float[] body, float f) {
         return new float[]{body[0] + (center[0] - body[0]) * f, body[1] + (center[1] - body[1]) * f, body[2] + (center[2] - body[2]) * f};
+    }
+
+    /**
+     * A point of the machine (block-local x, z) turned by quarter turns about the block's vertical centre line (0.5, 0.5), the
+     * same way as {@code new Quaternionf().rotateY(quarter * PI / 2)} turns it: one quarter takes +z (south) to +x (east).
+     * Exact for whole quarters (no float drift), any quarter (negative too) taken mod 4.
+     */
+    static float[] turn(float x, float z, int quarter) {
+        return switch (Math.floorMod(quarter, 4)) {
+            case 1 -> new float[]{z, 1 - x};
+            case 2 -> new float[]{1 - x, 1 - z};
+            case 3 -> new float[]{1 - z, x};
+            default -> new float[]{x, z};
+        };
+    }
+
+    /**
+     * The quarter turn (0 south, 1 east, 2 north, 3 west) nearest to where a Minecraft yaw (degrees: 0 south, -90 east, 90 west,
+     * 180 north) looks.
+     */
+    static int quarter(float yawDegrees) {
+        return Math.floorMod(Math.round(-yawDegrees / 90f), 4);
+    }
+
+    /** The lens yaw (radians, {@link #look} convention) of the machine's front at this quarter turn. */
+    static float frontYaw(int quarter) {
+        return (float) (Math.floorMod(quarter, 4) * Math.PI / 2);
+    }
+
+    /** Whether the 13th machine may go to a spot its owner looks at, or the first reason it may not. */
+    enum Spot { OK, AIM, GROUND, ROOM, LAND, FAR }
+
+    /**
+     * The verdict for a spot, checked in this order: something looked at (within reach), solid ground under it, two free blocks
+     * on it, land the player may build on, and not too far from where it stands now.
+     *
+     * @param distSq squared distance from where it stands now; negative = another world
+     * @param max    how far it may go (blocks); 0 or less = anywhere, any world
+     */
+    static Spot spot(boolean target, boolean solid, boolean room, boolean mayBuild, double distSq, int max) {
+        if (!target) return Spot.AIM;
+        if (!solid) return Spot.GROUND;
+        if (!room) return Spot.ROOM;
+        if (!mayBuild) return Spot.LAND;
+        if (max > 0 && (distSq < 0 || distSq > (double) max * max)) return Spot.FAR;
+        return Spot.OK;
     }
 
     /** "world x y z" (a block) for eco.kv. */

@@ -24,9 +24,17 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -42,6 +50,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -80,10 +89,12 @@ public final class Designer extends Secret {
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> hinted = new ConcurrentHashMap<>();
     private final Thirteenth thirteenth;
+    private final Mover mover;
 
     public Designer(SecretModule m) {
         super(m);
         thirteenth = new Thirteenth(this, eco);
+        mover = new Mover(this, eco, thirteenth);
     }
 
     @Override
@@ -154,6 +165,11 @@ public final class Designer extends Secret {
         hinted.put(p.getUniqueId(), now);
         String t = text(key);
         if (!t.isEmpty()) m.haunt().whisper(p, t);
+    }
+
+    /** A designer whisper to one player (Mover). */
+    void whisper(Player p, String line) {
+        m.haunt().whisper(p, line);
     }
 
     private MachineModule machines() {
@@ -575,7 +591,7 @@ public final class Designer extends Secret {
             }
             Location at = machines().machineAt(last.machine());
             Location spot = spot(at != null ? at : p != null ? p.getLocation() : null, p);
-            if (spot != null && !thirteenth.place(spot, m.test(u), true) && p != null)
+            if (spot != null && !thirteenth.place(spot, m.test(u), true, u) && p != null)
                 p.sendMessage(Text.mm("<yellow>[테스트] 13번째 기계가 이미 서 있어 옮기지 않았어요 (진짜 주인의 것)"));
             if (p == null) {
                 m.set(this, u, "owed", 1);   // solved on their next join
@@ -666,15 +682,72 @@ public final class Designer extends Secret {
         thirteenth.tick();
     }
 
-    @EventHandler
+    /** Who may move the 13th machine: the one it was made for, else (older ones) whoever solved it first. */
+    private Optional<UUID> machineOwner() {
+        return thirteenth.owner().or(() -> m.solver(this));
+    }
+
+    private boolean mayMove(Player p) {
+        return machineOwner().map(p.getUniqueId()::equals).orElse(false);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onTouch(PlayerInteractEntityEvent e) {
+        Player p = e.getPlayer();
+        if (mover.moving(p)) {   // moving it: any entity clicked counts as a click on the spot
+            e.setCancelled(true);
+            if (e.getHand() == EquipmentSlot.HAND) mover.click(p);
+            return;
+        }
         if (!(e.getRightClicked() instanceof Interaction x)) return;
         PersistentDataContainer pdc = x.getPersistentDataContainer();
         if (!pdc.has(Thirteenth.TAG) && !pdc.has(PREVIEW)) return;
         e.setCancelled(true);
+        if (e.getHand() != EquipmentSlot.HAND) return;
+        boolean owner = pdc.has(Thirteenth.TAG) && on() && mayMove(p);
+        if (owner && p.isSneaking()) {
+            mover.start(p);
+            return;
+        }
         List<String> lines = cfg.getStringList("touch");
-        if (!lines.isEmpty()) m.haunt().whisper(e.getPlayer(), lines.get(ThreadLocalRandom.current().nextInt(lines.size())));
-        sound(e.getPlayer(), x.getLocation().add(0, 1, 0), "breath");
+        if (!lines.isEmpty()) m.haunt().whisper(p, lines.get(ThreadLocalRandom.current().nextInt(lines.size())));
+        sound(p, x.getLocation().add(0, 1, 0), "breath");
+        if (owner && !cfg.getString("thirteenth.move.tip", "").isEmpty()) p.sendActionBar(Text.mm(cfg.getString("thirteenth.move.tip")));
+    }
+
+    /** Moving the 13th machine: right-click puts it down (sneaking: cancels), left-click turns it; nothing else happens. */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onMoveClick(PlayerInteractEvent e) {
+        Player p = e.getPlayer();
+        if (e.getAction() == Action.PHYSICAL || !mover.moving(p)) return;
+        e.setUseInteractedBlock(Event.Result.DENY);
+        e.setUseItemInHand(Event.Result.DENY);
+        if (e.getHand() == EquipmentSlot.OFF_HAND) return;
+        switch (e.getAction()) {
+            case RIGHT_CLICK_BLOCK, RIGHT_CLICK_AIR -> mover.click(p);
+            case LEFT_CLICK_BLOCK, LEFT_CLICK_AIR -> mover.rotate(p);
+            default -> { }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onMoveSwap(PlayerSwapHandItemsEvent e) {
+        if (!mover.moving(e.getPlayer())) return;
+        e.setCancelled(true);
+        mover.rotate(e.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onMoveHit(EntityDamageByEntityEvent e) {
+        if (!(e.getDamager() instanceof Player p) || !mover.moving(p)) return;
+        e.setCancelled(true);
+        mover.rotate(p);
+    }
+
+    /** Pieces of the 13th machine left behind where it no longer stands (moved or removed while unloaded) go. */
+    @EventHandler
+    public void onEntitiesLoad(EntitiesLoadEvent e) {
+        thirteenth.sweep(e.getEntities());
     }
 
     @EventHandler
@@ -717,6 +790,7 @@ public final class Designer extends Secret {
     @Override
     public void cleanup(UUID player) {
         hinted.remove(player);
+        mover.end(player, null);
         thirteenth.clearPreviews();
     }
 
@@ -730,13 +804,14 @@ public final class Designer extends Secret {
         }
         b.append(" <gray>· 오늘 표시 ").append(m.today(u).equals(m.get(this, u, "marked")) ? "있음" : "없음");
         b.append(" · 메모 ").append(m.getLong(this, u, "read", 0)).append('/').append(notes(u));
-        b.append(" · 13번째 기계 ").append(thirteenth.where().map(w -> w + (thirteenth.isTest() ? " (테스트)" : "")).orElse("없음"));
+        b.append(" · 13번째 기계 ").append(thirteenth.where().map(w -> w + " " + facingName(thirteenth.facing()) + (thirteenth.isTest() ? " (테스트)" : "")
+                + " 주인 " + machineOwner().map(Players::name).orElse("-")).orElse("없음"));
         return b.toString();
     }
 
     @Override
     public List<String> scenes() {
-        return List.of("설계자표시", "메모", "종이", "거꾸로", "숨소리", "멈춤", "탄생", "13번째기계", "13번째기계제거");
+        return List.of("설계자표시", "메모", "종이", "거꾸로", "숨소리", "멈춤", "탄생", "13번째기계", "13번째기계이동", "13번째기계회전", "13번째기계제거");
     }
 
     @Override
@@ -790,8 +865,23 @@ public final class Designer extends Secret {
                 admin.sendMessage(Text.msg("<gray>미리보기: 60초 뒤 사라지는 13번째 기계 (저장 안 됨)"));
             }
             case "13번째기계" -> {
-                thirteenth.place(p.getLocation(), false, true);
+                thirteenth.place(p.getLocation(), false, true, null);
                 admin.sendMessage(Text.msg("<green>13번째 기계를 " + thirteenth.where().orElse("?") + " 에 세웠어요 (서버에 하나, 있던 것은 옮김)"));
+            }
+            case "13번째기계이동" -> {
+                int f = Parts.quarter(p.getLocation().getYaw());
+                if (!thirteenth.move(p.getLocation(), f)) {
+                    admin.sendMessage(Text.msg("<red>서 있는 13번째 기계가 없어요 (세우기: 13번째기계)"));
+                    return true;
+                }
+                admin.sendMessage(Text.msg("<green>13번째 기계를 " + thirteenth.where().orElse("?") + " 로 옮겼어요 (앞: " + facingName(f) + ", 조립 연출 없음)"));
+            }
+            case "13번째기계회전" -> {
+                if (!thirteenth.turn(1)) {
+                    admin.sendMessage(Text.msg("<red>서 있는 13번째 기계가 없어요"));
+                    return true;
+                }
+                admin.sendMessage(Text.msg("<green>13번째 기계를 90° 돌렸어요 (앞: " + facingName(thirteenth.facing()) + ")"));
             }
             case "13번째기계제거" -> {
                 String was = thirteenth.where().orElse(null);
@@ -803,6 +893,11 @@ public final class Designer extends Secret {
             }
         }
         return true;
+    }
+
+    private String facingName(int quarter) {
+        List<String> names = cfg.getStringList("thirteenth.move.facings");
+        return names.size() == 4 ? names.get(Math.floorMod(quarter, 4)) : String.valueOf(quarter);
     }
 
     private UUID nearestMachine(CommandSender admin, Player p, double range) {

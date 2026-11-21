@@ -1,6 +1,8 @@
 package dev.stsv.economy.secret.designer;
 
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 import java.io.File;
@@ -100,6 +102,66 @@ class DesignerPartsTest {
     }
 
     @Test
+    void turningMatchesTheDisplayRotation() {
+        float[][] points = {{0, 0}, {1, 0}, {0.07f, 0.93f}, {0.42f, 0.735f}, {0.5f, 0.5f}, {-0.3f, 1.4f}};
+        for (int q = -4; q <= 7; q++) {
+            Quaternionf r = new Quaternionf().rotateY(Parts.frontYaw(q));
+            for (float[] pt : points) {
+                // the quaternion about the block's centre line, as the pieces turn
+                Vector3f v = r.transform(new Vector3f(pt[0] - 0.5f, 0, pt[1] - 0.5f)).add(0.5f, 0, 0.5f);
+                float[] t = Parts.turn(pt[0], pt[1], q);
+                assertEquals(v.x, t[0], 1e-5, "x q=" + q);
+                assertEquals(v.z, t[1], 1e-5, "z q=" + q);
+            }
+        }
+        // the front (+z, where the lens rests) after one quarter looks east (+x)
+        Vector3f front = new Quaternionf().rotateY(Parts.frontYaw(1)).transform(new Vector3f(0, 0, 1));
+        assertEquals(1, front.x, 1e-5);
+        assertEquals(0, front.z, 1e-5);
+        assertEquals(Parts.frontYaw(1), Parts.look(1, 0, 0)[0], 1e-5, "the same angle the eye uses");
+    }
+
+    @Test
+    void fourQuartersComeBackAndStayOnTheBlock() {
+        for (Thirteenth.Piece p : Thirteenth.PIECES) {
+            float[] c = {p.x(), p.z()};
+            for (int i = 0; i < 4; i++) c = Parts.turn(c[0], c[1], 1);
+            assertArrayEquals(new float[]{p.x(), p.z()}, c, 1e-6f);
+            for (int q = 0; q < 4; q++) {
+                float[] t = Parts.turn(p.x(), p.z(), q);
+                assertTrue(t[0] >= 0 && t[0] <= 1 && t[1] >= 0 && t[1] <= 1, "inside its block: " + p + " q=" + q);
+            }
+        }
+        assertArrayEquals(Parts.turn(0.2f, 0.7f, 3), Parts.turn(0.2f, 0.7f, -1), 1e-6f);
+    }
+
+    @Test
+    void aYawGivesTheNearestQuarter() {
+        assertEquals(0, Parts.quarter(0));        // south
+        assertEquals(1, Parts.quarter(-90));      // east
+        assertEquals(2, Parts.quarter(180));      // north
+        assertEquals(2, Parts.quarter(-180));
+        assertEquals(3, Parts.quarter(90));       // west
+        assertEquals(3, Parts.quarter(270));
+        assertEquals(0, Parts.quarter(40));
+        assertEquals(1, Parts.quarter(-50));
+        assertEquals(1, Parts.quarter(-450));
+    }
+
+    @Test
+    void aSpotIsCheckedInOrder() {
+        assertEquals(Parts.Spot.AIM, Parts.spot(false, true, true, true, 0, 32));
+        assertEquals(Parts.Spot.GROUND, Parts.spot(true, false, true, true, 0, 32));
+        assertEquals(Parts.Spot.ROOM, Parts.spot(true, true, false, true, 0, 32));
+        assertEquals(Parts.Spot.LAND, Parts.spot(true, true, true, false, 0, 32));
+        assertEquals(Parts.Spot.FAR, Parts.spot(true, true, true, true, 33 * 33, 32));
+        assertEquals(Parts.Spot.FAR, Parts.spot(true, true, true, true, -1, 32), "another world");
+        assertEquals(Parts.Spot.OK, Parts.spot(true, true, true, true, 32 * 32, 32));
+        assertEquals(Parts.Spot.OK, Parts.spot(true, true, true, true, -1, 0), "no limit");
+        assertEquals(Parts.Spot.OK, Parts.spot(true, true, true, true, 1e9, 0));
+    }
+
+    @Test
     void theSettingsFileHasWhatTheCodeReads() {
         YamlConfiguration y = YamlConfiguration.loadConfiguration(new File(System.getProperty("stsv.content"), "economy/secrets/designer.yml"));
         for (String id : Parts.ORDER) {
@@ -120,5 +182,13 @@ class DesignerPartsTest {
         assertEquals("economy:designer_heir", y.getString("rewards.title"));
         assertEquals(List.of(0, 5), y.getIntegerList("start.hours"));
         assertEquals(20, y.getInt("start.min-level"));
+        // moving the 13th machine
+        assertEquals(4, y.getStringList("thirteenth.move.facings").size());
+        for (String k : List.of("tip", "hint", "bad", "placed-bar", "cancelled", "timeout", "gone"))
+            assertFalse(y.getString("thirteenth.move." + k, "").isEmpty(), k);
+        for (Parts.Spot s : Parts.Spot.values()) {
+            if (s != Parts.Spot.OK) assertFalse(y.getString("thirteenth.move.reasons." + s.name().toLowerCase(), "").isEmpty(), s.name());
+        }
+        assertTrue(y.getString("thirteenth.move.hint").contains("{facing}") && y.getString("thirteenth.move.bad").contains("{reason}"));
     }
 }

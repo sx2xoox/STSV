@@ -75,6 +75,8 @@ public final class Dongbang extends Secret {
     /** Players whose 본사 is being chosen, with what waits for it. */
     private final Map<UUID, List<Runnable>> picking = new HashMap<>();
     final Map<UUID, Boardroom> rooms = new HashMap<>();
+    /** The offer day (m.today) whose one chat news echo a player already got. */
+    private final Map<UUID, String> echoed = new HashMap<>();
     private long lastMinute;
     private int ticks;
 
@@ -110,6 +112,21 @@ public final class Dongbang extends Secret {
             @Override
             public void open(Player viewer) {
                 window(viewer, "m10");
+            }
+
+            @Override
+            public List<String> news(Player viewer, List<String> lines) {
+                return newsView(viewer, lines);
+            }
+
+            @Override
+            public String companyNews(Player viewer, String line) {
+                return companyNewsView(viewer, line);
+            }
+
+            @Override
+            public void broadcast(String line) {
+                newsEcho();
             }
         });
     }
@@ -238,7 +255,7 @@ public final class Dongbang extends Secret {
     /** Forgets the share (not the stage). */
     private void wipe(UUID u) {
         cleanup(u);
-        for (String k : List.of("price", "t", "m10", "h2", "d1", "closes", "kx", "p0", "bought", "notice-at", "lost-day", "sold", "sold-at", "x", "z"))
+        for (String k : List.of("price", "t", "m10", "h2", "d1", "closes", "kx", "p0", "bought", "notice-at", "lost-day", "sold", "sold-at", "x", "z", "news-end", "news-echo"))
             m.remove(this, u, k);
     }
 
@@ -288,6 +305,7 @@ public final class Dongbang extends Secret {
         forced.remove(u);
         sellConfirm.remove(u);
         water.remove(u);
+        echoed.remove(u);
     }
 
     @Override
@@ -911,12 +929,125 @@ public final class Dongbang extends Secret {
     }
 
     // ------------------------------------------------------------------------------------------
+    // /주식 뉴스: their copy only (NewsWarp); the stored news and the prices are never touched
+    // ------------------------------------------------------------------------------------------
+
+    /** As many lines as /주식 뉴스 shows. */
+    private static final int NEWS_LINES = 10;
+
+    /** They saw the offer row and it is still theirs to buy (the minute, then the grace). */
+    private boolean offering(UUID u, long now) {
+        return m.stage(this, u) == 0 && !sold(u) && open(u) && offered.getOrDefault(u, 0L) > now;
+    }
+
+    private boolean newsOn() {
+        return on() && cfg.isConfigurationSection("news");
+    }
+
+    /** The same page for the whole offer: one seed per player and day. */
+    private long newsSeed(UUID u) {
+        return u.getMostSignificantBits() ^ Long.rotateLeft(u.getLeastSignificantBits(), 13) ^ m.today(u).hashCode() * 0x1987L;
+    }
+
+    private NewsWarp.Offer offerNews() {
+        return new NewsWarp.Offer(line("news.offer.head"), line("news.offer.fragment"), line("news.offer.stamp"), line("news.offer.word"),
+                Math.max(0, cfg.getInt("news.offer.soaked", 2)), Math.max(0, cfg.getInt("news.offer.thirteen", 1)), NEWS_LINES);
+    }
+
+    /** One line of a list (null when it is empty or missing). */
+    private String pick(String path) {
+        List<String> l = lines(path);
+        return l.isEmpty() ? null : l.get(rnd.nextInt(l.size()));
+    }
+
+    /** The held stage's headline pool (1 when not holding, for previews). */
+    private String heldNews(int stage) {
+        return pick("news.held.stage-" + Math.max(1, Math.min(stages(), stage)));
+    }
+
+    private List<String> newsView(Player p, List<String> real) {
+        if (!newsOn()) return real;
+        UUID u = p.getUniqueId();
+        long now = System.currentTimeMillis();
+        if (offering(u, now)) return NewsWarp.offer(real, offerNews(), newsSeed(u));
+        int st = m.stage(this, u);
+        if (holding(u) && open(u)) {
+            if (!m.roll(u, cfg.getDouble("news.held.chance", 0.15))) return real;
+            String l = heldNews(st);
+            return l == null ? real : NewsWarp.among(real, l, rnd, NEWS_LINES);
+        }
+        // the last word, once: the company is wound up, or its last shareholder left
+        String end = st == stages() + 1 ? line("news.solved") : st == 0 && sold(u) ? line("news.sold") : "";
+        if (end.isEmpty() || m.get(this, u, "news-end") != null) return real;
+        m.set(this, u, "news-end", 1);
+        return NewsWarp.last(real, end, NEWS_LINES);
+    }
+
+    /** During the offer, other companies' windows show their latest news at 03:33 too, now and then soaked. */
+    private String companyNewsView(Player p, String line) {
+        if (!newsOn() || !offering(p.getUniqueId(), System.currentTimeMillis())) return line;
+        Random r = new Random(newsSeed(p.getUniqueId()) ^ line.hashCode());
+        String l = r.nextInt(3) == 0 ? NewsWarp.soak(line, line("news.offer.word"), r) : line;
+        return line("news.offer.stamp") + l;
+    }
+
+    /**
+     * A real news went out to everyone. Someone in the offer gets one more "[뉴스]" line a moment later (once an offer);
+     * a holder now and then gets one of their stage's headlines (once a day at most).
+     */
+    private void newsEcho() {
+        if (!newsOn()) return;
+        long now = System.currentTimeMillis();
+        long delay = Math.max(1, cfg.getLong("news.echo-delay-seconds", 3)) * 20L;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID u = p.getUniqueId();
+            String today = m.today(u);
+            String l = null;
+            if (offering(u, now)) {
+                if (today.equals(echoed.get(u))) continue;
+                l = line("news.offer.echo");
+                if (!l.isEmpty()) echoed.put(u, today);
+            } else if (holding(u) && open(u)) {
+                if (today.equals(m.get(this, u, "news-echo")) || !m.roll(u, cfg.getDouble("news.held.echo-chance", 0.1))) continue;
+                l = heldNews(m.stage(this, u));
+                if (l != null) m.set(this, u, "news-echo", today);
+            }
+            if (l == null || l.isEmpty()) continue;
+            String send = l;
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (p.isOnline()) p.sendMessage(Lang.msg("stock.news", "line", send));
+            }, delay);
+        }
+    }
+
+    /** Admin preview: the list as that state would show it (nothing is saved, the chance is 100%). */
+    private void previewNews(Player p, String word) {
+        if (eco.stocks() == null) return;
+        List<String> real = eco.stocks().recentNews();
+        List<String> view = switch (word) {
+            case "뉴스" -> NewsWarp.offer(real, offerNews(), newsSeed(p.getUniqueId()));
+            case "뉴스청산" -> NewsWarp.last(real, line("news.solved"), NEWS_LINES);
+            case "뉴스매도" -> NewsWarp.last(real, line("news.sold"), NEWS_LINES);
+            default -> {
+                String l = heldNews(word.charAt(word.length() - 1) - '0');
+                yield l == null ? real : NewsWarp.among(real, l, rnd, NEWS_LINES);
+            }
+        };
+        eco.stocks().showNews(p, view);
+        if (word.equals("뉴스") && !line("news.offer.echo").isEmpty()) {
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (p.isOnline()) p.sendMessage(Lang.msg("stock.news", "line", line("news.offer.echo")));
+            }, Math.max(1, cfg.getLong("news.echo-delay-seconds", 3)) * 20L);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // admin scenes
     // ------------------------------------------------------------------------------------------
 
     @Override
     public List<String> scenes() {
-        return List.of("목록", "창", "통지서", "편지", "속삭임", "자정", "회의실", "착석", "찬성", "반대", "증서", "배당");
+        return List.of("목록", "창", "통지서", "편지", "속삭임", "자정", "회의실", "착석", "찬성", "반대", "증서", "배당", "뉴스", "뉴스1", "뉴스2", "뉴스3", "뉴스청산", "뉴스매도");
     }
 
     @Override
@@ -955,6 +1086,7 @@ public final class Dongbang extends Secret {
                 }, 20L);
             }
             case "증서" -> p.getInventory().addItem(certificate(p));
+            case "뉴스", "뉴스1", "뉴스2", "뉴스3", "뉴스청산", "뉴스매도" -> previewNews(p, word);
             case "배당" -> p.sendMessage(Text.msg(line("dividend.message").replace("{amount}", money(cfg.getLong("dividend.amount", 5000)))
                     + " <dark_gray>[연출: 지급 안 함]"));
             default -> {

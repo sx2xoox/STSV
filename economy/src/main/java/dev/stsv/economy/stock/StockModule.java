@@ -69,6 +69,22 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
 
         /** They clicked that row. */
         void open(Player viewer);
+
+        /**
+         * The news list (oldest first, MiniMessage) as this viewer is to see it in /주식 뉴스: the same list, or a changed
+         * copy for them alone. The stored news is never touched.
+         */
+        default List<String> news(Player viewer, List<String> lines) {
+            return lines;
+        }
+
+        /** A company's latest news line in its window, as this viewer is to see it. */
+        default String companyNews(Player viewer, String line) {
+            return line;
+        }
+
+        /** A news line was just broadcast to everyone (it may follow it up for some players). */
+        default void broadcast(String line) {}
     }
 
     /** Sets (or with null, clears) the hidden company. */
@@ -313,6 +329,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         String line = writer.line(news, c.id, c.name, c.industry, moved, cause, rnd);
         store.addNews(now(), c.id, line);
         Bukkit.broadcast(Lang.msg("stock.news", "line", line));
+        broadcastHidden(line);
         alerts();
     }
 
@@ -330,6 +347,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             String line = writer.line(news, c.id, c.name, c.industry, moved, null, rnd);
             store.addNews(now(), c.id, line);
             Bukkit.broadcast(Lang.mm("stock.earnings-line", "line", line));
+            broadcastHidden(line);
         }
         alerts();
     }
@@ -732,13 +750,57 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
     }
 
     public void showNews(Player p) {
-        List<StockStore.News> l = store.news();
-        if (l.isEmpty()) {
+        showNews(p, viewNews(p, recentNews()));
+    }
+
+    /** Sends these news lines (oldest first) as the news list. */
+    public void showNews(Player p, List<String> lines) {
+        if (lines.isEmpty()) {
             p.sendMessage(Lang.msg("stock.no-news"));
             return;
         }
         p.sendMessage(Lang.msg("stock.news-header"));
-        for (StockStore.News n : l.subList(Math.max(0, l.size() - 10), l.size())) p.sendMessage(Lang.mm("stock.news-line", "line", n.line()));
+        for (String line : lines) p.sendMessage(Lang.mm("stock.news-line", "line", line));
+    }
+
+    /** The last 10 news lines, oldest first, as stored. */
+    public List<String> recentNews() {
+        List<StockStore.News> l = store.news();
+        List<String> out = new ArrayList<>();
+        for (StockStore.News n : l.subList(Math.max(0, l.size() - 10), l.size())) out.add(n.line());
+        return out;
+    }
+
+    /** The news list as this player sees it (the hidden company may change their copy; its errors never break /주식). */
+    private List<String> viewNews(Player p, List<String> lines) {
+        if (hidden == null) return lines;
+        try {
+            List<String> out = hidden.news(p, List.copyOf(lines));
+            return out == null ? lines : out;
+        } catch (RuntimeException e) {
+            eco.getLogger().log(java.util.logging.Level.WARNING, "숨은 회사 뉴스 오류", e);
+            return lines;
+        }
+    }
+
+    private String viewCompanyNews(Player p, String line) {
+        if (hidden == null) return line;
+        try {
+            String out = hidden.companyNews(p, line);
+            return out == null ? line : out;
+        } catch (RuntimeException e) {
+            eco.getLogger().log(java.util.logging.Level.WARNING, "숨은 회사 뉴스 오류", e);
+            return line;
+        }
+    }
+
+    private void broadcastHidden(String line) {
+        if (hidden == null) return;
+        try {
+            hidden.broadcast(line);
+        } catch (RuntimeException e) {
+            eco.getLogger().log(java.util.logging.Level.WARNING, "숨은 회사 뉴스 오류", e);
+        }
     }
 
     public void toggleAlerts(Player p) {
@@ -998,7 +1060,7 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
             m.put("halted", c.halted ? Lang.raw("stock.icon-halted") : "");
             List<String> lines = new ArrayList<>();
             for (StockStore.News n : store.news()) if (n.company().equals(id)) lines.add(n.line());
-            m.put("news", lines.isEmpty() ? Lang.raw("stock.no-news-company") : lines.getLast());
+            m.put("news", lines.isEmpty() ? Lang.raw("stock.no-news-company") : viewCompanyNews(v.player(), lines.getLast()));
             return m;
         }
 
