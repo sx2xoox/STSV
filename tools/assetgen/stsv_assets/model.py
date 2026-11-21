@@ -126,6 +126,8 @@ class Model:
                 # 1) a removed face must be completely covered from outside, else you can see into the box
                 #    (Minecraft draws faces one-sided, so the inside of a box is invisible)
                 if f not in e["faces"]:
+                    if f in e.get("open", ()):
+                        continue                # a glass plane's inner face, left out on purpose (bake.outward_glass)
                     step = 0.25
                     u = e["from"][a1] + step / 2
                     while u < e["to"][a1]:

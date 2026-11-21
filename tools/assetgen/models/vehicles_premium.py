@@ -29,13 +29,17 @@ from models.vehicles import (CLEAR, CHROME, DARK, PLASTIC, lerp, lamp, plate, pa
 class Kit:
     """The models of one car: its body and the parts the plugin moves, all in the body's space."""
 
-    def __init__(self, name, parts, lift=0, scale=2.0):
+    def __init__(self, name, parts, lift=0, scale=2.0, cabin=None):
         """lift: the whole car stands this many px higher than it is drawn (a body on tall wheels: it is drawn and
-        painted as if it stood on the ground). scale: vehicle.body-scale in the item file."""
+        painted as if it stood on the ground). scale: vehicle.body-scale in the item file.
+        cabin: a drawn point between the seats at the riders' eyes: the glass's faces that look at it lose their
+        see-through tint (bake.outward_glass), so the glass is one outward face and ice / water show through it."""
         self.body = BModel(name, shift=(8, 8 + lift, 8), scale=scale)
+        self.body.cabin = cabin
         self.parts = {}
         for part in parts:
             m = BModel(f"{name}_{part}", shift=(8, 8 + lift, 8), scale=scale)
+            m.cabin = cabin
             m.display = presets.furniture(gui_scale=0.4)
             m.group(part)
             self.parts[part] = m

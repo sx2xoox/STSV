@@ -234,6 +234,7 @@ class BModel(Model):
         self._names = {}
         self._paints = []          # per element: {face: Paint}
         self._baked = False
+        self.cabin = None          # vehicles: a drawn point inside the cabin (see outward_glass)
 
     def box(self, name, frm, to, paint, faces=None, rotation=None, glow=False, shade=True, **_):
         k = self._names.get(name, 0)
@@ -313,6 +314,13 @@ class BModel(Model):
                     continue
                 img = self._paint_face(ei, f, p, lo, hi, geo, 0)
                 thin = min(hi[q] - lo[q] for q in range(3)) <= 0.5
+                if thin and self.cabin is not None and self._towards_cabin(e, f, lo, hi):
+                    img = outward_glass(img)
+                    if img is None:
+                        # see-through glass seen from the seats: no face at all (see outward_glass)
+                        del e["faces"][f]
+                        e.setdefault("open", set()).add(f)
+                        continue
                 if thin and img.getchannel("A").getextrema()[0] < 255:
                     regions["cutout"].append((ei, f, geo, [img]))
                 else:
@@ -328,6 +336,17 @@ class BModel(Model):
                 continue
             name = f"{self.name}{'' if kind == 'opaque' else '_' + kind}"
             self._atlas(name, items, square=(kind == "anim"), frames=frames if kind == "anim" else None)
+
+    def _towards_cabin(self, e, f, lo, hi):
+        """True if the face looks into the cabin: its normal (turned with the box) points at the cabin point."""
+        n = FACES[f][0]
+        c = [(lo[q] + hi[q]) / 2 + n[q] * (hi[q] - lo[q]) / 2 for q in range(3)]
+        if e["rotation"]:
+            axis, ang, o = e["rotation"]
+            o = self.to_drawn(o)
+            c = _turn(c, axis, ang, o)
+            n = _turn(n, axis, ang, (0, 0, 0))
+        return sum(n[q] * (c[q] - self.cabin[q]) for q in range(3)) < 0
 
     def _hidden(self, f, lo, hi, geo):
         """True if something covers the whole face (a part right against it, or the floor under it)."""
@@ -558,6 +577,40 @@ class BModel(Model):
     def textures_used(self):
         self.bake()
         return super().textures_used()
+
+
+def _turn(p, axis, deg, o):
+    """p turned like a Minecraft element (axis "x" / "y" / "z", degrees) round o."""
+    a = math.radians(deg)
+    c, s = math.cos(a), math.sin(a)
+    x, y, z = p[0] - o[0], p[1] - o[1], p[2] - o[2]
+    if axis == "x":
+        y, z = y * c - z * s, y * s + z * c
+    elif axis == "y":
+        x, z = x * c + z * s, -x * s + z * c
+    else:
+        x, y = x * c - y * s, x * s + y * c
+    return (x + o[0], y + o[1], z + o[2])
+
+
+def outward_glass(img):
+    """A glass plane's face that looks into the cabin (BModel.cabin): its see-through tint is wiped (pixels with
+    0 < alpha < 255 become clear; seals, frames and curtains stay), and a face left with nothing on it is dropped.
+
+    Why: item-display models with half see-through pixels are drawn in the translucent entity pass, which writes
+    depth before the game draws translucent terrain (ice, water, stained glass). Tinted glass seen from the seats
+    therefore hid the ice and water behind it. The glass's outer face (culled from inside) keeps its tint and
+    reflections, so from outside the car looks the same; from the seats the glass is simply clear.
+    Returns the new picture, or None for nothing left to draw."""
+    a = np.array(img.getchannel("A"))
+    part = (a > 0) & (a < 255)
+    if not part.any():
+        return img
+    rgba = np.array(img)
+    rgba[part] = 0
+    if not rgba[:, :, 3].any():
+        return None
+    return Image.fromarray(rgba, "RGBA")
 
 
 def _face_grid(f, lo, hi):
