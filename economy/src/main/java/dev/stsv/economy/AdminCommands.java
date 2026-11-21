@@ -66,6 +66,9 @@ final class AdminCommands {
                         }
                     });
                 }, (s, args) -> args.length == 1 ? List.of("제외", "해제", "확인") : args.length == 2 ? Players.complete(s, args[1]) : List.of());
+        add("길라잡이", "체험관 <짓기|지우기> | 초기화 <플레이어> | 진행 <플레이어> | 안내원 [제거]",
+                "길라잡이 체험관 월드 짓기 · 지우기, 한 사람의 길라잡이 기록 지우기 · 보기, 안내원(우클릭 = 길라잡이) 세우기",
+                (s, args) -> eco.guide().admin(s, args), (s, args) -> eco.guide().adminComplete(s, args));
         add("땅기록", "<플레이어> [시간: 30m·6h·2d] ", "그 사람이 땅들에서 한 것 (땅마다 무엇을 얼마나, 최근 10줄). 기본: 기록을 남기는 기간 전체",
                 (s, args) -> eco.landLog().adminLog(s, args), (s, args) -> args.length == 1 ? dev.stsv.core.nickname.Names.complete(s, args[0])
                         : args.length == 2 ? List.of("1h", "6h", "1d", "7d") : List.of());
