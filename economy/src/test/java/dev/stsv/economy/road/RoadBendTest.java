@@ -179,6 +179,9 @@ class RoadBendTest {
     /** A contact: what, where (lat from the road's centre line, + right of the way driven), on a bend's inside or outside. */
     record Hit(String block, int x, int y, int z, double lat, String side, double rise, String how) {}
 
+    /** When set: every tick, the footprint's corners' signed distance from the polyline and how far along (from the start) that is. */
+    static java.util.function.Consumer<double[]> reach;
+
     record Drive(String stuck, int bumps, int refused, List<Hit> hits) {
         boolean clean() {
             return stuck == null && bumps == 0 && hits.isEmpty();
@@ -280,6 +283,13 @@ class RoadBendTest {
             boolean turnRefused = steer != 0 && st.speed > 0.5 && st.yaw == yawBefore;
             if (st.bumped) bumps++;
             if (turnRefused) refused++;
+            if (reach != null) {
+                for (double[] q : VehiclePhysics.footprint(st.x, st.y, st.z, st.yaw, s))
+                    for (double[] c : new double[][]{{q[0], q[2]}, {q[3], q[2]}, {q[0], q[5]}, {q[3], q[5]}}) {
+                        double[] l = latOf(pts, c[0], c[1]);
+                        reach.accept(new double[]{l[0], l[1], along(pts, c[0], c[1])});
+                    }
+            }
             if (st.bumped || clipped || turnRefused) contacts(s, st, w, pts, hits, (st.bumped ? "B" : "") + (clipped ? "C" : "") + (turnRefused ? "T" : ""));
             if (seg > best) {
                 best = seg;
@@ -311,6 +321,63 @@ class RoadBendTest {
         double cross = (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]);
         // Minecraft: x east, z south; right of heading (hx, hz) is (-hz, hx): cross > 0 = turning right
         return new double[]{sign * best, Math.abs(cross) < 1 ? 0 : Math.signum(cross)};
+    }
+
+    /** How far along the polyline (blocks from its start) its nearest point to (x, z) is. */
+    static double along(List<double[]> pts, double x, double z) {
+        double best = Double.MAX_VALUE, at = 0, run = 0;
+        for (int j = 0; j + 1 < pts.size(); j++) {
+            double[] a = pts.get(j), b = pts.get(j + 1);
+            double d = RoadSection.pointToSegment(x, z, a[0], a[1], b[0], b[1]);
+            double len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+            if (d < best) {
+                best = d;
+                double t = len < 1e-9 ? 0 : Math.clamp(((x - a[0]) * (b[0] - a[0]) + (z - a[1]) * (b[1] - a[1])) / (len * len), 0, 1);
+                at = run + t * len;
+            }
+            run += len;
+        }
+        return at;
+    }
+
+    @Test
+    void measureReach() {
+        for (int ang : new int[]{20, 30, 45, 60, 90, 120, 135}) {
+            double r = Math.toRadians(ang);
+            List<double[]> c = corners(0, 0, 60, 0, 60 + (int) Math.round(60 * Math.cos(r)), (int) Math.round(60 * Math.sin(r)));
+            Road road = build(new Terra((x, z) -> 63, DRY), c, "a", false);
+            // strip everything over the road's level: an open plain
+            road.land().put.entrySet().removeIf(e -> {
+                long k = e.getKey();
+                int y = (int) (k & ((1 << 21) - 1)) - 1024;
+                return y >= 65;
+            });
+            for (String mode : List.of("careful", "normal", "sloppy")) {
+                double[] in = new double[60], out = new double[60];
+                java.util.Arrays.fill(in, 0);
+                java.util.Arrays.fill(out, 0);
+                double vertex = 60;
+                reach = v -> {
+                    int b = (int) Math.round(v[2] - vertex) + 30;
+                    if (b < 0 || b >= 60) return;
+                    double d = Math.abs(v[0]);
+                    boolean inside = v[1] != 0 && Math.signum(v[0]) == v[1];
+                    if (inside) in[b] = Math.max(in[b], d);
+                    else out[b] = Math.max(out[b], d);
+                };
+                for (VehicleSpec s : longOnes.values())
+                    for (double lat : LATS)
+                        for (boolean back : new boolean[]{false, true}) {
+                            if (mode.equals("careful")) drive(s, road, back, k -> lat, 9, 4.5, false);
+                            else if (mode.equals("normal")) drive(s, road, back, k -> lat, 9, 6.5, false);
+                            else if (Math.abs(lat) < 1.5) drive(s, road, back, k -> lat, 10, 10, true);
+                        }
+                reach = null;
+                StringBuilder sb = new StringBuilder(String.format(Locale.ROOT, "%3d %-8s", ang, mode));
+                for (int b = 0; b < 60; b += 3) sb.append(String.format(Locale.ROOT, " %+d:%.1f/%.1f", b - 30, in[b], out[b]));
+                System.out.println(sb);
+            }
+        }
     }
 
     static String role(Material m, Terra w, int x, int y, int z) {
@@ -403,6 +470,7 @@ class RoadBendTest {
 
     @Test
     void survey() {
+        if (true) return;
         Map<String, Road> scenes = scenes();
         Map<String, Integer> roles = new TreeMap<>();
         StringBuilder sb = new StringBuilder();
