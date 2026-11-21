@@ -449,7 +449,7 @@ def concept_kit(colour="ev_pearl", roof_="ev_glass", accent="ev_cyan", trim="ev_
     key = (colour, roof_, accent, trim, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
-    kit = Kit(name, ("door_l", "door_r"), scale=2.0)
+    kit = Kit(name, ("door_l", "door_r"), scale=2.0, cabin=(0, 18, 0))   # the riders' eyes: one-sided glass
     m = kit.body
     m.group("body")
     P = _make_paints(colour, roof_, accent, trim)

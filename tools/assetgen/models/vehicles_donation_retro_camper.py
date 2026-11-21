@@ -537,7 +537,7 @@ def camper_kit(lower="rc_turq", upper="rc_cream", canvas="rc_canvas", curtain="r
     if key in _KIT:
         return _KIT[key]
     look = Look(lower, upper, canvas, curtain, seat, board, rim)
-    kit = Kit(name, PARTS)
+    kit = Kit(name, PARTS, cabin=(0, 30, 0))      # the riders' eyes: one-sided glass
     m = kit.body
     m.group("body")
     P = _skins(look)

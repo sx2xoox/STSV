@@ -187,6 +187,7 @@ def storm(colour="tomato", name="kart_storm"):
 
 def bubble(colour="sapphire", name="kart_bubble"):
     m = BModel(name, shift=(8, 8, 8), scale=2.0, floor=None)
+    m.cabin = (0, 24, SEAT_Z)       # the driver's eyes: the screen's tint only on its outer faces (bake.outward_glass)
     C = colour
 
     def shell(c):

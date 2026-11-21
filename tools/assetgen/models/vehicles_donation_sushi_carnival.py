@@ -409,7 +409,7 @@ def carnival_kit(colour="sc_pearl", trim="sc_leather", box=None, name="sushi_car
     key = (colour, trim, box, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
-    kit = Kit(name, PARTS)
+    kit = Kit(name, PARTS, cabin=(0, 24, 0))      # the riders' eyes: one-sided glass
     m = kit.body
     m.group("body")
     P = _make_paints(colour, trim)

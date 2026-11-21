@@ -378,7 +378,7 @@ def sedan_kit(colour="ag_black", trim="ag_leather", accent="ag_blue", name="agen
     key = (colour, trim, accent, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
-    kit = Kit(name, PARTS)
+    kit = Kit(name, PARTS, cabin=(0, 20, 3.5))    # the riders' eyes: one-sided glass
     m = kit.body
     m.group("body")
     P = _make_paints(colour, trim, accent)

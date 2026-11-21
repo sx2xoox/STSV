@@ -486,7 +486,7 @@ def roadster_kit(colour="rd_green", lower=None, leather="rd_tan", soft="rd_canva
     key = (colour, lower, leather, soft, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
-    kit = Kit(name, ("door_l", "door_r"))
+    kit = Kit(name, ("door_l", "door_r"), cabin=(0, 20, 5))      # the riders' eyes: one-sided glass
     m = kit.body
     m.group("body")
     ctx = dict(C=colour, LO=lower, L=leather, S=soft, P=_make_paints(colour, lower, leather, soft))

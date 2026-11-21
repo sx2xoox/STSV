@@ -408,7 +408,7 @@ def muscle_kit(colour="mc_orange", stripe="mc_stripe", trim="mc_vinyl", name="mu
     key = (colour, stripe, trim, name, tuple(sorted(REMAP.items())))
     if key in _KIT:
         return _KIT[key]
-    kit = Kit(name, ("door_l", "door_r"))
+    kit = Kit(name, ("door_l", "door_r"), cabin=(0, 18, 2))      # the riders' eyes: one-sided glass
     m = kit.body
     m.group("body")
     P = _make_paints(colour, stripe, trim)
