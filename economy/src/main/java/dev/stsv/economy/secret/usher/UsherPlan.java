@@ -139,6 +139,46 @@ final class UsherPlan {
     }
 
     // ------------------------------------------------------------------------------------------
+    // the question at dawn (the way in)
+    // ------------------------------------------------------------------------------------------
+
+    /** Letters beyond the answer a typed line may carry (particles, "요", "같아요", a hesitation). */
+    static final int ANSWER_SLACK = 10;
+
+    /** A typed line, loosely: lower case, letters and digits only (spaces, punctuation, quotes, "…" dropped). */
+    static String squash(String s) {
+        if (s == null) return "";
+        StringBuilder b = new StringBuilder(s.length());
+        s.toLowerCase(java.util.Locale.ROOT).codePoints().filter(Character::isLetterOrDigit).forEach(b::appendCodePoint);
+        return b.toString();
+    }
+
+    /**
+     * Whether a typed line answers: one of the answers appears in it (both squashed), and little else is said around it
+     * (at most {@link #ANSWER_SLACK} more letters: "원내안이요", "열세 개 아닌가요", "길라잡이 체험관!" all count).
+     */
+    static boolean answers(String typed, List<String> answers) {
+        String t = squash(typed);
+        if (t.isEmpty()) return false;
+        for (String a : answers) {
+            String k = squash(a);
+            if (!k.isEmpty() && t.contains(k) && t.length() - k.length() <= ANSWER_SLACK) return true;
+        }
+        return false;
+    }
+
+    /** The question asked next: the one after the last asked (rotating), or the given first pick if none was asked yet. */
+    static int nextQuestion(String lastAsked, int count, int firstPick) {
+        if (count <= 0) return -1;
+        if (lastAsked == null) return Math.floorMod(firstPick, count);
+        try {
+            return Math.floorMod(Integer.parseInt(lastAsked.strip()) + 1, count);
+        } catch (NumberFormatException e) {
+            return Math.floorMod(firstPick, count);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // the room under the plaza (block coordinates; the plaza is |x|, |z| <= 10, so all of it stays under its floor)
     // ------------------------------------------------------------------------------------------
 

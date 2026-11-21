@@ -177,4 +177,91 @@ class UsherTest {
         assertTrue(Math.abs(Statue.BX) <= GuideLayout.PLAZA && Math.abs(Statue.BZ) <= GuideLayout.PLAZA);
         assertFalse(Statue.BZ == UsherPlan.OPEN_Z);
     }
+    @Test
+    void answersAreCheckedLoosely() {
+        List<String> name = List.of("원내안");
+        assertTrue(UsherPlan.answers("원내안", name));
+        assertTrue(UsherPlan.answers(" 원 내 안 이요?! ", name), "spaces, particles, punctuation");
+        assertTrue(UsherPlan.answers("'원내안'이라고 쓰여 있었어요", name));
+        assertFalse(UsherPlan.answers("안내원", name), "not reversed is not the answer");
+        assertFalse(UsherPlan.answers("", name));
+        assertFalse(UsherPlan.answers("음 잘 모르겠는데 원내안 아니면 뭐 다른 거겠죠 아마도", name), "not a whole paragraph around it");
+        List<String> count = List.of("열세", "열셋", "13");
+        assertTrue(UsherPlan.answers("열세 개", count));
+        assertTrue(UsherPlan.answers("13개요", count));
+        assertTrue(UsherPlan.answers("열셋!", count));
+        assertFalse(UsherPlan.answers("열네 개", count));
+        assertFalse(UsherPlan.answers("14", count));
+        assertTrue(UsherPlan.answers("길라잡이 체험관", List.of("길라잡이체험관")));
+        assertFalse(UsherPlan.answers("체험관", List.of("길라잡이체험관")));
+        assertTrue(UsherPlan.answers("열다섯이 아니라 열여섯", List.of("열여섯", "16")));
+        assertTrue(UsherPlan.answers("16x16", List.of("열여섯", "16")));
+    }
+
+    @Test
+    void questionsRotate() {
+        assertEquals(3, UsherPlan.nextQuestion(null, 6, 3), "first time: the first pick");
+        assertEquals(4, UsherPlan.nextQuestion("3", 6, 0));
+        assertEquals(0, UsherPlan.nextQuestion("5", 6, 2), "wraps");
+        assertEquals(1, UsherPlan.nextQuestion("x", 6, 1));
+        assertEquals(-1, UsherPlan.nextQuestion("1", 0, 0));
+    }
+
+    /** Every question in usher.yml is fair: its answer is something the guide (or the 안내원's own name) really shows. */
+    @Test
+    void theQuestionsAreFairAndTrue() throws Exception {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("secrets/usher.yml").toFile());
+        assertFalse(y.contains("chance"), "no luck: the way in is the question");
+        assertEquals(30, y.getInt("question.seconds"));
+        assertEquals(60, y.getInt("question.cooldown"));
+        assertTrue(y.getString("lines.forget", "").contains("잊어 주세요"));
+        List<Map<?, ?>> qs = y.getMapList("questions");
+        assertTrue(qs.size() >= 4 && qs.size() <= 6, "four to six questions");
+        Set<String> lines = new HashSet<>();
+        for (Map<?, ?> q : qs) {
+            String line = String.valueOf(q.get("line"));
+            assertTrue(lines.add(line));
+            List<String> ans = new ArrayList<>();
+            for (Object a : (List<?>) q.get("answers")) ans.add(String.valueOf(a));
+            assertFalse(ans.isEmpty(), line);
+            for (String a : ans) assertTrue(UsherPlan.answers(a, ans), "its own answer: " + a);
+            assertFalse(UsherPlan.answers(line, ans), "repeating the question is not the answer: " + line);
+        }
+        // the facts behind them
+        List<String[]> topics = new ArrayList<>();
+        try (Stream<Path> s = Files.list(PACK.resolve("guide/topics"))) {
+            for (Path f : s.filter(p -> p.toString().endsWith(".yml")).toList()) {
+                YamlConfiguration t = YamlConfiguration.loadConfiguration(f.toFile());
+                topics.add(new String[]{String.valueOf(t.getInt("order")), t.getString("name"), f.getFileName().toString()});
+            }
+        }
+        topics.sort(Comparator.comparingInt(r -> Integer.parseInt(r[0])));
+        assertEquals(13, topics.size(), "길라잡이는 열세 개");
+        assertEquals("1", topics.getFirst()[0]);
+        assertEquals("13", topics.getLast()[0]);
+        assertTrue(answerOf(qs, "1번").stream().anyMatch(a -> UsherPlan.answers(topics.getFirst()[1], List.of(a))), "1번 = " + topics.getFirst()[1]);
+        assertTrue(answerOf(qs, "13번").stream().anyMatch(a -> UsherPlan.answers(topics.getLast()[1], List.of(a))), "13번 = " + topics.getLast()[1]);
+        assertTrue(UsherPlan.answers("열세 개", answerOf(qs, "열세 개였나요")));
+        YamlConfiguration land = YamlConfiguration.loadConfiguration(PACK.resolve("guide/topics/land.yml").toFile());
+        assertTrue(land.saveToString().contains("16×16"), "땅은 16×16");
+        assertTrue(UsherPlan.answers("열여섯", answerOf(qs, "열다섯")));
+        assertTrue(UsherPlan.answers(new StringBuilder("안내원").reverse().toString(), answerOf(qs, "이름표")));
+        String sign = plain(y.getString("lines.room-sign")).split("\n")[0];
+        assertTrue(UsherPlan.answers(new StringBuilder(sign).reverse().toString(), answerOf(qs, "관험체")), "the room's sign read straight");
+    }
+
+    private static List<String> answerOf(List<Map<?, ?>> qs, String inLine) {
+        for (Map<?, ?> q : qs)
+            if (String.valueOf(q.get("line")).contains(inLine)) {
+                List<String> out = new ArrayList<>();
+                for (Object a : (List<?>) q.get("answers")) out.add(String.valueOf(a));
+                return out;
+            }
+        throw new AssertionError("no question with " + inLine);
+    }
+
+    /** MiniMessage tags out (enough for the sign). */
+    private static String plain(String mm) {
+        return mm.replaceAll("<[^>]*>", "");
+    }
 }

@@ -54,8 +54,11 @@ import java.util.concurrent.ThreadLocalRandom;
  * 안내원 (docs/admin/숨은_비밀/안내원.md; contents/economy/secrets/usher.yml). The 길라잡이 체험관's 안내원 was a person once,
  * and has guided for so long that it no longer knows which of it is the real one.
  * <p>
- * Someone who finished every guide topic talks to a 안내원 at dawn (KST 1–4) and, some days, it tells them their own records,
- * then asks them to look once more, backwards. They are let into the 체험관 (as a visitor: their things kept aside) and walk
+ * Someone who finished every guide topic talks to a 안내원 at dawn (KST 1–4) and it says one slightly wrong thing, a question
+ * with one word hidden in it ({@code questions} in the settings: its own name backwards, how many topics, the first and the
+ * last number, the land's size, the 체험관's name backwards). Answered in chat within 30 s (loosely), it tells them their own
+ * records, then asks them to look once more, backwards; a wrong answer or silence, "…아니에요. 잊어 주세요." and the usual
+ * menu (another try the next time they talk to it, after a minute). They are let into the 체험관 (as a visitor: their things kept aside) and walk
  * the thirteen stations from the guide's last number to its first; each station has one thing wrong that only they see
  * ({@link Pictures}). Out of turn, the picture goes ("…아니에요.") until the right one is found. With each one found the
  * 안내원 stands a block closer, at the edge of their sight. The seventh gives a note: "진짜는 자기 말을 한다." All thirteen
@@ -63,8 +66,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * other says what the player typed in chat today. One choice. The true one: the statue ({@link Statue}), the title, the
  * money. The false one: "이제 제가 안내할게요" — failed for good, and from then on every 안내원 they meet wears their words.
  * <p>
- * Stage (eco.kv "secret.usher.&lt;uuid&gt;.stage") = found + 1: 1 = started, 14 = all found (the room). Also: rolled (the
- * day the chance was last rolled), real (left/right), chose, failed, said (today's chat lines).
+ * Stage (eco.kv "secret.usher.&lt;uuid&gt;.stage") = found + 1: 1 = started, 14 = all found (the room). Also: asked (the
+ * index of the last question), real (left/right), chose, failed, said (today's chat lines).
  */
 public final class Usher extends Secret {
 
@@ -98,6 +101,13 @@ public final class Usher extends Secret {
 
     private final Map<UUID, Walk> walks = new ConcurrentHashMap<>();
     private final Set<UUID> intro = ConcurrentHashMap.newKeySet();
+
+    /** A question waiting for its answer (in chat): which one, where the 안내원 stood, the silence timer. */
+    private record Ask(int index, List<String> answers, Location npc, boolean preview, BukkitTask timeout) {}
+
+    private final Map<UUID, Ask> asking = new ConcurrentHashMap<>();
+    /** Not asked again before (millis): a wrong answer or silence waits a minute. */
+    private final Map<UUID, Long> quietUntil = new ConcurrentHashMap<>();
     /** This session's chat lines (the fallback for today's). */
     private final Map<UUID, List<String>> session = new ConcurrentHashMap<>();
     /** Failed players: the 안내원 they see instead of each real one (real one's id -> the stand-in). */
@@ -267,7 +277,7 @@ public final class Usher extends Secret {
             return;
         }
         if (!c.getPersistentDataContainer().has(NPC) || !on()) return;
-        if (intro.contains(u)) {
+        if (intro.contains(u) || asking.containsKey(u)) {
             e.setCancelled(true);
             return;
         }
@@ -283,21 +293,102 @@ public final class Usher extends Secret {
             return;
         }
         if (st == 0 && eligible(p)) {
-            e.setCancelled(true);
-            begin(p, c.getLocation());
+            if (ask(p, c.getLocation(), false)) e.setCancelled(true);
         }
     }
 
-    /** Every topic done (or testing), dawn, and today's chance (rolled once a day, at dawn). */
+    /** Every topic done (or testing), dawn (any hour in test mode), and not just asked (a minute after the last try). */
     private boolean eligible(Player p) {
         UUID u = p.getUniqueId();
         if (!open(u)) return false;
         if (cfg.getBoolean("require-guide", true) && !m.test(u) && !eco.kv().has("guide.all." + u)) return false;
         if (!m.hours(u, cfg.getInt("hours.from", 1), cfg.getInt("hours.to", 4))) return false;
-        String today = m.today(u);
-        if (today.equals(m.get(this, u, "rolled"))) return false;
-        m.set(this, u, "rolled", today);
-        return m.roll(u, cfg.getDouble("chance", 0.10));
+        return System.currentTimeMillis() >= quietUntil.getOrDefault(u, 0L);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // the question: one slightly wrong line, one hidden word
+    // ------------------------------------------------------------------------------------------
+
+    /** The questions from the settings (each a line and its answers; a line without answers is skipped). */
+    private List<Map.Entry<String, List<String>>> questions() {
+        List<Map.Entry<String, List<String>>> out = new ArrayList<>();
+        for (Map<?, ?> q : cfg.getMapList("questions")) {
+            Object line = q.get("line");
+            Object ans = q.get("answers");
+            List<String> answers = new ArrayList<>();
+            if (ans instanceof List<?> l) {
+                for (Object a : l) if (a != null && !String.valueOf(a).isBlank()) answers.add(String.valueOf(a));
+            } else if (ans != null && !String.valueOf(ans).isBlank()) {
+                answers.add(String.valueOf(ans));
+            }
+            if (line != null && !answers.isEmpty()) out.add(Map.entry(String.valueOf(line), List.copyOf(answers)));
+        }
+        return out;
+    }
+
+    /** Asks them the next question (rotating per player) and waits for the answer in chat. False if there is none to ask. */
+    private boolean ask(Player p, Location npc, boolean preview) {
+        UUID u = p.getUniqueId();
+        List<Map.Entry<String, List<String>>> qs = questions();
+        if (qs.isEmpty()) return false;
+        int i = UsherPlan.nextQuestion(m.get(this, u, "asked"), qs.size(), ThreadLocalRandom.current().nextInt(qs.size()));
+        m.set(this, u, "asked", i);
+        Map.Entry<String, List<String>> q = qs.get(i);
+        long wait = 20L * Math.max(5, cfg.getInt("question.seconds", 30));
+        BukkitTask silence = Bukkit.getScheduler().runTaskLater(eco, () -> judge(u, null), wait);
+        Ask old = asking.put(u, new Ask(i, q.getValue(), npc == null ? null : npc.clone(), preview, silence));
+        if (old != null) old.timeout().cancel();
+        speak(p, q.getKey(), npc);
+        return true;
+    }
+
+    /** Whatever they say next in chat, while asked, is the answer: only the 안내원 hears it (and they see it, quietly). */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onAnswer(AsyncChatEvent e) {
+        UUID u = e.getPlayer().getUniqueId();
+        if (!asking.containsKey(u)) return;
+        e.setCancelled(true);
+        String text = PlainTextComponentSerializer.plainText().serialize(e.message());
+        Bukkit.getScheduler().runTask(eco, () -> {
+            Player p = Bukkit.getPlayer(u);
+            if (p != null && asking.containsKey(u)) p.sendMessage(Text.mm("<dark_gray><i>(작게) " + esc(text)));
+            judge(u, text);
+        });
+    }
+
+    /** The answer (null = silence): right, the records and the way in; else "…아니에요. 잊어 주세요." and the menu. */
+    private void judge(UUID u, String typed) {
+        Ask a = asking.remove(u);
+        if (a == null) return;
+        a.timeout().cancel();
+        Player p = Bukkit.getPlayer(u);
+        if (p == null) return;
+        boolean right = typed != null && UsherPlan.answers(typed, a.answers());
+        if (right && a.preview()) {
+            p.sendMessage(Text.mm("<gray>[연출] 정답 — 실제라면 여기서 기록을 말하고 체험관으로 데려감 (진행은 안 바뀜)"));
+            sceneRecords(p);
+            return;
+        }
+        if (right && m.stage(this, u) == 0 && open(u) && !failed(u)) {
+            intro.add(u);   // no second question in the pause
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                Player q = Bukkit.getPlayer(u);
+                if (q != null && m.stage(this, u) == 0) begin(q, a.npc());
+                else intro.remove(u);
+            }, 20L);
+            return;
+        }
+        if (!a.preview()) quietUntil.put(u, System.currentTimeMillis() + 1000L * Math.max(0, cfg.getInt("question.cooldown", 60)));
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            Player q = Bukkit.getPlayer(u);
+            if (q == null) return;
+            speak(q, line("forget", "…아니에요. 잊어 주세요."), a.npc());
+            GuideModule g = eco.guide();
+            if (g != null) Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (q.isOnline()) g.open(q);
+            }, 30L);
+        }, 15L);
     }
 
     @Override
@@ -987,6 +1078,8 @@ public final class Usher extends Secret {
     @Override
     public void cleanup(UUID player) {
         intro.remove(player);
+        Ask a = asking.remove(player);
+        if (a != null) a.timeout().cancel();
         end(player);
         unmask(player);
         clearScene(player);
@@ -1026,27 +1119,48 @@ public final class Usher extends Secret {
             parts.add("찾음 " + found + "/13 · 다음 " + (s == null ? "숨은 방" : s.title()));
             if (m.get(this, u, "real") != null) parts.add("진짜 " + (realLeft(u) ? "왼쪽" : "오른쪽"));
         }
-        String rolled = m.get(this, u, "rolled");
-        if (st == 0 && rolled != null) parts.add("마지막 확률 " + rolled);
+        if (st == 0) {
+            if (asking.containsKey(u)) parts.add("질문에 대답 기다리는 중 (#" + (asking.get(u).index() + 1) + ")");
+            int count = questions().size();
+            String asked = m.get(this, u, "asked");
+            if (asked != null && count > 0) {
+                int next = UsherPlan.nextQuestion(asked, count, 0);
+                parts.add("다음 질문 #" + (next + 1) + "/" + count);
+            }
+            long left = quietUntil.getOrDefault(u, 0L) - System.currentTimeMillis();
+            if (left > 0) parts.add("다시 묻기까지 " + (left + 999) / 1000 + "초");
+        }
         parts.add("길라잡이 " + (eco.kv().has("guide.all." + u) ? "모두 마침" : "덜 마침"));
         if (statue.saved()) parts.add("동상 있음");
         return String.join(" · ", parts);
     }
 
+    /** Scene: the records it would tell them, and its ask (chat only, nothing saved). */
+    private void sceneRecords(Player p) {
+        records(p, l -> {
+            List<String> all = new ArrayList<>(l);
+            all.add(line("ask", "거꾸로 한 번만 더 봐 주세요. 제가 어디서 잘못됐는지."));
+            say(p, all, null, 0, () -> { });
+        });
+    }
+
     @Override
     public List<String> scenes() {
-        return List.of("기록", "틀린그림", "다가옴", "숨은방", "두안내원", "가짜엔딩", "동상", "쪽지", "틀린안내원", "동상치우기");
+        return List.of("질문", "기록", "틀린그림", "다가옴", "숨은방", "두안내원", "가짜엔딩", "동상", "쪽지", "틀린안내원", "동상치우기");
     }
 
     @Override
     public boolean scene(CommandSender admin, Player p, String word) {
         UUID u = p.getUniqueId();
         switch (word) {
-            case "기록" -> records(p, l -> {
-                List<String> all = new ArrayList<>(l);
-                all.add(line("ask", "거꾸로 한 번만 더 봐 주세요. 제가 어디서 잘못됐는지."));
-                say(p, all, null, 0, () -> { });
-            });
+            case "질문" -> {
+                admin.sendMessage(Text.mm("<gray>질문 (차례로 돌아감, 30초 안에 채팅으로 대답):"));
+                List<Map.Entry<String, List<String>>> qs = questions();
+                for (int i = 0; i < qs.size(); i++)
+                    admin.sendMessage(Text.mm(" <white>" + (i + 1) + ". " + qs.get(i).getKey() + " <gray>→ " + esc(String.join(" / ", qs.get(i).getValue()))));
+                if (!ask(p, null, true)) admin.sendMessage(Text.mm("<red>usher.yml 에 questions 가 없어요"));
+            }
+            case "기록" -> sceneRecords(p);
             case "틀린그림" -> {
                 Walk w = walks.computeIfAbsent(u, Walk::new);
                 w.preview = true;
