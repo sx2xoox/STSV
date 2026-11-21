@@ -4,31 +4,31 @@
 # ranges 가 있는 효과는 등급마다 범위를 직접 적음(가방 줄 수, 자석 반경 등).
 
 grades:
-  common:     { name: "C", color: "#e8e8e8", range: [0.10, 0.22], subs: [20], refine: 15000, refine-items: { economy:gem_dust: 2 }, reroll: 40000, enhance: 0.2, box: 0.78, drop: 0.85 }
-  fine:       { name: "B", color: "#5ab0ff", range: [0.20, 0.40], subs: [10, 30], refine: 60000, refine-items: { economy:gem_dust: 4, economy:tempering_stone: 2 }, reroll: 100000, enhance: 0.4, box: 0.18, drop: 0.13 }
-  masterwork: { name: "A", color: "#c58cff", range: [0.38, 0.65], subs: [10, 20, 30], refine: 250000, refine-items: { economy:gem_dust: 6, economy:tempering_stone: 6 }, reroll: 250000, enhance: 1.0, box: 0.036, drop: 0.018, announce-perfect: true }
-  treasure:   { name: "S", color: "#ffd36b", range: [0.62, 1.00], subs: [10, 20, 30], sub-floor: 0.5, refine: 800000, refine-items: { economy:gem_dust: 10, economy:tempering_stone: 15 }, reroll: 600000, enhance: 3.0, box: 0.004, drop: 0.002, announce: true, announce-perfect: true }
+  common:     { name: "C", color: "#e8e8e8", range: [0.10, 0.22], subs: [20], refine: 12000, refine-items: { economy:gem_dust: 2 }, reroll: 32000, enhance: 0.2, box: 0.78, drop: 0.85 }
+  fine:       { name: "B", color: "#5ab0ff", range: [0.20, 0.40], subs: [10, 30], refine: 48000, refine-items: { economy:gem_dust: 4, economy:tempering_stone: 2 }, reroll: 80000, enhance: 0.4, box: 0.18, drop: 0.13 }
+  masterwork: { name: "A", color: "#c58cff", range: [0.38, 0.65], subs: [10, 20, 30], refine: 200000, refine-items: { economy:gem_dust: 6, economy:tempering_stone: 6 }, reroll: 200000, enhance: 1.0, box: 0.036, drop: 0.018, announce-perfect: true }
+  treasure:   { name: "S", color: "#ffd36b", range: [0.62, 1.00], subs: [10, 20, 30], sub-floor: 0.5, refine: 640000, refine-items: { economy:gem_dust: 10, economy:tempering_stone: 15 }, reroll: 480000, enhance: 3.0, box: 0.004, drop: 0.002, announce: true, announce-perfect: true }
 
 refines: 3                 # 장신구마다 제련 횟수
-reroll-step: 0.20          # 옵션 변경: 같은 장신구에서 할 때마다 값 +20% (누적)
+reroll-step: 0.15          # 옵션 변경: 같은 장신구에서 할 때마다 값 +15% (누적)
 sub-size: 0.2              # 부가 옵션 크기: 그 효과 S 범위 × 0.2
 
-# 강화 (값·단련석은 A 기준, 등급의 enhance 배수를 곱함). add = 그 단계가 더하는 효과(강화 전 값 기준, 더하기)
+# 강화 (값·단련석은 A 기준, 등급의 enhance 배수를 곱함; 2026-11: 1~6단계 -20%, 7~10단계 -30%, 제련 · 옵션 변경 -20%). add = 그 단계가 더하는 효과(강화 전 값 기준, 더하기)
 enhance:
   item: economy:tempering_stone
   charm: economy:guard_charm      # 보호 부적: 하락을 한 번 막음
   drop-from: 6                    # 이 단계부터 실패하면 한 단계 하락
   steps:
-    - { add: 0.015, cost: 17000, stones: 1, chance: 0.95 }
-    - { add: 0.025, cost: 30000, stones: 2, chance: 0.90 }
-    - { add: 0.035, cost: 50000, stones: 3, chance: 0.82 }
-    - { add: 0.045, cost: 85000, stones: 4, chance: 0.72 }
-    - { add: 0.055, cost: 135000, stones: 6, chance: 0.62 }
-    - { add: 0.065, cost: 210000, stones: 8, chance: 0.52 }
-    - { add: 0.075, cost: 340000, stones: 11, chance: 0.43 }
-    - { add: 0.085, cost: 550000, stones: 15, chance: 0.34 }
-    - { add: 0.095, cost: 850000, stones: 20, chance: 0.26 }
-    - { add: 0.105, cost: 1350000, stones: 27, chance: 0.19 }
+    - { add: 0.015, cost: 13600, stones: 1, chance: 0.95 }
+    - { add: 0.025, cost: 24000, stones: 2, chance: 0.90 }
+    - { add: 0.035, cost: 40000, stones: 3, chance: 0.82 }
+    - { add: 0.045, cost: 68000, stones: 4, chance: 0.72 }
+    - { add: 0.055, cost: 108000, stones: 6, chance: 0.62 }
+    - { add: 0.065, cost: 168000, stones: 8, chance: 0.52 }
+    - { add: 0.075, cost: 238000, stones: 11, chance: 0.43 }
+    - { add: 0.085, cost: 385000, stones: 15, chance: 0.34 }
+    - { add: 0.095, cost: 595000, stones: 20, chance: 0.26 }
+    - { add: 0.105, cost: 945000, stones: 27, chance: 0.19 }
   # 레벨이 강화 상한을 풂: 이 레벨 미만이면 이 단계까지만
   level-caps: { 1: 3, 10: 6, 20: 10 }
 

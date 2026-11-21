@@ -55,9 +55,9 @@ class AccessorySpecTest {
     void enhanceCostsScaleByGradeAndLevelsUnlockSteps() {
         AccessorySpec s = spec();
         assertEquals(10, s.steps().size());
-        assertEquals(17000, s.enhanceCost(s.grades().get("masterwork"), 1));
-        assertEquals(1350000L * 3, s.enhanceCost(s.grades().get("treasure"), 10));
-        assertEquals(Math.round(1350000 * 0.4), s.enhanceCost(s.grades().get("fine"), 10));
+        assertEquals(13600, s.enhanceCost(s.grades().get("masterwork"), 1));
+        assertEquals(945000L * 3, s.enhanceCost(s.grades().get("treasure"), 10));
+        assertEquals(Math.round(945000 * 0.4), s.enhanceCost(s.grades().get("fine"), 10));
         assertEquals(81, s.enhanceStones(s.grades().get("treasure"), 10));
         assertEquals(6, s.dropFrom());
         assertEquals(3, s.enhanceCap(1));
@@ -69,7 +69,7 @@ class AccessorySpecTest {
         assertEquals(0, s.subsOpen(s.grades().get("common"), 19));
         assertEquals(1, s.subsOpen(s.grades().get("common"), 20));
         assertEquals(3, s.subsOpen(s.grades().get("treasure"), 30));
-        assertEquals(Math.round(600000 * 1.44), s.rerollCost(s.grades().get("treasure"), 2));
+        assertEquals(Math.round(480000 * 1.3225), s.rerollCost(s.grades().get("treasure"), 2));
     }
 
     @Test
