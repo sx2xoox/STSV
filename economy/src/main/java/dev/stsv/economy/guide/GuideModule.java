@@ -416,7 +416,7 @@ public final class GuideModule extends EcoModule {
         s.placed.clear();
         for (Block b : s.planted) if (core.crops() != null) core.crops().clear(b);
         s.planted.clear();
-        for (Block b : s.tilled) if (b.getType() == Material.FARMLAND) b.setType(Material.DIRT, false);
+        for (Block b : s.tilled) if (b.getType() != Material.DIRT) b.setType(Material.DIRT, false);
         s.tilled.clear();
         if (eco.accessories() != null) eco.accessories().purgeTrial(p.getUniqueId());
         p.setItemOnCursor(Items.trial(p.getItemOnCursor()) ? null : p.getItemOnCursor());
@@ -1262,6 +1262,8 @@ public final class GuideModule extends EcoModule {
         Session s = sessions.get(p.getUniqueId());
         if (s == null || !inWorld(p) || core.furniture().probing()) return;
         if (Items.furniture(e.getItemInHand())) return;   // a machine's cells: the furniture event tells
+        // a hoe tilling the field reports as placing farmland: that soil is the field's own, put back as dirt at the end
+        if (Tag.ITEMS_HOES.isTagged(e.getItemInHand().getType())) return;
         s.placed.add(e.getBlock());
         String region = placeRegion(s.station.id());
         if (region != null) signal(p, "place_block", Map.of("region", region));
