@@ -544,10 +544,16 @@ public final class RoadSection {
      * gap: taken away). Only guardrail blocks and their caps, nothing else; twice is once. How many blocks changed.
      */
     public int restyleRails(int i) {
-        if (parts[i] != RoadProfile.Part.ROAD || i == 0 || i >= points.size() - 1) return 0;
+        if (parts[i] != RoadProfile.Part.ROAD) return 0;
         int e = extra(i), base = RoadProfile.block(halves[i]);
         List<Col> cols = new ArrayList<>();
-        if (columns(i, e, cols) != null) return 0;
+        int was = shoulder;
+        shoulder = 1;   // (as wide as any character's shoulder: a road built as another one had its guardrails further out)
+        try {
+            if (columns(i, e, cols) != null) return 0;
+        } finally {
+            shoulder = was;
+        }
         int changed = 0;
         for (Col c : cols) {
             if (Math.abs(c.lat()) - e <= 3.5) continue;

@@ -301,15 +301,18 @@ class RoadCharacterTest {
 
     @Test
     void detailsAlongTheRoad() {
-        // a long road with a sharp bend, over a lake (a bridge) and through a steep hill (a tunnel)
+        // a long straight road (km posts) and a short one with a sharp bend (chevrons, rumble strips)
         for (RoadCharacter c : RoadCharacter.values()) {
-            BuiltRoad b = build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 1300, 0, 1300, 1300), c);
+            BuiltRoad longRoad = build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 2100, 0), c);
+            RoadBendTest.Road lr = longRoad.road();
+            List<String> km = RoadDetail.of(new RoadGuide.Road("서해", lr.points(), lr.halves(), lr.parts(), 7, "본사", c, null), lr.parts(),
+                    lr.section().signs().keySet(), 40).stream().filter(l -> l.style() == RoadDetail.Style.KM_POST).map(RoadDetail.Label::text).toList();
+            String line = (c == RoadCharacter.EASY ? "고속국도" : "국도") + " 7호선 · ";
+            assertEquals(List.of(line + "1km", line + "2km"), km, c.word);
+            BuiltRoad b = build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 150, 0, 150, 150), c);
             RoadBendTest.Road r = b.road();
             List<RoadDetail.Label> ls = RoadDetail.of(new RoadGuide.Road("서해", r.points(), r.halves(), r.parts(), 7, "본사", c, null), r.parts(),
                     r.section().signs().keySet(), 40);
-            List<String> km = ls.stream().filter(l -> l.style() == RoadDetail.Style.KM_POST).map(RoadDetail.Label::text).toList();
-            assertEquals(List.of((c == RoadCharacter.EASY ? "고속국도" : "국도") + " 7호선 · 1km", (c == RoadCharacter.EASY ? "고속국도" : "국도") + " 7호선 · 2km"),
-                    km, c.word);
             long chevrons = ls.stream().filter(l -> l.style() == RoadDetail.Style.CHEVRON).count();
             assertTrue(chevrons >= 3, c.word + " chevrons: " + chevrons);
             for (RoadDetail.Label l : ls) {
@@ -323,12 +326,14 @@ class RoadCharacterTest {
             int strips = 0;
             for (int i = 0; i < r.points().size(); i++) if (r.section().rumble(i)) {
                 strips++;
-                assertTrue(Math.abs(i - 1300) < 60, "a strip near the bend only: " + i);
+                assertTrue(Math.abs(i - 150) < 60, "a strip near the bend only: " + i);
             }
             assertTrue(strips >= 10, "strips: " + strips);
             assertTrue(b.land().put.containsValue(Material.DEEPSLATE_TILES));
-            boolean poles = b.land().put.containsValue(Material.RED_NETHER_BRICK_WALL), flowers = b.land().put.containsValue(Material.POPPY)
-                    || b.land().put.containsValue(Material.DANDELION) || b.land().put.containsValue(Material.CORNFLOWER);
+            Map<Long, Material> all = new HashMap<>(b.land().put);
+            all.putAll(longRoad.land().put);
+            boolean poles = all.containsValue(Material.RED_NETHER_BRICK_WALL), flowers = all.containsValue(Material.POPPY)
+                    || all.containsValue(Material.DANDELION) || all.containsValue(Material.CORNFLOWER) || all.containsValue(Material.AZURE_BLUET);
             assertEquals(c == RoadCharacter.HARD, poles, c.word + " snow poles");
             assertEquals(c == RoadCharacter.EASY, flowers, c.word + " flowers");
             assertEquals(List.of(), RoadBendTest.inTheWay(r, r.section()), c.word);
@@ -341,6 +346,61 @@ class RoadCharacterTest {
         List<String> bores = RoadDetail.of(new RoadGuide.Road("동해", hill.road().points(), hill.road().halves(), hill.road().parts(), 1, "본사"),
                 hill.road().parts(), java.util.Set.of(), 40).stream().filter(l -> l.style() == RoadDetail.Style.NAME).map(RoadDetail.Label::text).toList();
         assertEquals(List.of("동해1터널", "동해1터널"), bores, "over either portal");
+    }
+
+    /** A causeway: the road on a bank 8 over the ground from 4 out (every shoulder a drop: guardrails all along). */
+    static final RoadBendTest.Ground CAUSEWAY = (x, z) -> Math.abs(z) >= 4 && Math.abs(x - 75) >= 4 ? 55 : 63;
+
+    static Map<Material, Integer> count(Map<Long, Material> m) {
+        Map<Material, Integer> out = new HashMap<>();
+        for (Material x : m.values()) out.merge(x, 1, Integer::sum);
+        return out;
+    }
+
+    @Test
+    void guardrailsOfEachCharacterAndTheirRestyle() {
+        Map<RoadCharacter, Map<Material, Integer>> rails = new HashMap<>();
+        for (RoadCharacter c : RoadCharacter.values()) {
+            BuiltRoad b = build(new RoadBendTest.Terra(CAUSEWAY, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 150, 0), c);
+            rails.put(c, count(b.land().put));
+            assertEquals(List.of(), RoadBendTest.inTheWay(b.road(), b.road().section()), c.word);
+        }
+        Map<Material, Integer> n = rails.get(RoadCharacter.NORMAL), e = rails.get(RoadCharacter.EASY), h = rails.get(RoadCharacter.HARD);
+        assertTrue(n.getOrDefault(Material.ANDESITE_WALL, 0) > 100 && n.getOrDefault(Material.WHITE_CARPET, 0) > 100, "normal: andesite, white band " + n);
+        assertTrue(e.getOrDefault(Material.POLISHED_BLACKSTONE_WALL, 0) > 100 && e.getOrDefault(Material.IRON_TRAPDOOR, 0) > 80
+                && e.getOrDefault(Material.YELLOW_CARPET, 0) >= 10 && !e.containsKey(Material.ANDESITE_WALL), "easy: steel " + e);
+        int fence = h.getOrDefault(Material.DARK_OAK_FENCE, 0);
+        assertTrue(fence > 60 && fence < n.get(Material.ANDESITE_WALL) * 0.8 && !h.containsKey(Material.ANDESITE_WALL), "hard: fence with gaps " + h);
+
+        // a bend's outside on a hard road: yellow and black stripes (drop or not)
+        BuiltRoad bend = build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 100, 0, 100, 100), RoadCharacter.HARD);
+        Map<Material, Integer> bc = count(bend.land().put);
+        assertTrue(bc.getOrDefault(Material.YELLOW_TERRACOTTA, 0) > 0 && bc.getOrDefault(Material.BLACK_TERRACOTTA, 0) > 0, "stripes " + bc);
+        assertEquals(List.of(), RoadBendTest.inTheWay(bend.road(), bend.road().section()));
+
+        // 가드레일교체: an old (normal) road's guardrails restyled to hard and to easy in place, nothing else; twice is once
+        for (RoadCharacter to : List.of(RoadCharacter.HARD, RoadCharacter.EASY)) {
+            BuiltRoad old = build(new RoadBendTest.Terra(CAUSEWAY, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 150, 0), RoadCharacter.NORMAL);
+            RoadBendTest.Terra land = old.land();
+            Map<Long, Material> before = new HashMap<>(land.put);
+            RoadSection sec = new RoadSection(land, RoadBendTest.STYLE, old.road().points(), old.road().halves(), old.road().parts(), "a", 1)
+                    .character(to, null);
+            land.log = new ArrayList<>();
+            int changed = 0;
+            for (int i = 0; i < old.road().points().size(); i++) changed += sec.restyleRails(i);
+            assertTrue(changed > 100, to.word + ": " + changed);
+            for (int[] p : land.log) {
+                Material was = before.getOrDefault(RoadBendTest.Terra.key(p[0], p[1], p[2]), land.base(p[0], p[1], p[2]));
+                assertTrue(RoadSection.RAIL_BLOCKS.contains(was) || RoadSection.RAIL_CAPS.contains(was) || was == Material.AIR,
+                        to.word + ": only guardrails and their caps, not " + was + " at " + java.util.Arrays.toString(p));
+            }
+            Map<Material, Integer> after = count(land.put);
+            assertFalse(after.containsKey(Material.ANDESITE_WALL) || after.containsKey(Material.WHITE_CARPET), to.word + " " + after);
+            int again = 0;
+            for (int i = 0; i < old.road().points().size(); i++) again += sec.restyleRails(i);
+            assertEquals(0, again, "twice is once");
+            assertEquals(List.of(), RoadBendTest.inTheWay(new RoadBendTest.Road(land, old.road().points(), old.road().halves(), old.road().parts(), sec, "a"), sec));
+        }
     }
 
     // ------------------------------------------------------------------------------------------
