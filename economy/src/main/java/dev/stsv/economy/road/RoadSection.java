@@ -620,9 +620,9 @@ public final class RoadSection {
     }
 
     /** A rough road's patches (README "국도", 성격): one cell in this many (25 on the others), half of them cracked. */
-    static final int ROUGH_PATCHES = 6;
+    static final int ROUGH_PATCHES = 4;
     /** A rough road's worn edge: one edge line block in this many is coarse dirt (cosmetic: a full block, level with the lane). */
-    static final int ROUGH_EDGE = 4;
+    static final int ROUGH_EDGE = 3;
     static final Material WORN_EDGE = Material.COARSE_DIRT;
 
     /** The edge line's block at a column: a rough road's worn here and there. */

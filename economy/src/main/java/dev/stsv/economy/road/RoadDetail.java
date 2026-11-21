@@ -135,6 +135,14 @@ public final class RoadDetail {
         double rx = -h[1] * side, rz = h[0] * side;
         double x = q[0] + rx * lat, z = q[1] + rz * lat;
         int[] col = {(int) Math.floor(x), (int) Math.floor(z)};
+        // a chevron round a sharp bend: its column never drawn in by the rounding more than half a block (a hard road's
+        // bend room leaves no margin to spare)
+        for (int k = 0; style == Style.CHEVRON && k < 4 && Math.hypot(col[0] + 0.5 - q[0], col[1] + 0.5 - q[1]) < lat - 0.5; k++) {
+            lat += 0.25;
+            x = q[0] + rx * lat;
+            z = q[1] + rz * lat;
+            col = new int[]{(int) Math.floor(x), (int) Math.floor(z)};
+        }
         int level = RoadProfile.block(road.halves()[i]);
         return new Label(road.dock(), col[0] + 0.5, level + 1 + up, col[1] + 0.5, RoadSign.yaw(-h[0], -h[1]), text, style, col, level, i);
     }

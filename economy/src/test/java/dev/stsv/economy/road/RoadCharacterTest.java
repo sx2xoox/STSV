@@ -218,14 +218,14 @@ class RoadCharacterTest {
         assertEquals(new RoadProfile.Grade(5, 4), RoadProfile.Grade.of(2.5));
         RoadCharacter.Shape e = RoadCharacter.EASY.shape(), h = RoadCharacter.HARD.shape(), n = RoadCharacter.NORMAL.shape();
         assertEquals(new RoadProfile.Grade(5, 2), e.grade());
-        assertEquals(new RoadProfile.Grade(5, 4), h.grade());
+        assertEquals(new RoadProfile.Grade(9, 8), h.grade());
         assertTrue(e.weights().turn() > 0 && n.weights().turn() == 0 && h.weights().turn() == 0);
         assertTrue(e.weights().steep() > n.weights().steep() && h.weights().steep() < n.weights().steep());
         assertTrue(e.weights().climb() > n.weights().climb() && h.weights().climb() < n.weights().climb());
         assertTrue(h.tunnelCover() > n.tunnelCover() && h.bridgeGap() > n.bridgeGap(), "a hard road keeps off bridges and tunnels");
         assertTrue(e.tunnelCover() < n.tunnelCover(), "an easy road bores rather than climbs");
         assertEquals(30, e.lightEvery(40));
-        assertEquals(80, h.lightEvery(40));
+        assertEquals(120, h.lightEvery(40));
 
         // the profile: up a 1 in 1 slope from 63 to 93, each road keeps its own grade
         int len = 200;
@@ -566,9 +566,17 @@ class RoadCharacterTest {
     /** A mountainside rising in z (1 in 1.4): a switchback climbs it. */
     static final RoadBendTest.Ground SIDE = (x, z) -> (int) Math.floor(63 + Math.clamp(z * 0.7, 0, 40));
 
-    /** The hard shapes: hairpins, S-bends, steep grades with bends, crests and dips. */
+    /**
+     * The hard shapes: hairpins, S-bends, steep grades with bends, crests and dips; and on a hard road, the tighter ones
+     * it is for: hairpins up a steep mountainside, a hairpin 20 across, a zigzag of right angles.
+     */
     static Map<String, BuiltRoad> hardShapes() {
-        return shapes(RoadCharacter.HARD);
+        Map<String, BuiltRoad> out = shapes(RoadCharacter.HARD);
+        RoadCharacter h = RoadCharacter.HARD;
+        out.put("steep hairpins", build(new RoadBendTest.Terra(SIDE, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 60, 0, 60, 18, 0, 18, 0, 36, 60, 36), h));
+        out.put("tight hairpin", build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 60, 0, 60, 20, 0, 20), h));
+        out.put("zigzag", build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 30, 0, 42, 12, 30, 24, 42, 36, 30, 48, 60, 48), h));
+        return out;
     }
 
     /** The hard shapes built as roads of this character. */
@@ -634,11 +642,17 @@ class RoadCharacterTest {
     /** The buses and the box truck: every long vehicle the roads are for. */
     static final List<String> LONG = List.of("limousine_bus", "village_bus", "mini_bus", "box_truck");
 
+    /**
+     * 어려운길 at the edge of passable: every long vehicle driven carefully (on its lane, 4 b/s, 3.5 round a bend, both ways)
+     * gets through every hard shape without getting stuck or touching anything; one at a normal speed (7 b/s) steering
+     * late gets stuck or scrapes on several (the hairpins, the steep 90, the rolling bends, round the hill); a fast sloppy
+     * one on the edge line on more still.
+     */
     @Test
     void aCarefulDriverGetsThroughEveryHardShapeAndAFastSloppyOneScrapes() {
         Map<String, BuiltRoad> shapes = hardShapes();
         List<String> bad = new ArrayList<>();
-        int rough = 0;
+        java.util.Set<String> normal = new java.util.TreeSet<>(), rough = new java.util.TreeSet<>();
         for (var e : shapes.entrySet()) {
             RoadBendTest.Road r = e.getValue().road();
             assertEquals(List.of(), RoadBendTest.inTheWay(r, r.section()), e.getKey() + ": nothing in the hard road's reach");
@@ -647,25 +661,25 @@ class RoadCharacterTest {
                 assertNotNull(s, id);
                 for (double lat : new double[]{1.25, -1.25}) {
                     for (boolean back : new boolean[]{false, true}) {
-                        // careful: on his lane, 4.5 b/s, 4 round a bend
-                        RoadBendTest.Drive d = RoadBendTest.drive(s, r, back, k -> lat, 4.5, 4.0, false);
+                        // careful: on his lane, 4 b/s, 3.5 round a bend
+                        RoadBendTest.Drive d = RoadBendTest.drive(s, r, back, k -> lat, 4.0, 3.5, false);
                         if (!d.clean()) bad.add(e.getKey() + " " + id + " " + lat + (back ? " back" : "") + ": " + d);
+                        // a normal speed, not slowing for the bends, steering late
+                        if (!RoadBendTest.drive(s, r, back, k -> lat, 7, 7, true).clean()) normal.add(e.getKey());
                     }
                 }
             }
             // fast and sloppy: full speed, on the edge line, steering late
-            boolean scraped = false;
             for (String id : List.of("limousine_bus", "village_bus")) {
                 for (double lat : new double[]{2.0, -2.0}) {
                     RoadBendTest.Drive d = RoadBendTest.drive(all.get(id), r, false, k -> lat, 10, 10, true);
-                    scraped |= !d.clean();
+                    if (!d.clean()) rough.add(e.getKey());
                 }
             }
-            if (scraped) rough++;
         }
         assertEquals(List.of(), bad, "a careful driver gets through every hard shape");
-        assertTrue(rough >= 3, "a fast sloppy driver scrapes or bumps on several hard shapes (the switchback, the steep 90, the rolling bends, "
-                + "round the hill), shapes: " + rough);
+        assertTrue(normal.size() >= 5, "at 7 b/s a driver gets stuck or scrapes on " + normal);
+        assertTrue(rough.size() >= 5, "a fast sloppy driver scrapes or bumps on " + rough);
     }
 
     /**

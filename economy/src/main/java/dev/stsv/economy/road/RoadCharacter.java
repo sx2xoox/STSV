@@ -79,10 +79,11 @@ public enum RoadCharacter {
 
     /**
      * Hard roads' bend widening: only what the long vehicles need slowing for the bend (RoadBendTest / RoadCharacterTest:
-     * the limousine bus at 4 b/s on its lane gets round every hard shape clean); never under {@link #MIN_BEND}. Normal's:
-     * a careful driver at 5 b/s gets round every normal shape clean.
+     * every long vehicle at 4 b/s on its lane, 3.5 round a bend, gets round every hard shape clean; at 0.45 one already
+     * touches a zigzag's wall); never under {@link #MIN_BEND}. Normal's: a careful driver at 5 b/s gets round every normal
+     * shape clean.
      */
-    static final double HARD_BEND = 0.6, NORMAL_BEND = 0.8, MIN_BEND = 0.5;
+    static final double HARD_BEND = 0.5, NORMAL_BEND = 0.8, MIN_BEND = 0.5;
 
     /** The roads as they were built before normal got harder (RoadModule's, RoadProfile's and RoadSection's old constants). */
     static final Shape LEGACY_SHAPE = new Shape(RoadPlanner.GRADE_RUN, 0.02, 0.6, 0, RoadPlanner.STRAIGHTEN, RoadProfile.FOLLOW, RoadModule.BRIDGE_GAP,
@@ -91,7 +92,7 @@ public enum RoadCharacter {
     static final Map<RoadCharacter, Shape> DEFAULTS = new EnumMap<>(Map.of(
             EASY, new Shape(5, 0.04, 1.2, 0.5, 1.10, 6, 3, 4, 4, 1, 0.75, 12, 2, 1, false, false, 0.15, 1, 1, 1, 1),
             NORMAL, new Shape(2.75, 0.015, 0.45, 0, 1.01, 3, 4, 6, 4, 0, 1.25, 24, 3, NORMAL_BEND, false, false, 0, 1, 1, 1, 1),
-            HARD, new Shape(2.5, 0.01, 0.3, 0, 1.0, 1, 5, 8, 8, -1, 2, 0, 3, HARD_BEND, true, true, 0, 1.4, 2, 2, 1),
+            HARD, new Shape(2.25, 0.005, 0.3, 0, 1.0, 0, 6, 10, 10, -1, 3, 0, 4, HARD_BEND, true, true, 0, 1.4, 2, 2, 1),
             LEGACY, LEGACY_SHAPE));
 
     private static volatile Map<RoadCharacter, Shape> shapes = DEFAULTS;
