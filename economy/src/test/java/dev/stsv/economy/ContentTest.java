@@ -274,8 +274,8 @@ class ContentTest {
         // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12 + 12, ours.size(),
-                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 12 숨은 비밀 물건");
+        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12 + 14, ours.size(),
+                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 14 숨은 비밀 물건");
         assertEquals(7, machines.size());
         assertEquals(148 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
