@@ -81,6 +81,7 @@ public final class EcoPlugin extends JavaPlugin {
     private dev.stsv.economy.road.RoadModule roads;
     private dev.stsv.economy.bus.BusModule bus;
     private dev.stsv.economy.guide.GuideModule guide;
+    private dev.stsv.economy.secret.SecretModule secrets;
 
     public static EcoPlugin get() {
         return instance;
@@ -131,6 +132,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(roads = new dev.stsv.economy.road.RoadModule(this));
         add(bus = new dev.stsv.economy.bus.BusModule(this));   // after the roads: its stops stand on them
         add(guide = new dev.stsv.economy.guide.GuideModule(this));   // after everything it teaches (it reads them all)
+        add(secrets = new dev.stsv.economy.secret.SecretModule(this));   // after what the secrets hide in (stocks, mail, machines, guide)
         add(rank = new RankModule(this));
         add(metrics = new MetricsModule(this));   // last: its daily report reads what the others did
         StallRemoval.run(this, core.db());
@@ -266,6 +268,7 @@ public final class EcoPlugin extends JavaPlugin {
 
     /** 길라잡이 (null before it started) */
     public dev.stsv.economy.guide.GuideModule guide() { return guide; }
+    public dev.stsv.economy.secret.SecretModule secrets() { return secrets; }
     public RequestModule requests() { return requests; }
     public dev.stsv.economy.mission.MissionModule missions() { return missions; }
     public RankModule rank() { return rank; }
