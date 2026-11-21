@@ -781,6 +781,19 @@ bceb0c402f2a9d2ea61ee6013e06d537fb3cccd1 economy/events.yml
 8b403b54e42edeede9b0e1d1f39641838e906573 economy/fish.yml
 95fcf8de969f5dff0446d2e00781aaf1f13cee84 economy/fish.yml
 dd298cd4fd4f7181000e8729f0041befeb6d2c0e economy/fish.yml
+1ad82085cd14229f99485fe14abe88bd629df598 economy/guide/topics/accessories.yml
+816cd2f6c9f97ecc21ae8be8fa8bd3cab2b6f746 economy/guide/topics/bus.yml
+80921514f62e7d9a2110166621a5b1920490c15b economy/guide/topics/dock.yml
+e26ca8566247d83485c6e0abd3c005a84b70f6ff economy/guide/topics/farming.yml
+a2dd622ed0e656340e46d8b10cbf50fdceb6e23e economy/guide/topics/fishing.yml
+a1bce9d354d395a22711d61c6938c4b4db93d24d economy/guide/topics/jobs.yml
+f61d6dcbc9d4e8d574cb511e9320e3d756fe9dd2 economy/guide/topics/land.yml
+5a2bff954d1ebb99012ecfb15b6075ab37e0b485 economy/guide/topics/machines.yml
+07efbe793bfe4f33304f95c3b551d7fb03332ce0 economy/guide/topics/mining.yml
+b824a187f62e836a499f95f5a0705b79d04e5f8a economy/guide/topics/missions.yml
+c2ccd754f9dffe056d20a43e68a2f600da952b88 economy/guide/topics/shop.yml
+459344e82ff0d283c7e7e2156a66d584f412912d economy/guide/topics/stocks.yml
+719c022201812d1ba14c9bd0f350016eb4d46095 economy/guide/topics/trade.yml
 0aba8804c1f1a81b0853579406b4fd48c423b5f0 economy/items/accessories.yml
 c63aa429cadf52933c600ce31276d4e1584555a3 economy/items/accessories.yml
 ecee67b5906761452967446c940122b32b3244ca economy/items/accessories.yml
@@ -881,6 +894,7 @@ ec79c963203836ba4113e8ebd5ca161bbc6932c1 economy/menus/bus_nav.yml
 6ed4ce1d191f3244fea4c9e1b5a1f6898ef16441 economy/menus/codex.yml
 78b40a730a1a3d81de613aa8726731e31a7cbe86 economy/menus/codex.yml
 915b836fccc6ea5b3d2aec9fa4095926b1116413 economy/menus/codex.yml
+cc8e522007ac86902685d630b9cf88849d572f31 economy/menus/guide.yml
 047f4b387dbfa41d15112c4116149ca42d3e8c60 economy/menus/hub.yml
 0d095d7dd105e9d7eed4e6473a968a74c3a6afda economy/menus/hub.yml
 19afcc63cda04b9bf10861fbc361bf8b824a545d economy/menus/hub.yml
@@ -891,6 +905,7 @@ ec79c963203836ba4113e8ebd5ca161bbc6932c1 economy/menus/bus_nav.yml
 99b5087147bfb759ccdd8e88a1567eeca9a19a40 economy/menus/hub.yml
 99cc519ee1c27ef09c7453f83aeea97576123919 economy/menus/hub.yml
 a03d2be5ed02e489f63eb101f4a50498fb9caa2b economy/menus/hub.yml
+a207443c7d30b743d6ab57eb3704570c7eb0716f economy/menus/hub.yml
 bd746e0aa28d9eda330df753ba268835abbb9ed8 economy/menus/hub.yml
 c582e702ff790f37acd231f4521665c8d32b9185 economy/menus/hub.yml
 c69b63a7dfa86cda6d18cf9e01c68b4f71c4da7e economy/menus/hub.yml
@@ -2280,6 +2295,9 @@ e67ffe09d175cd10d6befc921f9948954ef6eb93 economy/titles/codex.yml
 a69bc0fe8e621a94a815db7e8cef41145f90a469 economy/titles/titles.yml
 a880ba52868b21f940f2fe984f4936e658f7f588 economy/titles/titles.yml
 aae437769098639d1b1b264518ecf02a611a5fe1 economy/titles/titles.yml
+bbf32a68eadae57f209773a94580913575a4908a economy/titles/titles.yml
+ce210bca2d89da616e31e081b8f07b0ba50e8d35 economy/titles/titles.yml
+d934aafe5960a2c23d8ff997f53fcad02dfbecec economy/titles/titles.yml
 e675b67bbedfa04e8036708f621c46b7e3008c84 economy/titles/titles.yml
 484c340cc131930a0f7544ef475d1f56dc8a5b93 economy/trade.yml
 657325ea4a31afddd84c928abfad6f6c1619bec6 economy/trade.yml
