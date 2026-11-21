@@ -187,6 +187,35 @@ public final class AccessoryModule extends EcoModule {
     // Items
     // ------------------------------------------------------------------------------------------
 
+    /** 길라잡이: is a trial accessory worn now? */
+    public boolean wearsTrial(UUID player) {
+        for (ItemStack it : store.worn(player)) if (Items.trial(it)) return true;
+        return false;
+    }
+
+    /** 길라잡이: takes every trial accessory off its slot (it is gone, not given back). Returns how many. */
+    public int purgeTrial(UUID player) {
+        ItemStack[] worn = store.worn(player);
+        int n = 0;
+        for (int i = 0; i < worn.length; i++) {
+            if (!Items.trial(worn[i])) continue;
+            store.setWorn(player, i, null);
+            n++;
+        }
+        if (n > 0) {
+            Player p = Bukkit.getPlayer(player);
+            if (p != null) refresh(p);
+            store.flush();
+        }
+        return n;
+    }
+
+    /** 길라잡이: a new C-grade accessory of a random effect (to be marked as a trial thing). */
+    public ItemStack trialAccessory() {
+        AccessorySpec.Grade g = spec.grades().values().iterator().next();
+        return create(rollNew(null, g));
+    }
+
     public static Accessory read(ItemStack it) {
         if (it == null || it.isEmpty() || !it.hasItemMeta()) return null;
         return Accessory.decode(it.getItemMeta().getPersistentDataContainer().get(KEY, PersistentDataType.STRING));
