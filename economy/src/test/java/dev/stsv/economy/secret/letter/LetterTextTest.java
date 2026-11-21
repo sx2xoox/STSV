@@ -73,6 +73,15 @@ class LetterTextTest {
     }
 
     @Test
+    void durationsReadLikeALetter() {
+        assertEquals("30분", LetterText.duration(1800));
+        assertEquals("40초", LetterText.duration(40));
+        assertEquals("1분 30초", LetterText.duration(90));
+        assertEquals("3분", LetterText.duration(180));
+        assertEquals("1시간", LetterText.duration(3600));
+    }
+
+    @Test
     void coordinatesRoundToTens() {
         assertEquals(120, LetterText.round(123));
         assertEquals(130, LetterText.round(125));
