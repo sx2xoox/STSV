@@ -1,0 +1,31 @@
+name: "버스 기사"
+icon: minecraft:yellow_dye
+minutes: 4
+order: 8
+station: bus
+about: "손님을 태워 다른 정류장에 내려 줘요"
+reward: { money: 2800 }
+steps:
+  - text: "/버스 렌트 를 쳐서 체험용 버스를 빌리세요"
+    say: "/버스 렌트 라고 쳐 보세요!"
+    detail: "진짜로는 국도 위 정류장 20칸 안에서 /버스 렌트 해요. 렌트 버스는 운임의 40%가 내 몫이에요."
+    goal: { type: bus_rent }
+    at: [0, 0, 3]
+  - text: "정류장 A(노란 칸)에 버스를 세우세요"
+    say: "노란 칸 안에서 멈추면 손님이 타요"
+    detail: "정류장 칸 안에 부드럽게 서면 손님 기분이 좋아져요. 급정거 · 부딪힘은 기분이 나빠져요."
+    done: "손님이 탔어요! 머리 위에 가는 곳이 나와요."
+    goal: { type: drive_stop, zone: stop_a }
+    at: [0, 0, 6]
+    then: board
+  - text: "길을 따라 건너편 정류장 B(노란 칸)까지 가서 세우세요"
+    say: "도로를 따라 반대편으로 가요"
+    detail: "진짜 운임 = 기본 100 + 도로 거리 × 0.4 에 손님 종류 · 기분 배수. 제시간에 가면 팁도 받아요."
+    done: "손님이 내렸어요! 진짜라면 여기서 운임을 받아요."
+    goal: { type: drive_stop, zone: stop_b }
+    at: [0, 0, 34]
+    then: alight
+  - text: "/버스 반납 으로 버스를 돌려주세요"
+    say: "다 썼으면 /버스 반납!"
+    done: "운전 중 /버스 내비 로 정류장 길 안내를 받을 수 있어요. 오래 할 거면 버스를 사는 게 이득이에요."
+    goal: { type: bus_return }

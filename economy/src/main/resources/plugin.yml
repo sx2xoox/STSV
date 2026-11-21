@@ -86,6 +86,10 @@ commands:
     description: 긴급 납품 사건에 인벤토리의 그 물건을 냄
     aliases: [deliver]
     permission: stsv.economy.play
+  길라잡이:
+    description: 길라잡이 - 체험관에서 직접 해 보며 배우기 (/길라잡이 그만 · 다시)
+    aliases: [튜토리얼, 가이드, guide, tutorial]
+    permission: stsv.economy.play
   기부:
     description: 세무 조사 기간의 기부
     aliases: [donate]

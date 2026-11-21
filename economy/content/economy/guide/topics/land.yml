@@ -1,0 +1,24 @@
+name: "땅·집"
+icon: minecraft:oak_door
+minutes: 2
+order: 9
+station: land
+about: "땅(청크)을 사서 내 집을 지어요"
+reward: { money: 2000 }
+items:
+  - { item: minecraft:oak_planks, amount: 16 }
+steps:
+  - text: "/땅 을 쳐서 서 있는 곳의 땅 정보를 보세요"
+    say: "/땅 이라고 쳐 보세요"
+    detail: "땅은 16×16 청크 단위예요. 건축월드에서 /땅 구매 로 사고, 한 사람당 2청크는 무료예요."
+    goal: { type: command, command: 땅 }
+    at: [0, 0, 10]
+  - text: "/땅 보기 로 땅 경계를 보세요"
+    say: "경계가 빛으로 보여요"
+    detail: "내 땅에서는 나와 구성원(/땅 초대)만 짓고 부수고 상자를 열 수 있어요."
+    goal: { type: command, command: 땅, args: 보기 }
+  - text: "노란 테두리(땅 한 칸) 안에 나무판자를 3개 놓아 보세요"
+    say: "체험용 판자로 집 짓기 연습!"
+    done: "땅에는 하루 재산세가 붙어요. 땅 금고(/땅 금고 입금)에 넣어 두면 거기서 빠져요."
+    goal: { type: place_block, region: plot, count: 3 }
+    at: [0, 0, 10]

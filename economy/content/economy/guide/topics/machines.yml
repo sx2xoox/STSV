@@ -1,0 +1,31 @@
+name: "기계 쓰기"
+icon: economy:press
+minutes: 3
+order: 2
+station: machines
+about: "기계를 놓고 재료를 넣어 물건을 만들어요"
+reward: { money: 2500, xp: 30 }
+items:
+  - { item: economy:press }
+  - { item: minecraft:wheat_seeds, amount: 32 }
+steps:
+  - text: "압착기를 노란 테두리 안에 놓으세요"
+    say: "압착기를 손에 들고 바닥을 우클릭!"
+    detail: "기계는 상점(구매 → 기계)에서 사요. 누구나 쓸 수 있고, 그 기계의 직업이면 더 빨라요. 지금 건 체험용이에요."
+    goal: { type: place_machine, machine: press }
+    at: [0, 0, 10]
+  - text: "압착기를 우클릭하고 재료 칸에 밀 씨앗을 넣으세요"
+    say: "왼쪽 재료 칸 3개 중 아무 데나 씨앗을 넣어요"
+    detail: "줄마다 재료 3칸 + 결과 1칸이에요. 재료를 넣으면 알아서 만들 것을 골라요. 씨앗 32개 → 씨앗 기름."
+    goal: { type: machine_input, machine: press }
+    at: [0, 0, 10]
+  - text: "씨앗 기름이 다 되면 결과 칸에서 꺼내세요"
+    say: "체험관 기계는 아주 빨라요. 금방 돼요!"
+    detail: "진짜 기계는 이것보다 오래 걸려요. 아무도 안 봐도 계속 돌아가니 넣어 두고 다른 일을 해도 돼요."
+    goal: { type: have_item, item: economy:seed_oil }
+    at: [0, 0, 10]
+  - text: "기계 화면 왼쪽 위 책(레시피)을 눌러 만들 수 있는 것을 보세요"
+    say: "레시피 책에 만들 수 있는 게 다 있어요"
+    done: "기계는 강화(1~4강)하면 줄이 늘고 빨라지고 새 레시피가 열려요. 회수하려면 때려서 부숴요."
+    goal: { type: menu, menu: economy:machine_recipes }
+    at: [0, 0, 10]

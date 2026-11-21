@@ -1,0 +1,25 @@
+name: "거래"
+icon: minecraft:gold_ingot
+minutes: 2
+order: 11
+station: trade
+about: "거래소 · 경매 · 직거래 · 우편함"
+reward: { money: 2200 }
+steps:
+  - text: "/거래소 를 열어 다른 사람이 올린 물건을 보세요"
+    say: "/거래소 라고 쳐 보세요"
+    detail: "값을 정해 올려 두면 접속하지 않아도 팔려요 (수수료 7%, 48시간). 구매 주문 탭에서는 살 사람이 값을 먼저 걸어요."
+    goal: { type: menu, menu: economy:market }
+    at: [0, 1, 11]
+  - text: "/경매 를 열어 경매장을 보세요"
+    say: "30분 동안 공개 입찰이에요"
+    detail: "경매는 막판 1분에 입찰하면 1분 늘어나요. 보증금은 팔리면 돌려받아요."
+    goal: { type: menu, menu: economy:auction }
+  - text: "/우편함 을 열어 보세요"
+    say: "못 받은 물건은 우편함으로 와요"
+    detail: "낙찰품 · 만료된 등록품 · 가득 찬 인벤토리에서 넘친 물건이 우편함에 모여요."
+    goal: { type: menu, menu: economy:mail }
+  - text: "/거래 를 쳐서 직거래 방법을 보세요"
+    say: "/거래 <플레이어> 로 바로 주고받아요"
+    done: "직거래는 양쪽이 [준비] → [확정]을 눌러야 끝나요. 무엇이든 바뀌면 처음부터 다시라 안전해요."
+    goal: { type: command, command: 거래 }

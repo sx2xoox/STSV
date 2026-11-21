@@ -1,0 +1,31 @@
+name: "하역장·탈것"
+icon: minecraft:minecart
+minutes: 3
+order: 7
+station: dock
+about: "탈것으로 짐을 실어 하역장에 팔아요"
+reward: { money: 2600, xp: 30 }
+steps:
+  - text: "차고 창구(지도 제작대)를 우클릭해 체험용 트럭을 받으세요"
+    say: "오른쪽 창구를 우클릭!"
+    detail: "탈것은 상점(구매 → 탈것)에서 사요. 지게 · 리어카부터 트럭까지 세대가 올라갈수록 많이 실어요."
+    goal: { type: interact, feature: garage }
+    at: [5, 0, 3]
+    then: truck
+  - text: "트럭을 몰아 검사대(노란 선 안)에 세우세요 (W 앞, S 뒤, A·D 방향)"
+    say: "노란 선 안에서 멈추면 돼요"
+    detail: "진짜 운송은 출발 터미널의 검사대에서 화물 검사를 받아 짐칸을 봉인한 뒤 떠나요. 내렸다면 트럭을 우클릭!"
+    done: "화물 검사 완료! (체험) 짐칸이 봉인되고 목적지 하역장이 정해졌어요."
+    goal: { type: drive_stop, zone: inspect }
+    at: [0, 0, 17]
+  - text: "하역 구역(앞쪽 노란 선 안)까지 달려가 세우세요"
+    say: "천천히 들어가 멈춰요"
+    detail: "진짜 하역장은 터미널에서 약 7,000블록 떨어져 있어요. 검사 뒤 그만큼 달려야 팔 수 있어요."
+    goal: { type: drive_stop, zone: unload }
+    at: [0, 0, 33]
+  - text: "하역 창구를 우클릭해 짐을 파세요"
+    say: "창구를 우클릭하면 판매 화면이 열려요"
+    done: "판매 완료! (체험) 하역장은 기계로 만든 완제품만 사고, 돈은 언제나 탈것 주인에게 가요."
+    goal: { type: interact, feature: unload_desk }
+    at: [5, 0, 33]
+    then: remove-vehicle

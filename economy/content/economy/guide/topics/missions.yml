@@ -1,0 +1,23 @@
+name: "미션·업적·치장"
+icon: minecraft:writable_book
+minutes: 2
+order: 13
+station: missions
+about: "매일 미션, 업적과 칭호, 치장"
+reward: { money: 2200 }
+steps:
+  - text: "/미션 을 열어 오늘의 미션을 보세요"
+    say: "/미션 이라고 쳐 보세요"
+    detail: "일일 3개 · 주간 3개. 다 끝내면 보너스! 미션을 우클릭하면 다른 미션으로 한 번 바꿀 수 있어요."
+    goal: { type: menu, menu: economy:missions }
+    at: [0, 1, 12]
+  - text: "/업적 을 열어 업적을 보세요"
+    say: "업적을 깨면 칭호와 점수를 받아요"
+    goal: { type: menu, menu: stsv:achievements }
+  - text: "/칭호 를 열어 칭호를 보세요"
+    say: "칭호를 누르면 이름 앞에 달려요"
+    goal: { type: menu, menu: stsv:titles }
+  - text: "/뽑기 를 열어 치장 뽑기를 보세요"
+    say: "머리 · 어깨 · 펫 치장이 있어요"
+    done: "치장은 /치장 에서 입어요. 통합 메뉴(Shift+F, /메뉴)에 모든 기능이 모여 있어요."
+    goal: { type: menu, menu: stsv:gacha }

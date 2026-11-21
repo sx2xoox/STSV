@@ -295,14 +295,14 @@ hub_work:
       name: "<white>직업"
       lore: ["<gray>지금 <white>{job} <gray>Lv{level}", "<yellow>우클릭: 직업 순위"]
     J:
-      action: "command:미션"
+      action: "hub:run:미션|run:길라잡이"
       icon: stsv:gui/blank
       material: WRITABLE_BOOK
       art: hub:mission
       label: "미션"
       accent: "#7ec85c"
       name: "<white>미션"
-      lore: ["<gray>일일 · 주간 미션"]
+      lore: ["<gray>일일 · 주간 미션", "<yellow>우클릭: 길라잡이 <gray>(직접 해 보며 배우기)"]
     K:
       action: "command:의뢰"
       icon: stsv:gui/blank

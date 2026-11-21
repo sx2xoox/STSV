@@ -1,0 +1,24 @@
+name: "낚시"
+icon: minecraft:fishing_rod
+minutes: 3
+order: 5
+station: fishing
+about: "물고기 98종: 낚고 도감에서 찾아봐요"
+reward: { money: 2300, xp: 30 }
+items:
+  - { item: minecraft:fishing_rod }
+steps:
+  - text: "낚싯대로 연못에 찌를 던지고, 찌가 잠기면 우클릭!"
+    say: "찌가 쏙 잠기는 순간 우클릭이에요"
+    detail: "물과 때(밤 · 비 · 계절)에 따라 다른 물고기가 물어요. 희귀 · 전설 물고기는 크기가 있어 클수록 비싸요."
+    goal: { type: catch }
+    at: [0, 0, 11]
+  - text: "/도감 을 열어 물고기 칸을 보세요"
+    say: "도감에 사는 곳과 시간이 나와요"
+    detail: "도감은 물건 한 개를 내면 등록돼요. 다 채우면 칭호를 받아요. (체험용 물고기는 등록되지 않아요)"
+    goal: { type: menu, menu: economy:codex }
+  - text: "물고기를 2마리 더 낚아 보세요"
+    say: "어부는 입질이 훨씬 빨라요!"
+    done: "낚은 물고기는 상점에 팔거나 손질대에서 생선살로 만들어 요리 재료로 써요. 통발 · 가두리도 있어요."
+    goal: { type: catch, count: 2 }
+    at: [0, 0, 11]

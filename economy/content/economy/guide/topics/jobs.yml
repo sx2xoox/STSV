@@ -1,0 +1,26 @@
+# 길라잡이 주제 하나 (파일 이름 = id). 형식은 README "길라잡이" 와 GuideSpec 맨 위 설명.
+# goal 종류: menu · command · has_job · place_machine · machine_input · have_item · till · plant · crop_ripe · harvest · break_ore ·
+#   catch · practice_sell · accessory_worn · accessory_off · place_block · interact · drive_stop · bus_rent · bus_return
+# at: 화살표가 가리키는 곳 (정거장 좌표: 오른쪽, 위, 안쪽). 보상은 처음 한 번만 (xp = 그때 직업의 경험치).
+name: "직업 고르기"
+icon: minecraft:iron_pickaxe
+minutes: 2
+order: 1
+station: jobs
+about: "직업 6개 중 하나를 골라 레벨을 올려요"
+reward: { money: 2000 }
+steps:
+  - text: "/직업 을 쳐서 직업 화면을 열어 보세요"
+    say: "채팅창에 /직업 이라고 쳐 보세요!"
+    detail: "직업은 광부 · 농부 · 어부 · 대장장이 · 요리사 · 연금술사 6개예요. 자기 직업 일을 하면 경험치가 쌓여요."
+    goal: { type: menu, menu: economy:jobs }
+    at: [0, 1, 12]
+  - text: "마음에 드는 직업을 하나 고르세요 (처음 한 번은 무료)"
+    say: "어떤 일이 재밌어 보여요? 하나 골라 봐요"
+    detail: "이미 직업이 있으면 바로 넘어가요. 나중에 바꿀 수 있지만 그때는 돈과 기다리는 시간이 들어요."
+    goal: { type: has_job }
+    at: [0, 1, 12]
+  - text: "/직업 정보 를 쳐서 레벨과 경험치를 보세요"
+    say: "/직업 정보 로 내 레벨을 확인해요"
+    done: "레벨이 오르면 직업 효과가 커지고, 기계 강화 같은 것이 열려요."
+    goal: { type: command, command: 직업, args: 정보 }

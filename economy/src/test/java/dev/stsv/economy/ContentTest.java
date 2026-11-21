@@ -391,7 +391,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(34, menus.size());   // 버스 내비 shares the mail background; the hub is 7 menus (the first screen, 4 category pages, 2 minigame pages); 장신구 3 (칸 · 공방 · 효과)
+        assertEquals(35, menus.size());   // 버스 내비 and 길라잡이 share the mail background; the hub is 7 menus (the first screen, 4 category pages, 2 minigame pages); 장신구 3 (칸 · 공방 · 효과)
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)

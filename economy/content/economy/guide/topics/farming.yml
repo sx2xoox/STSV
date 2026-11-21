@@ -1,0 +1,31 @@
+name: "농사"
+icon: minecraft:wheat
+minutes: 3
+order: 3
+station: farming
+about: "밭을 갈고 씨앗을 심어 수확해요"
+reward: { money: 2500, xp: 30 }
+items:
+  - { item: minecraft:iron_hoe }
+steps:
+  - text: "괭이로 흙을 우클릭해 밭을 만드세요"
+    say: "괭이를 들고 흙을 우클릭!"
+    detail: "작물은 경작지에서 자라요. 물이 4칸 안에 있으면 더 빨리 자라요."
+    goal: { type: till }
+    at: [0, 0, 7]
+  - text: "배추 씨앗을 밭에 심으세요"
+    say: "씨앗을 들고 밭을 우클릭해요"
+    detail: "씨앗은 상점(구매 → 씨앗·묘목)에서 사요. 같은 작물을 줄지어 심으면 빨리 자라요."
+    give: [ { item: economy:cabbage_seeds, amount: 4 } ]
+    goal: { type: plant, crop: economy:cabbage }
+    at: [0, 0, 7]
+  - text: "작물이 다 자랄 때까지 기다리세요"
+    say: "체험관 밭은 아주 빨리 자라요!"
+    detail: "진짜 밭에서는 젖은 경작지에서 20분 남짓 걸려요. 근처에 있어야 자라요."
+    goal: { type: crop_ripe }
+    at: [0, 0, 7]
+  - text: "다 익은 배추를 우클릭해 수확하세요"
+    say: "다 익으면 우클릭으로 거둬요"
+    done: "수확한 작물은 상점에 팔거나 가공대 · 조리대 재료로 써요. 농부는 수확이 더 많아요."
+    goal: { type: harvest, crop: economy:cabbage }
+    at: [0, 0, 7]

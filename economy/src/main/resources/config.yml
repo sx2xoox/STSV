@@ -172,3 +172,25 @@ land-log:
   preview-max-blocks: 4000
   # 되돌릴 때 한 틱에 처리하는 블록·물건 수 (서버가 멈추지 않게 나눠서)
   undo-blocks-per-tick: 400
+
+# 길라잡이 (/길라잡이, README "길라잡이"): 따로 있는 체험관 월드에서 직접 해 보는 안내. 주제·단계·보상은 contents/economy/guide/topics/*.yml
+guide:
+  # 체험관 월드 이름 (없으면 빈 월드로 만들고 처음 켤 때 정거장을 지음. 다시 짓기: /관리자 길라잡이 체험관 짓기)
+  world: stsv_guide
+  # 처음 접속한 사람에게 한 번: 채팅 한 줄 + 길라잡이 책 (우클릭 = 고르기 화면)
+  first-join-book: true
+  # 모든 주제를 마치면 주는 칭호 (titles/titles.yml) + 아직 없는 '일반' 치장 하나 + 전체 공지
+  title: economy:sprout
+  # 체험용 탈것 (코어 탈것 아이템): 하역장·탈것 = 트럭, 버스 기사 = 렌트 버스와 같은 소형 버스
+  truck: stsv:light_truck
+  bus: stsv:mini_bus
+  # 도우미 · 손님 · 안내원 마네킹 스킨 (리소스팩 스킨 키, slim = 팔 3픽셀)
+  helper-skin: "economy:entity/bus/student_2 slim"
+  passenger-skin: "economy:entity/bus/resident_1"
+  npc-skin: "economy:entity/bus/resident_2 slim"
+  # 도우미가 같은 단계의 말을 다시 하는 간격 (초)
+  say-seconds: 25
+  # 광산 정거장의 광석이 다시 생기는 시간 (초)
+  ore-regrow-seconds: 4
+  # 길라잡이 중에 막는 명령어 (체험용 인벤토리를 다른 곳에 저장하거나 진짜 탈것 · 가방을 꺼내는 것)
+  blocked-commands: [서킷, 미니게임, 탈것, 지게, 원격기계, 가방, 튜닝]

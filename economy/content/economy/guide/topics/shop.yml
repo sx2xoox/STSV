@@ -1,0 +1,26 @@
+name: "상점·시세"
+icon: minecraft:emerald
+minutes: 2
+order: 6
+station: shop
+about: "물건 사고팔기, 내 매입가 보기"
+reward: { money: 2200 }
+items:
+  - { item: economy:ruby, amount: 2 }
+steps:
+  - text: "/상점 을 쳐서 관리자 상점을 여세요"
+    say: "/상점 이라고 쳐 보세요"
+    detail: "상점에서는 도구 · 기계 · 씨앗 · 탈것을 사고, 캔 것 · 기른 것 · 만든 것을 팔아요."
+    goal: { type: menu, menu: economy:shop }
+    at: [0, 1, 11]
+  - text: "'판매'를 눌러 판매 화면을 여세요 (/시세 도 같아요)"
+    say: "판매 → 분류를 누르면 값이 나와요"
+    goal: { type: menu, menu: economy:shop_sell }
+  - text: "판매 화면 아래 내 인벤토리의 체험용 루비를 눌러 팔아 보세요"
+    say: "연습이라 돈은 안 들어와요. 값만 봐요!"
+    detail: "매입가는 사람마다 따로예요. 내가 많이 팔수록 내 값만 내려가고, 시간이 지나면 돌아와요."
+    goal: { type: practice_sell }
+  - text: "/시세 루비 처럼 품목 이름을 넣어 값을 확인하세요"
+    say: "/시세 <품목> 으로 바로 값을 봐요"
+    done: "수요 고시(★)가 붙은 품목은 이번 주 1.5배예요. 시세판에서 서버 전체 시장가도 볼 수 있어요."
+    goal: { type: command, command: 시세, args: "*" }

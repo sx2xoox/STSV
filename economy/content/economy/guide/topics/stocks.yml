@@ -1,0 +1,20 @@
+name: "주식"
+icon: minecraft:paper
+minutes: 2
+order: 12
+station: stocks
+about: "가상 회사 42개의 주식을 사고팔아요"
+reward: { money: 2000 }
+steps:
+  - text: "/주식 을 열어 회사 목록을 보세요"
+    say: "/주식 이라고 쳐 보세요"
+    detail: "주가는 서버의 실제 활동(상점 판매, 사건, 뉴스)에 따라 움직여요. 배당을 주는 회사도 있어요."
+    goal: { type: menu, menu: economy:stocks }
+    at: [0, 1, 12]
+  - text: "회사 하나를 눌러 그래프와 사고팔기 화면을 보세요"
+    say: "빨강은 오름, 파랑은 내림이에요"
+    goal: { type: menu, menu: economy:stock }
+  - text: "/주식 뉴스 로 오늘의 뉴스를 보세요"
+    say: "뉴스가 주가를 움직여요"
+    done: "/주식 알림 을 켜면 가진 회사의 큰 움직임을 알려 줘요. 사기: /주식 사기 <회사> <수>"
+    goal: { type: command, command: 주식, args: 뉴스 }

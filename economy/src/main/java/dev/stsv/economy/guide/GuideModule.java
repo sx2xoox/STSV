@@ -336,10 +336,16 @@ public final class GuideModule extends EcoModule {
         s.finishing = false;
         double[] at = st.start();
         entering.add(p.getUniqueId());
+        boolean there;
         try {
-            p.teleport(new Location(w, at[0], GuideLayout.FLOOR_Y, at[1], st.yaw(), 0), PlayerTeleportEvent.TeleportCause.PLUGIN);
+            there = p.teleport(new Location(w, at[0], GuideLayout.FLOOR_Y, at[1], st.yaw(), 0), PlayerTeleportEvent.TeleportCause.PLUGIN);
         } finally {
             entering.remove(p.getUniqueId());
+        }
+        if (!there) {   // another plugin held them back: nothing happened
+            end(p, false, false);
+            p.sendMessage(Lang.msg("guide.not-ready"));
+            return;
         }
         give(p, t.items());
         spawnHelper(p, s);
@@ -932,15 +938,14 @@ public final class GuideModule extends EcoModule {
 
         @Override
         public void onAction(MenuView v, String action, ClickType click) {
-            if (action.equals("guide:leave")) {
-                Player p = v.player();
-                v.close();
-                Bukkit.getScheduler().runTask(eco, () -> leave(p));
-            } else if (action.equals("guide:again")) {
-                Player p = v.player();
-                v.close();
-                Bukkit.getScheduler().runTask(eco, () -> restart(p));
-            }
+            if (!action.equals("guide:leave")) return;
+            Player p = v.player();
+            v.close();
+            // left: back with their things; right: this topic again from the start
+            Bukkit.getScheduler().runTask(eco, () -> {
+                if (click.isRightClick()) restart(p);
+                else leave(p);
+            });
         }
     }
 

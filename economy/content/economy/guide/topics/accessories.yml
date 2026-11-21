@@ -1,0 +1,26 @@
+name: "장신구"
+icon: minecraft:amethyst_shard
+minutes: 2
+order: 10
+station: accessories
+about: "반지 · 목걸이로 능력을 더해요"
+reward: { money: 2200 }
+items:
+  - { item: economy:accessory }
+steps:
+  - text: "/장신구 를 쳐서 장신구 칸을 여세요"
+    say: "/장신구 라고 쳐 보세요"
+    detail: "칸은 반지 2 · 목걸이 · 귀걸이 · 허리띠 · 팔찌. 장신구는 장신구 상자나 채광 · 수확 · 낚시 중에 아주 드물게 얻어요."
+    goal: { type: menu, menu: economy:accessories }
+    at: [0, 1, 12]
+  - text: "아래 내 인벤토리의 체험용 장신구를 눌러 끼우세요"
+    say: "끼우면 효과가 바로 붙어요"
+    detail: "등급은 C · B · A · S. 효과의 활동을 하면 장신구 레벨이 올라 부가 옵션이 열려요."
+    goal: { type: accessory_worn }
+  - text: "/장신구 공방 을 열어 강화 · 제련 · 옵션 변경을 보세요"
+    say: "공방에서 장신구를 더 세게 만들어요"
+    goal: { type: menu, menu: economy:accessory_workshop }
+  - text: "/장신구 를 다시 열고 낀 장신구를 눌러 빼세요"
+    say: "칸을 누르면 빠져요"
+    done: "장신구는 거래소 · 경매 · 직거래로 사고팔 수 있어요 (수수료 10%)."
+    goal: { type: accessory_off }

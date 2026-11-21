@@ -1,0 +1,29 @@
+name: "광산·원석"
+icon: economy:rough_ruby
+minutes: 3
+order: 4
+station: mining
+about: "광석을 캐고 원석을 보석으로 다듬어요"
+reward: { money: 2500, xp: 30 }
+items:
+  - { item: minecraft:iron_pickaxe }
+steps:
+  - text: "곡괭이로 광석 벽의 광석을 3개 캐세요"
+    say: "광석은 캐면 금방 다시 생겨요"
+    detail: "광석은 야생월드에서 캐요. 광부는 광석을 캘 때 가끔 원석(루비 · 사파이어 ...)을 찾아요."
+    goal: { type: break_ore, count: 3 }
+    at: [0, 1, 11]
+  - text: "원석을 받았어요! 세공대를 노란 테두리 안에 놓으세요"
+    say: "세공대는 원석을 보석으로 다듬는 기계예요"
+    give: [ { item: economy:gem_bench }, { item: economy:rough_ruby, amount: 1 } ]
+    goal: { type: place_machine, machine: gem_bench }
+    at: [0, 0, 6]
+  - text: "세공대를 열고 재료 칸에 루비 원석을 넣으세요"
+    say: "원석 하나면 루비 하나!"
+    goal: { type: machine_input, machine: gem_bench }
+    at: [0, 0, 6]
+  - text: "다 된 루비를 결과 칸에서 꺼내세요"
+    say: "보석은 원석보다 훨씬 비싸요"
+    done: "보석은 상점에 팔거나 반지 · 왕관 같은 더 비싼 물건의 재료가 돼요."
+    goal: { type: have_item, item: economy:ruby }
+    at: [0, 0, 6]
