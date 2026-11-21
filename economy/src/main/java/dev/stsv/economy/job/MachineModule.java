@@ -522,10 +522,15 @@ public final class MachineModule extends EcoModule {
     private void tick() {
         ticks++;
         for (Machine m : machines.values()) {
+            if (held(m)) continue;   // 숨은 비밀 설계자: holding its breath for a moment
             boolean any = false;
             for (int k = 0; k < LANES; k++) {
                 Lane l = m.lanes[k];
                 if (k < m.open()) plainInputs(m, k);
+                if (k < m.open() && designerLane(m, k)) {
+                    l.blocked = l.mixed = false;
+                    continue;
+                }
                 MachineSpec.Recipe r = k < m.open() ? recipeFor(m, k) : null;
                 int idx = r == null ? -1 : r.index();
                 if (l.make(idx)) m.dirty = true;
@@ -621,6 +626,8 @@ public final class MachineModule extends EcoModule {
         ItemStack product = product(m, r, amount, op);
         if (product == null) return;
         ItemStack slot = m.inv.getItem(output(lane));
+        // 숨은 비밀 설계자: now and then, at night, a fresh stack is signed by someone else
+        if ((slot == null || slot.isEmpty()) && op != null && !trial(m) && designer() != null) designer().made(op, job, product);
         if (slot == null || slot.isEmpty()) m.inv.setItem(output(lane), product);
         else slot.setAmount(Math.min(slot.getMaxStackSize(), slot.getAmount() + product.getAmount()));
         boolean counts = op != null && job != null && !trial(m);   // 길라잡이 trial machines give no XP and count for nothing
@@ -845,6 +852,7 @@ public final class MachineModule extends EcoModule {
         draw(m);
         p.openInventory(m.inv);
         p.playSound(p.getLocation(), Sound.BLOCK_BARREL_OPEN, 0.6f, 1.2f);
+        if (designer() != null) designer().opened(p);
     }
 
     private void collect(Player p, Machine m) {
@@ -1021,12 +1029,15 @@ public final class MachineModule extends EcoModule {
                 });
                 out.add(it);
             }
+            // 숨은 비밀 설계자: the book (not a lane's picker) has the designer's notes at the back, for that player only
+            if (lane < 0 && designer() != null) out.addAll(designer().memos(v.player()));
             return out;
         }
 
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
             Player p = v.player();
+            if (lane < 0 && index >= shown.size() && designer() != null) designer().memoClick(p, index - shown.size());
             if (lane < 0 || !machines.containsKey(m.id) || lane >= m.open()) return;
             int at = index - 1;
             if (at >= shown.size()) return;
@@ -1413,5 +1424,92 @@ public final class MachineModule extends EcoModule {
             if (!m.inv.getViewers().isEmpty()) draw(m);
         }
         return n;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 숨은 비밀 설계자 (docs/admin/숨은_비밀/설계자.md): the few things it asks of the machines
+    // ------------------------------------------------------------------------------------------
+
+    /** machine -> until (ms): it does nothing and its parts stand still (a part that turns backwards is moved by the secret) */
+    private final Map<UUID, Long> held = new ConcurrentHashMap<>();
+
+    private dev.stsv.economy.secret.designer.Designer designer() {
+        if (eco.secrets() == null) return null;
+        return eco.secrets().find("designer").orElse(null) instanceof dev.stsv.economy.secret.designer.Designer d ? d : null;
+    }
+
+    private boolean held(Machine m) {
+        Long until = held.get(m.id);
+        if (until == null) return false;
+        if (until > System.currentTimeMillis()) return true;
+        held.remove(m.id);
+        return false;
+    }
+
+    /** A lane the designer takes over (its parts): the machine works it, not a recipe. */
+    private boolean designerLane(Machine m, int k) {
+        if (trial(m) || designer() == null) return false;
+        UUID op = operator(m, k);
+        if (op == null) return false;
+        boolean any = false;
+        for (int i = 0; i < 3; i++) if (m.inv.getItem(input(k, i)) != null) any = true;
+        if (!any) return false;
+        return designer().lane(new dev.stsv.economy.secret.designer.Designer.Lane(m.id, m.spec.id(), op, m.inv,
+                new int[]{input(k, 0), input(k, 1), input(k, 2)}, output(k)));
+    }
+
+    /** Stops a machine for a while (no work, parts still); the secret may turn its parts itself meanwhile. */
+    public void hold(UUID machine, long ms) {
+        Machine m = machines.get(machine);
+        if (m == null) return;
+        held.put(machine, System.currentTimeMillis() + ms);
+        m.working = false;
+        m.shownWorking = false;
+        Furniture f = furniture(m);
+        if (f != null) for (ItemDisplay part : core.furniture().parts(f)) core.furniture().setSpinning(part, false);
+    }
+
+    /** Where a loaded machine stands (its furniture), or null. */
+    public Location machineAt(UUID machine) {
+        Machine m = machines.get(machine);
+        Furniture f = m == null ? null : furniture(m);
+        return f == null ? null : f.location();
+    }
+
+    /** A loaded machine's moving parts (wheels). */
+    public List<ItemDisplay> machineParts(UUID machine) {
+        Machine m = machines.get(machine);
+        Furniture f = m == null ? null : furniture(m);
+        return f == null ? List.of() : core.furniture().parts(f);
+    }
+
+    /** The kind (machines.yml id) of a machine. */
+    public String machineKind(UUID machine) {
+        Machine m = machines.get(machine);
+        return m == null ? null : m.spec.id();
+    }
+
+    /** Loaded machines within range of a spot, nearest first. */
+    public List<UUID> machinesNear(Location at, double range) {
+        List<UUID> out = new ArrayList<>();
+        Map<UUID, Double> d = new HashMap<>();
+        for (Machine m : machines.values()) {
+            Furniture f = furniture(m);
+            if (f == null || f.location().getWorld() != at.getWorld()) continue;
+            double ds = f.location().distanceSquared(at);
+            if (ds > range * range) continue;
+            out.add(m.id);
+            d.put(m.id, ds);
+        }
+        out.sort(java.util.Comparator.comparingDouble(d::get));
+        return out;
+    }
+
+    /** A machine's window changed from outside: saved, and shown to who has it open. */
+    public void touched(UUID machine) {
+        Machine m = machines.get(machine);
+        if (m == null) return;
+        m.dirty = true;
+        if (!m.inv.getViewers().isEmpty()) draw(m);
     }
 }
