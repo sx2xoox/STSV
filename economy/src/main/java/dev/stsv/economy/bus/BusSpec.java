@@ -251,6 +251,40 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
         return d == null || d.isEmpty() ? null : d;
     }
 
+    /** Every situation this kind has a line for: its own talk keys first, then the default ones (/관리자 버스 손님). */
+    public List<String> situations(Type t) {
+        java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
+        if (t != null) t.talk().forEach((k, v) -> {
+            if (!v.isEmpty()) out.add(k);
+        });
+        extra.talk().forEach((k, v) -> {
+            if (!v.isEmpty()) out.add(k);
+        });
+        return List.copyOf(out);
+    }
+
+    /** The situations a kind's own talk may show off in the preview, most telling first (수다, 느릿느릿 타기, 아기 울음 …). */
+    static final List<String> SIGNATURE = List.of("chat", "slow", "cry", "smile", "sick", "bark", "late", "view", "waited");
+
+    /**
+     * The preview's three situations (/관리자 버스 손님 <종류>): getting on, then the kind's most telling own one (SIGNATURE),
+     * else its own smooth-stop line, else a jolt; then the thanks getting off. Only situations with a line.
+     */
+    public List<String> previewSequence(Type t) {
+        String middle = null;
+        if (t != null) for (String k : SIGNATURE) {
+            List<String> own = t.talk().get(k);
+            if (own != null && !own.isEmpty()) {
+                middle = k;
+                break;
+            }
+        }
+        if (middle == null) middle = t != null && t.talk().containsKey("smooth") ? "smooth" : "jolt";
+        List<String> out = new ArrayList<>();
+        for (String k : List.of("board", middle, "thanks")) if (lines(t, k) != null && !out.contains(k)) out.add(k);
+        return out;
+    }
+
     /**
      * A cute name for a stop of these traits not in `used`: from its traits' names, else the general ones; when every one
      * is taken, a general one with a number. `roll` picks among them (0..1).

@@ -463,9 +463,17 @@ final class AdminCommands {
                         return eco.bus().stops().stream().map(dev.stsv.economy.bus.BusStop::name).filter(n -> n.startsWith(args[1])).toList();
                     return List.of();
                 });
-        add("버스", "비밀 소환 [1-5] | 비밀 쪽지 <플레이어> <1-5|전부> | 비밀 최종 [플레이어] | 비밀 초기화 <플레이어> | 비밀 상태 <플레이어>",
-                "마을버스 선글라스 남자 테스트 (docs/admin/버스_비밀_의뢰.md): 가까운 정류장에 미션을 정해 세우기 / 쪽지를 직접 얻은 것으로 기록 (+아이템) / 운전 중인 사람에게 최종 미션을 조건 없이 바로 시작 / 비밀 진행 초기화 / 상태",
-                (s, args) -> eco.bus().secretAdmin(s, args), (s, args) -> eco.bus().secretComplete(args));
+        add("버스", "손님 <종류|전체> [상황] | 비밀 소환 [1-5] | 비밀 쪽지 <플레이어> <1-5|전부> | 비밀 최종 [플레이어] | 비밀 초기화 <플레이어> | 비밀 상태 <플레이어>",
+                "마을버스 손님 미리보기: 앞 3칸에 그 종류 마네킹을 5초 (전체: 모든 종류를 줄지어 8초) 세워 동작 · 말풍선 (상황을 빼면 탈 때 → 특징 → 내릴 때) · 액션바에 운임 배수와 특징 / "
+                        + "선글라스 남자 테스트 (docs/admin/버스_비밀_의뢰.md): 가까운 정류장에 미션을 정해 세우기 / 쪽지를 직접 얻은 것으로 기록 (+아이템) / 운전 중인 사람에게 최종 미션을 조건 없이 바로 시작 / 비밀 진행 초기화 / 상태",
+                (s, args) -> {
+                    if (args.length > 0 && args[0].equals("손님")) eco.bus().previewAdmin(s, args);
+                    else eco.bus().secretAdmin(s, args);
+                },
+                (s, args) -> {
+                    if (args.length == 1) return java.util.stream.Stream.of("손님", "비밀").filter(k -> k.startsWith(args[0])).toList();
+                    return args[0].equals("손님") ? eco.bus().previewComplete(args) : eco.bus().secretComplete(args);
+                });
         add("수요고시", "", "이번 주 수요 고시를 지금 새로 뽑기", (s, args) -> {
             var picked = eco.shop().announceNotice(System.currentTimeMillis());
             s.sendMessage(Text.msg("<green>수요 고시: " + picked));

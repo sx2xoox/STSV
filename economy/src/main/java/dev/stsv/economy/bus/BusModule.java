@@ -61,6 +61,7 @@ public final class BusModule extends EcoModule {
     private BusSpec spec;
     /** 수상한 선글라스 남자 (SecretAgent: docs/admin/버스_비밀_의뢰.md) */
     private SecretAgent secret;
+    private PassengerPreview preview;
     private final Map<Integer, BusStop> stops = new LinkedHashMap<>();
     private int nextId = 1;
     private StopBuilder builder;
@@ -292,6 +293,7 @@ public final class BusModule extends EcoModule {
         load();
         readStops();
         secret = new SecretAgent(this, eco, core);
+        preview = new PassengerPreview(this, eco);
         Bukkit.getPluginManager().registerEvents(secret, eco);
         every(1L, this::tick);
         every(20L, this::second);
@@ -310,6 +312,7 @@ public final class BusModule extends EcoModule {
     @Override
     protected void stop() {
         if (core != null && core.hud() != null) core.hud().removeOverlay("eco-bus");
+        if (preview != null) preview.stop();
         if (secret != null) {
             secret.stop();
             org.bukkit.event.HandlerList.unregisterAll(secret);
@@ -2243,17 +2246,7 @@ public final class BusModule extends EcoModule {
         if (!"wolf".equals(r.type.x().pet()) || !r.m.isValid()) return;
         List<Integer> free = vm.freeSeats(d.id());
         if (free.isEmpty()) return;
-        org.bukkit.entity.Wolf dog = r.m.getWorld().spawn(r.m.getLocation(), org.bukkit.entity.Wolf.class, w -> {
-            w.setPersistent(false);
-            w.setInvulnerable(true);
-            w.setSilent(true);
-            w.setAI(false);
-            w.setCollidable(false);
-            w.setRemoveWhenFarAway(false);
-            w.setBaby();
-            w.setAgeLock(true);
-            w.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
-        });
+        org.bukkit.entity.Wolf dog = spawnDog(r.m.getLocation());
         if (!vm.seatGuest(d.id(), free.getFirst(), dog)) {
             dog.remove();
             return;
@@ -2307,6 +2300,15 @@ public final class BusModule extends EcoModule {
 
     public List<String> secretComplete(String[] args) {
         return secret.complete(args);
+    }
+
+    /** /관리자 버스 손님 <종류|전체> [상황]: a passenger kind shown for a few seconds (PassengerPreview). */
+    public void previewAdmin(org.bukkit.command.CommandSender s, String[] args) {
+        preview.admin(s, args);
+    }
+
+    public List<String> previewComplete(String[] args) {
+        return preview.complete(args);
     }
 
     /**
@@ -2522,6 +2524,11 @@ public final class BusModule extends EcoModule {
     }
 
     void say(Entity m, String text) {
+        bubble(m, text, 60L);
+    }
+
+    /** A speech bubble over this entity (riding it), gone after `life` ticks. */
+    org.bukkit.entity.TextDisplay bubble(Entity m, String text, long life) {
         org.bukkit.entity.TextDisplay d = m.getWorld().spawn(m.getLocation().add(0, 2.3, 0), org.bukkit.entity.TextDisplay.class, t -> {
             t.setPersistent(false);
             t.text(dev.stsv.core.util.Text.mm("<black>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(text)));
@@ -2533,7 +2540,8 @@ public final class BusModule extends EcoModule {
             t.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
         });
         if (!m.addPassenger(d)) d.teleport(m.getLocation().add(0, 2.3, 0));
-        Bukkit.getScheduler().runTaskLater(eco, d::remove, 60L);
+        Bukkit.getScheduler().runTaskLater(eco, d::remove, life);
+        return d;
     }
 
     /** A random rider of this bus (or null). */
@@ -2623,6 +2631,76 @@ public final class BusModule extends EcoModule {
         return out;
     }
 
+    /**
+     * Which skin (bus.yml types.*.skins) a passenger of this kind wears: one at random; a couple in matching clothes, the
+     * first the first look and the other half (`partner`) one of the rest. Null when the kind has none.
+     */
+    static String pickSkin(BusSpec.Type type, boolean partner) {
+        if (type.skins().isEmpty()) return null;
+        if (type.pair() && type.skins().size() > 1)
+            return partner ? type.skins().get(1 + ThreadLocalRandom.current().nextInt(type.skins().size() - 1)) : type.skins().getFirst();
+        return type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
+    }
+
+    /**
+     * A passenger mannequin (not saved, can't be hurt or pushed, no gravity, marked a guest): in this skin, at this kind's
+     * scale, see-through and glowing for a ghost. `more` sets the name tag and the rest before it appears.
+     */
+    Mannequin spawnGuest(Location at, BusSpec.Type type, String skin, java.util.function.Consumer<Mannequin> more) {
+        return at.getWorld().spawn(at, Mannequin.class, x -> {
+            x.setPersistent(false);
+            x.setInvulnerable(true);
+            x.setGravity(false);
+            x.setSilent(true);
+            x.setImmovable(true);
+            x.setCollidable(false);
+            x.setRemoveWhenFarAway(false);
+            x.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+            more.accept(x);
+            if (skin != null) {
+                boolean slim = skin.endsWith(" slim");
+                String key = slim ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
+                try {
+                    x.setProfile(ResolvableProfile.resolvableProfile().name("bus_" + type.id()).skinPatch(sp -> sp.body(Key.key(key))
+                            .model(slim ? PlayerTextures.SkinModel.SLIM : PlayerTextures.SkinModel.CLASSIC)).build());
+                } catch (RuntimeException e) {
+                    eco.getLogger().warning("[bus.yml] 스킨 키가 잘못됨: " + skin);
+                }
+            }
+            if (type.scale() != 1) {
+                AttributeInstance sc = x.getAttribute(Attribute.SCALE);
+                if (sc != null) sc.setBaseValue(type.scale());
+            }
+            if (type.x().ghost()) {   // 유령 손님: see-through, only a pale glowing outline (and the name) shows
+                x.setInvisible(true);
+                x.setGlowing(true);
+            }
+        });
+    }
+
+    /** An invisible seat (a display, not saved) for someone to sit on at this spot (the bench; the preview's 'sit'). */
+    static org.bukkit.entity.ItemDisplay spawnSeat(Location at) {
+        return at.getWorld().spawn(at, org.bukkit.entity.ItemDisplay.class, d -> {
+            d.setPersistent(false);
+            d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+        });
+    }
+
+    /** 강아지 할아버지's dog: a baby wolf, not saved, can't be hurt, no AI. */
+    static org.bukkit.entity.Wolf spawnDog(Location at) {
+        return at.getWorld().spawn(at, org.bukkit.entity.Wolf.class, w -> {
+            w.setPersistent(false);
+            w.setInvulnerable(true);
+            w.setSilent(true);
+            w.setAI(false);
+            w.setCollidable(false);
+            w.setRemoveWhenFarAway(false);
+            w.setBaby();
+            w.setAgeLock(true);
+            w.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+        });
+    }
+
     private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver) {
         return spawnWaiter(w, s, i, n, driver, null);
     }
@@ -2645,44 +2723,13 @@ public final class BusModule extends EcoModule {
         Location at = new Location(w, spot[0], s.y() + 1, spot[1], s.facingRoad(), 0);
         if (!w.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
         String lineNos = lineNumbers(s);
-        String skin;
-        if (type.skins().isEmpty()) skin = null;
-        else if (type.pair() && type.skins().size() > 1) {
-            // a couple in matching clothes: the first the first look, the other half one of the rest
-            skin = only == null ? type.skins().getFirst() : type.skins().get(1 + ThreadLocalRandom.current().nextInt(type.skins().size() - 1));
-        } else skin = type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
-        Mannequin m = w.spawn(at, Mannequin.class, x -> {
-            x.setPersistent(false);
-            x.setInvulnerable(true);
-            x.setGravity(false);
-            x.setSilent(true);
-            x.setImmovable(true);
-            x.setCollidable(false);
-            x.setRemoveWhenFarAway(false);
-            x.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+        String skin = pickSkin(type, only != null);
+        Mannequin m = spawnGuest(at, type, skin, x -> {
             x.customName(dev.stsv.core.util.Text.mm(kind != null ? Lang.raw("bus.special-tag", "name", kind.name())
                     : team != null ? typeTag(type) + " " + Lang.raw("bus.team-tag", "color", team.color, "no", team.no) : typeTag(type)));
             x.setCustomNameVisible(true);
             x.setDescription(team != null ? Lang.mm("bus.waiter-team", "color", team.color, "no", team.no, "n", team.size,
                     "dest", teamDest == null ? lineNos : teamDest.name()) : Lang.mm("bus.waiter-tag", "lines", lineNos));
-            if (skin != null) {
-                boolean slim = skin.endsWith(" slim");
-                String key = slim ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
-                try {
-                    x.setProfile(ResolvableProfile.resolvableProfile().name("bus_" + type.id()).skinPatch(sp -> sp.body(Key.key(key))
-                            .model(slim ? PlayerTextures.SkinModel.SLIM : PlayerTextures.SkinModel.CLASSIC)).build());
-                } catch (RuntimeException e) {
-                    eco.getLogger().warning("[bus.yml] 스킨 키가 잘못됨: " + skin);
-                }
-            }
-            if (type.scale() != 1) {
-                AttributeInstance sc = x.getAttribute(Attribute.SCALE);
-                if (sc != null) sc.setBaseValue(type.scale());
-            }
-            if (type.x().ghost()) {   // 유령 손님: see-through, only a pale glowing outline (and the name) shows
-                x.setInvisible(true);
-                x.setGlowing(true);
-            }
         });
         String face = null;
         if (skin != null) {
@@ -2823,10 +2870,7 @@ public final class BusModule extends EcoModule {
                 }
                 x.m.teleport(at);
                 x.home = at;
-                x.seat = w.spawn(at, org.bukkit.entity.ItemDisplay.class, d -> {
-                    d.setPersistent(false);
-                    d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
-                });
+                x.seat = spawnSeat(at);
                 x.seatAt = k;
                 if (!x.seat.addPassenger(x.m)) {   // could not sit: stands on the bench's spot
                     x.seat.remove();
@@ -2894,40 +2938,50 @@ public final class BusModule extends EcoModule {
                     x.m.setRotation(yawTo(at, bus.getX(), bus.getZ()), 0);
                     continue;
                 }
-                switch (spec.queue().idleOf(x.type.id())) {
-                    case "sit" -> {
-                        if (rnd.nextDouble() < 0.3) x.m.setRotation(face + (float) rnd.nextDouble(-25, 25), (float) rnd.nextDouble(0, 15));
-                    }
-                    case "phone" -> {   // head down at the phone, now and then a look up
-                        boolean look = rnd.nextDouble() < 0.12;
-                        x.m.setRotation(face + (float) rnd.nextDouble(-10, 10), look ? 0 : 40 + (float) rnd.nextDouble(0, 10));
-                    }
-                    case "fidget" -> {   // glances down the road, shifts about, looks at the watch
-                        double r = rnd.nextDouble();
-                        if (r < 0.4) x.m.setRotation(yawTo(at, up[0], up[1]) + (float) rnd.nextDouble(-8, 8), 0);
-                        else if (r < 0.75) x.m.setRotation(face + (float) rnd.nextDouble(-35, 35), (float) rnd.nextDouble(-5, 10));
-                        if (rnd.nextDouble() < 0.15) x.m.swingMainHand();
-                    }
-                    case "hop" -> {
-                        x.m.setRotation(face + (float) rnd.nextDouble(-60, 60), 0);
-                        if (x.seat == null && x.home != null && rnd.nextDouble() < 0.45) {
-                            Location home = x.home.clone();
-                            home.setYaw(x.m.getLocation().getYaw());
-                            x.m.teleport(home.clone().add(0, 0.35, 0));
-                            Bukkit.getScheduler().runTaskLater(eco, () -> {
-                                if (x.m.isValid() && x.seat == null) x.m.teleport(home);
-                            }, 4L);
-                        }
-                    }
-                    default -> {
-                        if (rnd.nextDouble() < 0.2) x.m.setRotation(face + (float) rnd.nextDouble(-30, 30), 0);
-                    }
-                }
+                idleBeat(x.m, spec.queue().idleOf(x.type.id()), face, up, x.seat == null ? x.home : null, rnd);
             }
         }
     }
 
-    private static float yawTo(Location from, double x, double z) {
+    /**
+     * One idle beat of a waiting passenger, as their kind does (bus.yml queue.idle): sit (looks about a little), phone (head
+     * down at it), fidget (glances toward `up`, down the road; shifts; looks at the watch), hop (a little jump back to
+     * `home`; none when null, e.g. seated); the rest look about now and then. `face` is where they normally look.
+     */
+    void idleBeat(Mannequin m, String act, float face, double[] up, Location home, ThreadLocalRandom rnd) {
+        Location at = m.getLocation();
+        switch (act) {
+            case "sit" -> {
+                if (rnd.nextDouble() < 0.3) m.setRotation(face + (float) rnd.nextDouble(-25, 25), (float) rnd.nextDouble(0, 15));
+            }
+            case "phone" -> {   // head down at the phone, now and then a look up
+                boolean look = rnd.nextDouble() < 0.12;
+                m.setRotation(face + (float) rnd.nextDouble(-10, 10), look ? 0 : 40 + (float) rnd.nextDouble(0, 10));
+            }
+            case "fidget" -> {   // glances down the road, shifts about, looks at the watch
+                double r = rnd.nextDouble();
+                if (r < 0.4) m.setRotation(yawTo(at, up[0], up[1]) + (float) rnd.nextDouble(-8, 8), 0);
+                else if (r < 0.75) m.setRotation(face + (float) rnd.nextDouble(-35, 35), (float) rnd.nextDouble(-5, 10));
+                if (rnd.nextDouble() < 0.15) m.swingMainHand();
+            }
+            case "hop" -> {
+                m.setRotation(face + (float) rnd.nextDouble(-60, 60), 0);
+                if (home != null && m.getVehicle() == null && rnd.nextDouble() < 0.45) {
+                    Location back = home.clone();
+                    back.setYaw(m.getLocation().getYaw());
+                    m.teleport(back.clone().add(0, 0.35, 0));
+                    Bukkit.getScheduler().runTaskLater(eco, () -> {
+                        if (m.isValid() && m.getVehicle() == null) m.teleport(back);
+                    }, 4L);
+                }
+            }
+            default -> {
+                if (rnd.nextDouble() < 0.2) m.setRotation(face + (float) rnd.nextDouble(-30, 30), 0);
+            }
+        }
+    }
+
+    static float yawTo(Location from, double x, double z) {
         return (float) Math.toDegrees(Math.atan2(-(x - from.getX()), z - from.getZ()));
     }
 
