@@ -299,6 +299,50 @@ class RoadCharacterTest {
         assertTrue(normal.signs().stream().noneMatch(s -> s.type() == RoadGuide.Type.WARNING));
     }
 
+    @Test
+    void detailsAlongTheRoad() {
+        // a long road with a sharp bend, over a lake (a bridge) and through a steep hill (a tunnel)
+        for (RoadCharacter c : RoadCharacter.values()) {
+            BuiltRoad b = build(new RoadBendTest.Terra(RoadBendTest.FLAT, RoadBendTest.DRY), RoadBendTest.corners(0, 0, 1300, 0, 1300, 1300), c);
+            RoadBendTest.Road r = b.road();
+            List<RoadDetail.Label> ls = RoadDetail.of(new RoadGuide.Road("서해", r.points(), r.halves(), r.parts(), 7, "본사", c, null), r.parts(),
+                    r.section().signs().keySet(), 40);
+            List<String> km = ls.stream().filter(l -> l.style() == RoadDetail.Style.KM_POST).map(RoadDetail.Label::text).toList();
+            assertEquals(List.of((c == RoadCharacter.EASY ? "고속국도" : "국도") + " 7호선 · 1km", (c == RoadCharacter.EASY ? "고속국도" : "국도") + " 7호선 · 2km"),
+                    km, c.word);
+            long chevrons = ls.stream().filter(l -> l.style() == RoadDetail.Style.CHEVRON).count();
+            assertTrue(chevrons >= 3, c.word + " chevrons: " + chevrons);
+            for (RoadDetail.Label l : ls) {
+                if (l.post() == null) continue;
+                // its post clear of what the vehicles reach there
+                double clear = r.section().clearance(l.at(), l.post()[0], l.post()[1]);
+                assertTrue(clear >= r.section().reach(l.at()) - 1e-9, c.word + " " + l.text() + " at " + l.at() + ": " + clear + " < " + r.section().reach(l.at()));
+                if (l.style() == RoadDetail.Style.CHEVRON) assertEquals(">>>", l.text(), "the road turns right (south)");
+            }
+            // rumble strips before the bend (and after it, for the way back), none on the straight
+            int strips = 0;
+            for (int i = 0; i < r.points().size(); i++) if (r.section().rumble(i)) {
+                strips++;
+                assertTrue(Math.abs(i - 1300) < 60, "a strip near the bend only: " + i);
+            }
+            assertTrue(strips >= 10, "strips: " + strips);
+            assertTrue(b.land().put.containsValue(Material.DEEPSLATE_TILES));
+            boolean poles = b.land().put.containsValue(Material.RED_NETHER_BRICK_WALL), flowers = b.land().put.containsValue(Material.POPPY)
+                    || b.land().put.containsValue(Material.DANDELION) || b.land().put.containsValue(Material.CORNFLOWER);
+            assertEquals(c == RoadCharacter.HARD, poles, c.word + " snow poles");
+            assertEquals(c == RoadCharacter.EASY, flowers, c.word + " flowers");
+            assertEquals(List.of(), RoadBendTest.inTheWay(r, r.section()), c.word);
+        }
+        BuiltRoad lake = build(new RoadBendTest.Terra(RoadBendTest.LAKE_BED, RoadBendTest.LAKE), RoadBendTest.corners(0, 30, 120, 30), RoadCharacter.NORMAL);
+        List<String> names = RoadDetail.of(new RoadGuide.Road("서해", lake.road().points(), lake.road().halves(), lake.road().parts(), 1, "본사"),
+                lake.road().parts(), java.util.Set.of(), 40).stream().filter(l -> l.style() == RoadDetail.Style.NAME).map(RoadDetail.Label::text).toList();
+        assertEquals(List.of("서해1교", "서해1교"), names, "a plate at either end of the bridge");
+        BuiltRoad hill = build(new RoadBendTest.Terra(RoadBendTest.MOUNT, RoadBendTest.DRY), RoadBendTest.corners(0, 40, 140, 40), RoadCharacter.NORMAL);
+        List<String> bores = RoadDetail.of(new RoadGuide.Road("동해", hill.road().points(), hill.road().halves(), hill.road().parts(), 1, "본사"),
+                hill.road().parts(), java.util.Set.of(), 40).stream().filter(l -> l.style() == RoadDetail.Style.NAME).map(RoadDetail.Label::text).toList();
+        assertEquals(List.of("동해1터널", "동해1터널"), bores, "over either portal");
+    }
+
     // ------------------------------------------------------------------------------------------
     // Rewards
     // ------------------------------------------------------------------------------------------

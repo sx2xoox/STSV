@@ -3,7 +3,7 @@ Lamps of the motor vehicles (탈것의 느낌, content/stsv/vehicle_feel.yml lig
 body (dev.stsv.core.vehicle.VehicleFeelView), full-bright, and swaps as the lamps change:
 
   <v>_lamp_head      headlamps on (it is dark around the vehicle and someone drives): a hot lens over each body lamp,
-                     a soft glow round it and a faint beam ahead (two crossed see-through planes fading out)
+                     a soft glow round it and a faint beam ahead (see-through sheets fading out: see _beam)
   <v>_lamp_tail      tail lamps (with the headlamps): a dim red lens over each tail lamp
   <v>_lamp_brake     brake lamps (braking): a bright red lens and a red glow round it
   <v>_lamp_reverse   reverse lamps (backing up: trucks, the van): a white lens beside the red, the tail lamps dim red
@@ -16,9 +16,19 @@ model bounds) and shown LAMP_SCALE times larger (VehicleFeelView.LAMP_SCALE): th
 Where the lamps are is copied from the body generators below (LAMPS: per vehicle the lenses as rectangles on a face,
 real px). When a body is redrawn and its lamps move, move them here too: build.py warns when a lens no longer lies
 on a face of the body (check()).
+
+One-sided light (the riders' eyes): a see-through glow or beam face is drawn only where every rider's eye is behind it
+(eyes(): from the vehicle's seats in content/stsv/items/vehicles*.yml). Item-display models with half see-through
+pixels are drawn in the translucent entity pass, which writes depth before the game draws translucent terrain (ice,
+water, stained glass), so a beam between a rider's eye and the world hid the ice and water behind it (like tinted
+glass: bake.outward_glass). Faces are culled from behind, so from the seats nothing see-through is drawn ahead, while
+others still see the glow from the front and the beam from the side and above. A seat moved in the yml moves this
+line too: rebuild the lamp models.
 """
 
 import math
+from functools import lru_cache
+from pathlib import Path
 
 from stsv_assets.bake import BModel, Paint
 from stsv_assets.palette import ladder
@@ -183,13 +193,97 @@ def _face_only(face):
     return {f: None for f in ("east", "west", "up", "down")}
 
 
+# ------------------------------------------------------------------------------------------------
+# The riders' eyes (one-sided light: see the module doc)
+# ------------------------------------------------------------------------------------------------
+ITEMS = Path(__file__).resolve().parents[3] / "content" / "stsv" / "items"
+# a seated rider's eye above their seat (blocks): the seat's chair is a marker armor stand on a display, and a player
+# sits 0.6 below what they ride (Player vehicle attachment) with their eyes 1.62 above their feet
+EYE_OVER_SEAT = 1.02
+# how far behind a face every eye must be (px), with the body nodding or leaning this much (degrees, on its springs)
+EYE_MARGIN, EYE_TURN = 0.5, 3.0
+
+
+@lru_cache(maxsize=None)
+def _items():
+    import yaml
+    out = {}
+    for f in sorted(ITEMS.glob("vehicles*.yml")):
+        for k, v in (yaml.safe_load(f.read_text()) or {}).items():
+            if isinstance(v, dict) and isinstance(v.get("vehicle"), dict):
+                out[k] = v
+    return out
+
+
+def _turned(p, deg):
+    """(right, up, forward) turned deg about the up axis (+ = to the right)."""
+    a = math.radians(deg)
+    return (p[0] * math.cos(a) + p[2] * math.sin(a), p[1], -p[0] * math.sin(a) + p[2] * math.cos(a))
+
+
+@lru_cache(maxsize=None)
+def eyes(v):
+    """The eyes of every rider of the vehicles drawn with body v, in its drawn space (px; front = -z): from the seats
+    of every item whose model is v. A seat on a trailer (seats[].unit) swings with it: its eye is taken with the
+    trailer straight and turned to either side as far as the train lets it (train.jackknife)."""
+    lift = LAMPS.get(v, {}).get("lift", 0)
+    out = []
+    for item in _items().values():
+        if item.get("model") != v:
+            continue
+        veh = item["vehicle"]
+        train = veh.get("train") or {}
+        trailers = train.get("trailers") or []
+        jk = float(train.get("jackknife", 45))
+        for seat in veh.get("seats") or []:
+            at = tuple(float(q) for q in seat["at"])
+            pts = [at]
+            for u in range(int(seat.get("unit", 0)), 0, -1):
+                # this unit's axle sits `tongue` behind its hitch, on the unit in front of it
+                t = trailers[u - 1]
+                hitch, tongue = t["hitch"], float(t["tongue"])
+                pts = [(hitch[0] + r[0], r[1], hitch[2] + r[2])
+                       for p in pts for ang in (-jk, -jk / 2, 0, jk / 2, jk)
+                       for r in [_turned((p[0], p[1], p[2] - tongue), ang)]]
+            out += [(16 * p[0], 16 * (p[1] + EYE_OVER_SEAT) - lift, -16 * p[2]) for p in pts]
+    if not out:
+        raise ValueError(f"{v}: no seats found for its lamps (content/stsv/items/vehicles*.yml model: {v})")
+    return tuple(out)
+
+
+@lru_cache(maxsize=None)
+def _seen_from(v):
+    """The riders' eyes as the body sees them while it nods or leans (it turns about its ground centre; the seats do not)."""
+    o = (0, -LAMPS.get(v, {}).get("lift", 0), 0)
+    out = []
+    for e in eyes(v):
+        for a in (-EYE_TURN, 0, EYE_TURN):
+            c, s = math.cos(math.radians(a)), math.sin(math.radians(a))
+            x, y, z = e[0] - o[0], e[1] - o[1], e[2] - o[2]
+            out.append((e[0], o[1] + y * c - z * s, o[2] + y * s + z * c))     # nodding (about x)
+            out.append((o[0] + x * c - y * s, o[1] + x * s + y * c, e[2]))     # leaning (about z)
+    return tuple(out)
+
+
+def _behind(v, normal, point):
+    """True if every rider's eye is behind the plane through point facing normal (so they never see its face)."""
+    n = math.sqrt(sum(q * q for q in normal))
+    n = [q / n for q in normal]
+    return all(sum(n[q] * (e[q] - point[q]) for q in range(3)) <= -EYE_MARGIN for e in _seen_from(v))
+
+
+NORMAL = {"north": (0, 0, -1), "south": (0, 0, 1), "east": (1, 0, 0), "west": (-1, 0, 0), "up": (0, 1, 0), "down": (0, -1, 0)}
+
+
 def _lens(m, name, l, front, core, rim):
     x0, x1, y0, y1, z, _ = l
     zz = z - PROUD if front else z + PROUD
     m.box(name, (x0, y0, zz), (x1, y1, zz), _lens_paint(l, core, rim), faces=_face_only("north" if front else "south"))
 
 
-def _halo(m, name, l, front, col, reach, peak):
+def _halo(m, v, name, l, front, col, reach, peak):
+    """A see-through glow round a lens, facing out (its face toward the vehicle would hang between a rider's eye and
+    the world ahead or behind: dropped, see the module doc)."""
     x0, x1, y0, y1, z, _ = l
     zz = z - HALO_OUT if front else z + HALO_OUT
     left, right = x0 - reach, x1 + reach
@@ -197,44 +291,68 @@ def _halo(m, name, l, front, col, reach, peak):
         left = max(left, 0.05)
     elif x1 < 0:
         right = min(right, -0.05)
-    m.box(name, (left, y0 - reach, zz), (right, y1 + reach, zz), _glow_paint(l, col, reach, peak),
-          faces=_face_only("north" if front else "south"))
+    paint = _glow_paint(l, col, reach, peak)
+    faces = {f: (paint if f in ("north", "south") and _behind(v, NORMAL[f], (x0, y0, zz)) else None) for f in NORMAL}
+    if any(faces.values()):
+        m.box(name, (left, y0 - reach, zz), (right, y1 + reach, zz), paint, faces=faces)
 
 
-def _beam(m, l, length, spread, peak):
-    """A faint beam ahead of a headlamp: a level plane and an upright one along it, widening and fading out."""
+# the slopes a beam's lit sheet may fall at (model rotations: 22.5 degree steps), gentlest first
+RAMPS = (22.5, 45)
+
+
+def _beam(m, v, l, length, spread, peak):
+    """A faint beam ahead of a headlamp, seen only from outside (see the module doc): an upright sheet along each side
+    of the lamp that faces away from every rider (the outer side of a lamp at a corner; both sides of a lamp in the
+    middle with its rider right behind it), spreading down more than up, and a lit sheet falling from the lamp to
+    the ground ahead (the light on the road), facing up and forward, at the gentlest slope that still keeps every
+    rider's eye behind it (a high driver over a short nose: buses, trucks, scooters, none). All fade out ahead."""
     x0, x1, y0, y1, z, _ = l
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
     w0, h0 = (x1 - x0) / 2, (y1 - y0) / 2
     z0, z1 = z - HALO_OUT - length, z - HALO_OUT
 
     def alpha(t, across, half):
-        if abs(across) > half:
+        if abs(across) > half or t >= 1:
             return 0
         edge = 1 - abs(across) / max(half, 1e-6)
         return peak * (1 - t) ** 1.4 * min(1.0, edge * 2.5)
 
-    def flat(c):                       # the level plane: across = x
-        t = (z1 - c.p[2]) / length
-        half = w0 + spread * t
-        return ("raw", (*BEAM, int(round(alpha(t, c.p[0] - cx, half) * 255))))
-
-    def upright(c):                    # the upright plane: across = y (it spreads down more than up: aimed low)
+    def side(c):                       # an upright sheet: across = y (it spreads down more than up: aimed low)
         t = (z1 - c.p[2]) / length
         d = c.p[1] - cy
         half = h0 + spread * t * (0.55 if d > 0 else 1.0)
         return ("raw", (*BEAM, int(round(alpha(t, d, half) * 255))))
     reach = spread + max(w0, h0)
-    # a side lamp's level plane stays on its own side (the pair's planes would lie in one another in the middle)
-    left, right = cx - reach, cx + reach
-    if cx > 0.5:
-        left = max(left, 0.05)
-    elif cx < -0.5:
-        right = min(right, -0.05)
-    m.box("beam_flat", (left, cy, z0), (right, cy, z1), Paint("lamp", 3, noise=0, light=False, glow=True, decal=flat),
-          faces={"north": None, "south": None, "east": None, "west": None})
-    m.box("beam_upright", (cx, cy - reach, z0), (cx, cy + reach, z1), Paint("lamp", 3, noise=0, light=False, glow=True, decal=upright),
-          faces={"north": None, "south": None, "up": None, "down": None})
+    glow = dict(noise=0, light=False, glow=True)
+    for f, edge in (("east", x1), ("west", x0)):
+        # at the lens' edge, or up to 2 px further out where a rider sits just behind it (the scooter's)
+        for x in (edge + NORMAL[f][0] * k * 0.5 for k in range(5)):
+            if _behind(v, NORMAL[f], (x, cy, z1)):
+                m.box("beam_side", (x, cy - reach, z0), (x, cy + reach, z1), Paint("lamp", 3, decal=side, **glow),
+                      faces={g: None for g in NORMAL if g != f})
+                break
+    # the lit sheet: drawn level at the lamp's height, then turned down about its near edge
+    ground = -LAMPS[v].get("lift", 0) + 0.25
+    for slope in RAMPS:
+        s, k = math.sin(math.radians(slope)), math.cos(math.radians(slope))
+        if not _behind(v, (0, k, -s), (cx, cy, z1)):
+            continue
+        run = min(length, (cy - ground) / s)
+        if run < 4:
+            break
+
+        def road(c, run=run):          # across = x, widening as it goes (still lit where it meets the road)
+            t = (z1 - c.p[2]) / run
+            return ("raw", (*BEAM, int(round(alpha(0.8 * t, c.p[0] - cx, w0 + spread * t) * 255))))
+        left, right = cx - reach, cx + reach
+        if cx > 0.5:                   # a side lamp's sheet stays on its own side (the pair's would overlap in the middle)
+            left = max(left, 0.05)
+        elif cx < -0.5:
+            right = min(right, -0.05)
+        m.box("beam_road", (left, cy, z1 - run), (right, cy, z1), Paint("lamp", 3, decal=road, **glow),
+              faces={g: None for g in NORMAL if g != "up"}, rotation=("x", -slope, (cx, cy, z1)))
+        break
 
 
 def _model(v, kind, name=None, hot=None, warm=None):
@@ -249,23 +367,23 @@ def _model(v, kind, name=None, hot=None, warm=None):
             # reach: a body drawn at 32 px a block (the donation cars) draws its glow and beam twice as big, so they
             # come out as large in the world as the other cars'
             reach = spec.get("reach", 1.0)
-            _halo(m, "glow", l, True, warm, 2.5 * reach, 0.55)
+            _halo(m, v, "glow", l, True, warm, 2.5 * reach, 0.55)
             # the beam reaches 3 blocks, or as far as the model may (its bounds: model z -16 = drawn z -24 x shrink)
             room = 24 * spec["scale"] * LAMP_SCALE + l[4] - HALO_OUT - 1
-            _beam(m, l, min(48.0 * reach, room), 7 * reach, 0.22)
+            _beam(m, v, l, min(48.0 * reach, room), 7 * reach, 0.22)
     elif kind == "tail":
         for l in spec["tail"]:
             _lens(m, "lens", l, False, RED, RED_DIM)
     elif kind == "brake":
         for l in spec["tail"]:
             _lens(m, "lens", l, False, RED_HOT, RED)
-            _halo(m, "glow", l, False, RED, 2.0, 0.5)
+            _halo(m, v, "glow", l, False, RED, 2.0, 0.5)
     elif kind == "reverse":
         for l in spec["tail"]:
             _lens(m, "lens", l, False, RED, RED_DIM)
         for l in spec["reverse"]:
             _lens(m, "white", l, False, WHITE, WHITE)
-            _halo(m, "glow", l, False, WHITE, 1.5, 0.4)
+            _halo(m, v, "glow", l, False, WHITE, 1.5, 0.4)
     m.display = presets.furniture(gui_scale=0.4)
     return m
 

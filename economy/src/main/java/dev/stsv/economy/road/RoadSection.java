@@ -487,6 +487,46 @@ public final class RoadSection {
         return Math.floorMod(hash(x, z) >> 6, rough ? 2 : 4) == 0 ? p[1] : p[0];
     }
 
+    /** Rumble strips (README "국도", 디테일): a band of grooved blocks across the lanes, every third point, before a bend this sharp. */
+    static final double RUMBLE_TURN = 45;
+    /** ... from this many points before the bend to this many (and after it the same, for the traffic the other way). */
+    static final int RUMBLE_FROM = 26, RUMBLE_TO = 8, RUMBLE_EVERY = 3;
+    /** A hard road's snow poles: every this many points on the shoulder's post column (where there is no guardrail). */
+    static final int SNOW_POLE_EVERY = 24;
+    static final Material[] SNOW_POLE = {Material.RED_NETHER_BRICK_WALL, Material.DIORITE_WALL};
+    /** An easy road's verge flowers: one grass column in this many. */
+    static final int FLOWER_ONE_IN = 9;
+    static final Material[] FLOWERS = {Material.POPPY, Material.DANDELION, Material.CORNFLOWER, Material.AZURE_BLUET, Material.OXEYE_DAISY};
+
+    private boolean[] rumbles;
+
+    /** Whether point i's lanes are a rumble strip: on a band before (or, for the way back, after) a sharp bend. */
+    boolean rumble(int i) {
+        if (rumbles == null) {
+            int n = points.size();
+            boolean[] out = new boolean[n];
+            for (int v = 1; v < n - 1; v++) {
+                if (turnAt(points, v) < RUMBLE_TURN) continue;
+                int end = v;
+                while (end + 1 < n && turnAt(points, end + 1) >= RUMBLE_TURN) end++;
+                for (int k = RUMBLE_TO; k <= RUMBLE_FROM; k += RUMBLE_EVERY) {
+                    int a = v - BEND_REACH / 2 - k, b = end + BEND_REACH / 2 + k;
+                    if (a >= 0 && turnAt(points, a) < RUMBLE_TURN) out[a] = true;
+                    if (b < n && turnAt(points, b) < RUMBLE_TURN) out[b] = true;
+                }
+                v = end;
+            }
+            rumbles = out;
+        }
+        return rumbles[i];
+    }
+
+    /** The rumble strip's block: the surface's own patch block (grooved deepslate tiles on grey concrete), or none. */
+    private Material rumbleBlock() {
+        Material[] p = patches(style.surface());
+        return p == null ? null : p[0];
+    }
+
     /** A rough road's patches (README "국도", 성격): one cell in this many (25 on the others), half of them cracked. */
     static final int ROUGH_PATCHES = 6;
     /** A rough road's worn edge: one edge line block in this many is coarse dirt (cosmetic: a full block, level with the lane). */
@@ -694,6 +734,7 @@ public final class RoadSection {
                 else if (lane <= 0.5) top = dash ? style.line() : style.surface();
                 else if (ao > 1.5) top = edge(c.x(), c.z());
                 else if (part == RoadProfile.Part.BRIDGE && i % JOINT_EVERY == JOINT_EVERY / 2 && !half) top = POLISHED_JOINT;
+                else if (part == RoadProfile.Part.ROAD && !half && rumble(i) && rumbleBlock() != null) top = rumbleBlock();
                 else if (part != RoadProfile.Part.BRIDGE && !half) top = patch(c.x(), c.z());
                 else top = style.surface();
             } else {
@@ -1476,6 +1517,16 @@ public final class RoadSection {
             if (postCol && postClear(i, x, z)) {
                 if (high) site.set(x, base + 1, z, GUARDRAIL);
                 else if (reflectEvery > 0 && i % reflectEvery == reflectEvery / 2) site.set(x, base + 1, z, REFLECTOR);
+                else if (character == RoadCharacter.HARD && i % SNOW_POLE_EVERY == SNOW_POLE_EVERY / 2 && !mending) {
+                    // a snow pole (README "국도", 디테일): red and white, 3 high, where the snow plough looks for the edge
+                    site.set(x, base + 1, z, SNOW_POLE[0]);
+                    site.set(x, base + 2, z, SNOW_POLE[1]);
+                    site.set(x, base + 3, z, SNOW_POLE[0]);
+                }
+            } else if (character == RoadCharacter.EASY && !verge && !postCol && !apron && !high && !mending
+                    && Math.floorMod(hash(x * 5 + 1, z * 3 - 2), FLOWER_ONE_IN) == 0) {
+                // an easy road's verge: a few flowers on its grass (outside the reach: no collision anyway)
+                site.set(x, base + 1, z, FLOWERS[Math.floorMod(hash(x, z) >> 3, FLOWERS.length)]);
             }
         }
         clearTrees(x, z, base + 1);
