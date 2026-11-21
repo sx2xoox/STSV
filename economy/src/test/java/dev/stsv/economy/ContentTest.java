@@ -274,8 +274,8 @@ class ContentTest {
         // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 4 + 1, ours.size(),
-                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자");
+        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12, ours.size(),
+                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball)");
         assertEquals(7, machines.size());
         assertEquals(148 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
@@ -341,6 +341,20 @@ class ContentTest {
         for (var g : shop.goods()) for (var z : net.zones()) if (g.id().equals(z.item())) problems.add("the shop must not trade a crate of catch: " + g.id());
         // 장신구 (items/accessories.yml): the box (the shop sells it) gives them, the 용궁 상자 the fragments; the chest comes from fishing
         for (String id : ours) if (id.startsWith("economy:acc_") || id.equals("economy:accessory") || id.equals("economy:dragon_chest")) makeable.add(id);
+        // 마을버스 분실물 (items/bus.yml): passengers leave them on the bus (bus.yml events.lost.kinds), nothing else makes them, the shop never trades them
+        var lost = dev.stsv.economy.bus.BusSpec.parse(yaml("bus.yml"), problems).events().lost();
+        for (var k : lost.kinds().values()) {
+            List<String> forms = new ArrayList<>(List.of(k.item(false)));
+            if (k.spoil() > 0) forms.add(k.item(true));
+            if (k.keepsake()) forms.add(k.keepsakeItem());
+            for (String id : forms) {
+                if (!exists(id, ours)) problems.add("lost item: " + id);
+                if (shop.sell().containsKey(id)) problems.add("the shop buys a lost item: " + id);
+                makeable.add(id);
+            }
+        }
+        for (String id : ours) if (id.startsWith("economy:lost_") && !makeable.contains(id)) problems.add("a lost item no kind leaves: " + id);
+        for (String title : lost.titles().keySet()) if (!titles.contains(title.substring(title.indexOf(':') + 1))) problems.add("lost title: " + title);
         for (String id : ours) if (!makeable.contains(id) && !oldGoods.contains(id)) problems.add("nobody can make " + id);
         for (String id : oldGoods) if (makeable.contains(id)) problems.add("an old good is made again: " + id + " (move it out of sell.legacy)");
         assertTrue(problems.isEmpty(), String.join("\n", problems));

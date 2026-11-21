@@ -113,14 +113,122 @@ public record BusEvents(Team team, Crowd rush, Crowd ballgame, Crowd picnic, Spe
         }
     }
 
-    /** One kind of thing left behind: its name and the vanilla item it looks like. */
-    public record Thing(String name, String material) {}
+    /**
+     * One kind of thing left behind (events.lost.kinds; its item is economy:lost_&lt;id&gt;): its name; how likely, `weight` for
+     * any passenger plus `types` more for those kinds (a kind with weight 0 is left only by them: 틀니 by a grandma); what
+     * its owner pays (`reward`, × `rain` when it rains: an umbrella); a phone that `ring`s now and then; food that loses
+     * value till it `spoil`s after that many minutes (`decay` of the reward left just before, then `spoiledReward`); a
+     * `keepsake` that the finder keeps when its owner never comes; the owner's own `thanks`.
+     */
+    public record LostKind(String id, String name, double weight, Map<String, Double> types, long reward, double rain, boolean ring,
+                           double spoil, double decay, long spoiledReward, boolean keepsake, List<String> thanks) {
+        /** How likely this passenger kind leaves this (0: never). */
+        public double weightFor(String type) {
+            return Math.max(0, weight) + Math.max(0, types.getOrDefault(type, 0.0));
+        }
+
+        public boolean spoiled(double minutes) {
+            return spoil > 0 && minutes >= spoil;
+        }
+
+        /** What it is worth to its owner `minutes` after it was left (food loses value till it spoils, then the spoiled reward). */
+        public long value(double minutes) {
+            if (spoil <= 0) return reward;
+            if (minutes >= spoil) return spoiledReward;
+            return Math.round(reward * (1 - (1 - decay) * Math.max(0, minutes) / spoil));
+        }
+
+        /** Its custom item (spoiled food has its own look). */
+        public String item(boolean spoiled) {
+            return "economy:lost_" + id + (spoiled && spoil > 0 ? "_spoiled" : "");
+        }
+
+        public String keepsakeItem() {
+            return "economy:lost_" + id + "_keepsake";
+        }
+    }
+
+    /** A lost item's state at a time: still its owner's (gone off for food), nobody's any more (to the lost and found), a keepsake. */
+    public enum LostState { FRESH, SPOILED, ORPHAN, KEEPSAKE }
+
+    /** What a returned item pays: the amount, and why it is more or less (fast, a rainy umbrella, gone off). */
+    public record LostPay(long amount, boolean fast, boolean rain, boolean spoiled) {}
 
     /**
      * 분실물: at a stop where passengers got off, with `chance` one of them leaves something (one a stop at most, at most
-     * `maxHeld` a driver at once); brought back to that stop within `expire` minutes it pays `reward`.
+     * `maxHeld` a driver at once), its kind by who they are. Brought back to the stop they got on at within `expire`
+     * minutes it pays its kind's reward (× `fastBonus` within `fastMinutes`); past that it is nobody's: handed in at the end
+     * of a line (분실물 센터) it pays `orphan` of its reward, a keepsake stays the finder's. Everyone waiting where it went
+     * back boards `mood` happier. A phone rings every `ringFrom`..`ringTo` seconds. `titles`: title -> things returned.
      */
-    public record Lost(boolean enabled, double chance, int expire, long reward, int maxHeld, List<Thing> things, List<String> thanks) {}
+    public record Lost(boolean enabled, double chance, int expire, int maxHeld, double fastMinutes, double fastBonus, double orphan, double mood,
+                       int ringFrom, int ringTo, Map<String, LostKind> kinds, List<String> thanks, Map<String, Integer> titles) {
+
+        /** The kind this passenger kind leaves, by a roll in 0..1 over the weights for them, or null (nothing for them). */
+        public LostKind pick(String type, double roll) {
+            double total = 0;
+            for (LostKind k : kinds.values()) total += k.weightFor(type);
+            if (total <= 0) return null;
+            double r = roll * total;
+            LostKind last = null;
+            for (LostKind k : kinds.values()) {
+                double w = k.weightFor(type);
+                if (w <= 0) continue;
+                last = k;
+                r -= w;
+                if (r < 0) return k;
+            }
+            return last;
+        }
+
+        /** A kind by its id, or by its name (tags written before kinds had ids), or null. */
+        public LostKind kind(String what) {
+            if (what == null) return null;
+            LostKind k = kinds.get(what);
+            if (k != null) return k;
+            for (LostKind x : kinds.values()) if (x.name().equals(what)) return x;
+            return null;
+        }
+
+        public LostState state(LostTag t, long now) {
+            LostKind k = kind(t.what());
+            if (t.expired(now)) return k != null && k.keepsake() ? LostState.KEEPSAKE : LostState.ORPHAN;
+            return k != null && k.spoiled(t.minutes(now)) ? LostState.SPOILED : LostState.FRESH;
+        }
+
+        /** What bringing it back now pays: its value by now, × its rain factor when it rains, × the fast bonus when it came back soon. */
+        public LostPay pay(LostKind k, LostTag t, long now, boolean raining) {
+            double minutes = t.minutes(now);
+            double v = k.value(minutes);
+            boolean rain = raining && k.rain() != 1;
+            if (rain) v *= k.rain();
+            boolean fast = t.found() > 0 && minutes <= fastMinutes && fastBonus > 1;
+            if (fast) v *= fastBonus;
+            return new LostPay(Math.round(v), fast, rain, k.spoiled(minutes));
+        }
+
+        /** What a thing nobody came for pays at the lost and found (its reward as it ended up, × orphan). */
+        public long orphanPay(LostKind k) {
+            return k == null ? 0 : Math.round(k.value(Double.MAX_VALUE) * orphan);
+        }
+
+        /** The titles reached going from `before` to `after` things returned. */
+        public List<String> titlesReached(long before, long after) {
+            List<String> out = new ArrayList<>();
+            titles.forEach((t, n) -> {
+                if (before < n && after >= n) out.add(t);
+            });
+            return out;
+        }
+    }
+
+    /** A word with 이 or 가 after it by its last sound (non-Korean: "이(가)"): "할머니가", "커플이". Also 을/를, 이요/요 … */
+    public static String josa(String word, String withFinal, String without) {
+        if (word == null || word.isEmpty()) return "";
+        char c = word.charAt(word.length() - 1);
+        if (c < 0xAC00 || c > 0xD7A3) return word + withFinal + "(" + without + ")";
+        return word + ((c - 0xAC00) % 28 != 0 ? withFinal : without);
+    }
 
     /**
      * 버스 대축제: on `day` (1 = Monday … 7 = Sunday) from `from` to `to` o'clock (Korean time): passengers come `refill` times
@@ -236,10 +344,17 @@ public record BusEvents(Team team, Crowd rush, Crowd ballgame, Crowd picnic, Spe
         return out.size() > n ? List.copyOf(out.subList(0, n)) : out;
     }
 
-    /** A lost item's tag (kept on the item): the stop it goes back to, when it stops being worth anything, who found it, what. */
-    public record LostTag(int stop, long expires, UUID finder, String what, UUID id) {
+    /**
+     * A lost item's tag (kept on the item): the stop it goes back to, when it stops being its owner's, who found it, what
+     * (its kind's id), its own id, when it was left (0: not known, an older tag) and the passenger kind who left it.
+     */
+    public record LostTag(int stop, long expires, UUID finder, String what, UUID id, long found, String owner) {
+        public LostTag(int stop, long expires, UUID finder, String what, UUID id) {
+            this(stop, expires, finder, what, id, 0, "");
+        }
+
         public String encode() {
-            return stop + ";" + expires + ";" + finder + ";" + id + ";" + what;
+            return "2;" + stop + ";" + expires + ";" + finder + ";" + id + ";" + found + ";" + owner + ";" + what;
         }
 
         public boolean expired(long now) {
@@ -251,12 +366,23 @@ public record BusEvents(Team team, Crowd rush, Crowd ballgame, Crowd picnic, Spe
             return Math.max(0, (expires - now + 59_999) / 60_000);
         }
 
-        /** A tag read back, or null (not one, or damaged). */
+        /** Minutes since it was left (0 when not known). */
+        public double minutes(long now) {
+            return found > 0 ? Math.max(0, (now - found) / 60_000.0) : 0;
+        }
+
+        /** A tag read back, or null (not one, or damaged). Reads the older tags too (stop;expires;finder;id;name). */
         public static LostTag decode(String s) {
             if (s == null) return null;
-            String[] p = s.split(";", 5);
-            if (p.length < 5) return null;
             try {
+                if (s.startsWith("2;")) {
+                    String[] p = s.split(";", 8);
+                    if (p.length < 8) return null;
+                    return new LostTag(Integer.parseInt(p[1]), Long.parseLong(p[2]), UUID.fromString(p[3]), p[7], UUID.fromString(p[4]),
+                            Long.parseLong(p[5]), p[6]);
+                }
+                String[] p = s.split(";", 5);
+                if (p.length < 5) return null;
                 return new LostTag(Integer.parseInt(p[0]), Long.parseLong(p[1]), UUID.fromString(p[2]), p[4], UUID.fromString(p[3]));
             } catch (IllegalArgumentException e) {
                 return null;
@@ -299,13 +425,7 @@ public record BusEvents(Team team, Crowd rush, Crowd ballgame, Crowd picnic, Spe
         ConfigurationSection co = sec(e, "course");
         Course course = new Course(co.getBoolean("enabled", true), Math.max(2, co.getInt("min-stops", 4)), co.getLong("per-stop", 150), co.getLong("cap", 3000));
         ConfigurationSection lo = sec(e, "lost");
-        List<Thing> things = new ArrayList<>();
-        for (Map<?, ?> m : lo.getMapList("things")) {
-            if (m.get("name") instanceof String n) things.add(new Thing(n, m.get("item") instanceof String it ? it : "minecraft:paper"));
-        }
-        if (things.isEmpty()) things.add(new Thing("지갑", "minecraft:leather"));
-        Lost lost = new Lost(lo.getBoolean("enabled", true), Math.clamp(lo.getDouble("chance", 0.06), 0, 1), Math.max(1, lo.getInt("expire", 30)),
-                lo.getLong("reward", 600), Math.max(1, lo.getInt("max-held", 2)), List.copyOf(things), List.copyOf(lo.getStringList("thanks")));
+        Lost lost = lost(lo);
         ConfigurationSection fs = sec(e, "festival");
         Map<String, Integer> points = new LinkedHashMap<>();
         ConfigurationSection ps = fs.getConfigurationSection("points");
@@ -318,6 +438,41 @@ public record BusEvents(Team team, Crowd rush, Crowd ballgame, Crowd picnic, Spe
                 List.copyOf(prizes), List.copyOf(fs.getStringList("titles")));
         if (festival.to() <= festival.from()) problems.add("events.festival: to 가 from 보다 커야 함");
         return new BusEvents(team, rush, ball, picnic, special, rescue, streak, course, lost, festival);
+    }
+
+    /** events.lost: its kinds (or, from an older bus.yml, its `things` names with one `reward`). */
+    static Lost lost(ConfigurationSection lo) {
+        Map<String, LostKind> kinds = new LinkedHashMap<>();
+        ConfigurationSection ks = lo.getConfigurationSection("kinds");
+        long reward = lo.getLong("reward", 600);
+        if (ks != null) for (String id : ks.getKeys(false)) {
+            ConfigurationSection k = ks.getConfigurationSection(id);
+            if (k == null) continue;
+            Map<String, Double> types = new LinkedHashMap<>();
+            ConfigurationSection ts = k.getConfigurationSection("types");
+            if (ts != null) for (String t : ts.getKeys(false)) types.put(t, ts.getDouble(t));
+            kinds.put(id, new LostKind(id, k.getString("name", id), k.getDouble("weight", 1), Map.copyOf(types), k.getLong("reward", reward),
+                    Math.max(0, k.getDouble("rain", 1)), k.getBoolean("ring", false), Math.max(0, k.getDouble("spoil", 0)),
+                    Math.clamp(k.getDouble("decay", 1), 0, 1), k.getLong("spoiled-reward", 0), k.getBoolean("keepsake", false),
+                    List.copyOf(k.getStringList("thanks"))));
+        }
+        if (kinds.isEmpty()) {
+            Map<String, String> ids = Map.of("지갑", "wallet", "우산", "umbrella", "휴대폰", "phone", "도시락", "lunchbox", "모자", "hat", "열쇠", "key");
+            for (Map<?, ?> m : lo.getMapList("things")) {
+                if (!(m.get("name") instanceof String n) || !ids.containsKey(n)) continue;
+                kinds.put(ids.get(n), new LostKind(ids.get(n), n, 1, Map.of(), reward, 1, false, 0, 1, 0, false, List.of()));
+            }
+            if (kinds.isEmpty()) kinds.put("wallet", new LostKind("wallet", "지갑", 1, Map.of(), reward, 1, false, 0, 1, 0, false, List.of()));
+        }
+        Map<String, Integer> titles = new LinkedHashMap<>();
+        ConfigurationSection tt = lo.getConfigurationSection("titles");
+        if (tt != null) for (String t : tt.getKeys(false)) titles.put(t.contains(":") ? t : "economy:" + t, Math.max(1, tt.getInt(t)));
+        List<Integer> ring = lo.getIntegerList("ring");
+        int ringFrom = ring.isEmpty() ? 120 : Math.max(10, ring.getFirst()), ringTo = ring.isEmpty() ? 180 : Math.max(ringFrom, ring.getLast());
+        return new Lost(lo.getBoolean("enabled", true), Math.clamp(lo.getDouble("chance", 0.06), 0, 1), Math.max(1, lo.getInt("expire", 30)),
+                Math.max(1, lo.getInt("max-held", 2)), Math.max(0, lo.getDouble("fast-minutes", 10)), Math.max(1, lo.getDouble("fast-bonus", 1.5)),
+                Math.clamp(lo.getDouble("orphan", 1 / 3.0), 0, 1), lo.getDouble("mood", 5), ringFrom, ringTo, kinds,
+                List.copyOf(lo.getStringList("thanks")), titles);
     }
 
     private static Crowd crowd(ConfigurationSection c, String type, int from, int to, int deadline, int min, int max, int times, int weekendTimes,

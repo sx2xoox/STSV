@@ -262,21 +262,37 @@ events:
     min-stops: 4
     per-stop: 150
     cap: 3000
-  # 분실물: 손님이 내린 정류장에서 chance 확률로 (한 정류장에 하나까지) 물건을 두고 내림 → 기사 인벤토리로.
-  # expire 분 안에 그 정류장 베이에 서면 자동으로 돌려주고 reward G. 지나면 쓸모없음. 한 사람이 max-held 개까지. 팔 수 없음
+  # 분실물: 손님이 내린 정류장에서 chance 확률로 (한 정류장에 하나까지) 물건을 두고 내림 → 기사 인벤토리로 (아이템 economy:lost_<종류>,
+  # items/bus.yml · 아이콘 bus_lost_icons.py). 한 사람이 max-held 개까지. 팔 수 없음 (상점 구매품 표시), 주운 기사만 사례금.
+  # 그 손님이 탄 정류장에 expire 분 안에 서면 자동으로 돌려주고 그 종류의 reward G (fast-minutes 분 안이면 × fast-bonus).
+  # 돌려줄 정류장에는 주인(그 손님 종류 마네킹)이 "제 ○○이요!" 하고 기다리다 버스가 오면 손을 흔듦 (든 기사가 가까이 올 때만).
+  # 돌려주면 그 정류장에서 기다리던 손님은 탈 때 기분 + mood. 기한이 지나면 "주인 잃은 물건": 노선 끝 정류장(종점 = 분실물 센터)
+  # 베이에 서면 reward × orphan G (keepsake 는 기념품으로 바뀌어 기사가 가짐). 돌려준 수가 titles 만큼이면 칭호.
+  # 종류: weight = 누구나 두고 내릴 무게, types = 그 손님 종류만 더 (weight 0 이면 그 손님만), rain = 비 올 때 배수,
+  # ring = 들고 있으면 가끔 울림 (ring 초 사이), spoil = 그 분이 지나면 쉼 (그 전까지 사례금이 decay 까지 줄고, 쉬면 spoiled-reward),
+  # thanks = 그 종류만의 고맙다는 말 (없으면 아래 thanks)
   lost:
     enabled: true
     chance: 0.06
     expire: 30
-    reward: 600
     max-held: 2
-    things:
-      - {name: 지갑, item: minecraft:leather}
-      - {name: 우산, item: minecraft:stick}
-      - {name: 휴대폰, item: minecraft:black_dye}
-      - {name: 도시락, item: minecraft:bowl}
-      - {name: 모자, item: minecraft:leather_helmet}
-      - {name: 열쇠, item: minecraft:tripwire_hook}
+    fast-minutes: 10
+    fast-bonus: 1.5
+    orphan: 0.34
+    mood: 5
+    ring: [120, 180]
+    titles: {honest_driver: 30, lost_found_chief: 100}
+    kinds:
+      wallet: {name: 지갑, weight: 3, reward: 1200, thanks: ["제 지갑! 신분증까지 다 들어 있었어요, 감사합니다!", "아이고 지갑! 기사님 복 받으실 거예요"]}
+      umbrella: {name: 우산, weight: 3, reward: 500, rain: 2, thanks: ["비 오는데 살았다! 고마워요 기사님~", "우산 찾았다~"]}
+      phone: {name: 휴대폰, weight: 3, reward: 900, ring: true, thanks: ["제 폰! 아까 전화한 게 저예요~", "폰 없으면 아무것도 못 해요, 감사합니다!"]}
+      lunchbox: {name: 도시락, weight: 2, reward: 700, spoil: 15, decay: 0.6, spoiled-reward: 120, thanks: ["점심 굶을 뻔했네! 감사해요~"]}
+      hat: {name: 모자, weight: 1.5, reward: 500}
+      key: {name: 열쇠, weight: 1.5, reward: 700, thanks: ["집에 못 들어갈 뻔했어요!"]}
+      dentures: {name: 틀니, weight: 0, types: {grandma: 8}, reward: 1000, thanks: ["아이고 이제 밥 먹겠네~"]}
+      leash: {name: 강아지 목줄, weight: 0, types: {dogwalker: 10}, reward: 900, thanks: ["멍! 멍멍!", "우리 강아지 목줄! 고맙네 젊은이~"]}
+      loveletter: {name: 연애편지, weight: 0, types: {couple: 8}, reward: 2000, thanks: ["그거 아직 못 줬단 말이에요! 고마워요 기사님~ ♥", "읽진 않으셨죠…? 감사합니다!"]}
+      signedball: {name: 사인볼, weight: 0, types: {fan: 8}, reward: 1000, keepsake: true, thanks: ["제 사인볼! 가보로 물려줄 거예요!", "최강! 기사님도 최강!"]}
     thanks: ["어머 제 거예요! 감사합니다!", "찾아 주셨군요! 복 받으실 거예요", "아이고 기사님 고마워요~"]
   # 버스 대축제: 매주 day 요일(1 월 ~ 7 일) from ~ to 시. 손님 refill 배로 빨리, 특급 손님 chance 배.
   # 운행 점수 (points: stop 손님이 타거나 내린 정류장, team 단체 팀, special 특급 손님, rescue 구조, course 노선 완주; 운임 · 머릿수 아님)

@@ -64,6 +64,8 @@ public final class BusModule extends EcoModule {
     private PassengerPreview preview;
     /** 버스 내비게이션 (/버스 내비) */
     private BusNavigator navigator;
+    /** 분실물 (LostItems: their items, owners waiting at the stops, the phone ringing) */
+    private LostItems lostItems;
     private final Map<Integer, BusStop> stops = new LinkedHashMap<>();
     private int nextId = 1;
     private StopBuilder builder;
@@ -297,6 +299,7 @@ public final class BusModule extends EcoModule {
         secret = new SecretAgent(this, eco, core);
         preview = new PassengerPreview(this, eco);
         navigator = new BusNavigator(this, eco, core);
+        lostItems = new LostItems(this, eco, core);
         every(10L, navigator::tick);
         Bukkit.getPluginManager().registerEvents(secret, eco);
         every(1L, this::tick);
@@ -318,6 +321,7 @@ public final class BusModule extends EcoModule {
         if (core != null && core.hud() != null) core.hud().removeOverlay("eco-bus");
         if (preview != null) preview.stop();
         if (navigator != null) navigator.stop();
+        if (lostItems != null) lostItems.stop();
         if (secret != null) {
             secret.stop();
             org.bukkit.event.HandlerList.unregisterAll(secret);
@@ -1098,7 +1102,7 @@ public final class BusModule extends EcoModule {
         if (q != null) q.take(w.since);
         // 기다림 짜증: a long wait, a crosser passenger
         double waited = (System.currentTimeMillis() - w.since) / 60000.0, start = spec.mood().start();
-        double mood = spec.patience().mood(start, waited);
+        double mood = Math.min(100, spec.patience().mood(start, waited) + lostItems.cheer(here.id(), w.since));   // saw a lost thing come back
         double road = line.between(line.at(here.id()), line.at(dest));
         Rider r = new Rider(w.m, w.type, here.id(), dest, road, mood);
         r.face = w.face;
@@ -1545,6 +1549,7 @@ public final class BusModule extends EcoModule {
             if (p != null) hud(p, r);
         }
         secret.second(now);
+        lostItems.second(now);
         if (ticks % 1200 < 20) saveStops();   // the waiting numbers now and then
     }
 
@@ -2115,78 +2120,19 @@ public final class BusModule extends EcoModule {
         return BusEvents.LostTag.decode(it.getItemMeta().getPersistentDataContainer().get(LOST, PersistentDataType.STRING));
     }
 
-    /**
-     * Someone got off: with events.lost's chance (one a stop visit, events.lost.max-held a driver at once) they left
-     * something behind: it is the driver's to take back to the stop they got on at. Marked like the admin shop's goods
-     * (the shop does not buy it, no request or machine takes it), one a stack, and only its finder is thanked for it.
-     */
+    /** Someone got off: now and then they left something behind (LostItems). */
     private void maybeLose(Player p, Run run, Rider r, BusStop here) {
-        BusEvents.Lost lo = spec.events().lost();
-        if (!lo.enabled() || run.lostHere || r.from == here.id() || ThreadLocalRandom.current().nextDouble() >= lo.chance()) return;
-        BusStop home = stops.get(r.from);
-        if (home == null) return;
-        long now = System.currentTimeMillis();
-        int held = 0;
-        for (org.bukkit.inventory.ItemStack it : p.getInventory().getStorageContents()) {
-            BusEvents.LostTag t = lostTag(it);
-            if (t != null && !t.expired(now) && t.finder().equals(p.getUniqueId())) held++;
-        }
-        if (held >= lo.maxHeld()) return;
-        run.lostHere = true;
-        BusEvents.Thing th = lo.things().get(ThreadLocalRandom.current().nextInt(lo.things().size()));
-        org.bukkit.Material mat = org.bukkit.Material.matchMaterial(th.material());
-        if (mat == null || !mat.isItem() || mat.isAir()) mat = org.bukkit.Material.PAPER;
-        long expires = now + lo.expire() * 60_000L;
-        BusEvents.LostTag tag = new BusEvents.LostTag(home.id(), expires, p.getUniqueId(), th.name(), UUID.randomUUID());
-        org.bukkit.inventory.ItemStack item = new org.bukkit.inventory.ItemStack(mat);
-        String until = java.time.Instant.ofEpochMilli(expires).atZone(KST).toLocalTime().withSecond(0).withNano(0).toString();
-        item.editMeta(m -> {
-            m.itemName(Lang.mm("bus.lost-name", "thing", th.name()));
-            m.lore(List.of(Lang.mm("bus.lost-lore-1", "stop", home.name(), "type", r.type.name()),
-                    Lang.mm("bus.lost-lore-2", "stop", home.name(), "time", until), Lang.mm("bus.lost-lore-3")).stream()
-                    .map(c -> c.decoration(net.kyori.adventure.text.format.TextDecoration.ITALIC, false)).toList());
-            m.setMaxStackSize(1);
-            m.getPersistentDataContainer().set(LOST, PersistentDataType.STRING, tag.encode());
-        });
-        dev.stsv.economy.util.Items.markBought(item);
-        for (org.bukkit.inventory.ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItem(p.getLocation(), left);
-        p.sendMessage(Lang.mm("bus.lost-got", "type", typeTag(r.type), "thing", th.name(), "stop", home.name(), "min", lo.expire()));
-        p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 0.9f);
+        lostItems.drop(p, run, r, here);
     }
 
-    /** At a stop: the driver's lost items for it go back to their owners (a reward and thanks); ones past their time are thrown out. */
+    /** At a stop: the driver's lost items for it go back to their owners; at a line's end, the ones nobody came for (LostItems). */
     private void returnLost(Player p, Run run, BusStop here) {
-        BusEvents.Lost lo = spec.events().lost();
-        long now = System.currentTimeMillis();
-        var inv = p.getInventory();
-        org.bukkit.inventory.ItemStack[] items = inv.getStorageContents();
-        int expired = 0;
-        for (int i = 0; i < items.length; i++) {
-            BusEvents.LostTag t = lostTag(items[i]);
-            if (t == null) continue;
-            if (t.expired(now)) {   // nobody's any more: to the lost and found
-                inv.setItem(i, null);
-                expired++;
-                continue;
-            }
-            if (t.stop() != here.id()) continue;
-            if (!t.finder().equals(p.getUniqueId())) {
-                p.sendMessage(Lang.mm("bus.lost-other"));
-                continue;
-            }
-            inv.setItem(i, null);
-            long[] paid = bonus(p, run, lo.reward(), "bus_event");
-            p.sendMessage(Lang.mm("bus.lost-back", "thing", t.what(), "g", g(paid[0]), "fee", feeText(paid[1])));
-            p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2f);
-            Shown sh = shown.get(here.id());
-            Waiter who = sh == null || sh.waiters.isEmpty() ? null : sh.waiters.get(ThreadLocalRandom.current().nextInt(sh.waiters.size()));
-            if (who != null && who.m.isValid() && !lo.thanks().isEmpty()) {
-                say(who.m, lo.thanks().get(ThreadLocalRandom.current().nextInt(lo.thanks().size())));
-                who.m.swingMainHand();
-                who.m.getWorld().spawnParticle(Particle.HEART, who.m.getLocation().add(0, 2.1, 0), 2, 0.3, 0.2, 0.3);
-            }
-        }
-        if (expired > 0) p.sendMessage(Lang.mm("bus.lost-expired", "n", expired));
+        lostItems.returnAt(p, run, here);
+    }
+
+    /** What a lost item is (its kind's name). */
+    String lostName(BusEvents.LostTag t) {
+        return lostItems == null ? t.what() : lostItems.thingName(t);
     }
 
     // ---- 3차 손님: 수다쟁이 아줌마, 멀미하는 아저씨, 애 업은 엄마, 강아지 할아버지, 산타, 유령, 배달 라이더, 스님, 유튜버
@@ -2491,6 +2437,7 @@ public final class BusModule extends EcoModule {
             int[] fp = festPoints.get(p.getUniqueId());
             b.append(Lang.raw("bus.hud-fest", "points", fp == null ? 0 : fp[0]));
         }
+        b.append(lostItems.hud(p, navigator.navigating(p.getUniqueId())));   // 분실물: where to take it (or the phone ringing)
         return b.toString();
     }
 

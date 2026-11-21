@@ -583,7 +583,7 @@ final class BusNavigator {
             for (ItemStack it : p.getInventory().getStorageContents()) {
                 BusEvents.LostTag tag = BusModule.lostTag(it);
                 if (tag == null || tag.expired(now) || !tag.finder().equals(p.getUniqueId()) || !byId.containsKey(tag.stop())) continue;
-                ev.computeIfAbsent(tag.stop(), k -> new ArrayList<>()).add(Lang.raw("bus.nav-ev-lost", "thing", tag.what(), "min", tag.minutesLeft(now)));
+                ev.computeIfAbsent(tag.stop(), k -> new ArrayList<>()).add(Lang.raw("bus.nav-ev-lost", "thing", bus.lostName(tag), "min", tag.minutesLeft(now)));
             }
             if (!ev.isEmpty()) {
                 header(out, Material.YELLOW_STAINED_GLASS_PANE, Lang.raw("bus.nav-sec-event"), Lang.raw("bus.nav-sec-event-lore"));
