@@ -71,7 +71,7 @@ final class NewsWarp {
 
     /**
      * One Korean word of the line (outside tags and outside the company name, which is the {@code <white>} part) becomes
-     * the word ("갱도 침수로 작업 중단" → "갱도 물로 작업 중단"). A line with no such word comes back as it was.
+     * the word ("갱도 침수로 작업 중단" → "갱도 물로 작업 중단"); the [머리말] stays as it is too. A line with no such word comes back as it was.
      */
     static String soak(String line, String word, Random r) {
         List<int[]> runs = words(line);
@@ -86,10 +86,10 @@ final class NewsWarp {
         return line.substring(0, from) + word + tail + line.substring(to);
     }
 
-    /** [from, to) of each run of two or more Hangul syllables outside tags and outside {@code <white>…</white>}. */
+    /** [from, to) of each run of two or more Hangul syllables outside tags, {@code <white>…</white>} and [brackets]. */
     static List<int[]> words(String line) {
         List<int[]> out = new ArrayList<>();
-        boolean name = false;
+        boolean name = false, label = false;
         int i = 0, n = line.length();
         while (i < n) {
             char c = line.charAt(i);
@@ -105,9 +105,11 @@ final class NewsWarp {
             if (hangul(c)) {
                 int s = i;
                 while (i < n && hangul(line.charAt(i))) i++;
-                if (!name && i - s >= 2) out.add(new int[]{s, i});
+                if (!name && !label && i - s >= 2) out.add(new int[]{s, i});
                 continue;
             }
+            if (c == '[') label = true;
+            else if (c == ']') label = false;
             i++;
         }
         return out;

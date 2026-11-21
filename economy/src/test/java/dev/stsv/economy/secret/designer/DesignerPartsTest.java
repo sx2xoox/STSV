@@ -142,7 +142,7 @@ class DesignerPartsTest {
         assertEquals(2, Parts.quarter(180));      // north
         assertEquals(2, Parts.quarter(-180));
         assertEquals(3, Parts.quarter(90));       // west
-        assertEquals(3, Parts.quarter(270));
+        assertEquals(1, Parts.quarter(270));      // = -90
         assertEquals(0, Parts.quarter(40));
         assertEquals(1, Parts.quarter(-50));
         assertEquals(1, Parts.quarter(-450));
