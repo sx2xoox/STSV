@@ -777,10 +777,11 @@ public final class LostKey extends Secret implements BusModule.Watcher {
                 continue;
             }
             if (st < 1 || st > HOME || !open(u)) {
-                if (locker.showing(u) && !locker.opening(u) && (st != HOME || !on())) locker.hideFar(p);   // an admin's preview left behind
+                if (locker.showing(u) && !locker.opening(u)) locker.hideFar(p);   // an admin's preview left behind
                 continue;
             }
             if (st == HOME) homeBeat(p);
+            else if (locker.showing(u) && !locker.opening(u)) locker.hideFar(p);
             if (beats % 5 == 0) keepKey(p, now);
             if (st > 5) continue;
             long[] stand = standing.get(u);
