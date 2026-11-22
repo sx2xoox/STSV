@@ -131,7 +131,8 @@ final class Drive {
         return r;
     }
 
-    private long spawn(Run r, World w, Player driver) {
+    /** load: an admin asked for it here and now (the few chunks under it are loaded for it); else it only appears where they already are. */
+    private long spawn(Run r, World w, Player driver, boolean load) {
         VehicleModule vm = g.vm();
         CustomItem item = g.cars().item();
         if (vm == null || item == null) return 0;
@@ -141,7 +142,7 @@ final class Drive {
         // seats would be put into the others)
         for (int cx = (int) Math.floor(at.getX() - 5) >> 4; cx <= (int) Math.floor(at.getX() + 5) >> 4; cx++)
             for (int cz = (int) Math.floor(at.getZ() - 5) >> 4; cz <= (int) Math.floor(at.getZ() + 5) >> 4; cz++)
-                if (!w.isChunkLoaded(cx, cz)) return 0;
+                if (!w.isChunkLoaded(cx, cz) && (!load || !w.getChunkAt(cx, cz).isLoaded())) return 0;
         Combo answer = g.answer();
         long id = vm.spawnTemporary(item, w, at.getX(), at.getY(), at.getZ(), at.getYaw(), answer == null ? null : answer.paint(), driver);
         if (id == 0) return 0;
@@ -162,13 +163,13 @@ final class Drive {
             rest.remove(u);
         }
         Run r = fresh(p, site, false);
-        if (spawn(r, w, null) == 0) return false;
+        if (spawn(r, w, null, false) == 0) return false;
         r.phase = WAITING;
         add(r);
         g.props().drop(u, WAIT);
         g.cars().lampsOver(p, WAIT, r.stands);
         p.playSound(r.stands, Sound.BLOCK_BEACON_AMBIENT, SoundCategory.AMBIENT, 0.6f, 0.6f);
-        g.say(p, "car-waits", "<#9fb2c8>…타.");
+        if (g.once(u, "car-waits", 60)) g.say(p, "car-waits", "<#9fb2c8>…타.");   // (not again each time it comes back)
         return true;
     }
 
@@ -184,7 +185,7 @@ final class Drive {
         Location at = pose(r, w, r.s, lane(), 0);
         if (p.isInsideVehicle()) p.leaveVehicle();
         if (!p.getWorld().equals(w) || p.getLocation().distanceSquared(at) > 24 * 24) p.teleport(at.clone().add(0, 0.3, 0));   // (loads the chunk)
-        if (spawn(r, w, p) == 0) return "차를 세울 수 없어요 (그 자리의 청크가 아직 없음)";
+        if (spawn(r, w, p, true) == 0) return "차를 세울 수 없어요 (그 자리의 청크가 아직 없음)";
         add(r);
         ready(r, p);
         return null;
@@ -329,8 +330,12 @@ final class Drive {
         }
         if (r.ticks % 20 != 0) return;
         boolean late = System.currentTimeMillis() - r.born > Math.max(20, cfg().getLong("drive.wait-seconds", 180)) * 1000L;
+        // far: further than anyone within drive.range of the bend can be from a car standing before it (else it would come
+        // and go every second for someone on the bend's other side)
+        double far = Math.max(72, cfg().getDouble("drive.range", 40) + Math.max(10, cfg().getInt("drive.lead", 30)) + 48);
         boolean gone = late || !vm.temporaryAlive(r.car) || !p.getWorld().getName().equals(r.world)
-                || p.getLocation().distanceSquared(r.stands) > 72 * 72 || !g.night(p) || !g.mayGoOn(p);
+                || Math.hypot(p.getLocation().getX() - r.stands.getX(), p.getLocation().getZ() - r.stands.getZ()) > far
+                || !g.night(p) || !g.mayGoOn(p);
         if (late) rest.put(r.u, System.currentTimeMillis() + 60_000L);   // it does not come back the very next second
         if (gone) end(r.u);
         else if (r.ticks % 100 == 0) p.spawnParticle(Particle.SOUL, r.stands.clone().add(0, 0.8, 0), 3, 0.8, 0.3, 0.8, 0.005);
@@ -364,7 +369,7 @@ final class Drive {
             if (gap > 0) g.whisper(p, "too-fast", "<#9fb2c8>…천천히. 옆에 있어 줘.");
             else g.whisper(p, "too-slow", "<#9fb2c8>…거기 있지? 옆으로 와.");
         }
-        if (r.s >= r.end) {   // home, together
+        if (r.s >= r.end && place != Roadway.Place.OUT) {   // home, together (he waits at his door for someone too far off: the grace runs)
             r.phase = HOME;
             r.ticks = 0;
             r.from = ghost;
@@ -389,7 +394,9 @@ final class Drive {
         double target = Roadway.adapt(cruise, gap, min);
         if (r.phase == GO) target = Math.min(target, Math.max(min, (r.end - r.s) / 3 + 2.5));   // easing up to his door
         r.v = Roadway.step(r.v, target, c.getDouble("pace.accel", 3), c.getDouble("pace.brake", 5), 0.05);
+        double was = r.s;
         r.s = Math.min(r.end, r.s + r.v * 0.05);
+        if (r.s >= r.end) r.v = 0;   // standing at his door
         double lateral = -lane();
         float skid = 0;
         if (r.phase == GO && r.flick < 0 && r.s >= r.bend) {
@@ -408,7 +415,7 @@ final class Drive {
         Location l = pose(r, w, r.s, lateral, skid);
         if (r.ghost != null) {
             g.cars().move(r.ghost, l);
-            r.roll += r.v * 0.05 / 0.375;
+            r.roll += (r.s - was) / 0.375;   // (the wheel's radius: VehicleSpec wheel-radius of the 튜닝카)
             if (r.ticks % 2 == 0) g.cars().roll(r.ghost, r.roll);
         }
         if (r.ticks % 3 == 0) {
@@ -463,7 +470,8 @@ final class Drive {
         r.ticks = 0;
         if (seated && safe != null) {
             Bukkit.getScheduler().runTaskLater(g.eco(), () -> {   // after the core has stepped them out beside the car
-                if (p.isOnline() && !p.isDead() && !p.isInsideVehicle() && p.getWorld().equals(safe.getWorld())) {
+                if (p.isOnline() && !p.isDead() && !p.isInsideVehicle() && p.getWorld().equals(safe.getWorld())
+                        && p.getLocation().distanceSquared(safe) < 48 * 48 && standable(safe)) {
                     safe.setYaw(p.getLocation().getYaw());
                     safe.setPitch(p.getLocation().getPitch());
                     p.teleport(safe);
@@ -474,20 +482,34 @@ final class Drive {
     }
 
     /**
-     * Solid ground beside the road near (x, z): the roadside on either hand, else the road itself. Null when nothing there
-     * can be read.
+     * Solid ground at the road's edge near (x, z): the kerb on either hand (inside any guardrail or bridge railing, never
+     * on top of one), else the middle of the road itself. Null when nothing there can be read.
      */
     Location roadside(Run r, double x, double z) {
         World w = Bukkit.getWorld(r.world);
         if (w == null) return null;
         double s = Roadway.project(r.pts, x, z, (int) r.along - 80, (int) r.along + 80);
         int roadY = Roadway.surfaceY(r.halves, (int) Math.round(s));
-        for (double lateral : new double[]{4.5, -4.5, 0}) {
+        for (double lateral : new double[]{3.0, -3.0, 0}) {
             double[] at = Roadway.beside(r.pts, s, lateral, 3);
-            int y = Places.ground(w, at[0], at[1], roadY, 3, 4);
-            if (y != Places.UNKNOWN && y != Places.NONE) return new Location(w, at[0], y + 0.05, at[1]);
+            int y = Places.ground(w, at[0], at[1], roadY, 1, 2);
+            if (y == Places.UNKNOWN || y == Places.NONE) continue;
+            Location l = new Location(w, at[0], y + 0.05, at[1]);
+            if (standable(l)) return l;
         }
         return null;
+    }
+
+    /** Whether someone can be stood here now: room for them, something to stand on that is no rail, fence or fire. */
+    static boolean standable(Location l) {
+        World w = l.getWorld();
+        if (w == null || !w.isChunkLoaded(l.getBlockX() >> 4, l.getBlockZ() >> 4)) return false;
+        org.bukkit.block.Block feet = l.getBlock(), under = feet.getRelative(0, -1, 0);
+        org.bukkit.Material t = under.getType();
+        return feet.isPassable() && !feet.isLiquid() && feet.getRelative(0, 1, 0).isPassable() && !under.isPassable()
+                && !org.bukkit.Tag.WALLS.isTagged(t) && !org.bukkit.Tag.FENCES.isTagged(t) && !org.bukkit.Tag.FENCE_GATES.isTagged(t)
+                && t != org.bukkit.Material.MAGMA_BLOCK && t != org.bukkit.Material.CAMPFIRE && t != org.bukkit.Material.SOUL_CAMPFIRE
+                && t != org.bukkit.Material.CACTUS;
     }
 
     private void removeCar(Run r) {

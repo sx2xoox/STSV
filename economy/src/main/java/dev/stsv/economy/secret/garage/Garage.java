@@ -210,6 +210,11 @@ public final class Garage extends Secret {
         return true;
     }
 
+    /** True once every {@code seconds} for this player and thing (for the drive's own lines). */
+    boolean once(UUID u, String what, long seconds) {
+        return cool(u, what, seconds);
+    }
+
     /** Later, if they are still here and nothing took their scenes away meanwhile ({@link #cleanup}). */
     void later(Player p, long ticks, Runnable r) {
         int e = epoch.getOrDefault(p.getUniqueId(), 0);
@@ -994,7 +999,8 @@ public final class Garage extends Secret {
         if (world == null || !world.equals(p.getWorld())) return;
         try {
             Location at = new Location(world, Double.parseDouble(w[1]), Double.parseDouble(w[2]), Double.parseDouble(w[3]), p.getLocation().getYaw(), p.getLocation().getPitch());
-            if (at.distanceSquared(p.getLocation()) < 48 * 48) p.teleport(at);
+            // (the core put them beside the car as they left; the roadside only if it is still ground to stand on)
+            if (at.distanceSquared(p.getLocation()) < 48 * 48 && Drive.standable(at)) p.teleport(at);
         } catch (NumberFormatException ignored) {
             // a broken line: they stay where they are
         }

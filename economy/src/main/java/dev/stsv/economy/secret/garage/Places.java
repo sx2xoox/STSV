@@ -348,6 +348,13 @@ final class Places {
         return Tag.WALLS.isTagged(t) || Tag.FENCES.isTagged(t) || t == Material.YELLOW_TERRACOTTA || t == Material.BLACK_TERRACOTTA || t == Material.END_ROD;
     }
 
+    /** A rail's block here (a hard bend's striped block stands on the verge: terracotta lying on terracotta is the badlands' own ground). */
+    private static boolean railAt(World w, int bx, int y, int bz) {
+        Material t = w.getBlockAt(bx, y, bz).getType();
+        if (!rail(t)) return false;
+        return !Tag.TERRACOTTA.isTagged(t) || !Tag.TERRACOTTA.isTagged(w.getBlockAt(bx, y - 1, bz).getType());
+    }
+
     /** How far behind its frame (away from the road) the memorial reaches: this much is kept free before a rail. */
     private static final double BACK = 0.8;
 
@@ -379,7 +386,7 @@ final class Places {
             int bx = (int) Math.floor(c[0]), bz = (int) Math.floor(c[1]);
             if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return null;
             for (int y = roadY + 2; y >= roadY - 1; y--) {
-                if (!rail(w.getBlockAt(bx, y, bz).getType())) continue;
+                if (!railAt(w, bx, y, bz)) continue;
                 lateral = Math.max(3.3, Roadway.nearFace(mid[0], mid[1], -t[1] * s.outside(), t[0] * s.outside(), bx, bz) - BACK);
                 // its top: over whatever lies on it (a cap, a carpet); a post taller than a rail (a light, a snow pole) has none to reach
                 int ty = y;

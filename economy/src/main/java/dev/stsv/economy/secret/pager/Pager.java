@@ -120,7 +120,7 @@ public final class Pager extends Secret {
     /** player -> when their house was last looked for again because its place was built over */
     private final Map<UUID, Long> repicked = new HashMap<>();
     private long beats;
-    private double chance = 0.0002;
+    private double chance = 0.00005;
     private int maxY;
 
     public Pager(SecretModule m) {
@@ -151,7 +151,7 @@ public final class Pager extends Secret {
 
     @Override
     protected void loaded() {
-        chance = cfg.getDouble("start.chance", 0.0002);
+        chance = cfg.getDouble("start.chance", 0.00005);
         maxY = cfg.getInt("start.max-y", 0);
         YamlConfiguration lang = new YamlConfiguration();
         lang.set("mail.reason.pager", cfg.getString("letter.mail-reason", "발신: 파란 대문 집"));
@@ -981,7 +981,10 @@ public final class Pager extends Secret {
                 continue;
             }
             if (guide(p)) continue;
-            if (kv(u, "late") != null) reopen(p);
+            if (kv(u, "late") != null) {
+                if (p.isDead()) continue;
+                reopen(p);
+            }
             if (kv(u, "ending") != null) {   // the end was playing when they left (or the server stopped): it is done
                 if (!house.ending(u)) {
                     p.sendMessage(Text.mm(text("lines.dad", "<#e8dcc0>…아빠?")));
@@ -1177,6 +1180,7 @@ public final class Pager extends Secret {
         }
         testers.remove(u);
         settling.remove(u);
+        repicked.remove(u);
         beeps.remove(u);
         house.hide(u);
         without.remove(u);
