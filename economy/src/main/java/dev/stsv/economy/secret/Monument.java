@@ -25,15 +25,18 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * 숨은 비밀 기념비: one stone per secret (the bus secret first, then the module's secrets), set where an admin stands
- * (/관리자 비밀 비석 세우기), in a gentle arc facing the way they look. An unsolved stone shows only "???"; a solved one
- * the secret's name, who solved it first and the date. Each stone is one item display of a 3D gravestone model
+ * 숨은 비밀 기념비: one stone per secret (the bus secret first, then the module's secrets: thirteen), set where an admin
+ * stands (/관리자 비밀 비석 세우기), in an arc facing the way they look. An unsolved stone shows only "???" (nothing at all
+ * for a secret that keeps its stone hidden, {@link Secret#hiddenStone}: it looks like a stone nobody has a secret for);
+ * a solved one the secret's stone title, who solved it first and the date. Each stone is one item display of a 3D gravestone model
  * (tools/assetgen/models/monument.py: economy:model/secret_stone, a weathered mossy tablet with a faint "?" groove;
  * economy:model/secret_stone_solved_&lt;id&gt;, polished black stone with a gold inlay and that secret's own gold emblem;
  * economy:model/secret_stone_solved, the same with a star, for a secret without one) and one text display just above
  * its arched top. Displays are saved with the chunk (tag economy:secret_stone = id|text hash|model, so a stone
  * still showing an older model, such as the generic star, is set again);
- * once a minute they are checked and rebuilt if missing or out of date. Place: eco.kv "secret.monument".
+ * once a minute they are checked and rebuilt if missing, out of date or not where the arc now puts them (a monument set
+ * when there were ten stones moves out into the wider arc by itself; stones of no secret, the old "blank" ones, go).
+ * Place: eco.kv "secret.monument".
  */
 final class Monument {
 
@@ -43,9 +46,14 @@ final class Monument {
             MODEL_SOLVED = new NamespacedKey("economy", "model/secret_stone_solved");
     /** Stones with their own solved model (economy:model/secret_stone_solved_&lt;id&gt;, each its own gold emblem). */
     static final Set<String> EMBLEMS = Set.of("bus", "dongbang", "letter", "designer", "usher", "fish",
-            "lostkey", "doll", "scarecrow");
+            "lostkey", "doll", "scarecrow", "jesa", "garage", "pager", "newcomer");
     /** How many stones stand: the secrets, then blank stones kept for secrets yet to come ("blank1" …: no text). */
-    static final int SLOTS = 10;
+    static final int SLOTS = 13;
+    /**
+     * The arc: how far in front of the place the stones stand (blocks) and how wide it opens (degrees). Thirteen stones
+     * are 1.5 blocks apart (a stone's plinth is 1.25 wide); {@link #stray} and {@link #clear} reach past it.
+     */
+    static final double RADIUS = 8, SPREAD = 130;
     /** The model's top over the ground (blocks: plinth 0.25 + tablet 1.5) and where the text display stands. */
     static final double TOP = 1.75, TEXT_Y = TOP + 0.2;
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(SecretModule.KST);
@@ -55,8 +63,11 @@ final class Monument {
         this.m = m;
     }
 
-    /** One stone: its id (kv tag), the name when solved, the solver and when (ms, 0 unknown). */
-    record Stone(String id, String name, Optional<UUID> solver, long at) {}
+    /**
+     * One stone: its id (kv tag), the name when solved, the solver and when (ms, 0 unknown), and whether it says nothing
+     * until it is solved (a blank stone, or a secret that hides its stone).
+     */
+    record Stone(String id, String name, Optional<UUID> solver, long at, boolean hidden) {}
 
     /** The model a stone shows: unsolved, its own solved emblem, or the generic solved star. */
     static NamespacedKey model(String id, boolean solved) {
@@ -80,11 +91,12 @@ final class Monument {
         }
         long busAt = m.eco().kv().getLong("bus.secret.first-at", 0);
         if (busAt == 0 && bu.isPresent()) busAt = m.eco().kv().getLong("bus.secret." + bu.get() + ".agent", 0);   // solved before the stones: the day they got the case open
-        out.add(new Stone("bus", "버스의 비밀", bu, busAt));
+        out.add(new Stone("bus", "버스의 비밀", bu, busAt, false));
         for (Secret s : m.all()) {
-            out.add(new Stone(s.id(), s.cfg.getString("stone-name", s.name()), m.solver(s), m.eco().kv().getLong("secret." + s.id() + ".first-at", 0)));
+            out.add(new Stone(s.id(), s.cfg.getString("stone-name", s.stoneTitle()), m.solver(s),
+                    m.eco().kv().getLong("secret." + s.id() + ".first-at", 0), s.hiddenStone()));
         }
-        for (int n = 1; out.size() < SLOTS; n++) out.add(new Stone("blank" + n, "", Optional.empty(), 0));
+        for (int n = 1; out.size() < SLOTS; n++) out.add(new Stone("blank" + n, "", Optional.empty(), 0, true));
         return out;
     }
 
@@ -116,15 +128,34 @@ final class Monument {
 
     /** Where stone i stands: an arc in front of the place, the middle stone farthest, all facing back to the place. */
     private Location stoneAt(Location base, int i, int n) {
-        double spread = Math.toRadians(100);
-        double a = n == 1 ? 0 : -spread / 2 + spread * i / (n - 1);
-        double r = 6;
-        double yaw = Math.toRadians(base.getYaw());
+        double[] o = offset(i, n, base.getYaw());
+        Location l = base.clone().add(o[0], 0, o[1]);
+        l.setYaw((float) o[2]);
+        return l;
+    }
+
+    /**
+     * Stone i of n from the place (whose yaw is the way the arc opens): {dx, dz, the yaw that faces it back to the place}.
+     * The stones are spread evenly over {@link #SPREAD} at {@link #RADIUS}; one stone alone stands straight ahead.
+     */
+    static double[] offset(int i, int n, float placeYaw) {
+        double spread = Math.toRadians(SPREAD);
+        double a = n <= 1 ? 0 : -spread / 2 + spread * i / (n - 1);
+        double yaw = Math.toRadians(placeYaw);
         // forward = (-sin yaw, cos yaw) in Minecraft
         double fx = -Math.sin(yaw + a), fz = Math.cos(yaw + a);
-        Location l = base.clone().add(fx * r, 0, fz * r);
-        l.setYaw((float) Math.toDegrees(Math.atan2(fx, -fz)));   // face the centre
-        return l;
+        return new double[]{fx * RADIUS, fz * RADIUS, Math.toDegrees(Math.atan2(fx, -fz))};
+    }
+
+    /** Whether a display at (x, z) is one of the stone standing at (sx, sz): its model and its text share the column. */
+    static boolean here(double sx, double sz, double x, double z) {
+        return Math.abs(sx - x) < 0.01 && Math.abs(sz - z) < 0.01;
+    }
+
+    /** The id a stone's tag starts with (see {@link #key}). */
+    static String idOf(String tag) {
+        int bar = tag.indexOf('|');
+        return bar < 0 ? tag : tag.substring(0, bar);
     }
 
     private void clear() {
@@ -135,7 +166,10 @@ final class Monument {
         });
     }
 
-    /** (Re)builds every stone whose displays are missing or show an old text. */
+    /**
+     * (Re)builds every stone whose displays are missing, show an old text or model, or stand somewhere else (the arc
+     * was narrower, or had fewer stones, when they were set); displays of a stone that is no longer one go.
+     */
     void build() {
         Optional<Location> p = place();
         if (p.isEmpty()) return;
@@ -148,32 +182,44 @@ final class Monument {
         for (Entity e : base.getWorld().getNearbyEntities(base, 16, 8, 16)) {
             if (e.getPersistentDataContainer().has(TAG, PersistentDataType.STRING)) mine.add(e);
         }
+        Set<String> ids = new java.util.HashSet<>();
+        for (Stone s : list) ids.add(s.id());
+        for (Entity e : new ArrayList<>(mine)) {   // a blank stone whose slot a secret took, a secret taken out
+            String t = e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING);
+            if (t != null && !ids.contains(idOf(t))) {
+                e.remove();
+                mine.remove(e);
+            }
+        }
         for (int i = 0; i < list.size(); i++) {
             Stone s = list.get(i);
             String text = text(s);
             String key = key(s.id(), text, model(s.id(), s.solver().isPresent()));
+            Location at = stoneAt(base, i, list.size());
             int texts = 0, models = 0, others = 0;
             for (Entity e : mine) {
                 if (!key.equals(e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING))) continue;
-                if (e instanceof TextDisplay) texts++;
+                Location el = e.getLocation();
+                if (!here(at.getX(), at.getZ(), el.getX(), el.getZ())) others++;   // set for another arc: it moves
+                else if (e instanceof TextDisplay) texts++;
                 else if (e instanceof ItemDisplay) models++;
                 else others++;   // the two block displays of a stone from before the models: it is set again
             }
             if (whole(texts, models, others)) continue;
             for (Entity e : new ArrayList<>(mine)) {
                 String t = e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING);
-                if (t != null && t.startsWith(s.id() + "|")) {
+                if (t != null && idOf(t).equals(s.id())) {
                     e.remove();
                     mine.remove(e);
                 }
             }
-            spawn(stoneAt(base, i, list.size()), s, key, text);
+            spawn(at, s, key, text);
         }
     }
 
     /**
-     * One stone is exactly its text and its model, nothing else (a part missing, one too many, or a block display left
-     * from the old two-block stones, and it is set again).
+     * One stone is exactly its text and its model, nothing else (a part missing, one too many, a block display left
+     * from the old two-block stones, or a display of it standing somewhere else, and it is set again).
      */
     static boolean whole(int texts, int models, int others) {
         return texts == 1 && models == 1 && others == 0;
@@ -207,7 +253,7 @@ final class Monument {
         }
     }
 
-    /** Whether a stone at (world, x, y, z) is away from the monument's place: another world, or beyond the arc. */
+    /** Whether a stone at (world, x, y, z) is away from the monument's place: another world, or well beyond the arc. */
     static boolean stray(String placeWorld, double px, double py, double pz, String world, double x, double y, double z) {
         if (!placeWorld.equals(world)) return true;
         double dx = px - x, dz = pz - z;
@@ -215,10 +261,16 @@ final class Monument {
     }
 
     private String text(Stone s) {
-        if (s.id().startsWith("blank")) return "";   // a stone kept for a secret yet to come
-        if (s.solver().isEmpty()) return "<dark_gray>???";
-        String who = Optional.ofNullable(Bukkit.getOfflinePlayer(s.solver().get()).getName()).orElse("—");
-        String when = s.at() > 0 ? DAY.format(Instant.ofEpochMilli(s.at())) : "";
+        String who = s.solver().map(u -> Optional.ofNullable(Bukkit.getOfflinePlayer(u).getName()).orElse("—")).orElse(null);
+        return text(s, who, s.at() > 0 ? DAY.format(Instant.ofEpochMilli(s.at())) : "");
+    }
+
+    /**
+     * What a stone says (MiniMessage): nothing while unsolved if it is hidden (a stone kept for a secret yet to come, or
+     * a secret nobody is to know of), else "???"; once solved its title, who (null = not solved) and the day ("" unknown).
+     */
+    static String text(Stone s, String who, String when) {
+        if (who == null) return s.hidden() ? "" : "<dark_gray>???";
         return "<gold>" + s.name() + "\n<white>" + who + (when.isEmpty() ? "" : "\n<gray>" + when);
     }
 

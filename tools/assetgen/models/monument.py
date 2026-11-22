@@ -1,6 +1,6 @@
 """
 숨은 비밀 기념비 stones (economy: /관리자 비밀 비석 세우기; plugin dev.stsv.economy.secret.Monument): one stone per secret,
-ten in an arc. Each stone is ONE item display of one of these models, a text display above it (the secret's name, the
+thirteen in an arc. Each stone is ONE item display of one of these models, a text display above it (the secret's name, the
 solver, the date, or "???").
 
   secret_stone          unsolved: an old weathered tablet with a round arched top, a chipped shoulder and a nick in its
@@ -12,7 +12,8 @@ solver, the date, or "???").
                         gold rule; a clean two-step plinth with a gold trim line. The generic fallback.
   secret_stone_solved_<id>  the same, with that secret's own gold emblem in place of the star (EMBLEMS: bus sunglasses,
                         dongbang anchor, letter envelope, designer gear, usher keyhole, fish fish, lostkey
-                        key, doll a four-hole button, scarecrow a wheat ear).
+                        key, doll a four-hole button, scarecrow a wheat ear, jesa an incense burner, garage a
+                        steering wheel, pager a pager, newcomer a lone figure).
 
     drawn at real size (16 px a block): the stone's middle at x = z = 8, the plinth on the ground at y = 0, the face to
     the north (-z: what the item display turns towards the way the entity looks, so Monument gives each stone the yaw
@@ -357,6 +358,56 @@ EMBLEMS = {
         "..######..",
         "....##....",
         "....##....",
+    ),
+    # 향로 (주인 없는 제사): a round incense burner on its feet, two upright ears on the rim, one wisp of smoke rising off it
+    "jesa": (
+        "......#...",
+        ".....#....",
+        "....#.....",
+        ".....#....",
+        "#.######.#",
+        "##########",
+        ".########.",
+        "..######..",
+        "...####...",
+        "..##..##..",
+    ),
+    # 운전대 (폐차고): a three-spoke steering wheel, the bar across and one spoke down from the hub
+    "garage": (
+        "..######..",
+        ".##....##.",
+        "##......##",
+        "#........#",
+        "##########",
+        "#..####..#",
+        "#...##...#",
+        "##..##..##",
+        ".##.##.##.",
+        "..######..",
+    ),
+    # 삐삐: a little pager, its belt clip on top, a dark screen with a glint, two buttons under it
+    "pager": (
+        ".#####....",
+        "##########",
+        "#*kkkkkk##",
+        "#kkkkkkk##",
+        "##########",
+        "##..#..###",
+        "##########",
+        ".########.",
+    ),
+    # 혼자 선 사람 (새로 온 사람): one lone figure standing, arms at its sides
+    "newcomer": (
+        "....##....",
+        "...####...",
+        "...####...",
+        "....##....",
+        "..######..",
+        ".#.####.#.",
+        ".#.####.#.",
+        "...####...",
+        "...#..#...",
+        "...#..#...",
     ),
 }
 EM_TOP = 23                  # an emblem's 10-row box: rows y 22 .. 13 (its glyph centred in it)

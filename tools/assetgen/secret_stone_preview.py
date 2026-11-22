@@ -1,7 +1,7 @@
 """
-Preview of the 숨은 비밀 기념비 stones (models/monument.py): the unsolved stone, the ten per-secret solved stones (each
-with its gold emblem) and the generic star one face on, labelled; then the ten solved in Monument's arc (radius 6,
-100 degrees, each facing the centre) seen from where a player walks up, a few blocks away.
+Preview of the 숨은 비밀 기념비 stones (models/monument.py): the unsolved stone, the thirteen per-secret solved stones
+(each with its gold emblem) and the generic star one face on, labelled; then the thirteen solved in Monument's arc
+(radius 8, 130 degrees, each facing the centre) seen from where a player walks up, a few blocks away.
 
     python3 tools/assetgen/secret_stone_preview.py [out.png]     # docs/previews/secret_stone.png (needs: cd render && npm install)
 """
@@ -68,7 +68,10 @@ def _ground(tex, x0, z0, x1, z1):
 # the stones in Monument's order (stones(): the bus first, then the secrets as registered), with their emblems
 ORDER = [("bus", "버스 · 선글라스"), ("dongbang", "동방 · 닻"), ("letter", "편지 · 봉투"), ("designer", "설계자 · 톱니"),
          ("usher", "안내원 · 열쇠 구멍"), ("fish", "물고기 · 물고기"), ("lostkey", "잃어버린 열쇠 · 열쇠"),
-         ("doll", "인형 · 단추"), ("scarecrow", "허수아비 · 밀 이삭")]
+         ("doll", "인형 · 단추"), ("scarecrow", "허수아비 · 밀 이삭"), ("jesa", "제사 · 향로"), ("garage", "폐차고 · 운전대"),
+         ("pager", "삐삐 · 삐삐"), ("newcomer", "새로 온 사람 · 혼자 선 사람")]
+# Monument.RADIUS (blocks) and Monument.SPREAD (degrees)
+RADIUS, SPREAD = 8, 130
 
 
 def main(out):
@@ -81,7 +84,7 @@ def main(out):
     for pv in solved:
         tex.update(pv["textures"])
 
-    # close: every stone face on, 4 to a row (the unsolved one, the ten emblems, the generic star), each in its own view
+    # close: every stone face on, 4 to a row (the unsolved one, the thirteen emblems, the generic star), each in its own view
     W, cols, cw, ch = 1600, 4, 400, 430
     cells = [(old, "아직 못 풂 (secret_stone)")] + [(pv, f"{lbl}") for pv, (_, lbl) in zip(solved, ORDER)] \
         + [(star, "기본 별 (secret_stone_solved)")]
@@ -98,19 +101,19 @@ def main(out):
     a = BUILD / "secret_stone_close.png"
     subprocess.run(["node", str(RENDER), str(src), str(a)], check=True, stdout=subprocess.DEVNULL)
 
-    # the arc: Monument.stoneAt for 10 stones round (0, 0), base yaw 0 (they stand to the south, facing back north);
+    # the arc: Monument.stoneAt for every stone round (0, 0), base yaw 0 (they stand to the south, facing back north);
     # all solved, each with its emblem, seen from the middle a few blocks away
     els = []
-    n, r = 10, 6 * 16
+    n, r = len(solved), RADIUS * 16
     for i in range(n):
-        ang = -math.radians(100) / 2 + math.radians(100) * i / (n - 1)
+        ang = -math.radians(SPREAD) / 2 + math.radians(SPREAD) * i / (n - 1)
         fx, fz = -math.sin(ang), math.cos(ang)
         yaw = math.degrees(math.atan2(fx, -fz))
         els += _placed(solved[i], (fx * r, 0, fz * r), yaw)
     src = BUILD / "secret_stone_arc.preview.json"
-    src.write_text(json.dumps({"textures": tex, "elements": els + _ground(tex, -140, -60, 140, 140), "grid": False, "size": [W, 700],
-                               "views": [{"x": 0, "y": 0, "w": W, "h": 700, "az": 0, "el": 14, "k": 1.0, "center": [0, 22, 70],
-                                          "radius": 150, "fov": 45, "far": 5000}]}))
+    src.write_text(json.dumps({"textures": tex, "elements": els + _ground(tex, -180, -80, 180, 180), "grid": False, "size": [W, 700],
+                               "views": [{"x": 0, "y": 0, "w": W, "h": 700, "az": 0, "el": 14, "k": 1.0, "center": [0, 22, 90],
+                                          "radius": 190, "fov": 45, "far": 5000}]}))
     b = BUILD / "secret_stone_arc.png"
     subprocess.run(["node", str(RENDER), str(src), str(b)], check=True, stdout=subprocess.DEVNULL)
 
@@ -126,7 +129,7 @@ def main(out):
         x, y = (i % cols) * cw, head + (i // cols) * ch
         d.text((x + 12, y + 8), lbl, fill=(240, 220, 150), font=s, stroke_width=2, stroke_fill=(20, 20, 24))
     y = head + closeH
-    d.text((20, y + 10), "반원 배치 (반지름 6칸, 100°, 가운데를 바라봄): 10개 모두 풀림, 몇 칸 떨어져서", fill=(240, 240, 240), font=f)
+    d.text((20, y + 10), f"반원 배치 (반지름 {RADIUS}칸, {SPREAD}°, 가운데를 바라봄): {n}개 모두 풀림, 몇 칸 떨어져서", fill=(240, 240, 240), font=f)
     sheet.paste(Image.open(b).convert("RGB"), (0, y + head))
     sheet.save(out, optimize=True)
     print("stones ", out)

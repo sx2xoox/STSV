@@ -472,7 +472,7 @@ public final class SecretModule extends EcoModule {
                 switch (what) {
                     case "세우기" -> online(s, null, p -> {
                         monument.set(p.getLocation());
-                        s.sendMessage(Text.msg("<green>숨은 비밀 기념비를 세웠어요 (비석 " + monument.stones().size() + "개, 바라보는 쪽 앞 6칸에 반원으로). 다시 세우면 옮겨져요"));
+                        s.sendMessage(Text.msg("<green>숨은 비밀 기념비를 세웠어요 (비석 " + monument.stones().size() + "개, 바라보는 쪽 앞 " + (int) Monument.RADIUS + "칸에 반원으로). 다시 세우면 옮겨져요"));
                     });
                     case "지우기" -> {
                         monument.remove();

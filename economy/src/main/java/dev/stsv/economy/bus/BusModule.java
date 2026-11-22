@@ -2510,6 +2510,14 @@ public final class BusModule extends EcoModule {
         return r == null ? -1 : r.riders.size();
     }
 
+    /** The passengers of one kind (a bus.yml types id: "grandma") riding the bus this player drives; none when they drive none. */
+    public List<Entity> ridersOf(Player p, String type) {
+        Run r = runOf(p);
+        List<Entity> out = new ArrayList<>();
+        if (r != null) for (Rider x : r.riders) if (!x.secret && x.type.id().equals(type) && x.m.isValid()) out.add(x.m);
+        return out;
+    }
+
     /** The stop whose bay this player's bus stands in, or null. */
     public Integer stoppedAt(Player p) {
         Run r = runOf(p);

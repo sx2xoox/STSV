@@ -474,6 +474,148 @@ def scarecrow_straw(c):
     return c
 
 
+@icon
+def jesa_jokbo(c):
+    """족보: a thick old family register bound the old way, a worn ochre cover stitched down its right side with red thread,
+    a paper title strip pasted at the upper left with a few brushed characters, and the yellowed leaves showing along
+    the foot under it."""
+    rows = ["................",
+            "..aAAAAAAAAAb...",
+            "..APPPBBBBwBb...",
+            "..APkPBBBBwwc...",
+            "..APPPBBBBwBc...",
+            "..APkPBBBBwBc...",
+            "..APkPBBBBwwc...",
+            "..APPPBBBBwBc...",
+            "..APkPCBBBwBc...",
+            "..APPPCCCBwwc...",
+            "..ABCCCCCCwCc...",
+            "..sCCCCCCCwwc...",
+            "..ppppppppppqd..",
+            "..qpqqpqpqqpqd..",
+            "...ddddddddddd..",
+            "................"]
+    legend = {"a": ("burlap", 5, 1), "A": ("burlap", 4, 1), "B": ("burlap", 3, 1), "C": ("burlap", 2, 1),
+              "b": ("burlap", 2, 1), "c": ("burlap", 1, 1), "s": ("doenjang", 3, 1), "w": ("wine", 3, 2),
+              "P": ("paper", 5, 2), "k": ("soot", 1, 3), "p": ("cream", 4, 1), "q": ("cream", 1, 1),
+              "d": ("wood_dark", 1, 1)}
+    _paint(c, rows, legend)
+    c.dots([(4, 2), (4, 9)], "paper", 3, z=2)                                              # the strip's worn ends
+    c.dots([(10, 2), (10, 6)], "wine", 4, z=2)                                             # the thread catches the light
+    return c
+
+
+@icon
+def racer_photo(c):
+    """빛바랜 사진: an old instant photo gone sepia, a wide white border thicker at the foot, and in it a car by the
+    roadside cut off by the frame so that only its front half is in the picture; sun-bleached from one corner, the
+    lower corner dog-eared."""
+    rows = ["................",
+            "................",
+            ".WWWWWWWWWWWWWW.",
+            ".WhhHsssssssssw.",
+            ".WhHssssssssssw.",
+            ".WHsssssssrrrrw.",
+            ".WsssssssrggrGw.",
+            ".WSSStttrrrrrrw.",
+            ".WSShrrrrrrrrrw.",
+            ".WeeeRkkRRRRRRw.",
+            ".WEEEEkkEEEEEEw.",
+            ".WwwwwwwwwwwwwV.",
+            ".WwwwwwwwwwwwV..",
+            ".wwwwwwwwwwwV...",
+            "................",
+            "................"]
+    legend = {"W": ("paper", 5, 1), "w": ("paper", 4, 1), "V": ("paper", 2, 1),
+              "h": ("bean", 5, 2), "H": ("bean", 4, 2), "s": ("bean", 3, 2), "S": ("bean", 2, 2),
+              "t": ("doenjang", 3, 3), "r": ("doenjang", 2, 3), "R": ("doenjang", 1, 3), "g": ("bean", 4, 3),
+              "G": ("bean", 3, 3), "k": ("soot", 0, 3), "e": ("burlap", 2, 2), "E": ("burlap", 1, 2)}
+    _paint(c, rows, legend)
+    c.put(11, 12, "burlap", 3, z=2)                                                         # an age spot on the border
+    return c
+
+
+@icon
+def paint_chip(c):
+    """페인트 조각: a flake of car paint the size of a fingernail, silver-grey with no colour left to tell by, broken off
+    in straight ragged edges, an old crack running across it, its upper side still shining, and one edge curled up to
+    show the dull primer under it."""
+    rows = ["................",
+            "................",
+            "................",
+            "................",
+            "....4444..4.....",
+            "...45555544444..",
+            "..455555k44444u.",
+            "..45555k444443uU",
+            "...4444k444433UU",
+            "....4444kk4433U.",
+            ".....33333k33...",
+            "................",
+            "................",
+            "................",
+            "................",
+            "................"]
+    legend = {"5": ("steel", 5, 1), "4": ("steel", 4, 1), "3": ("steel", 3, 1), "k": ("steel", 2, 2),
+              "u": ("stone", 4, 2), "U": ("stone", 2, 2)}
+    _paint(c, rows, legend)
+    return c
+
+
+@icon
+def pager(c):
+    """삐삐: a small dark grey pager from the nineties, a pale green LCD strip across its face with a few dark digits
+    still on it, a grey button and a red lamp beside the screen, speaker slots under it and the steel belt clip showing
+    over its top edge."""
+    rows = ["................",
+            "................",
+            "................",
+            "....cCCCCCCc....",
+            "..AAAAAAAAAAAA..",
+            ".AbbbbbbbbbbbbD.",
+            ".AbFFFFFFFFFbrD.",
+            ".AbFlLkLkkLFbbD.",
+            ".AbFLkLkLkLFgbD.",
+            ".AbFFFFFFFFFbbD.",
+            ".AbbbbbbbbbbbbD.",
+            ".AbsbsbsbbbbbbD.",
+            ".AddddddddddddD.",
+            "..DDDDDDDDDDDD..",
+            "................",
+            "................"]
+    legend = {"c": ("steel", 2, 1), "C": ("steel", 4, 1), "A": ("iron", 5, 2), "b": ("iron", 3, 2), "d": ("iron", 2, 2),
+              "D": ("iron", 1, 2), "F": ("iron", 0, 3), "L": ("celadon", 4, 3), "l": ("celadon", 5, 3),
+              "k": ("tint", 1, 3), "r": ("signal_red", 3, 3), "g": ("stone", 4, 3), "s": ("iron", 0, 3)}
+    _paint(c, rows, legend)
+    return c
+
+
+@icon
+def pager_letter(c):
+    """편지 (삐삐의 마지막): a plain white envelope opened along its top, the letter half pulled out of it: cool white
+    writing paper covered in lines of blue ballpoint, the envelope's flap line running down to a point below it."""
+    rows = ["................",
+            "...SSSSSSSSSS...",
+            "...SiiiSiiiTS...",
+            "...STTTTTTTTS...",
+            "...SiiSiiiiTS...",
+            ".EESTTTTTTTTSEE.",
+            ".EeSiiiiSiiTSee.",
+            ".EfeTTTTTTTTefe.",
+            ".EefeTiiSiTefee.",
+            ".EeefeTTTTefeed.",
+            ".EeeefeeeefeeDd.",
+            ".EeeeeffffeeeDd.",
+            ".EeeeeeeeeeeeDd.",
+            ".eDDDDDDDDDDDDd.",
+            "................",
+            "................"]
+    legend = {"S": ("snow", 5, 2), "T": ("snow", 4, 2), "i": ("indigo", 4, 3), "E": ("paper", 5, 1),
+              "e": ("paper", 4, 1), "f": ("paper", 1, 1), "D": ("paper", 3, 1), "d": ("paper", 2, 1)}
+    _paint(c, rows, legend)
+    return c
+
+
 def main(out=None):
     """Writes only these icons into the economy pack's textures (never touches the others), and a 6x preview sheet to `out`."""
     from pathlib import Path
