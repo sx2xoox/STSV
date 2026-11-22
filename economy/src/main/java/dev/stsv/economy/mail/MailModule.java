@@ -58,8 +58,10 @@ public final class MailModule extends EcoModule {
     public void deliver(UUID player, ItemStack item, String reason) {
         if (item == null || item.isEmpty()) return;
         Player p = Bukkit.getPlayer(player);
-        // dead (respawn screen, or inside PlayerDeathEvent: the inventory is about to be cleared) -> mailbox
-        if (p != null && !p.isDead() && Items.room(p.getInventory(), item) >= item.getAmount()) {
+        // dead (respawn screen, or inside PlayerDeathEvent: the inventory is about to be cleared) -> mailbox; in the 길라잡이
+        // (their things are put away, and everything there turns into a trial thing) -> mailbox
+        boolean guide = p != null && eco.guide() != null && eco.guide().inGuide(p);
+        if (p != null && !p.isDead() && !guide && Items.room(p.getInventory(), item) >= item.getAmount()) {
             p.getInventory().addItem(item.clone());
             return;
         }
@@ -73,6 +75,13 @@ public final class MailModule extends EcoModule {
         store.count(p.getUniqueId()).thenAccept(n -> {
             if (n > 0) sync(() -> p.sendMessage(Lang.msg("mail.waiting", "count", n)));
         });
+    }
+
+    /** In the 길라잡이 the mailbox only shows: what comes out there would turn into a trial thing and be lost. */
+    private boolean guide(Player p) {
+        if (eco.guide() == null || !eco.guide().inGuide(p)) return false;
+        HudModule.flash(p, Lang.mm("guide.not-now"));
+        return true;
     }
 
     public void open(Player p) {
@@ -116,6 +125,7 @@ public final class MailModule extends EcoModule {
         public void onListClick(MenuView v, int index, ClickType click) {
             if (index >= mails.size()) return;
             Player p = v.player();
+            if (guide(p)) return;
             MailStore.Mail m = mails.get(index);
             ItemStack item = items.get(index);
             if (Items.room(p.getInventory(), item) < item.getAmount()) {
@@ -138,6 +148,7 @@ public final class MailModule extends EcoModule {
         public void onAction(MenuView v, String action, ClickType click) {
             if (!action.equals("mail:all")) return;
             Player p = v.player();
+            if (guide(p)) return;
             int taken = 0;
             for (int i = 0; i < mails.size(); ) {
                 ItemStack item = items.get(i);

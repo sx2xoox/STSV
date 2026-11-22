@@ -454,6 +454,40 @@ public final class GuideModule extends EcoModule {
         purgeTrialItems(p);
     }
 
+    /**
+     * Whether a player is in the 길라잡이 (their own things are put away until they leave): mail goes to the mailbox then, and
+     * the mailbox stays shut, so nothing real lands in the tutorial inventory to be mixed with what the tutorial made.
+     */
+    public boolean inGuide(Player p) {
+        return p != null && GuideReturn.has(p);
+    }
+
+    /**
+     * Everything a player holds in the tutorial is a trial thing (it is all dropped when they leave): a crop they harvest,
+     * a fish they catch, a machine's product, all arrive straight in the inventory without dropping, so they are marked here
+     * too (twice a second). Kept real: what they bought in the shop with their own money, cheques, and their own accessories.
+     */
+    private void sweep() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (!GuideReturn.has(p) || !inWorld(p)) continue;
+            var inv = p.getInventory();
+            ItemStack[] all = inv.getContents();
+            for (int i = 0; i < all.length; i++) {
+                ItemStack it = all[i];
+                if (!sweepable(it)) continue;
+                inv.setItem(i, Items.markTrial(it.clone()));
+            }
+            ItemStack cursor = p.getItemOnCursor();
+            if (sweepable(cursor)) p.setItemOnCursor(Items.markTrial(cursor.clone()));
+        }
+    }
+
+    private boolean sweepable(ItemStack it) {
+        if (it == null || it.isEmpty() || Items.trial(it) || Items.shopBought(it)) return false;
+        if (core.economy() != null && core.economy().isCheque(it)) return false;
+        return !Items.key(it).startsWith("economy:acc");   // their own accessory, taken off (a trial one is already marked)
+    }
+
     /** Where someone goes when their world is no more: the build world's spawn. */
     private Location fallback() {
         World w = core.worlds() != null ? core.worlds().buildWorld() : Bukkit.getWorlds().getFirst();
@@ -679,6 +713,7 @@ public final class GuideModule extends EcoModule {
 
     private void tick() {
         ticks++;
+        sweep();
         for (Session s : List.copyOf(sessions.values())) {
             Player p = Bukkit.getPlayer(s.player);
             if (p == null || s.finishing) continue;
