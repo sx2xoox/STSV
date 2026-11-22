@@ -50,7 +50,9 @@ final class Monument {
         } catch (IllegalArgumentException ignored) {
             // hand-edited
         }
-        out.add(new Stone("bus", "버스의 비밀", bu, m.eco().kv().getLong("bus.secret.first-at", 0)));
+        long busAt = m.eco().kv().getLong("bus.secret.first-at", 0);
+        if (busAt == 0 && bu.isPresent()) busAt = m.eco().kv().getLong("bus.secret." + bu.get() + ".agent", 0);   // solved before the stones: the day they got the case open
+        out.add(new Stone("bus", "버스의 비밀", bu, busAt));
         for (Secret s : m.all()) {
             out.add(new Stone(s.id(), s.cfg.getString("stone-name", s.name()), m.solver(s), m.eco().kv().getLong("secret." + s.id() + ".first-at", 0)));
         }
