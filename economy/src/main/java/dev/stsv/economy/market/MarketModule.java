@@ -83,6 +83,8 @@ public final class MarketModule extends EcoModule {
         if (Items.trial(it)) return "market.no-trial";
         String secret = eco.auction() == null ? null : eco.auction().ghostRefusal(it);   // 숨은 비밀 낡은 인형
         if (secret != null) return secret;
+        String hidden = eco.secrets() == null ? null : eco.secrets().refuseListing(it);   // 숨은 비밀 물건
+        if (hidden != null) return hidden;
         if (store.count(p.getUniqueId()) >= limit(p.getUniqueId())) return "market.full";
         return null;
     }

@@ -500,6 +500,9 @@ final class Boardroom {
         remove(out.figure());
         remove(out.seat());
         out.tag().text(Text.mm(d.line("meeting.not-aboard")));
+        // who they were: on the register, never aboard, alive; what sat in the chair was what they could not let go of
+        String faded = d.line("meeting.faded").replace("{name}", out.name());
+        if (!faded.isEmpty()) p.sendMessage(Text.mm(faded));
         List<Seat> order = new ArrayList<>(seats);
         order.remove(out);
         order.sort(Comparator.comparingInt(s -> s.chair().getBlockZ()));

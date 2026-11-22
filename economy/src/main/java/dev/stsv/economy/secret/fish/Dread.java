@@ -322,6 +322,38 @@ final class Dread {
         });
     }
 
+    /**
+     * The end: the first fisher's own name comes up on the water where the tag went in, floats there a moment, and sinks
+     * (only they see it) — he has his name back.
+     */
+    void nameSurfaces(Player p, Location at, String mm) {
+        Location top = surface(at);
+        Location low = top.clone().add(0, -0.9, 0);
+        org.bukkit.entity.TextDisplay t = m.haunt().text(p, low, mm);
+        t.setSeeThrough(false);
+        t.setTeleportDuration(30);
+        later(3, () -> {
+            if (t.isValid()) t.teleport(top.clone().add(0, 0.25, 0));
+        });
+        later(33, () -> {
+            if (p.isOnline()) p.spawnParticle(Particle.BUBBLE_POP, top, 12, 0.4, 0.05, 0.4, 0.01);
+        });
+        later(90, () -> {
+            if (!t.isValid()) return;
+            t.setTeleportDuration(50);
+            t.teleport(top.clone().add(0, -1.6, 0));
+            if (p.isOnline()) sound(p, top, "entity.fish.swim", 0.6f, 0.5f);
+        });
+        later(145, () -> {
+            if (p.isOnline()) {
+                p.spawnParticle(Particle.BUBBLE_COLUMN_UP, top.clone().add(0, -1, 0), 15, 0.2, 0.3, 0.2, 0.02);
+                m.haunt().remove(p, t);
+            } else if (t.isValid()) {
+                t.remove();
+            }
+        });
+    }
+
     /** Water only they see, in the air blocks around a spot from y0 up to y1 (inclusive). */
     private void flood(Player p, Location at, int radius, int y0, int y1) {
         BlockData water = Material.WATER.createBlockData();

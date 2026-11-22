@@ -45,6 +45,8 @@ public final class CodexModule extends EcoModule {
     private Db db;
     /** player -> registered item -> when */
     private final Map<UUID, Map<String, Long>> registered = new ConcurrentHashMap<>();
+    /** tab -> id -> an extra entry shown after the tab's items (not counted, not clickable), or null when it hides */
+    private final Map<String, Map<String, java.util.function.Function<Player, ItemStack>>> extras = new ConcurrentHashMap<>();
 
     public CodexModule(EcoPlugin eco) {
         super(eco);
@@ -147,6 +149,14 @@ public final class CodexModule extends EcoModule {
         int n = 0;
         for (FishSpec.Species s : eco.fishing().spec().species().values()) if (mine.contains(ShopCatalog.norm(s.item()))) n++;
         return n;
+    }
+
+    /**
+     * An extra entry a tab shows after its own items (a hidden secret's mark): shown to every viewer while the function
+     * gives an item, never counted toward the tab or the codex, and clicking it does nothing. Same id replaces.
+     */
+    public void extra(String tabId, String id, java.util.function.Function<Player, ItemStack> entry) {
+        extras.computeIfAbsent(tabId, k -> new ConcurrentHashMap<>()).put(id, entry);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -307,6 +317,14 @@ public final class CodexModule extends EcoModule {
                     if (at == null) meta.itemName(Text.item("<gray>" + Items.mmName(id)));
                 });
                 out.add(it);
+            }
+            for (var extra : tabId == null ? List.<java.util.function.Function<Player, ItemStack>>of() : extras.getOrDefault(tabId, Map.of()).values()) {
+                try {
+                    ItemStack it = extra.apply(p);
+                    if (it != null) out.add(it);
+                } catch (RuntimeException ex) {
+                    eco.getLogger().warning("도감: 추가 칸 오류 " + ex);
+                }
             }
             return out;
         }

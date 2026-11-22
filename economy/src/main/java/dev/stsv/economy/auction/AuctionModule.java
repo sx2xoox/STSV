@@ -157,6 +157,10 @@ public final class AuctionModule extends EcoModule {
         if (it == null || it.isEmpty() || core.economy().isCheque(it)) return "auction.hold-item";
         if (core.vehicles() != null && core.vehicles().noTrade(it)) return "auction.no-vehicles";
         if (dev.stsv.economy.util.Items.trial(it)) return "auction.no-trial";
+        if (ghostRefusal(it) == null) {   // 숨은 비밀 물건 (낡은 인형은 아래 ghost 가 따로 말함)
+            String hidden = eco.secrets() == null ? null : eco.secrets().refuseListing(it);
+            if (hidden != null) return hidden;
+        }
         if (ghost != null) {
             try {
                 String r = ghost.refuse(it);

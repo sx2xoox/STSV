@@ -41,6 +41,10 @@ public final class SecretModule extends EcoModule {
     private final Map<String, Secret> secrets = new LinkedHashMap<>();
     private Memory memory;
     private Haunt haunt;
+    private Monument monument;
+    private Rumors rumors;
+    private java.util.Set<String> secretItems = java.util.Set.of();
+    private String noListing = "";
     private long testDay = 60_000L;
 
     public SecretModule(EcoPlugin eco) {
@@ -90,6 +94,16 @@ public final class SecretModule extends EcoModule {
         }
         Bukkit.getPluginManager().registerEvents(memory, eco);
         memory.start();
+        monument = new Monument(this);
+        rumors = new Rumors(this);
+        secretItems = new java.util.HashSet<>();
+        for (String k : eco.data("items/secrets.yml").getKeys(false)) secretItems.add("economy:" + k);
+        noListing = common.getString("no-listing", "<dark_gray>…그건 내놓을 수 없는 물건이다.");
+        org.bukkit.configuration.file.YamlConfiguration lang = new org.bukkit.configuration.file.YamlConfiguration();
+        lang.set("secret.no-listing", noListing);
+        dev.stsv.core.util.Lang.useExtra("STSV-Economy-secrets", lang);
+        every(1200L, () -> monument.build());
+        every(200L, () -> rumors.tick());
         every(20L, () -> {
             for (Secret s : secrets.values()) {
                 if (!enabled(s)) continue;
@@ -195,6 +209,15 @@ public final class SecretModule extends EcoModule {
         return out;
     }
 
+    /**
+     * A secret's item (items/secrets.yml) can't go on the 거래소 or the auction: a message key to show, else null. The 낡은 인형
+     * has its own refusal in the auction (its ghost); this covers everything else.
+     */
+    public String refuseListing(org.bukkit.inventory.ItemStack it) {
+        if (it == null || it.isEmpty()) return null;
+        return secretItems.contains(dev.stsv.economy.util.Items.key(it)) ? "secret.no-listing" : null;
+    }
+
     public boolean enabled(Secret s) {
         String sw = eco.kv().get("secret." + s.id() + ".switch");
         if (sw != null) return sw.equals("on");
@@ -267,6 +290,8 @@ public final class SecretModule extends EcoModule {
             return;
         }
         eco.kv().set("secret." + s.id() + ".first", u.toString());
+        eco.kv().set("secret." + s.id() + ".first-at", System.currentTimeMillis());
+        Bukkit.getScheduler().runTaskLater(eco, () -> monument.build(), 80L);
         String line = s.cfg.getString("solved-line", "<dark_gray>누군가 " + s.name() + "의 비밀을 풀었다…");
         Bukkit.getScheduler().runTaskLater(eco, () -> Bukkit.broadcast(Text.msg(line)), 60L);
         eco.getLogger().info("[비밀] " + s.name() + " 을(를) " + p.getName() + " 이(가) 처음 풀었습니다");
@@ -316,7 +341,7 @@ public final class SecretModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     public static final String USAGE = "목록 | 켜기·끄기 <비밀> | 시작 <비밀> [플레이어] | 단계 <비밀> <플레이어> <n> | 연출 <비밀> <장면> [플레이어] | "
-            + "상태 <플레이어> | 초기화 <비밀> <플레이어> | 서버초기화 <비밀> | 테스트 [켜기|끄기] [플레이어]";
+            + "상태 <플레이어> | 초기화 <비밀> <플레이어> | 서버초기화 <비밀> | 테스트 [켜기|끄기] [플레이어] | 비석 <세우기|지우기|다시> | 소문 <비밀> [플레이어]";
 
     public void admin(CommandSender s, String[] a) {
         String sub = a.length == 0 ? "목록" : a[0];
@@ -421,7 +446,30 @@ public final class SecretModule extends EcoModule {
             });
             case "서버초기화" -> withSecret(s, a, 1, x -> {
                 eco.kv().remove("secret." + x.id() + ".first");
+                eco.kv().remove("secret." + x.id() + ".first-at");
+                monument.build();
                 s.sendMessage(Text.msg("<green>" + x.name() + ": 다시 열었어요 (푼 사람 기록만 지움, 각자의 진행은 그대로)"));
+            });
+            case "비석" -> {
+                String what = a.length > 1 ? a[1] : "";
+                switch (what) {
+                    case "세우기" -> online(s, null, p -> {
+                        monument.set(p.getLocation());
+                        s.sendMessage(Text.msg("<green>숨은 비밀 기념비를 세웠어요 (비석 " + monument.stones().size() + "개, 바라보는 쪽 앞 6칸에 반원으로). 다시 세우면 옮겨져요"));
+                    });
+                    case "지우기" -> {
+                        monument.remove();
+                        s.sendMessage(Text.msg("<green>기념비를 치웠어요"));
+                    }
+                    case "다시" -> {
+                        monument.build();
+                        s.sendMessage(Text.msg("<green>기념비를 다시 그렸어요"));
+                    }
+                    default -> s.sendMessage(Text.msg("<red>/관리자 비밀 비석 <세우기|지우기|다시> <gray>(세우기: 내가 선 자리 · 보는 방향)"));
+                }
+            }
+            case "소문" -> online(s, a.length > 2 ? a[2] : null, p -> {
+                if (a.length < 2 || !rumors.tell(p, a[1])) s.sendMessage(Text.msg("<red>/관리자 비밀 소문 <bus|dongbang|letter|designer|usher|fish|vein|lostkey|doll|scarecrow> [플레이어]"));
             });
             case "테스트" -> {
                 String mode = a.length > 1 && (a[1].equals("켜기") || a[1].equals("끄기")) ? a[1] : null;
@@ -440,12 +488,14 @@ public final class SecretModule extends EcoModule {
 
     public List<String> adminComplete(CommandSender s, String[] a) {
         List<String> names = secrets.values().stream().map(Secret::name).map(n -> n.replace(" ", "")).toList();
-        if (a.length == 1) return List.of("목록", "켜기", "끄기", "시작", "단계", "연출", "상태", "초기화", "서버초기화", "테스트");
+        if (a.length == 1) return List.of("목록", "켜기", "끄기", "시작", "단계", "연출", "상태", "초기화", "서버초기화", "테스트", "비석", "소문");
         String sub = a[0];
         if (a.length == 2) return switch (sub) {
             case "상태" -> Players.complete(s, a[1]);
             case "테스트" -> List.of("켜기", "끄기");
             case "목록" -> List.of();
+            case "비석" -> List.of("세우기", "지우기", "다시");
+            case "소문" -> List.of("bus", "dongbang", "letter", "designer", "usher", "fish", "vein", "lostkey", "doll", "scarecrow");
             case "켜기", "끄기" -> java.util.stream.Stream.concat(names.stream(), java.util.stream.Stream.of("버스")).toList();
             default -> names;
         };

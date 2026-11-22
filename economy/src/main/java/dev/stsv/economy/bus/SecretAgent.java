@@ -1285,6 +1285,7 @@ public final class SecretAgent implements Listener {
             Bukkit.broadcast(Lang.msg("bus.secret-final-all"));
             if (!eco.kv().has("bus.secret.first")) {
                 eco.kv().set("bus.secret.first", u.toString());
+                eco.kv().set("bus.secret.first-at", System.currentTimeMillis());
                 p.sendMessage(Lang.mm("bus.secret-first"));
             }
         } else p.sendMessage(Lang.mm("bus.secret-final-again"));
@@ -1498,6 +1499,7 @@ public final class SecretAgent implements Listener {
             }
             case "서버초기화" -> {   // opens the secret again for everyone (testing): forgets the first agent and the plaque
                 eco.kv().remove("bus.secret.first");
+                eco.kv().remove("bus.secret.first-at");
                 eco.kv().remove("bus.secret.plaque");
                 s.sendMessage(Text.msg("<green>버스의 비밀을 다시 열었습니다 (최초의 요원 · 명판 기록 지움, 개인 진행은 그대로)"));
             }

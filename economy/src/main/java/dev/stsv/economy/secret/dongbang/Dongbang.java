@@ -36,7 +36,6 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -45,6 +44,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 
@@ -63,7 +63,8 @@ import java.util.UUID;
  *     one line; one of them was never aboard ({@link Inquest}). Naming the right one frees the eleven (solved); a wrong
  *     name floods the room (shut until the next day, with new lines next time).</li>
  * </ol>
- * Selling the share ends it for that player for good (a letter: "…또 혼자 남았군요."). The solver gets a daily dividend.
+ * Selling the share ends it for that player for good (a letter: "…또 혼자 남았군요."). Once solved, every player's /주식 list
+ * ends with a grey, untradeable memorial row naming the liquidator (no money: the row and the certificate are the reward).
  */
 public final class Dongbang extends Secret {
 
@@ -74,6 +75,8 @@ public final class Dongbang extends Secret {
     private final Map<UUID, Ticker> tickers = new HashMap<>();
     /** Until when (ms) a player who saw the offer row may still buy. */
     private final Map<UUID, Long> offered = new HashMap<>();
+    /** Admin 연출 청산: the memorial row (with their own name) shows until then (ms). */
+    private final Map<UUID, Long> memorialPreview = new HashMap<>();
     /** Admin 연출 목록: the row shows regardless of the minute, until then (ms). */
     private final Map<UUID, Long> forced = new HashMap<>();
     /** The day's one minute is up for them until then (ms). */
@@ -123,7 +126,7 @@ public final class Dongbang extends Secret {
 
             @Override
             public void open(Player viewer) {
-                window(viewer, "m10");
+                openRow(viewer);
             }
 
             @Override
@@ -292,6 +295,7 @@ public final class Dongbang extends Secret {
         if (h != null && m.stage(this, u) == 1) m.set(this, u, "held-s", h);
         offered.remove(u);
         forced.remove(u);
+        memorialPreview.remove(u);
         offerUntil.remove(u);
         offerClock.remove(u);
         sellConfirm.remove(u);
@@ -323,7 +327,7 @@ public final class Dongbang extends Secret {
                 if (lock > System.currentTimeMillis()) out.add("회의실 닫힘 (" + when(lock) + "까지)");
             }
         }
-        if (st > stages()) out.add(m.getLong(this, u, "test-solved", 0) != 0 ? "테스트로 풂 (배당 없음)" : "배당 마지막 " + m.get(this, u, "div-day", "-"));
+        if (st > stages()) out.add(m.getLong(this, u, "test-solved", 0) != 0 ? "테스트로 풂 (기념 줄은 본인에게만)" : "청산 완료 (모두의 /주식 목록에 기념 줄)");
         return String.join(" · ", out);
     }
 
@@ -433,10 +437,7 @@ public final class Dongbang extends Secret {
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID u = p.getUniqueId();
             int st = m.stage(this, u);
-            if (st == stages() + 1) {
-                dividend(p);
-                continue;
-            }
+            if (st == stages() + 1) continue;
             if (st == 0) {
                 if (newMinute) offerClock(p, now);
                 continue;
@@ -495,18 +496,6 @@ public final class Dongbang extends Secret {
             if (!pool.isEmpty()) m.haunt().whisper(p, pool.get(rnd.nextInt(pool.size())));
         }
         if (wet && rnd.nextDouble() < 0.5) m.haunt().behind(p, Sound.BLOCK_POINTED_DRIPSTONE_DRIP_WATER, 0.7f, 0.8f + rnd.nextFloat() * 0.3f);
-    }
-
-    private void dividend(Player p) {
-        UUID u = p.getUniqueId();
-        if (m.getLong(this, u, "test-solved", 0) != 0) return;
-        String today = LocalDate.now(SecretModule.KST).toString();
-        if (today.equals(m.get(this, u, "div-day"))) return;
-        long amount = cfg.getLong("dividend.amount", 5000);
-        m.set(this, u, "div-day", today);
-        if (amount <= 0) return;
-        m.core().economy().deposit(u, amount, "secret");
-        p.sendMessage(Text.msg(line("dividend.message").replace("{amount}", money(amount))));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -667,14 +656,12 @@ public final class Dongbang extends Secret {
         tickers.remove(u);
         m.solve(this, p);
         if (test) m.set(this, u, "test-solved", 1);
-        m.set(this, u, "div-day", LocalDate.now(SecretModule.KST).toString());
         p.getInventory().addItem(certificate(p)).values().forEach(left -> p.getWorld().dropItem(p.getLocation(), left));
     }
 
     ItemStack certificate(Player p) {
         List<String> lore = new ArrayList<>();
-        String div = money(cfg.getLong("dividend.amount", 5000));
-        for (String l : lines("meeting.certificate.lore")) lore.add(l.replace("{player}", p.getName()).replace("{dividend}", div));
+        for (String l : lines("meeting.certificate.lore")) lore.add(l.replace("{player}", p.getName()));
         return paper(CERTIFICATE, line("meeting.certificate.name"), lore);
     }
 
@@ -791,6 +778,10 @@ public final class Dongbang extends Secret {
         if (!on()) return null;
         UUID u = viewer.getUniqueId();
         long now = System.currentTimeMillis();
+        if (!(holding(u) && open(u))) {
+            Memorial mem = memorial(u, now);
+            if (mem != null) return tab.equals("all") ? icon(fillMemorial(line("memorial.name"), mem), fillMemorial(lines("memorial.lore"), mem)) : null;
+        }
         if (holding(u)) {
             if (!open(u) || !(tab.equals("all") || tab.equals("mine"))) return null;
             Ticker k = ticker(u);
@@ -806,6 +797,52 @@ public final class Dongbang extends Secret {
         List<String> lore = new ArrayList<>();
         for (String l : lines("offer.icon-lore")) lore.add(l.replace("{price}", money(buyPrice())));
         return icon(line("offer.icon-name"), lore);
+    }
+
+    /** Who wound the company up and when (plain text, both escaped for MiniMessage). */
+    record Memorial(String player, String date) {}
+
+    /**
+     * The memorial row this viewer sees, or null: everyone's once someone solved it for real; a tester who solved it in test
+     * mode sees their own (no one else does); an admin preview shows the viewer's own name for a minute.
+     */
+    private Memorial memorial(UUID viewer, long now) {
+        if (memorialPreview.getOrDefault(viewer, 0L) > now) return memorialOf(viewer, now);
+        Optional<UUID> first = m.solver(this);
+        if (first.isPresent()) return memorialOf(first.get(), m.getLong(this, first.get(), "done", 0));
+        if (m.stage(this, viewer) == stages() + 1 && m.getLong(this, viewer, "test-solved", 0) != 0)
+            return memorialOf(viewer, m.getLong(this, viewer, "done", 0));
+        return null;
+    }
+
+    private Memorial memorialOf(UUID who, long at) {
+        String name = Optional.ofNullable(Bukkit.getOfflinePlayer(who).getName()).orElse("?");
+        String date = at <= 0 ? "-" : DateTimeFormatter.ofPattern("yyyy. M. d.").format(Instant.ofEpochMilli(at).atZone(SecretModule.KST));
+        return new Memorial(MiniMessage.miniMessage().escapeTags(name), date);
+    }
+
+    static String fillMemorial(String l, Memorial mem) {
+        return l.replace("{player}", mem.player()).replace("{date}", mem.date());
+    }
+
+    static List<String> fillMemorial(List<String> l, Memorial mem) {
+        List<String> out = new ArrayList<>();
+        for (String s : l) out.add(fillMemorial(s, mem));
+        return out;
+    }
+
+    /** They clicked the list's last row: the memorial says its one line (it cannot be traded), else the company window. */
+    private void openRow(Player p) {
+        UUID u = p.getUniqueId();
+        long now = System.currentTimeMillis();
+        Memorial mem = holding(u) && open(u) ? null : memorial(u, now);
+        if (mem == null) {
+            window(p, "m10");
+            return;
+        }
+        String l = fillMemorial(line("memorial.click"), mem);
+        if (!l.isEmpty()) p.sendMessage(Text.mm(l));
+        p.playSound(p.getLocation(), Sound.BLOCK_POINTED_DRIPSTONE_DRIP_WATER, 0.7f, 0.7f);
     }
 
     private static ItemStack icon(String name, List<String> lore) {
@@ -1169,7 +1206,7 @@ public final class Dongbang extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("목록", "창", "통지서", "편지", "속삭임", "교신", "회의실", "착석", "증언", "지목성공", "지목실패", "증서", "배당",
+        return List.of("목록", "창", "통지서", "편지", "속삭임", "교신", "회의실", "착석", "증언", "지목성공", "지목실패", "증서", "청산",
                 "뉴스", "뉴스1", "뉴스2", "뉴스3", "뉴스청산", "뉴스매도");
     }
 
@@ -1215,8 +1252,11 @@ public final class Dongbang extends Secret {
             }
             case "증서" -> p.getInventory().addItem(certificate(p));
             case "뉴스", "뉴스1", "뉴스2", "뉴스3", "뉴스청산", "뉴스매도" -> previewNews(p, word);
-            case "배당" -> p.sendMessage(Text.msg(line("dividend.message").replace("{amount}", money(cfg.getLong("dividend.amount", 5000)))
-                    + " <dark_gray>[연출: 지급 안 함]"));
+            case "청산" -> {
+                // the memorial row with their own name, for a minute
+                memorialPreview.put(u, now + 60_000L);
+                eco.stocks().open(p);
+            }
             default -> {
                 return false;
             }
