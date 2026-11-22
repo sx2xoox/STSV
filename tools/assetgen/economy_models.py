@@ -159,6 +159,7 @@ ALL.update(ROADS.ALL)
 from models import fishing_gear as FISHING_GEAR   # noqa: E402
 ALL.update(FISHING_GEAR.ALL)
 
-# 숨은 비밀 기념비 (models/monument.py): the weathered unsolved stone and the polished solved one
+# 숨은 비밀 기념비 (models/monument.py): the weathered unsolved stone, the polished solved one (star) and one solved
+# stone per secret with its own gold emblem (secret_stone_solved_<id>)
 from models import monument as MONUMENT   # noqa: E402
 ALL.update(MONUMENT.ALL)
