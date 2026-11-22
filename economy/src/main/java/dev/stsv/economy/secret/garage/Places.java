@@ -181,6 +181,7 @@ final class Places {
                 now.add(id);
             }
         }
+        boolean first = seen.isEmpty();   // nothing to tell a growing road by yet: the second look comes soon
         seen = now;
         if (k != null && ++misses < 2) {
             // its road is not there at this look: once may be a file that could not be read. Nothing moves yet
@@ -203,9 +204,9 @@ final class Places {
         }
         Roadway.Pick pick = Roadway.pick(lines, hard, window, lead, tail);
         if (pick == null) {
-            if (index.size() < all.size()) {   // roads seen for the first time, or still growing: looked at again soon
+            if (index.size() < all.size()) {   // roads seen for the first time (looked at again soon), or still growing (at the usual look)
                 why = "국도를 한 번 더 확인하는 중 (짓고 있는 길은 다 지어질 때까지 기다림)";
-                soon();
+                if (first) soon();
             } else why = "충분히 긴 국도가 없음 (" + (lead + tail + window) + "칸 이상)";
             return null;
         }
@@ -387,7 +388,8 @@ final class Places {
             if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return null;
             for (int y = roadY + 2; y >= roadY - 1; y--) {
                 if (!railAt(w, bx, y, bz)) continue;
-                lateral = Math.max(3.3, Roadway.nearFace(mid[0], mid[1], -t[1] * s.outside(), t[0] * s.outside(), bx, bz) - BACK);
+                // (a hard road's narrow shoulder: never further in than the kerb's middle, whatever is lost of its back then)
+                lateral = Math.max(2.9, Roadway.nearFace(mid[0], mid[1], -t[1] * s.outside(), t[0] * s.outside(), bx, bz) - BACK);
                 // its top: over whatever lies on it (a cap, a carpet); a post taller than a rail (a light, a snow pole) has none to reach
                 int ty = y;
                 while (ty < roadY + 4 && rail(w.getBlockAt(bx, ty + 1, bz).getType())) ty++;

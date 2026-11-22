@@ -305,8 +305,8 @@ final class Drive {
             case HOME -> home(r, p, vm, w);
             case DEMO -> {
                 Location ghost = advance(r, 0, w, p);
-                // (never driven out of where the chunks are loaded around its viewer)
-                boolean away = !p.getWorld().equals(w) || Math.hypot(ghost.getX() - p.getLocation().getX(), ghost.getZ() - p.getLocation().getZ()) > 64;
+                // (never driven on into chunks that are not loaded, nor left running in a world its viewer has gone from)
+                boolean away = !p.getWorld().equals(w) || !w.isChunkLoaded(ghost.getBlockX() >> 4, ghost.getBlockZ() >> 4);
                 if (r.ticks >= 0 || r.s >= r.end - 1 || away) {
                     g.cars().dark(r.u, r.ghost);
                     r.phase = FADE;
