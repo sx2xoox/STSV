@@ -680,7 +680,8 @@ public final class Garage extends Secret {
                 shed.show(p, o, false, hold != null ? hold : openTo(), look.empty() ? Shed.TARP : look.encode());
             }
             default -> {
-                shed.show(p, o, false, hold != null ? hold : openTo(), a == null ? Shed.TARP : a.encode());
+                // (his car is out on the road while it waits before the bend: not in here too)
+                shed.show(p, o, false, hold != null ? hold : openTo(), drive.has(u) ? Shed.EMPTY : a == null ? Shed.TARP : a.encode());
                 // (not while the shutter is still down on the look that was right: he has not said so yet)
                 if (flat(p, o) <= 12 && !drive.has(u) && !checking.contains(u) && cool(u, "come", 90))
                     whisper(p, "come-at-night", "<#9fb2c8>…밤에, 그 커브로 와.");
