@@ -2,8 +2,10 @@ package dev.stsv.economy.secret.fish;
 
 import dev.stsv.core.gui.menu.MenuView;
 import dev.stsv.core.hud.HudModule;
+import dev.stsv.core.nickname.Names;
 import dev.stsv.core.util.Text;
 import dev.stsv.economy.fishing.FishSpec;
+import dev.stsv.economy.fishing.FishStore;
 import dev.stsv.economy.secret.Secret;
 import dev.stsv.economy.secret.SecretModule;
 import dev.stsv.economy.util.Items;
@@ -58,8 +60,10 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * 눈 없는 물고기 (docs/admin/숨은_비밀/눈_없는_물고기.md; contents/economy/secrets/fish.yml). Long ago the server's first
- * fisher fell into deep water and never came up; since then an eyeless fish bites in the rain. It tries to remember who
- * it was — and what it remembers in the end is the name of the next one to drown: the one who caught it.
+ * fisher fell into deep water and never came up; since then an eyeless fish bites in the rain. The seven waters are the
+ * last waters he remembered. What comes up at the end is the name of the next one to drown (the one who caught it); given
+ * back to the water, it is traded for his own: the first fisher's name surfaces a moment and sinks ({@link #firstFisher}).
+ * After that the codex's fish tab shows everyone a hidden line with the solver's name ({@link #codexEntry}).
  * <p>
  * Start: in the rain, a reel within start.perfect-ticks of the bite has a tiny chance (once a Korean day) to bring it up
  * instead of the catch (stage 1). Given to the water (dropped in, or right-clicked onto water) it speaks memory s, a riddle
@@ -74,7 +78,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * Saved (eco.kv "secret.fish.&lt;uuid&gt;."): stage, since, loose (given to water, waiting in water stage), told (memories
  * spoken), met (the day it was first caught), lost (thrown away: never again), lost.pending (to show at the next join),
- * dry (the day the tag dried). The drowned place: {@link Drowned#KEY}.
+ * dry (the day the tag dried). The drowned place: {@link Drowned#KEY}. The first fisher's name, once given back:
+ * {@link #FIRST_KEY}.
  */
 public final class EyelessFish extends Secret {
 
@@ -84,6 +89,8 @@ public final class EyelessFish extends Secret {
     /** On the wet name tag: whose name, and which pull it came up on (a tag from an earlier pull is only paper). */
     public static final NamespacedKey TAG_OWNER = new NamespacedKey("economy", "wet_name_owner");
     public static final NamespacedKey TAG_NONCE = new NamespacedKey("economy", "wet_name_nonce");
+    /** eco.kv: the first fisher's name as it surfaced for the solver (the codex line keeps it) */
+    static final String FIRST_KEY = "secret.fish.first-fisher";
 
     private record Water(String id, String name, List<String> habitats, String memory) {}
 
@@ -117,6 +124,7 @@ public final class EyelessFish extends Secret {
         super(m);
         drowned = new Drowned(this, eco);
         dread = new Dread(this, m, eco);
+        if (eco.codex() != null) eco.codex().extra("fish", "secret.fish", this::codexEntry);
     }
 
     @Override
@@ -258,6 +266,10 @@ public final class EyelessFish extends Secret {
             meta.getPersistentDataContainer().set(TAG_NONCE, PersistentDataType.STRING, nonce);
         });
         return Items.markBought(it);
+    }
+
+    private static String esc(String s) {
+        return net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(s == null ? "" : s);
     }
 
     private static String pdc(ItemStack it, NamespacedKey k) {
@@ -588,17 +600,20 @@ public final class EyelessFish extends Secret {
         });
     }
 
-    /** The name given to the water: solved. */
+    /** The name given to the water: solved. In its place the first fisher's own name comes up a moment, and sinks. */
     private void given(Player p, Location at) {
         UUID u = p.getUniqueId();
         tags.remove(u);
         dread.splash(p, at);
         dread.dry(u);
+        String first = firstFisher();
+        if (!m.test(u)) eco.kv().set(FIRST_KEY, first);
+        surfaces(p, at, first);
         double end = 0;
         for (Object[] l : timed("final.given")) {
             end = Math.max(end, (Double) l[0]);
             later(Math.round((Double) l[0] * 20), () -> {
-                if (p.isOnline()) m.haunt().whisper(p, ((String) l[1]).replace("{player}", p.getName()));
+                if (p.isOnline()) m.haunt().whisper(p, ((String) l[1]).replace("{player}", p.getName()).replace("{first}", first));
             });
         }
         later(Math.round(end * 20) + 40, () -> {
@@ -608,6 +623,75 @@ public final class EyelessFish extends Secret {
             m.remove(this, u, "loose");
         });
         eco.getLogger().info("[비밀] 눈 없는 물고기: " + p.getName() + " 이(가) 이름을 물에 줌");
+    }
+
+    /** The first fisher's name on the water, final.surface-delay seconds after the tag went in. */
+    private void surfaces(Player p, Location at, String first) {
+        String mm = cfg.getString("final.surface-name", "<#c4ab9b>{first}").replace("{first}", esc(first));
+        later(Math.round(cfg.getDouble("final.surface-delay", 2) * 20), () -> {
+            if (p.isOnline()) dread.nameSurfaces(p, at, mm);
+        });
+    }
+
+    /**
+     * The first fisher: whoever has the earliest catch in the fishing records (the codex's catch log), else
+     * final.first-fisher. Once given back to the water it is kept ({@link #FIRST_KEY}), so a records reset does not change it.
+     */
+    String firstFisher() {
+        String kept = eco.kv().get(FIRST_KEY);
+        if (kept != null && !kept.isBlank()) return kept;
+        UUID u = null;
+        try {
+            FishStore store = eco.fishing() == null ? null : eco.fishing().store();
+            if (store != null) {
+                Map<UUID, Long> firsts = new java.util.HashMap<>();
+                for (UUID x : store.players()) {
+                    long f = Long.MAX_VALUE;
+                    for (FishStore.Entry en : store.of(x).values()) if (en.first > 0) f = Math.min(f, en.first);
+                    if (f != Long.MAX_VALUE) firsts.put(x, f);
+                }
+                u = earliest(firsts);
+            }
+        } catch (RuntimeException ex) {
+            eco.getLogger().warning("[비밀] 눈 없는 물고기: 낚시 기록을 읽지 못함 " + ex);
+        }
+        String name = u == null ? null : Names.plain(u);
+        return name == null || name.isBlank() || name.equals("?") ? cfg.getString("final.first-fisher", "이름 모를 낚시꾼") : name;
+    }
+
+    /** Who caught first (player -> their first catch's time); ties go to the smaller id. Null if nobody. */
+    static UUID earliest(Map<UUID, Long> firsts) {
+        UUID best = null;
+        long at = Long.MAX_VALUE;
+        for (Map.Entry<UUID, Long> e : firsts.entrySet()) {
+            long t = e.getValue();
+            if (t < at || t == at && best != null && e.getKey().compareTo(best) < 0) {
+                best = e.getKey();
+                at = t;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * The codex's fish tab, for everyone once it is solved: "눈 없는 물고기 — 이름을 돌려준 자 ○○" (after the tab's own
+     * entries; never counted). Null (hidden) until then.
+     */
+    private ItemStack codexEntry(Player viewer) {
+        Optional<UUID> solver = m.solver(this);
+        if (solver.isEmpty()) return null;
+        String who = esc(Names.plain(solver.get()));
+        String first = esc(Optional.ofNullable(eco.kv().get(FIRST_KEY)).orElse(cfg.getString("final.first-fisher", "이름 모를 낚시꾼")));
+        ItemStack it = Items.create("economy:eyeless_fish", 1).orElseGet(() -> new ItemStack(Material.COD));
+        it.editMeta(meta -> {
+            meta.itemName(Text.item(cfg.getString("codex.name", "<#c4ab9b>눈 없는 물고기 <dark_gray>— <gray>이름을 돌려준 자 <white>{player}")
+                    .replace("{player}", who).replace("{first}", first)));
+            List<Component> lore = new ArrayList<>();
+            for (String l : cfg.getStringList("codex.lore")) lore.add(Text.item(l.replace("{player}", who).replace("{first}", first)));
+            meta.lore(lore);
+            meta.setEnchantmentGlintOverride(false);
+        });
+        return it;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -890,7 +974,7 @@ public final class EyelessFish extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("시작", "속삭임", "놓아주기", "거품", "무거운줄", "발자국", "형체", "이름표", "떠오름", "실패", "빠진곳", "빠진곳다시");
+        return List.of("시작", "속삭임", "놓아주기", "거품", "무거운줄", "발자국", "형체", "이름표", "떠오름", "돌려줌", "실패", "빠진곳", "빠진곳다시");
     }
 
     @Override
@@ -933,6 +1017,21 @@ public final class EyelessFish extends Secret {
                         if (p.isOnline()) m.haunt().whisper(p, ((String) l[1]).replace("{player}", p.getName()));
                     });
             }
+            case "돌려줌" -> {
+                Location at = Dread.waterNear(p, 10);
+                if (at == null) {
+                    admin.sendMessage(Text.msg("<red>10칸 안에 물이 없어요"));
+                    return true;
+                }
+                String first = firstFisher();
+                dread.splash(p, at);
+                surfaces(p, at, first);
+                for (Object[] l : timed("final.given"))
+                    later(Math.round((Double) l[0] * 20), () -> {
+                        if (p.isOnline()) m.haunt().whisper(p, ((String) l[1]).replace("{player}", p.getName()).replace("{first}", first));
+                    });
+                admin.sendMessage(Text.msg("<gray>첫 낚시꾼: <white>" + esc(first) + "</white> (진행은 안 바뀜)"));
+            }
             case "실패" -> dread.rising(p);
             case "빠진곳", "빠진곳다시" -> {
                 if (word.equals("빠진곳다시")) {
@@ -961,6 +1060,6 @@ public final class EyelessFish extends Secret {
     static Set<String> keys() {
         return new HashSet<>(List.of("start.chance", "start.perfect-ticks", "hold-whisper", "codex-line", "item.stages", "waters",
                 "lose.line", "final.radius", "final.shortcut-from", "final.dry-seconds", "final.rise", "final.given", "rewards.money",
-                "rewards.title", "solved-line"));
+                "rewards.title", "solved-line", "final.first-fisher", "final.surface-name", "codex.name"));
     }
 }
