@@ -107,7 +107,7 @@ final class Setting implements InventoryHolder {
             ItemStack it = e.getCurrentItem();
             if (it == null || it.isEmpty() || isGhost(it)) return;
             if (Items.trial(it)) {
-                jesa.whisper(p, "lines.not-this");
+                deny(p, "lines.not-this");
                 return;
             }
             held = Items.key(it);
@@ -143,7 +143,7 @@ final class Setting implements InventoryHolder {
         // lay what is held: only as many as the bag holds
         int others = laid(held) - (held.equals(there) ? 1 : 0);
         if (jesa.carried(p, held) <= others) {
-            jesa.whisper(p, "lines.no-more");
+            deny(p, "lines.no-more");
             held = null;
             drawHand();
             return;
@@ -153,6 +153,11 @@ final class Setting implements InventoryHolder {
         held = null;
         drawHand();
         touched(p, Sound.BLOCK_WOOD_PLACE, 1.5f);
+    }
+
+    private void deny(Player p, String line) {
+        jesa.whisper(p, line);
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.3f, 0.6f);
     }
 
     private void touched(Player p, Sound sound, float pitch) {

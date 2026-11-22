@@ -551,10 +551,10 @@ public final class Garage extends Secret {
                     .setTransformation(new org.bukkit.util.Transformation(new Vector3f(-0.36f, 0.02f, -0.52f), lean, new Vector3f(0.72f, 0.72f, 0.05f), new Quaternionf()));
             props.item(p, MEMORIAL, at, photoItem(), new Vector3f(0, 0.38f, -0.42f), new Vector3f(0.56f, 0.56f, 0.56f), lean);
         }
-        if (plaque != null) {
-            props.box(p, MEMORIAL, at, Material.POLISHED_DEEPSLATE.createBlockData(), -0.75f, 0, -0.95f, 1.5f, 0.5f, 0.12f);
-            props.text(p, MEMORIAL, Props.local(at, 0, 0.62, -0.9), line("plaque", "<#e8d9a0>끝까지 같이 달린 사람: <white>{player}").replace("{player}", plaque), true, 0.7f)
-                    .setViewRange(0.4f);
+        if (plaque != null) {   // a small stone with a name, its face to the road
+            props.box(p, MEMORIAL, at, Material.POLISHED_DEEPSLATE.createBlockData(), -1.05f, 0, -1.0f, 2.1f, 0.5f, 0.14f);
+            props.text(p, MEMORIAL, Props.local(at, 0, 0.17, -0.84), line("plaque", "<#e8d9a0>끝까지 같이 달린 사람: <white>{player}").replace("{player}", plaque), false, 0.5f)
+                    .setBrightness(new org.bukkit.entity.Display.Brightness(12, 12));
         }
         props.hit(p, MEMORIAL, at, 1.9f, 1.1f, what);
     }

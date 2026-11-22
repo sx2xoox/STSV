@@ -89,7 +89,7 @@ final class Shed {
     void show(Player p, Location origin, boolean lit, double open, String inside) {
         UUID u = p.getUniqueId();
         View v = views.get(u);
-        if (v != null && (!props.has(u, GROUP) || v.origin.distanceSquared(origin) > 0.01 || v.origin.getWorld() != origin.getWorld())) {
+        if (v != null && (!props.has(u, GROUP) || !origin.getWorld().equals(v.origin.getWorld()) || v.origin.distanceSquared(origin) > 0.01)) {
             hide(u);
             v = null;
         }

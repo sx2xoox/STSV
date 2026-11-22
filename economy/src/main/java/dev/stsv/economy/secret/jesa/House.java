@@ -247,7 +247,7 @@ final class House {
                 for (int dy = 0; dy <= 1; dy++) {
                     Block b = s.base.getBlock().getRelative(dx, dy, dz);
                     if (b.isEmpty() || b.isLiquid() || !b.isPassable()) continue;
-                    m.haunt().fake(p, b.getLocation(), air);
+                    p.sendBlockChange(b.getLocation(), air);   // put back by hide (kept here, not with Haunt: these come and go)
                     s.cleared.add(b.getLocation());
                 }
             }

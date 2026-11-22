@@ -141,7 +141,7 @@ final class Places {
         if (k != null && k.length == 12) {   // the kept place, as long as its road is as it was
             for (int i = 0; i < all.size(); i++) {
                 Site s = new Site(worlds.get(i), all.get(i).dock(), all.get(i).points(), all.get(i).halves(), hard.get(i), 0, 1, 0, 0, 0, 0);
-                if (!s.world().equals(k[0]) || !s.dock().equals(k[11]) || !s.signature().equals(k[1] + ";" + k[2] + ";" + k[3] + ";" + k[4] + ";" + k[5])) continue;
+                if (!s.world().equals(k[0]) || !String.valueOf(s.dock()).equals(k[11]) || !s.signature().equals(k[1] + ";" + k[2] + ";" + k[3] + ";" + k[4] + ";" + k[5])) continue;
                 try {
                     int bend = Integer.parseInt(k[6]), outside = Integer.parseInt(k[7]) < 0 ? -1 : 1, garage = Integer.parseInt(k[8]);
                     int side = Integer.signum(Integer.parseInt(k[9])), floor = Integer.parseInt(k[10]), n = s.pts().size();

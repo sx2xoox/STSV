@@ -747,7 +747,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             p.sendMessage(Text.mm("<yellow>[연출] 음복 끝 (아무것도 바뀌지 않음)"));
             return;
         }
-        if (stage(u) != ACCEPTED) return;
+        if (!on() || stage(u) != ACCEPTED) return;
         if (!open(u)) {
             late(p);
             return;

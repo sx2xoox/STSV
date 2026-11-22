@@ -191,6 +191,7 @@ final class CarLook {
 
     /** Its lights go out: the headlamps and the glow under it. */
     void dark(UUID viewer, Car car) {
+        if (car == null) return;
         props.remove(viewer, car.group(), car.lamp()[0]);
         props.remove(viewer, car.group(), car.glow()[0]);
         car.lamp()[0] = null;
@@ -199,6 +200,6 @@ final class CarLook {
 
     /** Its body there or not for a moment (a flicker). */
     void flicker(Car car, boolean there) {
-        if (car.body().isValid()) car.body().setItemStack(there ? car.bodyItem() : ItemStack.empty());
+        if (car != null && car.body().isValid()) car.body().setItemStack(there ? car.bodyItem() : ItemStack.empty());
     }
 }
