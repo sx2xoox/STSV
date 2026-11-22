@@ -70,6 +70,7 @@ final class Companion {
         UUID ou = o.getUniqueId();
         rest.put(ou, System.currentTimeMillis() + cfg().getLong("companion.cooldown-seconds", 120) * 1000L);
         Effigy e = Effigy.of(s.props(), o, real, s.field().yawOffset());
+        s.marks().hideFor(o, sc, true);   // the marks would not turn with the copy
         float home = e.facing();
         int ticks = Math.max(2, cfg().getInt("companion.look-seconds", 6)) * 20;
         s.fx().crows(o, at, 3);
@@ -83,7 +84,10 @@ final class Companion {
                 return;
             }
             if (t[0] < ticks) e.turn(e.yawTo(o.getLocation()), 3.5f);
-            else if (e.turn(home, 3.5f) || t[0] > ticks + 120) stop(ou, e);
+            else if (e.turn(home, 3.5f) || t[0] > ticks + 120) {
+                stop(ou, e);
+                s.marks().hideFor(o, sc, false);
+            }
         });
         watching.put(ou, task);
     }

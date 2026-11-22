@@ -66,6 +66,7 @@ public final class Scarecrow extends Secret {
     private final Field field;
     private final Fx fx;
     private final Companion companion;
+    private final Marks marks;
     private Riddles riddles = new Riddles(List.of());
 
     public Scarecrow(SecretModule m) {
@@ -74,6 +75,7 @@ public final class Scarecrow extends Secret {
         field = new Field(m.core(), eco);
         fx = new Fx(() -> cfg, props);
         companion = new Companion(this);
+        marks = new Marks(this);
     }
 
     @Override
@@ -119,6 +121,10 @@ public final class Scarecrow extends Secret {
 
     Haunt haunt() {
         return m.haunt();
+    }
+
+    Marks marks() {
+        return marks;
     }
 
     Riddles riddles() {
@@ -260,6 +266,7 @@ public final class Scarecrow extends Secret {
             else resume(p, st);
         }
         companion.tick();
+        marks.tick();
     }
 
     /** Once a night, the first time they are near a scarecrow of theirs: the (very small) chance. */
