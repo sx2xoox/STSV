@@ -19,5 +19,5 @@ steps:
     goal: { type: menu, menu: stsv:titles }
   - text: "/뽑기 를 열어 치장 뽑기를 보세요"
     say: "머리 · 어깨 · 펫 치장이 있어요"
-    done: "치장은 /치장 에서 입어요. 통합 메뉴(Shift+F, /메뉴)에 모든 기능이 모여 있어요."
+    done: "치장은 /치장 에서 입어요. 통합 메뉴(Shift+F, /메뉴)에 모든 기능이 모여 있어요.\n<gray>TMI: 우편함은 자주 열어 보세요. 가끔 보낸 사람이 낯익은 편지가 오기도 하거든요."
     goal: { type: menu, menu: stsv:gacha }

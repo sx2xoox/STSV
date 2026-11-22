@@ -19,6 +19,6 @@ steps:
     goal: { type: command, command: 땅, args: 보기 }
   - text: "노란 테두리(땅 한 칸) 안에 나무판자를 3개 놓아 보세요"
     say: "체험용 판자로 집 짓기 연습!"
-    done: "땅에는 하루 재산세가 붙어요. 땅 금고(/땅 금고 입금)에 넣어 두면 거기서 빠져요."
+    done: "땅에는 하루 재산세가 붙어요. 땅 금고(/땅 금고 입금)에 넣어 두면 거기서 빠져요.\n<gray>TMI: 처음 산 땅은 꼭 기억해 두세요. 언젠가 누가 물어볼지도 몰라요."
     goal: { type: place_block, region: plot, count: 3 }
     at: [0, 0, 10]

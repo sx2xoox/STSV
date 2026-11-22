@@ -16,5 +16,5 @@ steps:
     goal: { type: menu, menu: economy:stock }
   - text: "/주식 뉴스 로 오늘의 뉴스를 보세요"
     say: "뉴스가 주가를 움직여요"
-    done: "/주식 알림 을 켜면 가진 회사의 큰 움직임을 알려 줘요. 사기: /주식 사기 <회사> <수>"
+    done: "/주식 알림 을 켜면 가진 회사의 큰 움직임을 알려 줘요. 사기: /주식 사기 <회사> <수>\n<gray>TMI: 주식 목록은 맨 아래까지 내려 보세요. 가끔 회색 줄이 하나 보였다는 사람이 있어요."
     goal: { type: command, command: 주식, args: 뉴스 }
