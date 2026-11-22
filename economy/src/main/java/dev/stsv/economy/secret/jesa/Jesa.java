@@ -25,9 +25,11 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
@@ -92,9 +94,9 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             Map.entry("lines.not-this", "<gray>…이건 상에 올릴 수 없다."),
             Map.entry("lines.gone", "<gray>…상이 비어 있다. 아무도 먹지 못했다."),
             Map.entry("lines.meal-1", "…영감, 많이 드시우."),
-            Map.entry("lines.meal-2", "…나도 한 술 뜨고."),
+            Map.entry("lines.meal-2", "…나도 한술 뜨고."),
             Map.entry("lines.meal-3", "…고맙수. 길에서 만난 사람한테 얻어먹는 제삿밥이 제일 달다더니."),
-            Map.entry("lines.meal-4", "…차비는 냈수. 밥값은, 이걸로 받우."),
+            Map.entry("lines.meal-4", "…차비는 냈수. 밥값은, 이걸로 받으우."),
             Map.entry("lines.dawn", "<gray>…날이 밝았다. 감나무 아래에는 풀만 자라 있다."),
             Map.entry("tablets.father", "顯考學生府君神位"),
             Map.entry("tablets.mother", "顯妣孺人達城徐氏神位"),
@@ -348,14 +350,17 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         UUID u = p.getUniqueId();
         Location at = pick(p, here);
         if (at == null) return;   // no ground for it here: the next stop
+        // she may get off at the very stop where she spoke: her second line waits until the first has been read
+        long said = System.currentTimeMillis() - m.since(this, u);
+        long wait = said >= 0 && said < 7000 ? (7000 - said) / 50 + 20 : 20;
         m.set(this, u, "house", Place.encode(at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ()));
         m.set(this, u, "stop", here.id());
         m.remove(this, u, "retry");
         m.stage(this, u, HOUSE);
         World w = at.getWorld();
         Location sign = new Location(w, here.x(), here.y() + 2.6, here.z());
-        later(p, 20, () -> say(p, her, sign, text("lines.house")));
-        later(p, 70, () -> m.haunt().sound(p, at.clone().add(0.5, 1, 0.5), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 2f, 0.6f));
+        later(p, wait, () -> say(p, her, sign, text("lines.house")));
+        later(p, wait + 50, () -> m.haunt().sound(p, at.clone().add(0.5, 1, 0.5), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 2f, 0.6f));
     }
 
     private Set<Material> ground() {
@@ -609,7 +614,10 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         g.closed(p);
         if (!g.changed || g.layout.isEmpty() || !p.isOnline()) return;
         int st = stage(p.getUniqueId());
-        if (st == HOUSE || st == ACCEPTED) later(p, 10, () -> whisper(p, "lines.laid"));
+        if (st == HOUSE || st == ACCEPTED) later(p, 10, () -> {
+            House.Shown s = house.get(p.getUniqueId());
+            if (s != null && !s.busy) whisper(p, "lines.laid");   // not over a rite that has already begun
+        });
     }
 
     @EventHandler
@@ -694,8 +702,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             Map<Integer, String> left = new TreeMap<>(layout);
             left.keySet().removeAll(v.wrong());
             saveLayout(u, left);
-            long wait = m.test(u) ? cfg.getLong("test-retry-seconds", 5) : cfg.getLong("retry-seconds", 300);
-            m.set(this, u, "retry", System.currentTimeMillis() + Math.max(0, wait) * 1000L);
+            m.set(this, u, "retry", retryAt(u));
             if (stage(u) == ACCEPTED) m.stage(this, u, HOUSE);
         }
         house.refuse(p, s, v, () -> {
@@ -712,7 +719,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         UUID u = p.getUniqueId();
         house.meal(p, s, layout, rules(), (n, at) -> say(p, null, at, text("lines.meal-" + n)), () -> {
             concluding.add(u);
-            dawn(p);
+            if (preview || open(u)) dawn(p);   // no morning for a table someone else was first to set
             house.dissolve(p, s);
             later(p, 60, () -> conclude(p, preview));
         });
@@ -736,31 +743,63 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         });
     }
 
+    /** Their own sky goes back to the world's (the end of the dawn, or anything that cuts it short). */
+    private void undawn(Player p) {
+        if (dawned.remove(p.getUniqueId())) p.resetPlayerTime();
+    }
+
+    @EventHandler
+    public void onWorld(PlayerChangedWorldEvent e) {
+        undawn(e.getPlayer());   // the offset was counted on the other world's clock
+    }
+
+    @EventHandler
+    public void onDeath(PlayerDeathEvent e) {
+        undawn(e.getEntity());
+    }
+
+    /** What the table costs when the incense goes out (ms from now). */
+    private long retryAt(UUID u) {
+        long wait = m.test(u) ? cfg.getLong("test-retry-seconds", 5) : cfg.getLong("retry-seconds", 300);
+        return System.currentTimeMillis() + Math.max(0, wait) * 1000L;
+    }
+
     /** The meal is over and the house is grass: the food is taken and the secret solved, in one go. */
     private void conclude(Player p, boolean preview) {
         UUID u = p.getUniqueId();
-        concluding.remove(u);
+        // only the end of a meal that is still theirs: a quit (cleanup) or a reload in the last seconds leaves stage 3 to
+        // be bowed for again — `p` may be the player of an earlier login by now, whose bag is not the one they carry
+        if (!concluding.remove(u) || Bukkit.getPlayer(u) != p) return;
         if (preview) {
             p.sendMessage(Text.mm("<yellow>[연출] 음복 끝 (아무것도 바뀌지 않음)"));
             return;
         }
-        if (!on() || stage(u) != ACCEPTED) return;
+        if (!on() || stage(u) != ACCEPTED) {
+            undawn(p);
+            return;
+        }
         if (!open(u)) {
+            undawn(p);
             late(p);
             return;
         }
         Map<Integer, String> layout = layout(u);
-        if (layout.isEmpty() || !lacking(p, layout).isEmpty()) {   // the food left their hands while the dead ate: nothing was eaten
+        // the food left their hands while the dead ate (or the table is no longer the one that was accepted): nothing was eaten
+        if (layout.isEmpty() || !lacking(p, layout).isEmpty() || !Table.judge(layout, rules()).ok()) {
             m.stage(this, u, HOUSE);
-            long wait = m.test(u) ? cfg.getLong("test-retry-seconds", 5) : cfg.getLong("retry-seconds", 300);
-            m.set(this, u, "retry", System.currentTimeMillis() + Math.max(0, wait) * 1000L);
+            m.set(this, u, "retry", retryAt(u));
+            undawn(p);
             whisper(p, "lines.gone");
+            return;
+        }
+        // solved first, the food taken right after in the same tick: nothing is ever taken for an end that did not come
+        m.solve(this, p);
+        if (stage(u) <= stages()) {
+            undawn(p);
             return;
         }
         for (Map.Entry<String, Integer> need : Table.needs(layout).entrySet()) Items.remove(p.getInventory(), it -> real(it, need.getKey()), need.getValue());
         m.remove(this, u, "layout");
-        m.solve(this, p);
-        if (stage(u) <= stages()) return;
         for (ItemStack left : p.getInventory().addItem(jokbo(p)).values()) p.getWorld().dropItem(p.getLocation(), left);
         p.sendMessage(Text.mm(text("lines.dawn")));
     }
@@ -812,6 +851,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         }
         Location at = beside(p);
         m.set(this, u, "house", Place.encode(at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ()));
+        m.remove(this, u, "stop");   // this house is beside them, not by a stop
         if (stage >= ACCEPTED) {   // a right table, and the food for it in their bag
             Map<Integer, String> right = Table.sample(rules());
             saveLayout(u, right);
@@ -833,7 +873,8 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         lastStop.remove(u);
         bowed.remove(u);
         concluding.remove(u);
-        if (dawned.remove(u) && p != null) p.resetPlayerTime();
+        if (p != null) undawn(p);
+        else dawned.remove(u);
     }
 
     @Override
@@ -843,7 +884,8 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         if (st == 0) out.add("할머니 손님을 태우고 정류장에 설 때마다 확률 " + cfg.getDouble("start.chance", 0.01));
         if (st == HEARD) out.add(riding.containsKey(u) ? "할머니가 타고 있음 (내리는 정류장에 집)" : "할머니를 놓침 → 다음에 서는 정류장에 집");
         String h = m.get(this, u, "house");
-        if (h != null) out.add("집 " + h + " (" + stopName(m.get(this, u, "stop")) + " 정류장)" + (house.get(u) != null ? " · 보이는 중" : ""));
+        String stop = m.get(this, u, "stop");
+        if (h != null) out.add("집 " + h + (stop == null ? "" : " (" + stopName(stop) + " 정류장)") + (house.get(u) != null ? " · 보이는 중" : ""));
         if (st == HOUSE || st == ACCEPTED) {
             Map<Integer, String> layout = layout(u);
             Table.Verdict v = Table.judge(layout, rules());

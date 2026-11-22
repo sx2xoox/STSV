@@ -46,14 +46,16 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>
  * Stage: 0 = never whispered to him; 1 = whispered at least once (anywhere); 2 = solved (the ending).
  * Saved, for everyone (eco.kv "secret.newcomer."): {@code seen} he has come at least once (before that a whisper to him is
- * the game's own "no such player"), {@code night} the night (date its window opened) of his last visit and {@code asked}
- * how many questions he got to that night (a restart mid-visit: he joins again and goes on from there).
+ * the game's own "no such player"), {@code night} the night (date its window opened) of his last visit, {@code asked}
+ * how many questions he got to that night, and {@code joined} the night his join line was last said: it is said once a
+ * night and never again that night (he never leaves, so after a restart, or when everyone had gone, he just goes on asking).
+ * An admin's 시작 is the visit of the night that is open or opens next, made now: he does not come a second time that night.
  * Per player ("secret.newcomer.&lt;uuid&gt;."): {@code seen} he came for them alone (test mode, admin), {@code whispers}
  * how often they whispered, {@code replies} how many evasive answers they got, {@code late} told that someone was first.
  */
 public final class Newcomer extends Secret {
 
-    static final String K = "secret.newcomer.", SEEN = K + "seen", NIGHT = K + "night", ASKED = K + "asked";
+    static final String K = "secret.newcomer.", SEEN = K + "seen", NIGHT = K + "night", ASKED = K + "asked", JOINED = K + "joined";
     static final String DEFAULT_NAME = "sipsam_", DEFAULT_ACROSTIC = "내비석어디";
     static final List<String> QUESTIONS = List.of(
             "내일도 이 시간에 사람 많아요?",
@@ -68,8 +70,8 @@ public final class Newcomer extends Secret {
             "…그거, 제 거 맞아요.",
             "…저 예전에 여기서 뭘 하나 풀었거든요. 아무도 없을 때. 공지도 안 떴고, 비석에 이름도 안 새겨졌어요.",
             "…그래서 매일 다시 들어왔어요. 누가 물어봐 줄까 봐.",
-            "…질문은 제가 했는데, 답은 당신이 했네요.",
-            "…이제 당신이 열세 번째예요.",
+            "…질문은 제가 했는데, 답은 {player}님이 해 주셨네요.",
+            "…이제 {player}님이 열세 번째예요.",
             "…저는 이제 나가 볼게요. 처음으로.");
     private static final DateTimeFormatter HM = DateTimeFormatter.ofPattern("HH:mm");
     /** A visit left alone this long (ms; the secret was off) is over. */
@@ -155,7 +157,15 @@ public final class Newcomer extends Secret {
         if (!Whispers.account(who)) {
             eco.getLogger().warning("[비밀] newcomer.yml: name \"" + who + "\" 은(는) 마인크래프트 이름 꼴(영문 · 숫자 · _ 3~16자)이 아니에요. 진짜 접속자처럼 보이지 않습니다.");
         }
+        String stone = cfg.getString("stone-name");
+        if (stone != null && !stone.contains(who)) {
+            eco.getLogger().warning("[비밀] newcomer.yml: stone-name \"" + stone + "\" 에 그의 이름 (" + who + ") 이 없어요. name 을 바꿨다면 stone-name 도 같이 바꾸세요.");
+        }
         try {
+            if (Names.byNickname(who).isPresent()) {
+                eco.getLogger().warning("[비밀] newcomer.yml: name \"" + who + "\" 은(는) 누군가의 닉네임이에요. 그 사람이 접속한 밤에는 이 비밀이 쉽니다. "
+                        + "닉네임을 풀거나 (/관리자 닉네임 해제) 다른 이름으로 바꾸세요.");
+            }
             if (Bukkit.getOfflinePlayerIfCached(who) != null) {
                 eco.getLogger().warning("[비밀] newcomer.yml: name \"" + who + "\" 은(는) 이 서버에 실제로 들어온 적 있는 계정 이름이에요. "
                         + "그 사람이 접속한 밤에는 이 비밀이 쉽니다. 다른 이름으로 바꾸는 편이 좋아요.");
@@ -249,22 +259,56 @@ public final class Newcomer extends Secret {
         for (Player q : Bukkit.getOnlinePlayers()) q.sendMessage(c);
     }
 
-    /** One chat line from him in the server's chat format; a format this cannot read falls back to the plain "<name> words". */
-    private void chat(Player viewer, String words) {
+    /** The core's chat format when its config names none (ProfileModule.DEFAULT_CHAT_FORMAT). */
+    static final String DEFAULT_CHAT_FORMAT = "{title}{name} <gray>»</gray> {message}";
+
+    /**
+     * One chat line exactly as the core draws a real player's without a title (ProfileModule.chatLine: the format is read
+     * piece by piece, each piece MiniMessage of its own, {title} nothing, {name} and {message} plain text), so that his
+     * line is a real line in whatever format the owner sets (NewcomerTest holds the two together).
+     */
+    static Component chatLine(String format, String name, String words) {
+        String f = format == null || format.isBlank() ? DEFAULT_CHAT_FORMAT : format;
+        Component out = Component.empty();
+        int i = 0;
+        while (i < f.length()) {
+            int open = f.indexOf('{', i);
+            if (open < 0) {
+                out = out.append(Text.mm(f.substring(i)));
+                break;
+            }
+            int close = f.indexOf('}', open);
+            String key = close < 0 ? "" : f.substring(open + 1, close);
+            if (!key.equals("title") && !key.equals("name") && !key.equals("message")) {
+                out = out.append(Text.mm(f.substring(i, close < 0 ? f.length() : close + 1)));
+                i = close < 0 ? f.length() : close + 1;
+                continue;
+            }
+            if (open > i) out = out.append(Text.mm(f.substring(i, open)));
+            if (key.equals("name")) out = out.append(Component.text(name));
+            else if (key.equals("message")) out = out.append(Component.text(words));
+            i = close + 1;
+        }
+        return out;
+    }
+
+    /** One chat line from him; a format that cannot be read falls back to the game's plain "<name> words". */
+    private Component chatLine(String words) {
         try {
-            m.haunt().chat(viewer, who, words);
+            return chatLine(m.core().getConfig().getString("profiles.chat-format"), who, words);
         } catch (RuntimeException e) {
-            viewer.sendMessage(Component.text("<" + who + "> " + words));
+            return Component.text("<" + who + "> " + words);
         }
     }
 
     private void say(Visit v, String words) {
+        Component line = chatLine(words);
         if (v.viewer != null) {
             Player p = Bukkit.getPlayer(v.viewer);
-            if (p != null) chat(p, words);
+            if (p != null) p.sendMessage(line);
             return;
         }
-        for (Player q : Bukkit.getOnlinePlayers()) chat(q, words);
+        toAll(line);
         eco.getLogger().info("[비밀] 새로 온 사람 (" + who + ", 가짜 채팅): " + words);
     }
 
@@ -276,7 +320,7 @@ public final class Newcomer extends Secret {
     private static final class Visit {
         /** the only one who sees it, or null for everyone */
         final UUID viewer;
-        /** the night it counts for (kept in kv as it goes), or null when an admin called him */
+        /** the night it is the visit of (kept in kv as it goes), or null when only one player sees it */
         final String night;
         /** short waits (test mode, scenes) */
         final boolean quick;
@@ -313,31 +357,40 @@ public final class Newcomer extends Secret {
         }
         if (v.next >= questions.size()) return v.reply != null || now < v.endAt;
         if (now < v.nextAt) return true;
-        // nobody to ask: what is left waits in kv, and he joins again when someone is here (the same night only)
+        // nobody to ask: what is left waits in kv, and he goes on when someone is here (the same night only; no second join line)
         if (v.viewer == null && Bukkit.getOnlinePlayers().size() < Math.max(1, cfg.getInt("visit.min-online", 1))) return false;
         say(v, questions.get(v.next));
         v.next++;
         v.askedAt = now;
-        if (v.night != null) eco.kv().set(ASKED, v.next);
+        if (v.night != null && v.night.equals(eco.kv().get(NIGHT))) eco.kv().set(ASKED, v.next);
         if (v.next >= questions.size()) v.endAt = now + reactWindow() + 10_000L;
         else v.nextAt = now + gap(v, false);
         return true;
     }
 
-    /** He joins, for everyone. night: the night it counts for (null: an admin called him), from: the question to go on from. */
-    private void arrive(String night, int from) {
+    /**
+     * His visit to everyone begins, or goes on. night: the night it is the visit of, from: the question to go on from.
+     * The join line is said once a night ({@link #JOINED}): whatever brings him back the same night (a restart, everyone
+     * having left, the secret switched off and on, an admin's 시작), he only goes on asking, since he never left.
+     * Returns whether the join line was said.
+     */
+    private boolean arrive(String night, int from, String why) {
         long now = System.currentTimeMillis();
         Visit v = new Visit(null, night, false, Math.max(0, from), 0);
         v.nextAt = now + gap(v, true);
-        if (night != null) {
-            eco.kv().set(NIGHT, night);
-            eco.kv().set(ASKED, v.next);
-        }
+        boolean join = !night.equals(eco.kv().get(JOINED));
+        eco.kv().set(NIGHT, night);
+        eco.kv().set(ASKED, v.next);
         eco.kv().set(SEEN, 1);
-        toAll(joinLine(true));
-        eco.getLogger().info("[비밀] 새로 온 사람 (" + who + ") 이 들어온 것처럼 보였습니다 (가짜 입장 줄 · 접속 " + Bukkit.getOnlinePlayers().size()
-                + "명 · " + (night == null ? "관리자 시작" : night + " 밤, 질문 " + v.next + "/" + questions.size() + "부터") + ")");
+        if (join) {
+            eco.kv().set(JOINED, night);
+            toAll(joinLine(true));
+        }
+        eco.getLogger().info("[비밀] 새로 온 사람 (" + who + ") " + (join ? "이 들어온 것처럼 보였습니다 (가짜 입장 줄"
+                : "이 질문을 이어 갑니다 (입장 줄은 이 밤에 이미 떴으므로 없음") + " · 접속 " + Bukkit.getOnlinePlayers().size() + "명 · " + why
+                + " · " + night + " 밤, 질문 " + v.next + "/" + questions.size() + "부터)");
         visit = v;
+        return join;
     }
 
     /** He joins for one player alone (test mode, a scene): short waits, nobody else sees a thing. */
@@ -371,26 +424,28 @@ public final class Newcomer extends Secret {
                 + "계속 겹치면 secrets/newcomer.yml 의 name 을 바꾸세요.");
     }
 
-    /** Whether tonight's visit is due, and if so, he joins. */
+    /**
+     * Whether a visit is due, and if so, it begins or goes on: tonight's at its minute (or as soon after as someone is
+     * here, inside the window), and one that was begun and broken off (also an admin's, called before the window opened)
+     * whenever it can go on, until its night is over.
+     */
     private void plan(long now) {
         LocalDateTime t = ZonedDateTime.now(SecretModule.KST).toLocalDateTime();
-        Optional<LocalDate> night = Schedule.night(t, from, to);
-        if (night.isEmpty()) return;
-        String key = night.get().toString();
-        boolean begun = key.equals(eco.kv().get(NIGHT));
-        int asked = begun ? (int) eco.kv().getLong(ASKED, 0) : 0;
-        if (asked >= questions.size()) return;
-        if (!begun && t.isBefore(Schedule.planned(night.get(), from, to, seed))) return;
+        long asked = eco.kv().getLong(ASKED, 0);
+        Schedule.Due due = Schedule.due(t, from, to, seed, eco.kv().get(NIGHT), asked, questions.size());
+        if (due == Schedule.Due.NOTHING) return;
         if (Bukkit.getOnlinePlayers().size() < Math.max(1, cfg.getInt("visit.min-online", 1))) return;
         if (now - lastJoin < 1000L * Math.max(0, cfg.getInt("visit.after-join-seconds", 45))) return;   // not on a real player's heels
-        arrive(key, asked);
+        String key = Schedule.next(t, from, to).toString();   // the open night, or the next to open
+        if (due == Schedule.Due.GO_ON) arrive(key, (int) Math.max(0, asked), "이어서");
+        else arrive(key, 0, "예정된 방문");
     }
 
     @Override
     public void tick() {
         long now = System.currentTimeMillis();
         // it stood still (switched off for a while): he is not picked up mid-sentence. What is left of tonight waits in kv,
-        // and he joins again for it
+        // and he goes on with it (after a first gap, without another join line)
         if (lastTick != 0 && now - lastTick > STALE) {
             visit = null;
             alone.clear();
@@ -400,12 +455,15 @@ public final class Newcomer extends Secret {
             Visit v = it.next().getValue();
             if (Bukkit.getPlayer(v.viewer) == null || !step(v, now)) it.remove();
         }
+        boolean real = impostor();
+        // he is not there while someone really named like him is: nothing half said goes on (a tester's ending too)
+        if (real) for (Farewell f : List.copyOf(farewells.values())) broken(f, null);
         if (m.closed(this)) {
             visit = null;
             if (++ticks % 5 == 0) late();
             return;
         }
-        if (impostor()) {
+        if (real) {
             standDown();
             return;
         }
@@ -526,7 +584,7 @@ public final class Newcomer extends Secret {
         }
         long wait = Math.max(1, between("whisper.reply-delay-seconds", 2, 4) / 50);
         Bukkit.getScheduler().runTaskLater(eco, () -> {
-            if (p.isOnline() && open(u) && !farewells.containsKey(u)) p.sendMessage(incoming(line));
+            if (p.isOnline() && open(u) && !farewells.containsKey(u) && !impostor()) p.sendMessage(incoming(line));
         }, wait);
     }
 
@@ -539,8 +597,7 @@ public final class Newcomer extends Secret {
         Farewell old = farewells.remove(u);
         if (old != null) old.stop();
         if (u.equals(heir)) heir = null;
-        boolean real = !preview && !m.test(u);
-        if (real) heir = u;
+        if (!preview && !m.test(u)) heir = u;   // the one real ending: nobody else gets an answer while it plays
         Location stone = stone().filter(l -> l.getWorld().equals(p.getWorld()) && l.distanceSquared(p.getLocation()) < 32 * 32).orElse(null);
         Location centre = stone == null ? null : centre().orElse(null);
         Farewell f = new Farewell(this, p, stone, centre, preview);
@@ -548,22 +605,44 @@ public final class Newcomer extends Secret {
         f.begin();
     }
 
-    /** The ending played to its last line: the only time the server says he left, and the stone is handed on. */
+    /**
+     * The ending played to its last line: the only time the server says he left, and the stone is handed on. A preview
+     * and a tester's ending say it to that player alone (whether they are a tester is asked now, not when it began: the
+     * line to everyone and the closing of the secret always go together).
+     */
     void done(Farewell f, Player p) {
         UUID u = p.getUniqueId();
         farewells.remove(u, f);
-        boolean real = !f.preview && u.equals(heir);
         if (u.equals(heir)) heir = null;
-        if (!f.preview && !open(u)) return;   // switched off, or (an admin's doing) solved meanwhile: nothing is said
         Component left = joinLine(false);
-        if (real) {
-            toAll(left);
-            eco.getLogger().info("[비밀] 새로 온 사람 (" + who + ") 이 나갔다고 모두에게 알렸습니다 (처음이자 마지막)");
-            visit = null;
-        } else {
+        if (f.preview) {
             p.sendMessage(left);
+            return;
         }
-        if (!f.preview) m.solve(this, p);
+        if (!open(u) || impostor()) return;   // switched off, or (an admin's doing) solved meanwhile: nothing is said
+        if (m.test(u)) {
+            p.sendMessage(left);
+        } else {
+            toAll(left);
+            eco.getLogger().info("[비밀] 새로 온 사람 (" + who + ") 이 나갔다고 모두에게 알렸습니다 (처음이자 마지막 · 푼 사람 " + p.getName() + ")");
+            visit = null;
+        }
+        m.solve(this, p);
+    }
+
+    /**
+     * An ending that stops before its last line (they walked away from the stone, changed world, died; someone really
+     * named like him came on; an error): nothing was saved and nothing is said to the server, so whispering at the stone
+     * again begins it anew. p: whoever is told that he stopped (null: nobody).
+     */
+    void broken(Farewell f, Player p) {
+        UUID u = f.who();
+        f.stop();
+        if (!farewells.remove(u, f)) return;
+        if (u.equals(heir)) heir = null;
+        if (p == null || !p.isOnline()) return;
+        String line = cfg.getString("ending.left", "…아, 가시네요.");
+        if (line != null && !line.isBlank()) p.sendMessage(incoming(line));
     }
 
     /** Whether this player's own leaving is not announced (the solver; a tester who finished, while still in test mode). */
@@ -573,20 +652,36 @@ public final class Newcomer extends Secret {
         return m.test(u) && m.stage(this, u) > stages();
     }
 
-    /** After the nickname module (LOW) has rewritten the line: for the one who inherited "never leaving", there is no line. */
+    /**
+     * After the nickname module (LOW) has rewritten the line: for the one who inherited "never leaving", there is no line.
+     * Being kicked or banned is not leaving: that line stays for everyone to see (perk.show-kick), and what is hidden is
+     * written to the console, where the game's own "lost connection" line stays as well.
+     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onQuit(PlayerQuitEvent e) {
-        if (neverLeaves(e.getPlayer().getUniqueId())) e.quitMessage(null);
+        if (e.quitMessage() == null || !neverLeaves(e.getPlayer().getUniqueId())) return;
+        if (e.getReason() == PlayerQuitEvent.QuitReason.KICKED && cfg.getBoolean("perk.show-kick", true)) return;
+        e.quitMessage(null);
+        eco.getLogger().info("[비밀] " + e.getPlayer().getName() + " 이(가) 나갔습니다 (새로 온 사람 특전: 퇴장 줄은 아무에게도 보이지 않음)");
     }
 
     // ------------------------------------------------------------------------------------------
     // admin
     // ------------------------------------------------------------------------------------------
 
-    /** Test mode: he comes for that player alone, quickly. Otherwise: he comes now, for everyone, as on any night. */
+    /**
+     * Test mode: he comes for that player alone, quickly. Otherwise he comes now, for everyone, as on any night, and this
+     * is the visit of the night that is open (or opens next): he does not come again that night. If that night's join line
+     * was already said (he came, or was called before), he only asks his questions again from the first.
+     */
     @Override
     public void start(Player p) {
         UUID u = p.getUniqueId();
+        if (!on()) {   // nothing moves while it is off: a join line with no questions after it would be all there is
+            eco.getLogger().info("[비밀] 새로 온 사람 시작: 꺼져 있어서 시작하지 않았습니다 (/관리자 비밀 켜기 새로온사람 먼저)");
+            if (p.hasPermission("stsv.admin")) p.sendMessage(Text.msg("<red>새로온사람: 꺼져 있어요. 먼저 /관리자 비밀 켜기 새로온사람"));
+            return;
+        }
         if (m.test(u)) {
             m.set(this, u, "seen", 1);
             arriveFor(p, true);
@@ -600,7 +695,12 @@ public final class Newcomer extends Secret {
             if (p.hasPermission("stsv.admin")) p.sendMessage(Text.msg("<red>새로온사람: " + no));
             return;
         }
-        arrive(null, 0);
+        String night = Schedule.next(LocalDateTime.now(SecretModule.KST), from, to).toString();
+        boolean join = arrive(night, 0, "관리자 시작");
+        if (p.hasPermission("stsv.admin")) {
+            p.sendMessage(Text.msg(join ? "<gray>새로온사람: " + night + " 밤의 방문을 지금 합니다 (모두에게 입장 줄 → 질문). 그 밤에 또 오지는 않아요"
+                    : "<gray>새로온사람: " + night + " 밤에는 이미 들어왔으므로 입장 줄 없이 질문만 처음부터 다시 합니다 (입장 줄은 하룻밤에 한 번)"));
+        }
     }
 
     @Override
@@ -629,8 +729,10 @@ public final class Newcomer extends Secret {
         boolean begun = key.equals(eco.kv().get(NIGHT));
         long asked = begun ? eco.kv().getLong(ASKED, 0) : 0;
         b.append(" · ").append(key).append(" 밤 <white>").append(HM.format(Schedule.planned(night, from, to, seed))).append("</white> ")
-                .append(m.closed(this) ? "(풀려서 안 옴)" : !begun ? "예정" : asked >= questions.size() ? "다녀감" : visit != null ? "와 있음 " + asked + "/" + questions.size()
-                        : "끊김 " + asked + "/" + questions.size() + " (다시 들어옴)");
+                .append(m.closed(this) ? "(풀려서 안 옴)" : !begun ? "예정"
+                        : asked >= questions.size() ? (key.equals(eco.kv().get(JOINED)) ? "다녀감" : "쉼 (이름이 같은 실제 플레이어가 접속했음)")
+                        : visit != null ? "와 있음 " + asked + "/" + questions.size()
+                        : "끊김 " + asked + "/" + questions.size() + " (사람이 있으면 입장 줄 없이 이어서 물음)");
         Optional<Stones.Found> f = stones.find(id(), m.all());
         Optional<Location> st = stone();
         if (st.isPresent()) {

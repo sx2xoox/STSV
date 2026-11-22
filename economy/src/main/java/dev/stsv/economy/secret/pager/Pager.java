@@ -23,6 +23,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Interaction;
+import org.bukkit.entity.ItemFrame;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -31,6 +32,8 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
@@ -45,8 +48,10 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -68,8 +73,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * Saved (eco.kv "secret.pager.&lt;uuid&gt;."): stage, since, day (the day it last began to beep), found ("world x y z"),
  * serial (the pager copy that works), stop / stop-name / tape (the stop chosen and what the tape says), anchor ("world x
  * y z nx nz": where to look for the house), house ("world x y z yaw", once found), msgs (the screen), clock (minutes of
- * that evening), ph (wait | ask | reply | knock | scroll), at (when the next thing happens), deadline (8282), until
- * (knocking), idx (scrolling), dark, refused, force, ending, late, letter-at, letter-sent, perk, done.
+ * that evening), ph (wait | ask | reply | knock | scroll), at (when the next thing happens), deadline (8282; left: what
+ * was left of it when they went away), until (knocking), idx (scrolling), dark, refused, force, fixed (an admin put the
+ * house where it is), ending, late, letter-at, letter-sent, perk, live (the live pager copy that works), done.
  */
 public final class Pager extends Secret {
 
@@ -107,6 +113,12 @@ public final class Pager extends Secret {
     /** admin previews: knocking until; the scrolling years (how far, and what the screen shows) */
     private final Map<UUID, Long> knockPreview = new HashMap<>();
     private final Map<UUID, List<Codes.Msg>> scrollPreview = new HashMap<>();
+    /** players in test mode (kept each second, so that breaking a block reads nothing saved until the roll hits) */
+    private final Set<UUID> testers = new HashSet<>();
+    /** player -> until when nothing happens to them (just joined: their screen is still loading) */
+    private final Map<UUID, Long> settling = new HashMap<>();
+    /** player -> when their house was last looked for again because its place was built over */
+    private final Map<UUID, Long> repicked = new HashMap<>();
     private long beats;
     private double chance = 0.0002;
     private int maxY;
@@ -152,6 +164,10 @@ public final class Pager extends Secret {
 
     YamlConfiguration cfg() {
         return cfg;
+    }
+
+    org.bukkit.plugin.Plugin plugin() {
+        return eco;
     }
 
     String text(String key, String def) {
@@ -277,20 +293,25 @@ public final class Pager extends Secret {
         chirp(p, b.center(), (float) cfg.getDouble("start.beep-volume", 1.5));
     }
 
+    /**
+     * Every block broken on the server comes through here, so: a map lookup (only while something beeps at all), the
+     * height, the game mode, the block's kind and the roll. Nothing saved is read and nothing is made before the roll hits.
+     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent e) {
         Player p = e.getPlayer();
-        UUID u = p.getUniqueId();
         Block b = e.getBlock();
-        Beep beep = beeps.get(u);
-        if (beep != null) {   // while one beeps nothing else begins
-            if (beep.touches(b)) pop(p, beep, b);
-            return;
+        if (!beeps.isEmpty()) {
+            Beep beep = beeps.get(p.getUniqueId());
+            if (beep != null) {   // while one beeps nothing else begins
+                if (beep.touches(b)) pop(p, beep, b);
+                return;
+            }
         }
-        if (b.getY() > maxY || !rock(b.getType()) || p.getGameMode() != GameMode.SURVIVAL) return;
-        boolean lucky = ThreadLocalRandom.current().nextDouble() < chance;
-        if (!lucky && !m.test(u)) return;
-        if (!on() || !open(u) || stage(u) != 0 || kv(u, "late") != null || guide(p)) return;
+        if (b.getY() > maxY || p.getGameMode() != GameMode.SURVIVAL || !rock(b.getType())) return;
+        if (ThreadLocalRandom.current().nextDouble() >= chance && (testers.isEmpty() || !testers.contains(p.getUniqueId()))) return;
+        UUID u = p.getUniqueId();
+        if (!on() || !open(u) || stage(u) != 0 || guide(p)) return;
         boolean test = m.test(u);
         if (!test && m.today(u).equals(kv(u, "day"))) return;   // once a day at most
         if (placed(b)) return;
@@ -349,10 +370,11 @@ public final class Pager extends Secret {
 
     /** Forgets how far they were (not that they are too late, nor the day it last beeped). */
     private void forget(UUID u) {
-        kvRemove(u, "found", "stop", "stop-name", "tape", "anchor", "house", "msgs", "clock", "ph", "at", "deadline", "until", "idx", "dark",
-                "refused", "force", "ending");
+        kvRemove(u, "found", "stop", "stop-name", "tape", "anchor", "house", "fixed", "msgs", "clock", "ph", "at", "deadline", "left", "until",
+                "idx", "dark", "refused", "force", "ending");
         gates.remove(u);
         nextRush.remove(u);
+        repicked.remove(u);
     }
 
     @Override
@@ -454,16 +476,20 @@ public final class Pager extends Secret {
         return at;
     }
 
-    private void setGate(UUID u, Location at) {
+    /** fixed: an admin put it there (it stays, whatever is built around it). */
+    private void setGate(UUID u, Location at, boolean fixed) {
         kvSet(u, "house", at.getWorld().getName() + " " + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ() + " " + Math.round(at.getYaw()));
+        if (fixed) kvSet(u, "fixed", 1);
+        else kvRemove(u, "fixed");
         gates.remove(u);
     }
 
     /**
      * Before the house was found: the stop on the tape must still be there under that name (else another is chosen and
-     * the tape rewritten), and once they are near it the house's spot is looked for and kept.
+     * the tape rewritten), and once they are near it (anywhere: however far they are) the house's spot is looked for and
+     * kept. Nothing is loaded for it: while the land behind the stop is not loaded, it waits.
      */
-    private void locate(Player p, boolean check) {
+    private void locate(Player p, boolean check, boolean anywhere) {
         UUID u = p.getUniqueId();
         String stop = kv(u, "stop"), anchor = kv(u, "anchor");
         if (anchor == null) check = true;
@@ -483,7 +509,7 @@ public final class Pager extends Secret {
         String[] w = anchor == null ? new String[0] : anchor.split(" ");
         Location a = place(anchor);
         if (a == null || w.length < 6 || !a.getWorld().equals(p.getWorld())) return;
-        if (Math.hypot(a.getX() - p.getLocation().getX(), a.getZ() - p.getLocation().getZ()) > cfg.getDouble("house.find-range", 64)) return;
+        if (!anywhere && Math.hypot(a.getX() - p.getLocation().getX(), a.getZ() - p.getLocation().getZ()) > cfg.getDouble("house.find-range", 64)) return;
         double nx, nz;
         try {
             nx = Double.parseDouble(w[4]);
@@ -492,7 +518,27 @@ public final class Pager extends Secret {
             return;
         }
         Location at = house.locate(a.getWorld(), a.getX(), a.getBlockY(), a.getZ(), nx, nz, u.getMostSignificantBits() ^ u.getLeastSignificantBits());
-        if (at != null) setGate(u, at);
+        if (at != null) setGate(u, at, false);
+    }
+
+    /**
+     * Their house's place was built over since it was chosen (the gate, the basket or the mailbox is inside a block): it
+     * is looked for again, at most once in ten minutes (if nowhere is better, it stands where it stood). True when the
+     * house is not to be shown at the old place now.
+     */
+    private boolean repick(Player p, Location old) {
+        UUID u = p.getUniqueId();
+        long now = System.currentTimeMillis();
+        Long last = repicked.get(u);
+        if (kv(u, "fixed") != null || (last != null && now - last < 600_000L)) return false;
+        repicked.put(u, now);
+        String anchor = kv(u, "anchor");
+        kvRemove(u, "house");
+        gates.remove(u);
+        locate(p, true, true);
+        if (gate(u) != null || !java.util.Objects.equals(anchor, kv(u, "anchor"))) return true;   // (another stop now: found when they get there)
+        setGate(u, old.clone().subtract(0.5, 0, 0.5), false);   // the land behind the stop is not loaded now: as it was, until another time
+        return false;
     }
 
     private House.Light light(UUID u, int st) {
@@ -505,27 +551,36 @@ public final class Pager extends Secret {
         Location g = gate(u);
         if (g == null) {
             if (house.showing(u) && !house.ending(u)) stray(p);
-            if (beats % 3 == 0) locate(p, beats % 30 == 0);
+            if (beats % 3 == 0) locate(p, beats % 30 == 0, false);
             return;
         }
         double show = cfg.getDouble("house.show-range", 48);
+        if (house.showing(u) && !house.ending(u) && house.gone(u)) house.hide(u);   // its chunk was unloaded under it
         if (house.showing(u)) {
             if (house.ending(u)) return;
             Location at = house.where(u);
             boolean moved = at == null || !at.getWorld().equals(g.getWorld()) || at.distanceSquared(g) > 0.01;
             if (house.preview(u) || moved) {
-                if (within(p, g, show)) house.show(p, g, g.getYaw(), light(u, st), false);
+                if (ready(p, g, show)) house.show(p, g, g.getYaw(), light(u, st), false);
                 else stray(p);
             } else if (!within(p, g, show + 8)) house.hide(u);
             else house.light(u, light(u, st));
-        } else if (within(p, g, show)) house.show(p, g, g.getYaw(), light(u, st), false);
+        } else if (ready(p, g, show)) {
+            if (House.blocked(g, g.getYaw()) && repick(p, g)) return;   // built over: it stands somewhere else from the next beat
+            house.show(p, g, g.getYaw(), light(u, st), false);
+        }
+    }
+
+    /** Near enough to see the house, and the land it stands on is loaded (showing it loads nothing). */
+    private static boolean ready(Player p, Location g, double show) {
+        return within(p, g, show) && House.loaded(g.getWorld(), g.getX(), g.getZ(), 6);
     }
 
     /** A house left showing where it should not be (an admin's preview, or a stage that no longer has one): gone once they walk off. */
     private void stray(Player p) {
         UUID u = p.getUniqueId();
         if (!house.showing(u) || house.ending(u)) return;
-        if (!house.preview(u) || !within(p, house.where(u), 56)) house.hide(u);
+        if (!house.preview(u) || !within(p, house.where(u), 56) || house.gone(u)) house.hide(u);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -620,7 +675,7 @@ public final class Pager extends Secret {
         if (now < at(u) || !device.has(p)) return;
         house.empty(u);
         message(p, code("thanks", "1004"), 2, 5);
-        kvRemove(u, "dark", "deadline");
+        kvRemove(u, "dark", "deadline", "left");
         nextRush.remove(u);
         m.stage(this, u, st + 1);
         waitFor(u, gap(u));
@@ -672,7 +727,7 @@ public final class Pager extends Secret {
                         : Math.hypot(g.getX() - p.getLocation().getX(), g.getZ() - p.getLocation().getZ());
                 boolean force = kv(u, "force") != null;
                 if (d < min && !force) return;
-                kvRemove(u, "force", "dark");
+                kvRemove(u, "force", "dark", "left");
                 int secs = Codes.rushSeconds((int) seconds(u, "rush.seconds", 240, "rush.test-seconds", 40), min, d, cfg.getInt("rush.max-seconds", 900));
                 kvSet(u, "deadline", now + secs * 1000L);
                 kvSet(u, "ph", "ask");
@@ -680,7 +735,14 @@ public final class Pager extends Secret {
                 message(p, code("hurry", "8282"), 9, 40);
             }
             case "ask" -> {
-                long deadline = m.getLong(this, u, "deadline", 0);
+                long saved = m.getLong(this, u, "deadline", 0), left = m.getLong(this, u, "left", -1);
+                if (saved <= 0 && left >= 0) {   // they were away (left the game, the server stopped): the time did not run, and it beeps again
+                    saved = now + left;
+                    kvSet(u, "deadline", saved);
+                    kvRemove(u, "left");
+                    nextRush.put(u, now);
+                }
+                long deadline = saved;
                 if (atGate(p)) {   // in time
                     kvSet(u, "ph", "reply");
                     kvSet(u, "at", now + seconds(u, "reply-seconds", 6, "test-reply-seconds", 3) * 1000L);
@@ -688,7 +750,7 @@ public final class Pager extends Secret {
                     house.latch(p);
                 } else if (now > deadline) {   // too late: the window is dark, and it comes again another time
                     kvSet(u, "dark", 1);
-                    kvRemove(u, "deadline");
+                    kvRemove(u, "deadline", "left");
                     nextRush.remove(u);
                     if (device.has(p)) {
                         List<Codes.Msg> msgs = Codes.push(Codes.decode(kv(u, "msgs")), new Codes.Msg("", code("late", "…")), Math.max(1, cfg.getInt("pager.screen.keep", 5)));
@@ -862,8 +924,26 @@ public final class Pager extends Secret {
         kvRemove(u, "ending");
         beeps.remove(u);
         house.hide(u);
-        p.sendMessage(Text.mm(text("too-late", "<dark_gray>…파란 대문은 이제 없다. 누군가 먼저 돌아갔다.")));
+        p.sendMessage(Text.mm(text("too-late", "<dark_gray>…파란 대문은 이제 어디에도 없다. 누군가 먼저 돌아갔다.")));
         if (device.take(p, true) > 0) p.sendMessage(Text.mm(text("lines.crumble", "<dark_gray>…삐삐의 화면이 꺼졌다. 손안에서 부스러진다.")));
+    }
+
+    /**
+     * They were too late, and the secret is open again (서버초기화, or they are a tester now): they go on where they were,
+     * and the pager that crumbled is back in the pocket.
+     */
+    private void reopen(Player p) {
+        UUID u = p.getUniqueId();
+        kvRemove(u, "late");
+        without.remove(u);
+        device.take(p, false);
+        if (device.has(p)) {
+            device.refresh(p, null);
+            return;
+        }
+        device.give(p);
+        flash(p, text("lines.back", "<dark_gray>…주머니에서 진동이 온다. 삐삐가 돌아와 있다."));
+        sound(p, p.getLocation(), text("beep.sound", "block.note_block.bit"), 0.3f, 1.4f);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -876,9 +956,16 @@ public final class Pager extends Secret {
         long now = System.currentTimeMillis();
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID u = p.getUniqueId();
+            if (m.test(u)) testers.add(u);
+            else testers.remove(u);
             Beep b = beeps.get(u);
             if (b != null) beepTick(p, b, now);
             if (!knockPreview.isEmpty() || !scrollPreview.isEmpty()) previews(p, now);
+            Long settle = settling.get(u);
+            if (settle != null) {   // just joined: nothing arrives while their screen is still loading
+                if (now < settle) continue;
+                settling.remove(u);
+            }
             int st = stage(u);
             if (st <= 0) {
                 stray(p);
@@ -889,11 +976,12 @@ public final class Pager extends Secret {
                 stray(p);
                 continue;
             }
-            if (!open(u) || kv(u, "late") != null) {
+            if (!open(u)) {
                 tooLate(p);
                 continue;
             }
             if (guide(p)) continue;
+            if (kv(u, "late") != null) reopen(p);
             if (kv(u, "ending") != null) {   // the end was playing when they left (or the server stopped): it is done
                 if (!house.ending(u)) {
                     p.sendMessage(Text.mm(text("lines.dad", "<#e8dcc0>…아빠?")));
@@ -920,6 +1008,7 @@ public final class Pager extends Secret {
     /** Dead copies and spares go; some time without the pager on them, and it is back in the pocket. */
     private void keep(Player p, long now) {
         UUID u = p.getUniqueId();
+        if (p.isDead()) return;   // (what they keep through a death is handed back as they come to)
         device.take(p, false);
         if (device.has(p)) {
             without.remove(u);
@@ -963,7 +1052,7 @@ public final class Pager extends Secret {
         if (Device.ownerOf(e.getItem().getItemStack()) != null) e.setCancelled(true);
     }
 
-    /** Dying does not lose it. */
+    /** Dying does not lose it (nor the live one); shells and other people's pagers do not fall out either: they are gone. */
     @EventHandler(priority = EventPriority.HIGH)
     public void onDeath(PlayerDeathEvent e) {
         if (e.getKeepInventory()) return;
@@ -971,7 +1060,12 @@ public final class Pager extends Secret {
         boolean kept = false;
         for (var it = e.getDrops().iterator(); it.hasNext(); ) {
             ItemStack d = it.next();
-            if (!u.equals(Device.ownerOf(d))) continue;
+            if (device.live(d, u)) {
+                it.remove();
+                e.getItemsToKeep().add(d);
+                continue;
+            }
+            if (Device.ownerOf(d) == null) continue;
             it.remove();
             if (!kept && device.own(d, u) && playing(u)) {
                 e.getItemsToKeep().add(d);
@@ -980,16 +1074,42 @@ public final class Pager extends Secret {
         }
     }
 
+    /**
+     * A shell (a copy that stopped working, or someone else's pager: out of a chest, a bundle, a trade) is gone the moment
+     * it is touched in an inventory. Its owner's working pager is never touched by this.
+     */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onInventory(InventoryClickEvent e) {
+        if (!(e.getWhoClicked() instanceof Player p)) return;
+        UUID u = p.getUniqueId();
+        boolean gone = false;
+        if (device.shell(e.getCurrentItem(), u)) {
+            e.setCurrentItem(null);
+            gone = true;
+        }
+        if (device.shell(e.getCursor(), u)) {
+            p.setItemOnCursor(null);
+            gone = true;
+        }
+        int swap = e.getClick() == ClickType.NUMBER_KEY ? e.getHotbarButton() : e.getClick() == ClickType.SWAP_OFFHAND ? 40 : -1;
+        if (swap >= 0 && device.shell(p.getInventory().getItem(swap), u)) {
+            p.getInventory().setItem(swap, null);
+            gone = true;
+        }
+        if (gone) e.setCancelled(true);
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         Player p = e.getPlayer();
+        settling.put(p.getUniqueId(), System.currentTimeMillis() + 5000L);
         later(p, 60, () -> {
             UUID u = p.getUniqueId();
             if (!playing(u) || guide(p) || kv(u, "ending") != null || p.isDead()) return;
             device.take(p, false);
             if (device.has(p)) device.refresh(p, null);
             else device.give(p);
-            if (gate(u) == null) locate(p, true);
+            if (gate(u) == null) locate(p, true, false);
         });
     }
 
@@ -999,6 +1119,10 @@ public final class Pager extends Secret {
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onClick(PlayerInteractEntityEvent e) {
+        if (e.getRightClicked() instanceof ItemFrame) {   // the pager is not hung on a wall (a shell would stay there)
+            if (Device.ownerOf(e.getPlayer().getInventory().getItem(e.getHand())) != null) e.setCancelled(true);
+            return;
+        }
         if (!(e.getRightClicked() instanceof Interaction hit) || !hit.getPersistentDataContainer().has(House.TAG)) return;
         e.setCancelled(true);
         if (e.getHand() != EquipmentSlot.HAND) return;
@@ -1028,7 +1152,11 @@ public final class Pager extends Secret {
         paging.prompt(p);
     }
 
-    @EventHandler(priority = EventPriority.LOWEST)
+    /**
+     * The chat thread: only the prompt's own map is read here (a concurrent one). While the prompt is open the line is
+     * taken out of the chat (nobody sees it) and judged on the main thread.
+     */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onChat(AsyncChatEvent e) {
         UUID u = e.getPlayer().getUniqueId();
         if (!paging.capturing(u)) return;
@@ -1042,6 +1170,13 @@ public final class Pager extends Secret {
 
     @Override
     public void cleanup(UUID u) {
+        long deadline = m.getLong(this, u, "deadline", 0);
+        if (deadline > 0) {   // an 8282 run is on: its time does not run while they are away
+            kvSet(u, "left", Codes.pause(deadline, System.currentTimeMillis()));
+            kvRemove(u, "deadline");
+        }
+        testers.remove(u);
+        settling.remove(u);
         beeps.remove(u);
         house.hide(u);
         without.remove(u);
@@ -1057,10 +1192,11 @@ public final class Pager extends Secret {
     // ------------------------------------------------------------------------------------------
 
     /** The screen as it stands when a stage begins (what came before it). */
-    private static List<Codes.Msg> screenAt(int stage, int[] clock, int keep) {
+    private List<Codes.Msg> screenAt(int stage, int[] clock, int keep) {
         List<Codes.Msg> msgs = new ArrayList<>();
         int c = Codes.EVENING;
-        String[][] done = {{"045", "1004"}, {"10288", "1004"}, {"8282", "1004"}};
+        String thanks = code("thanks", "1004");
+        String[][] done = {{code("bread", "045"), thanks}, {code("fever", "10288"), thanks}, {code("hurry", "8282"), thanks}};
         for (int i = 0; i < done.length && stage >= i + 3; i++) {
             if (i > 0) c = Codes.advance(c, 35);
             msgs = Codes.push(msgs, new Codes.Msg(Codes.stamp(c), done[i][0]), keep);
@@ -1069,7 +1205,7 @@ public final class Pager extends Secret {
         }
         if (stage >= LAST) {
             c = Codes.advance(c, 40);
-            msgs = Codes.push(msgs, new Codes.Msg(Codes.stamp(c), "505"), keep);
+            msgs = Codes.push(msgs, new Codes.Msg(Codes.stamp(c), code("sos", "505")), keep);
             for (Codes.Msg x : Codes.scroll(LocalDate.now(SecretModule.KST))) msgs = Codes.push(msgs, x, keep);
         }
         clock[0] = stage >= 3 ? c : -1;
@@ -1079,7 +1215,7 @@ public final class Pager extends Secret {
     @Override
     public void jump(Player p, int stage) {
         UUID u = p.getUniqueId();
-        kvRemove(u, "late", "ending", "dark", "refused", "idx", "until", "deadline", "ph", "at", "force", "letter-at");
+        kvRemove(u, "late", "ending", "dark", "refused", "idx", "until", "deadline", "left", "ph", "at", "force", "letter-at");
         nextRush.remove(u);
         if (stage <= 0) {
             device.take(p, true);
@@ -1103,7 +1239,7 @@ public final class Pager extends Secret {
         }
         if (device.has(p)) device.refresh(p, null);
         else device.give(p);
-        if (gate(u) == null) locate(p, true);
+        if (gate(u) == null) locate(p, true, false);
     }
 
     private static String ago(long ms) {
@@ -1137,7 +1273,8 @@ public final class Pager extends Secret {
             switch (ph) {
                 case "wait" -> out.add(at > now ? "다음 호출까지 " + ago(at - now) : st == 4 ? "8282 대기: 집에서 " + (int) (m.test(u)
                         ? cfg.getDouble("rush.test-min-distance", 30) : cfg.getDouble("rush.min-distance", 300)) + "칸 이상 떨어지면 옴" : st == 5 ? "505 대기: 밤이 되면 옴" : "호출 대기 (삐삐를 지니면 옴)");
-                case "ask" -> out.add(st == 2 ? "045: 바구니에 빵" : st == 3 ? "10288: 바구니에 따뜻한 것" : "8282: 대문까지 남은 " + ago(m.getLong(this, u, "deadline", 0) - now));
+                case "ask" -> out.add(st == 2 ? "045: 바구니에 빵" : st == 3 ? "10288: 바구니에 따뜻한 것" : "8282: 대문까지 남은 "
+                        + (m.getLong(this, u, "left", -1) >= 0 ? ago(m.getLong(this, u, "left", 0)) + " (자리에 없어 멈춤)" : ago(m.getLong(this, u, "deadline", 0) - now)));
                 case "reply" -> out.add("답장(1004)까지 " + ago(at - now));
                 case "knock" -> out.add("두드림 남은 " + ago(m.getLong(this, u, "until", 0) - now));
                 case "scroll" -> out.add("100 이 지나가는 중 " + m.getLong(this, u, "idx", 0) + "/" + Codes.scroll(LocalDate.now(SecretModule.KST)).size());
@@ -1220,7 +1357,7 @@ public final class Pager extends Secret {
                 Location at = ahead(p);
                 int st = stage(u);
                 if (st >= 1 && st <= LAST) {   // their own house, moved here for good
-                    setGate(u, at.clone().subtract(0.5, 0, 0.5));
+                    setGate(u, at.clone().subtract(0.5, 0, 0.5), true);
                     house.hide(u);
                     note = " (이 사람의 집을 여기로 옮김)";
                 } else {

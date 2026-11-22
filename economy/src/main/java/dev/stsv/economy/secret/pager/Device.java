@@ -21,9 +21,10 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The 삐삐 itself (economy:pager). One for each player who found it: it knows its owner and which copy it is (only the
- * latest one given works, so a copy left in a chest goes dead once the pocket has its pager back). Its lore is its screen
- * (the last messages) and the tape on its back. After the end the solver has the live one, which is only a keepsake that
- * can call people ({@link Paging}).
+ * latest one given works, so a copy left in a chest goes dead once the pocket has its pager back: an empty shell that
+ * vanishes when anyone touches it). Its lore is its screen (the last messages) and the tape on its back. After the end
+ * the solver has the live one, which is only a keepsake that can call people ({@link Paging}); of those, too, only the
+ * latest one made works.
  */
 final class Device {
 
@@ -49,10 +50,10 @@ final class Device {
     /** Whose pager (of the story, not the live one) this is, or null. */
     static UUID ownerOf(ItemStack it) {
         PersistentDataContainerView c = pdc(it);
-        if (c == null || c.has(LIVE)) return null;
-        String o = c.get(OWNER, PersistentDataType.STRING);
+        String o = c == null ? null : c.get(OWNER, PersistentDataType.STRING);
+        if (o == null || c.has(LIVE)) return null;   // (nearly every stack ends here: one lookup)
         try {
-            return o == null ? null : UUID.fromString(o);
+            return UUID.fromString(o);
         } catch (IllegalArgumentException e) {
             return null;
         }
@@ -70,9 +71,31 @@ final class Device {
         return u.equals(ownerOf(it)) && !own(it, u);
     }
 
-    boolean live(ItemStack it, UUID u) {
+    /**
+     * A pager of the story that is not this holder's own working one: someone else's, or a copy of theirs that stopped
+     * working (left in a chest while the pocket got its pager back, or from before a reset). An empty shell: it does
+     * nothing, and it is gone the moment it is touched.
+     */
+    boolean shell(ItemStack it, UUID holder) {
+        return ownerOf(it) != null && !own(it, holder);
+    }
+
+    /** Whose live pager (the reward) this is, or null. */
+    static UUID liveOf(ItemStack it) {
         PersistentDataContainerView c = pdc(it);
-        return c != null && u.toString().equals(c.get(LIVE, PersistentDataType.STRING));
+        String o = c == null ? null : c.get(LIVE, PersistentDataType.STRING);
+        try {
+            return o == null ? null : UUID.fromString(o);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /** Their live pager, and the copy that works (the latest one made for them: there is only ever one). */
+    boolean live(ItemStack it, UUID u) {
+        if (!u.equals(liveOf(it))) return false;
+        String want = s.kv(u, "live");
+        return want != null && want.equals(pdc(it).get(SERIAL, PersistentDataType.STRING));
     }
 
     boolean has(Player p) {
@@ -81,11 +104,17 @@ final class Device {
         return own(p.getItemOnCursor(), u);
     }
 
+    /** In a hand (either one). */
     boolean holding(Player p) {
-        return own(p.getInventory().getItemInMainHand(), p.getUniqueId());
+        return own(p.getInventory().getItemInMainHand(), p.getUniqueId()) || own(p.getInventory().getItemInOffHand(), p.getUniqueId());
+    }
+
+    private static String serial() {
+        return Long.toHexString(System.currentTimeMillis()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
     }
 
     private ItemStack base() {
+        // (the plain paper is only for a server whose items/secrets.yml lost the pager: it still plays)
         ItemStack it = Items.create(ITEM, 1).orElseGet(() -> new ItemStack(Material.PAPER));
         it.editMeta(meta -> meta.setMaxStackSize(1));
         return Items.markBought(it);
@@ -94,7 +123,7 @@ final class Device {
     /** A new pager for them: the copies given before stop working. */
     ItemStack create(Player p) {
         UUID u = p.getUniqueId();
-        String serial = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
+        String serial = serial();
         s.kvSet(u, "serial", serial);
         ItemStack it = base();
         it.editMeta(meta -> {
@@ -190,8 +219,13 @@ final class Device {
         return taken;
     }
 
-    /** The reward: the same pager, alive. Its lore has the solver's name and the day. */
+    /**
+     * The reward: the same pager, alive. Its lore has the solver's name and the day. A live pager made for them before
+     * (an admin's, a tester's second run) stops working: only one calls.
+     */
     ItemStack liveItem(Player p) {
+        String serial = serial();
+        s.kvSet(p.getUniqueId(), "live", serial);
         ItemStack it = base();
         String date = LocalDate.now(dev.stsv.economy.secret.SecretModule.KST).toString().replace('-', '.');
         it.editMeta(meta -> {
@@ -201,6 +235,7 @@ final class Device {
             meta.lore(lore);
             meta.setEnchantmentGlintOverride(true);
             meta.getPersistentDataContainer().set(LIVE, PersistentDataType.STRING, p.getUniqueId().toString());
+            meta.getPersistentDataContainer().set(SERIAL, PersistentDataType.STRING, serial);
         });
         return it;
     }

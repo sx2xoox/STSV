@@ -5,6 +5,8 @@ import net.kyori.adventure.key.Key;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
@@ -96,7 +98,7 @@ final class Blessing {
             Block feet = null;
             for (int dy : new int[] {0, 1, -1}) {
                 Block c = b.getRelative(0, dy, 0);
-                if (c.isPassable() && !c.isLiquid() && c.getRelative(0, 1, 0).isPassable() && c.getRelative(0, -1, 0).isSolid()) {
+                if (free(c) && free(c.getRelative(0, 1, 0)) && c.getRelative(0, -1, 0).isSolid()) {
                     feet = c;
                     break;
                 }
@@ -108,6 +110,16 @@ final class Blessing {
             out.add(at);
         }
         return out;
+    }
+
+    /**
+     * Room for a figure that must change nothing: they are real bodies for a few seconds, so never on a pressure plate or a
+     * tripwire (a door would open by itself) and never in a portal (they would go through it).
+     */
+    static boolean free(Block b) {
+        Material t = b.getType();
+        if (!b.isPassable() || b.isLiquid()) return false;
+        return !Tag.PRESSURE_PLATES.isTagged(t) && !Tag.PORTALS.isTagged(t) && t != Material.TRIPWIRE && t != Material.POWDER_SNOW;
     }
 
     /** The two stand behind `of`, shown to these players. False when there is no ground for them. */

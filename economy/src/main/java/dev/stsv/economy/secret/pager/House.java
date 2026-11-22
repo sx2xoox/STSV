@@ -90,6 +90,12 @@ final class House {
         return x != null && x.preview;
     }
 
+    /** Whether what was shown is no longer there (its chunk was unloaded, or something removed the entities). */
+    boolean gone(UUID u) {
+        Shown x = shown.get(u);
+        return x != null && !(x.leaf.isValid() && x.basketHit.isValid() && x.mailHit.isValid());
+    }
+
     /** The middle of the gate, on the ground. */
     Location where(UUID u) {
         Shown x = shown.get(u);
@@ -345,7 +351,10 @@ final class House {
         later(p, x, 300, () -> s.chirp(p, x.at(1.5, 1.2, -3.6), 0.9f));
         later(p, x, 380, () -> p.sendMessage(dev.stsv.core.util.Text.mm(line)));
         later(p, x, 480, () -> pane(x, Light.DARK));
-        later(p, x, 560, done);
+        later(p, x, 560, () -> {
+            x.ending = false;   // over: from here it is a house like any other (and goes when its story says so)
+            done.run();
+        });
     }
 
     private void later(Player p, Shown x, long ticks, Runnable r) {
@@ -383,6 +392,29 @@ final class House {
             return up.isPassable() && !up.isLiquid() ? y + 1 : Integer.MIN_VALUE;
         }
         return Integer.MIN_VALUE;
+    }
+
+    /**
+     * What must stay free for the house to be used: the gateway, head height where one stands before it, the basket, the
+     * mailbox ({x, y, z} in its own measure). Only cells {@link #fits} found free when the place was chosen (the ground
+     * one step before the gate may be a block higher).
+     */
+    private static final double[][] FREE = {{0, 0.2, 0.3}, {0, 1.2, 0.3}, {0, 1.2, 1.3}, {0.5, 1.05, 0.3}, {1.66, 1.15, 0.45}};
+
+    /**
+     * Whether a house standing here (the middle of its gate on the ground at {@code base}) has been built over since:
+     * a block where the gateway, the basket or the mailbox is. A few block reads; the land must be loaded.
+     */
+    static boolean blocked(Location base, float yaw) {
+        double r = Math.toRadians(yaw), cos = Math.cos(r), sin = Math.sin(r);
+        World w = base.getWorld();
+        for (double[] f : FREE) {
+            int y = (int) Math.floor(base.getY() + f[1]);
+            if (y < w.getMinHeight() || y >= w.getMaxHeight()) continue;
+            Block b = w.getBlockAt((int) Math.floor(base.getX() + f[0] * cos - f[2] * sin), y, (int) Math.floor(base.getZ() + f[0] * sin + f[2] * cos));
+            if (!b.isPassable() || b.isLiquid()) return true;
+        }
+        return false;
     }
 
     /**

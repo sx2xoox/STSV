@@ -194,6 +194,21 @@ final class Codes {
         return name.isEmpty() ? null : new Page(name, digits(t.substring(cut + 1)));
     }
 
+    /** Whether the line typed after the prompt puts the pager away instead of sending anything ("취소", "cancel"). */
+    static boolean cancel(String typed) {
+        if (typed == null) return false;
+        String t = typed.trim();
+        return t.equals("취소") || t.equalsIgnoreCase("cancel");
+    }
+
+    /**
+     * The 8282 run while its player is away (left the game, the server stopped): the time does not run. What is left of
+     * it (ms) as they go, never less than nothing.
+     */
+    static long pause(long deadline, long now) {
+        return Math.max(0, deadline - now);
+    }
+
     /** Which of n stops is this player's: always the same one for the same player. */
     static int pick(long most, long least, int n) {
         return n <= 0 ? -1 : (int) Math.floorMod(most ^ (least * 31), (long) n);

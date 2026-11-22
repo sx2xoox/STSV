@@ -245,7 +245,9 @@ final class House {
         for (int dx = -1; dx <= 1; dx++) {
             for (int dz = -1; dz <= 1; dz++) {
                 for (int dy = 0; dy <= 1; dy++) {
-                    Block b = s.base.getBlock().getRelative(dx, dy, dz);
+                    Location at = s.base.clone().add(dx, dy, dz);
+                    if (!at.isChunkLoaded()) continue;   // never loads a chunk for it
+                    Block b = at.getBlock();
                     if (b.isEmpty() || b.isLiquid() || !b.isPassable()) continue;
                     p.sendBlockChange(b.getLocation(), air);   // put back by hide (kept here, not with Haunt: these come and go)
                     s.cleared.add(b.getLocation());

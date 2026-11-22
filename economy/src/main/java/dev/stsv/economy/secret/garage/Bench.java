@@ -30,8 +30,8 @@ import java.util.UUID;
  */
 final class Bench implements InventoryHolder {
 
-    /** The three kinds, in the screen's order: the word in {@link Combo}, the section of garage.yml options. */
-    static final String[][] KINDS = {{"paint", "paints"}, {"wheel", "wheels"}, {"glow", "underglows"}};
+    /** The three kinds, in the screen's order: the word in {@link Combo}, the section of garage.yml options, its label when the file has none. */
+    static final String[][] KINDS = {{"paint", "paints", "도색"}, {"wheel", "wheels", "휠"}, {"glow", "underglows", "밑의 불빛"}};
 
     /** One thing to choose (mirrors the tuning shop's vehicle_tuning.yml: the core does not hand its catalogue out). */
     record Option(String id, String name, int color, String clue) {}
@@ -110,7 +110,7 @@ final class Bench implements InventoryHolder {
         for (String[] kind : KINDS) {
             if (row > 4) break;
             Map<String, Option> opts = options(cfg, kind[1]);
-            inv.setItem(row * 9, named(new ItemStack(Material.NAME_TAG), cfg.getString("gui.label-" + kind[0], "<white>" + kind[0]),
+            inv.setItem(row * 9, named(new ItemStack(Material.NAME_TAG), cfg.getString("gui.label-" + kind[0], "<white>" + kind[2]),
                     lines(cfg.getStringList("gui.label-" + kind[0] + "-lore"))));
             int col = 1;
             for (Option o : opts.values()) {
@@ -121,7 +121,7 @@ final class Bench implements InventoryHolder {
                 if (row > 4) break;
                 int slot = row * 9 + col++;
                 boolean on = o.id().equals(look.get(kind[0]));
-                inv.setItem(slot, swatch(o, on, cfg.getString(on ? "gui.chosen" : "gui.choose", on ? "<green>고름" : "<gray>누르면 이걸로")));
+                inv.setItem(slot, swatch(o, on, cfg.getString(on ? "gui.chosen" : "gui.choose", on ? "<green>지금 이 모습이다" : "<gray>누르면 이걸로 바꾼다")));
                 slots.put(slot, new String[]{kind[0], o.id()});
             }
             row++;

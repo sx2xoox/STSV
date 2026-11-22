@@ -221,6 +221,22 @@ class GarageTest {
     }
 
     @Test
+    void nearFaceOfARailBlock() {
+        // going south, the right hand is west (-x): a rail block at x -5..-4 has its near face 4 blocks out, wherever along it is
+        assertEquals(4, Roadway.nearFace(0, 50, -1, 0, -5, 50), 1e-9);
+        assertEquals(4, Roadway.nearFace(0, 50.9, -1, 0, -5, 50), 1e-9);
+        // on the left hand (+x) the block at x 4..5 is as far
+        assertEquals(4, Roadway.nearFace(0, 50, 1, 0, 4, 50), 1e-9);
+        // seen along a diagonal it is the block's nearest corner that counts (never further than the middle of its face)
+        double d = Math.sqrt(0.5), diagonal = Roadway.nearFace(0, 0, d, d, 3, 3);
+        assertEquals(Math.hypot(3, 3), diagonal, 1e-9);
+        assertTrue(diagonal < Roadway.nearFace(0, 0, 1, 0, 3, 3) + 3 * d + 1e-9);
+        // the memorial's back, 0.8 before that face, never reaches into the rail
+        double origin = Roadway.nearFace(0.3, 12.7, -1, 0, -5, 12) - 0.8;
+        assertTrue(origin + 0.8 <= 4.7 + 1e-9 && origin > 3, String.valueOf(origin));
+    }
+
+    @Test
     void placeAlongTheRoad() {
         List<double[]> pts = road(new double[]{0, 1, 100}, new double[]{1, 0, 100});
         // beside the first leg, two blocks off: as far along as its z

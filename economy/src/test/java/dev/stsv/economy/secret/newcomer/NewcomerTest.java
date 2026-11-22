@@ -1,8 +1,14 @@
 package dev.stsv.economy.secret.newcomer;
 
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.gson.GsonComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -54,6 +60,53 @@ class NewcomerTest {
         assertTrue(y.getString("stone-name").endsWith(y.getString("name")), "the solved stone keeps his name");
         assertEquals("economy:thirteenth", y.getString("rewards.title"));
         assertEquals(0, y.getLong("rewards.money"));
+        // the keys the code reads for an ending that stops and for the perk are in the file
+        assertEquals("…아, 가시네요.", y.getString("ending.left"));
+        assertTrue(y.getDouble("ending.leave-range") > y.getDouble("stone.range"), "standing at the stone is not leaving it");
+        assertTrue(y.getBoolean("perk.no-leave-line"));
+        assertTrue(y.getBoolean("perk.show-kick"), "a kick or a ban is not hidden");
+    }
+
+    @Test
+    void hisWordsAreSpokenNotWritten() {
+        // nobody says "당신" to a stranger in chat; the one he speaks to is called by name
+        for (List<String> l : List.of(Newcomer.QUESTIONS, Newcomer.EVASIVE, Newcomer.REACTIONS, Newcomer.ENDING)) {
+            for (String line : l) {
+                assertFalse(line.contains("당신"), line);
+                assertFalse(line.contains("!"), line);
+                assertEquals(line.strip(), line);
+            }
+        }
+        assertTrue(Newcomer.ENDING.stream().anyMatch(x -> x.contains("{player}님")));
+        for (String line : Newcomer.ENDING) assertTrue(line.startsWith("…"), line);
+        for (String line : Newcomer.EVASIVE) assertTrue(line.startsWith("…"), line);
+        for (String line : Newcomer.QUESTIONS) assertFalse(line.startsWith("…"), "in public he is only a new player: " + line);
+    }
+
+    // ---- his chat line is a real player's chat line
+
+    /** The core's own line for a player without a title (ProfileModule.chatLine, not public: read as it is now). */
+    static Component coreLine(String format, String name, String words) throws Exception {
+        Method m = Class.forName("dev.stsv.core.profile.ProfileModule").getDeclaredMethod("chatLine", String.class, Component.class, Component.class, Component.class);
+        m.setAccessible(true);
+        return (Component) m.invoke(null, format, null, Component.text(name), Component.text(words));
+    }
+
+    @Test
+    void hisChatLineIsTheCoresChatLine() throws Exception {
+        Field def = Class.forName("dev.stsv.core.profile.ProfileModule").getDeclaredField("DEFAULT_CHAT_FORMAT");
+        def.setAccessible(true);
+        assertEquals(def.get(null), Newcomer.DEFAULT_CHAT_FORMAT);
+        GsonComponentSerializer json = GsonComponentSerializer.gson();
+        for (String f : new String[]{null, "", "  ", "{title}{name} <gray>»</gray> {message}", "{name} » {message}", "<gray>{name}: {message}",
+                "<{name}> {message}", "{title}<white>{name}</white><dark_gray>:</dark_gray> {message}", "{name} {nothing} {message}", "{name} {message} {", "[{title}] {name}: {message} <gray>(…)"}) {
+            for (String words : new String[]{"내일도 이 시간에 사람 많아요?", "<red>a</red> {name} {message}"}) {
+                Component mine = Newcomer.chatLine(f, "sipsam_", words), core = coreLine(f, "sipsam_", words);
+                assertEquals(json.serialize(core), json.serialize(mine), "format " + f);
+            }
+        }
+        assertEquals("sipsam_ » 석탄은 어디 가야 많이 나와요?",
+                PlainTextComponentSerializer.plainText().serialize(Newcomer.chatLine(null, "sipsam_", "석탄은 어디 가야 많이 나와요?")));
     }
 
     @Test
@@ -147,6 +200,46 @@ class NewcomerTest {
         assertEquals(d, Schedule.next(d.atTime(0, 30), 1, 5));
     }
 
+    @Test
+    void oneVisitANightWhateverHappens() {
+        LocalDate d = LocalDate.of(2026, 11, 22);
+        String night = d.toString(), before = d.minusDays(1).toString();
+        LocalDateTime at = Schedule.planned(d, 22, 2, 13);
+        // nothing before the window, nothing before his minute, then he begins: at the minute or any time after it that night
+        assertEquals(Schedule.Due.NOTHING, Schedule.due(d.atTime(15, 0), 22, 2, 13, null, 0, 5));
+        assertEquals(Schedule.Due.NOTHING, Schedule.due(d.atTime(21, 59), 22, 2, 13, before, 5, 5));
+        if (at.isAfter(d.atTime(22, 0))) assertEquals(Schedule.Due.NOTHING, Schedule.due(at.minusMinutes(1), 22, 2, 13, before, 5, 5));
+        assertEquals(Schedule.Due.BEGIN, Schedule.due(at, 22, 2, 13, before, 5, 5));
+        assertEquals(Schedule.Due.BEGIN, Schedule.due(at, 22, 2, 13, null, 0, 5), "the very first night");
+        assertEquals(Schedule.Due.BEGIN, Schedule.due(d.plusDays(1).atTime(1, 59), 22, 2, 13, before, 2, 5), "nobody was here until the last minute");
+        // once begun it is never begun again that night (a restart, everyone gone and back): it only goes on, until all is asked
+        for (LocalDateTime t : List.of(at, at.plusMinutes(3), d.plusDays(1).atTime(1, 59))) {
+            for (int asked = 0; asked < 5; asked++) assertEquals(Schedule.Due.GO_ON, Schedule.due(t, 22, 2, 13, night, asked, 5), t + " " + asked);
+            assertEquals(Schedule.Due.NOTHING, Schedule.due(t, 22, 2, 13, night, 5, 5));
+            assertEquals(Schedule.Due.NOTHING, Schedule.due(t, 22, 2, 13, night, 9, 5), "questions were taken out of the file meanwhile");
+        }
+        // the window closed on a broken visit: it is over; the next night is a new one, at its own minute
+        assertEquals(Schedule.Due.NOTHING, Schedule.due(d.plusDays(1).atTime(2, 0), 22, 2, 13, night, 2, 5));
+        assertEquals(Schedule.Due.NOTHING, Schedule.due(d.plusDays(1).atTime(12, 0), 22, 2, 13, night, 2, 5));
+        assertEquals(Schedule.Due.BEGIN, Schedule.due(Schedule.planned(d.plusDays(1), 22, 2, 13), 22, 2, 13, night, 2, 5));
+        // an admin called him in the afternoon: that is this coming night's visit. It goes on if broken off, and he does not come again
+        assertEquals(Schedule.Due.GO_ON, Schedule.due(d.atTime(15, 5), 22, 2, 13, night, 1, 5));
+        assertEquals(Schedule.Due.NOTHING, Schedule.due(d.atTime(15, 30), 22, 2, 13, night, 5, 5));
+        assertEquals(Schedule.Due.NOTHING, Schedule.due(at, 22, 2, 13, night, 5, 5));
+        assertEquals(Schedule.Due.NOTHING, Schedule.due(d.plusDays(1).atTime(1, 59), 22, 2, 13, night, 5, 5));
+        // every minute of a whole night and day: exactly one moment asks to begin when each beginning is saved
+        String saved = before;
+        int begins = 0;
+        for (LocalDateTime t = d.atTime(2, 0); t.isBefore(d.plusDays(1).atTime(2, 0)); t = t.plusMinutes(1)) {
+            if (Schedule.due(t, 22, 2, 13, saved, 5, 5) == Schedule.Due.BEGIN) {
+                begins++;
+                assertEquals(at, t);
+                saved = Schedule.next(t, 22, 2).toString();
+            }
+        }
+        assertEquals(1, begins);
+    }
+
     // ---- whispers
 
     @Test
@@ -158,6 +251,12 @@ class NewcomerTest {
         assertEquals(Optional.of(new Whispers.Whisper("sipsam_", "a")), Whispers.parse("/TELL sipsam_ a", l), "labels in any case");
         assertEquals(Optional.of(new Whispers.Whisper("sipsam_", "a  b")), Whispers.parse("/w sipsam_  a  b ", l));
         assertTrue(Whispers.to(Whispers.parse("/minecraft:tell SIPSAM_ hi", l).orElseThrow(), "sipsam_"), "names in any case");
+        // a name in quotes is that name to the game, so it is to him
+        assertEquals(Optional.of(new Whispers.Whisper("sipsam_", "hi")), Whispers.parse("/w \"sipsam_\" hi", l));
+        assertEquals(Optional.of(new Whispers.Whisper("sipsam_", "hi")), Whispers.parse("/w 'sipsam_' hi", l));
+        assertEquals(Optional.of(new Whispers.Whisper("\"sipsam_", "hi")), Whispers.parse("/w \"sipsam_ hi", l), "half a quote is no name");
+        assertEquals(Optional.of(new Whispers.Whisper("\"\"", "hi")), Whispers.parse("/w \"\" hi", l));
+        assertEquals(Optional.of(new Whispers.Whisper("\"", "hi")), Whispers.parse("/w \" hi", l));
     }
 
     @Test
@@ -183,6 +282,12 @@ class NewcomerTest {
         assertFalse(Whispers.to(Whispers.parse("/w sipsam hi", l).orElseThrow(), "sipsam_"), "a part of his name is not his name");
         assertFalse(Whispers.to(Whispers.parse("/w sipsam_2 hi", l).orElseThrow(), "sipsam_"));
         assertFalse(Whispers.to(Whispers.parse("/w @a hi", l).orElseThrow(), "sipsam_"));
+        assertFalse(Whispers.to(Whispers.parse("/w @p[name=sipsam_] hi", l).orElseThrow(), "sipsam_"), "a selector is the game's business");
+        assertFalse(Whispers.to(Whispers.parse("/w \"Steve\" hi", l).orElseThrow(), "sipsam_"));
+        assertFalse(Whispers.to(Whispers.parse("/w _sipsam_ hi", l).orElseThrow(), "sipsam_"));
+        assertEquals(Optional.empty(), Whispers.parse("/execute as @a run w sipsam_ hi", l), "only a whisper typed as one");
+        assertEquals(Optional.empty(), Whispers.parse("/teammsg sipsam_ hi", l));
+        assertEquals(Optional.empty(), Whispers.parse("/me sipsam_ hi", l));
         assertFalse(Whispers.to(Whispers.parse("/w sipsam_ hi", l).orElseThrow(), null));
     }
 
@@ -278,6 +383,49 @@ class NewcomerTest {
         assertArrayEquals(new double[]{0.5, 0.5 + r}, Stones.arc(0.5, 0.5, 0, 0, 1), 1e-9);   // one stone: straight ahead
         // looking west (yaw 90): ahead is -x
         assertArrayEquals(new double[]{0.5 - r, 0.5}, Stones.arc(0.5, 0.5, 90, 6, 13), 1e-9);
+    }
+
+    /**
+     * The arc, its numbers and the stones' tag are copies of secret/Monument's (which this package cannot see into): read
+     * out of the monument as it is now, they must still be the same, for every stone and every way the monument can face.
+     */
+    @Test
+    void theArcIsStillTheMonuments() throws Exception {
+        Class<?> mon = Class.forName("dev.stsv.economy.secret.Monument");
+        assertEquals(field(mon, "RADIUS"), Stones.RADIUS, "Monument.RADIUS changed: change Stones.RADIUS with it");
+        assertEquals(field(mon, "SPREAD"), Stones.SPREAD, "Monument.SPREAD changed: change Stones.SPREAD with it");
+        assertEquals(field(mon, "SLOTS"), Stones.SLOTS, "Monument.SLOTS changed: change Stones.SLOTS with it");
+        assertEquals(13, Stones.SLOTS, "his is the thirteenth");
+        assertEquals((NamespacedKey) field(mon, "TAG"), Stones.TAG);
+        Method offset = mon.getDeclaredMethod("offset", int.class, int.class, float.class);
+        offset.setAccessible(true);
+        Method idOf = mon.getDeclaredMethod("idOf", String.class);
+        idOf.setAccessible(true);
+        Method key = mon.getDeclaredMethod("key", String.class, String.class, NamespacedKey.class);
+        key.setAccessible(true);
+        Method model = mon.getDeclaredMethod("model", String.class, boolean.class);
+        model.setAccessible(true);
+        double x = 100.5, z = -40.5;
+        for (int n : new int[]{1, 2, 13, 14, 20}) {
+            for (float yaw = -360; yaw <= 360; yaw += 45) {
+                for (int i = 0; i < n; i++) {
+                    double[] o = (double[]) offset.invoke(null, i, n, yaw);
+                    assertArrayEquals(new double[]{x + o[0], z + o[1]}, Stones.arc(x, z, yaw, i, n), 1e-9, "stone " + i + "/" + n + " yaw " + yaw);
+                }
+            }
+        }
+        // a stone's tag as the monument writes it names his stone, solved or not
+        for (boolean solved : new boolean[]{false, true}) {
+            String tag = (String) key.invoke(null, "newcomer", "", model.invoke(null, "newcomer", solved));
+            assertEquals(idOf.invoke(null, tag), Stones.idOf(tag));
+            assertEquals("newcomer", Stones.idOf(tag));
+        }
+    }
+
+    static Object field(Class<?> c, String name) throws Exception {
+        Field f = c.getDeclaredField(name);
+        f.setAccessible(true);
+        return f.get(null);
     }
 
     @Test

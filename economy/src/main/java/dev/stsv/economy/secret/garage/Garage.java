@@ -227,6 +227,12 @@ public final class Garage extends Secret {
         return at != null && at.getWorld() != null && at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4);
     }
 
+    /** Whether all the ground under a frame's box (x0..x1 to its left, z0..z1 the way it faces) is loaded: nothing is ever put into a chunk that is not. */
+    private static boolean loaded(Location frame, double x0, double x1, double z0, double z1) {
+        return loaded(frame) && loaded(Props.local(frame, x0, 0, z0)) && loaded(Props.local(frame, x1, 0, z0))
+                && loaded(Props.local(frame, x0, 0, z1)) && loaded(Props.local(frame, x1, 0, z1));
+    }
+
     // ------------------------------------------------------------------------------------------
     // the car's true look
     // ------------------------------------------------------------------------------------------
@@ -393,8 +399,8 @@ public final class Garage extends Secret {
         givePhoto(p);
         m.stage(this, u, CLUES);
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.7f, 0.8f);
-        say(p, "photo-1", "<dark_gray>…꽃 사이에 사진이 한 장 기대어 있다.");
-        later(p, 50, () -> say(p, "photo-2", "<dark_gray>…차가 액자 밖으로 반쯤 잘려 있다."));
+        say(p, "photo-1", "<dark_gray>…꽃 사이에 기대어 있던 사진을 집어 들었다.");
+        later(p, 50, () -> say(p, "photo-2", "<dark_gray>…차가 액자 밖으로 반쯤 잘려 있다. 뒷면에 연필 글씨가 있다."));
     }
 
     @Override
@@ -527,7 +533,7 @@ public final class Garage extends Secret {
         String how = (after ? "after:" + plaque : "open") + (frame ? "+photo" : "");
         if (how.equals(memorials.get(u)) && props.has(u, MEMORIAL)) return;
         Places.Edge edge = places.edge(0, cfg.getDouble("memorial.side", 4.6));
-        if (edge == null) return;   // its chunk is not there yet
+        if (edge == null || !loaded(edge.at(), -1.2, 3.6, -1, 1)) return;   // its chunk is not there yet
         props.drop(u, MEMORIAL);
         buildMemorial(p, edge.at(), frame, plaque, "memorial");
         memorials.put(u, how);
@@ -551,10 +557,13 @@ public final class Garage extends Secret {
                     .setTransformation(new org.bukkit.util.Transformation(new Vector3f(-0.36f, 0.02f, -0.52f), lean, new Vector3f(0.72f, 0.72f, 0.05f), new Quaternionf()));
             props.item(p, MEMORIAL, at, photoItem(), new Vector3f(0, 0.38f, -0.42f), new Vector3f(0.56f, 0.56f, 0.56f), lean);
         }
-        if (plaque != null) {   // a small stone with a name, its face to the road
-            props.box(p, MEMORIAL, at, Material.POLISHED_DEEPSLATE.createBlockData(), -1.05f, 0, -1.0f, 2.1f, 0.5f, 0.14f);
-            props.text(p, MEMORIAL, Props.local(at, 0, 0.17, -0.84), line("plaque", "<#e8d9a0>끝까지 같이 달린 사람: <white>{player}").replace("{player}", plaque), false, 0.5f)
-                    .setBrightness(new org.bukkit.entity.Display.Brightness(12, 12));
+        if (plaque != null) {
+            // a small stone with a name beside the flowers, its face to the road (not behind them: the guardrail is there)
+            props.box(p, MEMORIAL, at, Material.POLISHED_DEEPSLATE.createBlockData(), 1.15f, 0, -0.5f, 2.3f, 0.5f, 0.14f);
+            org.bukkit.entity.TextDisplay name = props.text(p, MEMORIAL, Props.local(at, 2.3, 0.18, -0.34),
+                    line("plaque", "<#e8d9a0>끝까지 같이 달린 사람: <white>{player}").replace("{player}", plaque), false, 0.4f);
+            name.setLineWidth(400);   // one line, whatever the name
+            name.setBrightness(new org.bukkit.entity.Display.Brightness(12, 12));
         }
         props.hit(p, MEMORIAL, at, 1.9f, 1.1f, what);
     }
@@ -649,7 +658,7 @@ public final class Garage extends Secret {
         if (d > range) return;
         places.fit();
         Location o = places.garage();
-        if (o == null || !loaded(o)) return;   // the ground there cannot be read yet
+        if (o == null || !loaded(o, -3.8, 3.8, -7.3, 2.6)) return;   // the ground there cannot be read yet
         Double hold = held.get(u);
         if (after) {
             shed.show(p, o, true, hold != null ? hold : 0, Shed.EMPTY);
@@ -672,7 +681,9 @@ public final class Garage extends Secret {
             }
             default -> {
                 shed.show(p, o, false, hold != null ? hold : openTo(), a == null ? Shed.TARP : a.encode());
-                if (flat(p, o) <= 12 && !drive.has(u) && cool(u, "come", 90)) whisper(p, "come-at-night", "<#9fb2c8>…밤에, 그 커브로 와.");
+                // (not while the shutter is still down on the look that was right: he has not said so yet)
+                if (flat(p, o) <= 12 && !drive.has(u) && !checking.contains(u) && cool(u, "come", 90))
+                    whisper(p, "come-at-night", "<#9fb2c8>…밤에, 그 커브로 와.");
             }
         }
     }
@@ -807,6 +818,7 @@ public final class Garage extends Secret {
                 default -> {
                     say(p, "right-3", "<#9fb2c8>…그래. 이 차야.");
                     p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 0.5f, 0.6f);
+                    cool(u, "come", 90);   // said below: not whispered again right after
                     later(p, 60, () -> say(p, "come-at-night", "<#9fb2c8>…밤에, 그 커브로 와."));
                 }
             }
@@ -820,7 +832,8 @@ public final class Garage extends Secret {
     /** Stage 3: at night near the bend his car appears before it and waits (after a failed night: not before retry-at). */
     private void nightAtTheBend(Player p, Places.Site site, long now) {
         UUID u = p.getUniqueId();
-        if (drive.has(u) || flat(p, places.bend()) > cfg.getDouble("drive.range", 40) || !night(p)) return;
+        // (a garage close to the bend: nothing before he has said the look is right)
+        if (drive.has(u) || checking.contains(u) || flat(p, places.bend()) > cfg.getDouble("drive.range", 40) || !night(p)) return;
         if (now < m.getLong(this, u, "retry-at", 0)) {
             if (cool(u, "not-tonight", 120)) whisper(p, "not-tonight", "<#9fb2c8>…오늘은 아니야. 다음 밤에.");
             return;
@@ -873,7 +886,9 @@ public final class Garage extends Secret {
         UUID u = p.getUniqueId();
         m.remove(this, u, "arrived");
         if (stage(u) != DRIVE) return;
-        if (guide(p)) {   // (cannot be: the 길라잡이 has no 국도) — wait until they are out
+        if (guide(p) || p.isDead()) {
+            // in the 길라잡이 (cannot be: it has no 국도), or dead on the respawn screen (what is put in their pockets now is
+            // lost): it stays reached, and ends the next second they are back
             m.set(this, u, "arrived", System.currentTimeMillis());
             return;
         }
@@ -883,7 +898,9 @@ public final class Garage extends Secret {
             m.set(this, u, "late", 1);
             return;
         }
-        giveCar(p);
+        // a tester's end closes nothing and can be played again and again: no real car for it (the title and the photo only)
+        if (test) p.sendMessage(Text.mm("<yellow>[테스트] 보상 튜닝카는 테스트 모드에서는 주지 않아요 <gray>(진짜로 풀었을 때 한 대, 귀속)"));
+        else giveCar(p);
         turnPhoto(p);
         if (!test) eco.kv().set(PLAQUE, p.getName());
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.5f, 0.6f);
@@ -892,7 +909,7 @@ public final class Garage extends Secret {
         for (Player o : Bukkit.getOnlinePlayers()) props.drop(o.getUniqueId(), MEMORIAL);
     }
 
-    /** A real 튜닝카, bound to them (as the bus secret's sedan is); into the mailbox when their pockets are full. */
+    /** A real 튜닝카, bound to them (as the bus secret's sedan is); into the mailbox when their pockets are full. Never in test mode. */
     private void giveCar(Player p) {
         UUID u = p.getUniqueId();
         ItemStack it = Items.create(cars.itemId(), 1).orElse(null);
@@ -902,8 +919,8 @@ public final class Garage extends Secret {
         }
         if (vm() != null) vm().bind(it, u, p.getName());
         String name = Items.mmName(it);
-        if (Items.room(p.getInventory(), it) >= 1 || eco.mail() == null) give(p, it);
-        else eco.mail().deliver(u, it, "secret_garage");
+        if (eco.mail() != null) eco.mail().deliver(u, it, "secret_garage");   // into their pockets, or the mailbox when there is no room
+        else give(p, it);
         p.sendMessage(Text.mm(line("car-given", "<gray>받은 것: {item} <dark_gray>— 열쇠가 조수석에 놓여 있었다.").replace("{item}", name)));
     }
 

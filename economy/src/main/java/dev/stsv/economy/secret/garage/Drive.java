@@ -70,6 +70,8 @@ final class Drive {
 
     private final Garage g;
     private final Map<UUID, Run> runs = new HashMap<>();
+    /** player -> not before this (ms) does his car come again: it waited its time out and nobody got in */
+    private final Map<UUID, Long> rest = new HashMap<>();
     private BukkitTask task;
 
     Drive(Garage g) {
@@ -135,6 +137,11 @@ final class Drive {
         if (vm == null || item == null) return 0;
         Location at = pose(r, w, r.s, lane(), 0);
         at.add(0, 0.08, 0);
+        // every chunk the car reaches into is there (the core asks only for the one under its middle; its click boxes and
+        // seats would be put into the others)
+        for (int cx = (int) Math.floor(at.getX() - 5) >> 4; cx <= (int) Math.floor(at.getX() + 5) >> 4; cx++)
+            for (int cz = (int) Math.floor(at.getZ() - 5) >> 4; cz <= (int) Math.floor(at.getZ() + 5) >> 4; cz++)
+                if (!w.isChunkLoaded(cx, cz)) return 0;
         Combo answer = g.answer();
         long id = vm.spawnTemporary(item, w, at.getX(), at.getY(), at.getZ(), at.getYaw(), answer == null ? null : answer.paint(), driver);
         if (id == 0) return 0;
@@ -149,6 +156,11 @@ final class Drive {
         UUID u = p.getUniqueId();
         World w = site.bukkit();
         if (w == null || runs.containsKey(u)) return false;
+        Long until = rest.get(u);
+        if (until != null) {
+            if (System.currentTimeMillis() < until) return false;
+            rest.remove(u);
+        }
         Run r = fresh(p, site, false);
         if (spawn(r, w, null) == 0) return false;
         r.phase = WAITING;
@@ -291,8 +303,10 @@ final class Drive {
             case GO -> go(r, p, vm, w);
             case HOME -> home(r, p, vm, w);
             case DEMO -> {
-                advance(r, 0, w, p);
-                if (r.ticks >= 0 || r.s >= r.end - 1) {
+                Location ghost = advance(r, 0, w, p);
+                // (never driven out of where the chunks are loaded around its viewer)
+                boolean away = !p.getWorld().equals(w) || Math.hypot(ghost.getX() - p.getLocation().getX(), ghost.getZ() - p.getLocation().getZ()) > 64;
+                if (r.ticks >= 0 || r.s >= r.end - 1 || away) {
                     g.cars().dark(r.u, r.ghost);
                     r.phase = FADE;
                     r.ticks = 0;
@@ -307,11 +321,17 @@ final class Drive {
 
     /** Nobody in it yet: it goes away quietly when they leave, the night ends, or they never get in. */
     private void waiting(Run r, Player p, VehicleModule vm) {
+        if (vm.drivesTemporary(r.car, p)) {
+            // at the wheel without having come through board (the core seats a car's own player again by itself): the same
+            if (r.preview || g.mayGoOn(p)) ready(r, p);
+            else end(r.u);
+            return;
+        }
         if (r.ticks % 20 != 0) return;
-        boolean gone = !vm.temporaryAlive(r.car) || !p.getWorld().getName().equals(r.world)
-                || p.getLocation().distanceSquared(r.stands) > 72 * 72
-                || System.currentTimeMillis() - r.born > Math.max(20, cfg().getLong("drive.wait-seconds", 180)) * 1000L
-                || !g.night(p) || !g.mayGoOn(p);
+        boolean late = System.currentTimeMillis() - r.born > Math.max(20, cfg().getLong("drive.wait-seconds", 180)) * 1000L;
+        boolean gone = late || !vm.temporaryAlive(r.car) || !p.getWorld().getName().equals(r.world)
+                || p.getLocation().distanceSquared(r.stands) > 72 * 72 || !g.night(p) || !g.mayGoOn(p);
+        if (late) rest.put(r.u, System.currentTimeMillis() + 60_000L);   // it does not come back the very next second
         if (gone) end(r.u);
         else if (r.ticks % 100 == 0) p.spawnParticle(Particle.SOUL, r.stands.clone().add(0, 0.8, 0), 3, 0.8, 0.3, 0.8, 0.005);
     }

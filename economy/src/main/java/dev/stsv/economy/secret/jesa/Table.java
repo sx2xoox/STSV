@@ -27,7 +27,11 @@ import java.util.TreeSet;
 final class Table {
 
     static final int COLS = 9, ROWS = 5, SLOTS = COLS * ROWS;
-    /** The middle column; with {@link Rules#halves} west is 0..3 and east 5..8. */
+    /**
+     * The middle column. With {@link Rules#halves} a west thing lies in 0..4 and an east thing in 4..8: the middle place
+     * belongs to neither half, so whichever stands on it is judged by its neighbour alone (rice on 4 with the soup on 5 is
+     * rice west of soup; a table gives no reason when a dish rolls off, so a right pair one place off-centre must not).
+     */
     static final int MID = 4;
     /** Where a missing dish is pointed at: the west side, the middle, the east side of its row. */
     static final int WEST_AT = 2, EAST_AT = 6;
@@ -35,8 +39,8 @@ final class Table {
     private Table() {}
 
     /**
-     * What may lie where (item ids as {@code Items.key} gives them). halves: west things must lie west of the middle
-     * column and east things east of it; without it only their order counts (every west thing west of every east thing).
+     * What may lie where (item ids as {@code Items.key} gives them). halves: no west thing lies east of the middle column
+     * and no east thing west of it (and every west thing is west of every east thing); without it only that order counts.
      */
     record Rules(Set<String> rice, Set<String> soup, Set<String> liquor, Set<String> meat, Set<String> fish, Set<String> jeon,
                  Set<String> dried, Set<String> sikhye, Set<String> namul, Set<String> pale, Set<String> red, Set<String> cake,
@@ -71,7 +75,7 @@ final class Table {
             return new Rules(eco("rice"), eco("bogeo_jiri", "eomuktang", "pollack_stew", "doenjang_jjigae", "kalguksu"),
                     eco("cheongju", "golden_cheongju", "century_yakju", "makgeolli", "soju"), eco("bulgogi"),
                     eco("godeungeo_gui", "fish_platter", "red_seabream", "croaker", "pollack", "sunset_bream", "gulbi", "gulbi_dureum"),
-                    eco("saengseonjeon", "hobakjeon", "gamjajeon", "pajeon"), eco("dried_fish_stirfry", "dried_pollack", "gulbi"),
+                    eco("saengseonjeon", "hobakjeon", "gamjajeon", "pajeon"), eco("dried_fish_stirfry", "dried_fish", "dried_pollack", "gulbi"),
                     eco("sikhye"), eco("japchae", "gyeranmari"), eco("muskmelon"), set("minecraft:apple", "economy:strawberry"),
                     eco("injeolmi", "golden_injeolmi", "ginseng_jeonggwa", "grapes"),
                     eco("chili_pepper", "chili_seeds", "garlic", "chili_powder", "gochujang", "jang_set", "royal_jang_set", "kimchi", "kkakdugi",
@@ -169,11 +173,11 @@ final class Table {
                 anyWest = anyEast = true;
             } else if (isW) {
                 anyWest = true;
-                if (halves && col >= MID) wrong.add(slot(row, col));
+                if (halves && col > MID) wrong.add(slot(row, col));
                 else w.add(col);
             } else if (isE) {
                 anyEast = true;
-                if (halves && col <= MID) wrong.add(slot(row, col));
+                if (halves && col < MID) wrong.add(slot(row, col));
                 else e.add(col);
             } else if (free.contains(k)) {
                 anyFree = true;
@@ -199,7 +203,8 @@ final class Table {
     /** Row 2 (탕): only soups, none of them one of row 0's, none twice. */
     private static void soups(Map<Integer, String> first, Map<Integer, String> cells, Rules r, Set<Integer> wrong, List<Integer> missing) {
         Set<String> seen = new LinkedHashSet<>();
-        for (String k : first.values()) if (r.soup.contains(k)) seen.add(k);
+        // a soup of row 0 that is going anyway (it stood on the wrong side) does not take the 탕 with it
+        for (Map.Entry<Integer, String> c : first.entrySet()) if (r.soup.contains(c.getValue()) && !wrong.contains(slot(0, c.getKey()))) seen.add(c.getValue());
         boolean any = false;
         for (Map.Entry<Integer, String> c : cells.entrySet()) {
             if (!r.soup.contains(c.getValue())) {
@@ -238,7 +243,7 @@ final class Table {
         if (id != null) out.put(slot(row, col), id);
     }
 
-    /** The first id of a kind that is not `not` and not taboo... the first of all when there is no other. */
+    /** The first id of a kind that is not `not`; the first of all when there is no other. */
     private static String first(Set<String> of, String not) {
         for (String s : of) if (!s.equals(not)) return s;
         return of.isEmpty() ? null : of.iterator().next();

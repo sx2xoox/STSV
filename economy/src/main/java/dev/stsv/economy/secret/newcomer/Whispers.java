@@ -19,7 +19,10 @@ final class Whispers {
     /** A whisper: who it is for (as typed) and what it says (never blank). */
     record Whisper(String target, String message) {}
 
-    /** Reads a command line; empty when it is not a whisper command, or has no target or no words. */
+    /**
+     * Reads a command line; empty when it is not a whisper command, or has no target or no words. A name in quotes
+     * ("name" or 'name', which the game reads as the name) is given without them.
+     */
     static Optional<Whisper> parse(String line, Collection<String> labels) {
         if (line == null) return Optional.empty();
         String s = line.startsWith("/") ? line.substring(1) : line;
@@ -32,6 +35,8 @@ final class Whispers {
         if (b < 0 || b == a + 1) return Optional.empty();   // no words, or two spaces where the name should be
         String target = s.substring(a + 1, b), message = s.substring(b + 1).strip();
         if (message.isEmpty()) return Optional.empty();
+        char q = target.charAt(0);
+        if ((q == '"' || q == '\'') && target.length() > 2 && target.charAt(target.length() - 1) == q) target = target.substring(1, target.length() - 1);
         return Optional.of(new Whisper(target, message));
     }
 

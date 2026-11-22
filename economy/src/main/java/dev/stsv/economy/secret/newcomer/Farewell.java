@@ -18,7 +18,8 @@ import java.util.UUID;
  * The ending, for the one who whispered at his stone: his answers come one at a time as whispers, dust falls off the bare
  * stone, the world is quiet, and for a while someone stands past the stone at the edge of sight (gone when looked at).
  * Nobody else sees or hears any of it. After the last line {@link Newcomer#done} says he left and hands the stone on.
- * Nothing is saved while it plays: leaving in the middle leaves everything as it was (whisper there again).
+ * Nothing is saved while it plays: quitting, dying, changing world or walking away from the stone (ending.leave-range)
+ * in the middle stops it ({@link Newcomer#broken}) and leaves everything as it was (whisper there again).
  */
 final class Farewell implements Runnable {
 
@@ -30,7 +31,9 @@ final class Farewell implements Runnable {
     /** his stone's foot (a spot in front of the player when there is no monument: an admin's preview), the monument's own spot */
     private final Location stone, centre;
     private final int lead, gap, figureLine;
-    private final double look;
+    private final double look, leave;
+    /** who he speaks to, as the lines name them ({player}) */
+    private final String hearer;
     private final boolean quiet, dust, withFigure;
     private BlockData grit;
     private BukkitTask task;
@@ -49,6 +52,14 @@ final class Farewell implements Runnable {
         gap = 20 * Math.max(1, c.getInt("ending.gap-seconds", 5));
         figureLine = c.getInt("ending.figure-line", 3) - 1;
         look = Math.toRadians(Math.max(1, c.getDouble("ending.figure-look-degrees", 15)));
+        leave = Math.max(4, c.getDouble("ending.leave-range", 12));
+        String plain;
+        try {
+            plain = dev.stsv.core.nickname.Names.plain(id);
+        } catch (RuntimeException e) {
+            plain = p.getName();
+        }
+        hearer = MiniMessage.miniMessage().escapeTags(plain);
         quiet = c.getBoolean("ending.quiet", true);
         dust = c.getBoolean("ending.dust", true);
         withFigure = c.getBoolean("ending.figure", true);
@@ -62,6 +73,10 @@ final class Farewell implements Runnable {
             v = new Vector(-Math.sin(rad), 0, Math.cos(rad));
         }
         return v.normalize();
+    }
+
+    UUID who() {
+        return id;
     }
 
     void begin() {
@@ -78,7 +93,22 @@ final class Farewell implements Runnable {
     public void run() {
         Player p = Bukkit.getPlayer(id);
         if (p == null) {
-            n.cleanup(id);
+            n.broken(this, null);
+            return;
+        }
+        try {
+            play(p);
+        } catch (RuntimeException e) {
+            // never left half played with its task running on (nobody else would get an answer from him meanwhile)
+            n.plugin().getLogger().log(java.util.logging.Level.WARNING, "[비밀] newcomer 엔딩 오류 (멈춤: 그 비석 앞에서 다시 귓속말하면 처음부터)", e);
+            n.broken(this, null);
+        }
+    }
+
+    private void play(Player p) {
+        // they left him standing there: it stops, and nothing is handed on
+        if (p.isDead() || !p.getWorld().equals(stone.getWorld()) || p.getLocation().distanceSquared(stone) > leave * leave) {
+            n.broken(this, p);
             return;
         }
         List<String> lines = n.ending();
@@ -96,7 +126,7 @@ final class Farewell implements Runnable {
     }
 
     private void line(Player p, List<String> lines, int i) {
-        p.sendMessage(n.incoming(lines.get(i)));
+        p.sendMessage(n.incoming(lines.get(i).replace("{player}", hearer)));
         if (dust && (i == 0 || i == lines.size() - 2)) dust(p, 18);
         if (withFigure && i == figureLine) appear(p);
         if (i == lines.size() - 1) vanish(p);

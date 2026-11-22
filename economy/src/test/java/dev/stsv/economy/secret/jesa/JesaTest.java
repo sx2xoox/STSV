@@ -176,10 +176,36 @@ class JesaTest {
         t = right();
         t.put(Table.slot(4, 1), "economy:strawberry");   // one red thing on the west, beside a right pair
         assertEquals(Set.of(Table.slot(4, 1)), Table.judge(t, RULES).wrong());
+        // the middle place is neither half: what stands on it is judged by its neighbour (a pair one place off-centre is right)
         t = right();
-        t.put(Table.slot(4, 4), APPLE);                  // the middle column is neither side
+        t.put(Table.slot(4, 4), APPLE);
         t.remove(Table.slot(4, 5));
-        assertEquals(Set.of(Table.slot(4, 4)), Table.judge(t, RULES).wrong());
+        assertTrue(Table.judge(t, RULES).ok(), "pale on 3, red on 4");
+        t = right();
+        t.put(Table.slot(4, 4), MELON);
+        t.remove(Table.slot(4, 3));
+        assertTrue(Table.judge(t, RULES).ok(), "pale on 4, red on 5");
+        t.put(Table.slot(4, 4), APPLE);
+        t.put(Table.slot(4, 5), MELON);                  // but not the wrong way round about it
+        assertEquals(Set.of(Table.slot(4, 5)), Table.judge(t, RULES).wrong());
+        t = right();
+        t.put(Table.slot(4, 4), APPLE);
+        t.put(Table.slot(4, 5), MELON);
+        t.remove(Table.slot(4, 3));
+        assertFalse(Table.judge(t, RULES).ok());
+        // rice on the middle with the soup beside it; meat and fish side by side leave the 전 no room between them
+        t = right();
+        t.remove(Table.slot(0, 1));
+        t.remove(Table.slot(0, 7));
+        t.put(Table.slot(0, 4), RICE);
+        t.put(Table.slot(0, 5), JIRI);
+        t.put(Table.slot(0, 3), CHEONGJU);
+        assertTrue(Table.judge(t, RULES).ok(), Table.judge(t, RULES).toString());
+        t.put(Table.slot(1, 2), JEON);
+        t.put(Table.slot(1, 4), BULGOGI);
+        t.put(Table.slot(1, 5), GUI);
+        t.remove(Table.slot(1, 6));
+        assertEquals(Set.of(Table.slot(1, 2)), Table.judge(t, RULES).wrong());
     }
 
     @Test
@@ -203,6 +229,32 @@ class JesaTest {
         t = right();
         t.put(Table.slot(2, 6), BULGOGI);
         assertEquals(Set.of(Table.slot(2, 6)), Table.judge(t, RULES).wrong(), "only soups in the 탕 row");
+    }
+
+    @Test
+    void aMisplacedSoupDoesNotTakeTheTangWithIt() {
+        Map<Integer, String> t = right();
+        t.put(Table.slot(0, 2), EOMUK);   // a second 갱 on the rice's side: it goes, the same soup in the 탕 row stays
+        Table.Verdict v = Table.judge(t, RULES);
+        assertEquals(Set.of(Table.slot(0, 2)), v.wrong());
+        assertTrue(v.missing().isEmpty());
+        t.put(Table.slot(0, 2), "economy:kimchi_jjigae");   // nor does a taboo one
+        assertEquals(Set.of(Table.slot(0, 2)), Table.judge(t, RULES).wrong());
+    }
+
+    @Test
+    void anythingUnknownIsWrongWhereverItLies() {
+        for (int s = 0; s < Table.SLOTS; s++) {
+            Map<Integer, String> t = right();
+            t.put(s, "minecraft:diamond_sword");
+            assertTrue(Table.judge(t, RULES).wrong().contains(s), "a thing no list names, at " + s);
+            t.put(s, "economy:no_such_dish");
+            assertTrue(Table.judge(t, RULES).wrong().contains(s), "an id that does not exist, at " + s);
+        }
+        // plain dried fish is a 포 like the dried pollack
+        Map<Integer, String> t = right();
+        t.put(Table.slot(3, 0), "economy:dried_fish");
+        assertTrue(Table.judge(t, RULES).ok());
     }
 
     @Test

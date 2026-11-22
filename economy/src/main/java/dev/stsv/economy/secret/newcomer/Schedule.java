@@ -50,4 +50,21 @@ final class Schedule {
     static LocalDateTime planned(LocalDate night, int from, int to, long seed) {
         return night.atTime(hour(from), 0).plusMinutes(offset(night, from, to, seed));
     }
+
+    /** What his visit asks for at a moment: nothing, to begin, or to go on with what was begun. */
+    enum Due { NOTHING, BEGIN, GO_ON }
+
+    /**
+     * savedNight: the night of his last visit as saved (its date, or null), asked: how many questions he got to in it.
+     * A night that is saved is never begun again (one visit a night, whatever restarts in between): it goes on until all
+     * its questions are asked, and only while it is the open night or the next to open (a visit an admin called before the
+     * window opened is that coming night's; last night's broken visit is not picked up once its window has closed).
+     * A night not yet saved begins at its minute or any time after it, inside its window.
+     */
+    static Due due(LocalDateTime now, int from, int to, long seed, String savedNight, long asked, int questions) {
+        LocalDate night = next(now, from, to);
+        if (night.toString().equals(savedNight)) return asked >= questions ? Due.NOTHING : Due.GO_ON;
+        if (night(now, from, to).isEmpty() || now.isBefore(planned(night, from, to, seed))) return Due.NOTHING;
+        return Due.BEGIN;
+    }
 }

@@ -179,6 +179,81 @@ class PagerTest {
     }
 
     @Test
+    void onlyTheWordPutsThePagerAway() {
+        assertTrue(Codes.cancel("취소"));
+        assertTrue(Codes.cancel("  취소 "));
+        assertTrue(Codes.cancel("Cancel"));
+        assertFalse(Codes.cancel("취소해"));
+        assertFalse(Codes.cancel("Steve 8282"));
+        assertFalse(Codes.cancel(""));
+        assertFalse(Codes.cancel(null));
+        // "취소" alone is not a page either way (one word)
+        assertNull(Codes.parsePage("취소"));
+    }
+
+    @Test
+    void theRunsTimeDoesNotRunWhileTheyAreAway() {
+        long now = 1_000_000L;
+        assertEquals(90_000L, Codes.pause(now + 90_000L, now));
+        assertEquals(0L, Codes.pause(now - 5_000L, now));   // it had already run out: nothing is left, nothing is owed
+        // back an hour later: the same time is left
+        long back = now + 3_600_000L, left = Codes.pause(now + 90_000L, now);
+        assertEquals(back + 90_000L, back + left);
+    }
+
+    /** A written book's page: 114 px wide, 14 lines; Hangul 9 px, a space 4, anything else counted as 6 (9 beyond ASCII). */
+    private static int bookLines(String page) {
+        int lines = 0;
+        for (String para : page.split("\n", -1)) {
+            int x = 0;
+            lines++;
+            for (String word : para.split(" ")) {
+                int w = 0;
+                for (int i = 0; i < word.length(); i++) {
+                    char c = word.charAt(i);
+                    w += c < 0x80 ? 6 : 9;
+                }
+                if (x > 0 && x + 4 + w > 114) {
+                    lines++;
+                    x = 0;
+                }
+                x += (x > 0 ? 4 : 0) + w;
+                while (x > 114) {   // one word longer than a line
+                    lines++;
+                    x -= 114;
+                }
+            }
+        }
+        return lines;
+    }
+
+    @Test
+    void everyPageOfTheLetterFitsABooksPage() {
+        assertEquals(1, bookLines("빵, 고맙습니다."));
+        assertEquals(3, bookLines("가\n\n나"));
+        assertEquals(2, bookLines("오늘 아침 우체통에서 아버지 삐삐를 찾았습니다."));
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("secrets/pager.yml").toFile());
+        for (String page : y.getStringList("letter.pages")) {
+            String plain = page.replace("{date}", "2026년 12월 31일").replace("{age}", "100").replace("{player}", "ABCDEFGHIJKLMNOP").replaceAll("<[^>]+>", "");
+            assertTrue(bookLines(plain) <= 14, bookLines(plain) + " lines: " + plain);
+        }
+        assertTrue(y.getString("letter.title").length() <= 32, "a book's title holds 32 characters");
+    }
+
+    @Test
+    void noLineSaysWhatANumberMeans() {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("secrets/pager.yml").toFile());
+        for (String k : y.getKeys(true)) {
+            List<String> texts = new ArrayList<>();
+            if (y.isString(k)) texts.add(y.getString(k));
+            else if (y.isList(k)) for (Object o : y.getList(k)) texts.add(String.valueOf(o));
+            for (String t : texts)
+                for (String meaning : List.of("빵 사", "펄펄", "빨리", "SOS", "에스오에스", "돌아와", "천사", "이만", "구조", "뜻"))
+                    assertFalse(t.contains(meaning), k + " explains a number: " + t);
+        }
+    }
+
+    @Test
     void theSamePlayerAlwaysGetsTheSameStop() {
         Set<Integer> seen = new HashSet<>();
         for (long i = 0; i < 200; i++) {
@@ -202,11 +277,11 @@ class PagerTest {
                 "codes.bread", "codes.fever", "codes.hurry", "codes.sos", "codes.thanks", "codes.late", "beep.sound", "turn.knock-sound",
                 "letter.title", "letter.author", "letter.mail-reason", "lines.vibrate", "lines.again", "lines.drop", "lines.back", "lines.refuse",
                 "lines.dad", "lines.letter", "lines.crumble", "page.lines.prompt", "page.lines.sent", "page.lines.receive", "page.lines.bad",
-                "page.lines.nobody", "page.lines.cooldown"))
+                "page.lines.nobody", "page.lines.cooldown", "page.lines.retry", "page.lines.cancel", "page.lines.timeout"))
             assertFalse(y.getString(k, "").isBlank(), k);
         for (String k : List.of("start.chance", "start.max-y", "start.beep-seconds", "start.distance.min", "start.distance.max", "reply-seconds",
                 "test-gap-seconds", "pager.return-after", "pager.screen.keep", "house.min-from-found", "house.show-range", "house.arrive-range",
-                "house.first-seconds", "rush.min-distance", "rush.seconds", "rush.max-seconds", "turn.max-wait-seconds", "turn.knock-seconds",
+                "house.first-seconds", "rush.min-distance", "rush.seconds", "rush.max-seconds", "turn.max-wait-seconds", "turn.knock-seconds", "turn.test-knock-seconds",
                 "turn.scroll-seconds", "after.letter-seconds", "page.cooldown-seconds", "page.timeout-seconds", "page.enabled", "letter.born-year"))
             assertTrue(y.isSet(k), k);
         assertTrue(y.getDouble("start.chance") > 0 && y.getDouble("start.chance") <= 0.001, "rare");
@@ -217,6 +292,11 @@ class PagerTest {
         assertTrue(y.getStringList("pager.live-lore").stream().anyMatch(l -> l.contains("{player}")));
         assertEquals(y.getInt("pager.screen.keep"), y.getStringList("pager.screen.colors").size());
         assertTrue(y.getString("page.lines.receive").contains("{digits}"));
+        assertTrue(y.getString("page.lines.sent").contains("{digits}"));
+        // the prompt and the "not sent" line both say how to stop
+        assertTrue(y.getString("page.lines.prompt").contains("취소"));
+        assertTrue(y.getString("page.lines.retry").contains("취소"));
+        assertTrue(y.getLong("page.timeout-seconds") >= 5 && y.getLong("page.timeout-seconds") <= 60);
         // the codes are what a pager can show (the "too late" one is the only thing that is not a number)
         for (String k : List.of("bread", "fever", "hurry", "sos", "thanks")) assertNotNull(Codes.digits(y.getString("codes." + k)), k);
         // a written book's page holds 14 short lines

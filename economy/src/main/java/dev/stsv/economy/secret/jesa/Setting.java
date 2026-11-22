@@ -101,9 +101,9 @@ final class Setting implements InventoryHolder {
 
     /** A click anywhere while this window is open (already cancelled by the caller). */
     void click(Player p, InventoryClickEvent e) {
-        if (e.getClickedInventory() == null) return;
         int raw = e.getRawSlot();
-        if (e.getClickedInventory() != inv) {   // their own bag: pick a dish up (it does not move)
+        if (raw < 0 || e.getClickedInventory() == null) return;   // beside the window
+        if (raw >= SIZE) {   // their own bag: pick a dish up (it does not move)
             ItemStack it = e.getCurrentItem();
             if (it == null || it.isEmpty() || isGhost(it)) return;
             if (Items.trial(it)) {

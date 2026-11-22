@@ -123,6 +123,14 @@ final class Roadway {
         return (x - p[0]) * -t[1] + (z - p[1]) * t[0];
     }
 
+    /**
+     * How far out the near face of the block column (bx, bz) is from the spot (px, pz), measured along the unit direction
+     * (nx, nz): the distance to the column's corner nearest to the spot (a rail's block seen from the road's middle).
+     */
+    static double nearFace(double px, double pz, double nx, double nz, int bx, int bz) {
+        return (bx + 0.5 - px) * nx + (bz + 0.5 - pz) * nz - 0.5 * (Math.abs(nx) + Math.abs(nz));
+    }
+
     /** The top of the road's surface at s (blocks): a half level h is h / 2 + 1 (RoadSection#top), between points on the line. */
     static double height(int[] halves, double s) {
         if (halves.length == 0) return 0;
