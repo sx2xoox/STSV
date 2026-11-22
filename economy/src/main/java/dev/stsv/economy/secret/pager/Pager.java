@@ -82,7 +82,8 @@ public final class Pager extends Secret {
         World w;
         int x, y, z;
         long until;
-        boolean preview;
+        /** preview: an admin's look (digging it out changes nothing); anyDepth: begun by an admin, above the usual depth too */
+        boolean preview, anyDepth;
 
         boolean touches(Block b) {
             return b.getWorld().equals(w) && Math.abs(b.getX() - x) <= 1 && Math.abs(b.getY() - y) <= 1 && Math.abs(b.getZ() - z) <= 1;
@@ -263,8 +264,9 @@ public final class Pager extends Secret {
         return null;
     }
 
-    private void beep(Player p, Block at, boolean preview, long seconds) {
+    private void beep(Player p, Block at, boolean preview, boolean anyDepth, long seconds) {
         Beep b = new Beep();
+        b.anyDepth = anyDepth;
         b.w = at.getWorld();
         b.x = at.getX();
         b.y = at.getY();
@@ -282,7 +284,7 @@ public final class Pager extends Secret {
         Block b = e.getBlock();
         Beep beep = beeps.get(u);
         if (beep != null) {   // while one beeps nothing else begins
-            if (beep.touches(b)) pop(p, beep);
+            if (beep.touches(b)) pop(p, beep, b);
             return;
         }
         if (b.getY() > maxY || !rock(b.getType()) || p.getGameMode() != GameMode.SURVIVAL) return;
@@ -295,7 +297,7 @@ public final class Pager extends Secret {
         Block at = pick(b, false);
         if (at == null) return;
         kvSet(u, "day", m.today(u));
-        beep(p, at, false, seconds(u, "start.beep-seconds", 180, "start.beep-seconds", 180));
+        beep(p, at, false, false, seconds(u, "start.beep-seconds", 180, "start.beep-seconds", 180));
     }
 
     /** Every third second: the triple beep from the block; it moves if the block is gone, and stops when its time is up. */
@@ -307,7 +309,7 @@ public final class Pager extends Secret {
         }
         if (beats % 3 != 0 || !p.getWorld().equals(b.w) || !b.w.isChunkLoaded(b.x >> 4, b.z >> 4)) return;
         if (!rock(b.w.getBlockAt(b.x, b.y, b.z).getType())) {   // dug out by someone else, blown up, pushed away
-            Block next = pick(p.getLocation().getBlock(), b.preview);
+            Block next = pick(p.getLocation().getBlock(), b.anyDepth);
             if (next == null) {
                 beeps.remove(u);
                 return;
@@ -319,8 +321,8 @@ public final class Pager extends Secret {
         chirp(p, b.center(), (float) cfg.getDouble("start.beep-volume", 1.5));
     }
 
-    /** They dug it out. */
-    private void pop(Player p, Beep b) {
+    /** They dug it out: it lies where the block they broke was (the beeping one, or one beside it). */
+    private void pop(Player p, Beep b, Block broken) {
         UUID u = p.getUniqueId();
         beeps.remove(u);
         if (b.preview) {
@@ -328,20 +330,20 @@ public final class Pager extends Secret {
             return;
         }
         if (!on() || !open(u) || stage(u) != 0 || guide(p)) return;
-        begin(p, b.center(), true);
+        begin(p, b.center(), broken.getLocation().add(0.5, 0.3, 0.5));
     }
 
-    /** The pager is theirs (stage 1): out of the rock at {@code at}, or straight into the pocket. */
-    private void begin(Player p, Location at, boolean fromRock) {
+    /** The pager is theirs (stage 1), found at {@code at}: out of the rock at {@code drop}, or (null) straight into the pocket. */
+    private void begin(Player p, Location at, Location drop) {
         UUID u = p.getUniqueId();
         forget(u);
         kvSet(u, "found", at.getWorld().getName() + " " + at.getBlockX() + " " + at.getBlockY() + " " + at.getBlockZ());
         decide(p, at);
         m.stage(this, u, 1);
         device.take(p, true);
-        if (fromRock) {
-            device.pop(p, at);
-            chirp(p, at, 1f);
+        if (drop != null) {
+            device.pop(p, drop);
+            chirp(p, drop, 1f);
         } else device.give(p);
     }
 
@@ -362,8 +364,8 @@ public final class Pager extends Secret {
         kvRemove(u, "late", "letter-at");
         m.stage(this, u, 0);
         Block at = pick(p.getLocation().getBlock(), true);
-        if (at != null) beep(p, at, false, cfg.getLong("start.beep-seconds", 180));
-        else begin(p, p.getLocation(), false);   // no rock around them: it is simply in their pocket
+        if (at != null) beep(p, at, false, true, cfg.getLong("start.beep-seconds", 180));
+        else begin(p, p.getLocation(), null);   // no rock around them: it is simply in their pocket
     }
 
     // ------------------------------------------------------------------------------------------
@@ -809,9 +811,7 @@ public final class Pager extends Secret {
         m.solve(this, p);
         if (stage(u) > LAST) kvSet(u, "letter-at", System.currentTimeMillis() + seconds(u, "after.letter-seconds", 600, "after.test-letter-seconds", 15) * 1000L);
         else kvSet(u, "late", 1);
-        later(p, 60, () -> {
-            if (!house.preview(u)) house.hide(u);
-        });
+        // the house is gone with the next beat (stray / tooLate): where the gate was there is nothing
     }
 
     /** After it was solved: the letter is due. */
@@ -1213,7 +1213,7 @@ public final class Pager extends Secret {
                     admin.sendMessage(Text.mm("<red>6~10칸 안에 묻힌 돌이 없어요 (땅속에서 해 보세요)"));
                     return true;
                 }
-                beep(p, at, true, 90);
+                beep(p, at, true, true, 90);
                 note = " (" + at.getX() + " " + at.getY() + " " + at.getZ() + ", 90초; 캐도 아무것도 안 바뀜)";
             }
             case "집" -> {

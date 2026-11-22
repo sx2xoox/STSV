@@ -280,9 +280,10 @@ public final class Garage extends Secret {
         return f.format(new Date(ms));
     }
 
-    private List<Component> lore(String key, Map<String, String> fill) {
+    private List<Component> lore(String key, Map<String, String> fill, String... def) {
         List<Component> out = new ArrayList<>();
-        for (String raw : cfg.getStringList(key)) {
+        List<String> lines = cfg.getStringList(key);
+        for (String raw : lines.isEmpty() ? List.of(def) : lines) {
             String s = raw;
             for (Map.Entry<String, String> e : fill.entrySet()) s = s.replace("{" + e.getKey() + "}", e.getValue());
             out.add(Text.item(s));
@@ -305,7 +306,7 @@ public final class Garage extends Secret {
     /** The photo as it lies at the memorial (shown there, and what a new one is made from). */
     private ItemStack photoItem() {
         ItemStack it = Items.create(PHOTO, 1).orElseGet(() -> new ItemStack(Material.PAPER));
-        it.editMeta(meta -> meta.itemName(Text.item(cfg.getString("photo.name", "<#c9c9c9>바랜 사진"))));
+        it.editMeta(meta -> meta.itemName(Text.item(cfg.getString("photo.name", "<#cfc7b8>빛바랜 사진"))));
         return it;
     }
 
@@ -314,7 +315,7 @@ public final class Garage extends Secret {
         String serial = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
         m.set(this, u, "photo", serial);   // the copies given before are only pictures now
         ItemStack it = photoItem();
-        List<Component> lore = lore("photo.lore", words(p));
+        List<Component> lore = lore("photo.lore", words(p), "<gray>빛바랜 흑백 사진. 차 한 대가 액자 밖으로 반쯤 잘려 있다.", "<gray>{wheel}");
         it.editMeta(meta -> {
             meta.setMaxStackSize(1);
             meta.lore(lore);
@@ -347,9 +348,9 @@ public final class Garage extends Secret {
 
     private ItemStack chipItem(Player p) {
         ItemStack it = Items.create(CHIP, 1).orElseGet(() -> new ItemStack(Material.PAPER));
-        List<Component> lore = lore("chip.lore", words(p));
+        List<Component> lore = lore("chip.lore", words(p), "<gray>난간에 긁혀 묻어 있던 마른 페인트.", "<gray>{paint}");
         it.editMeta(meta -> {
-            meta.itemName(Text.item(cfg.getString("chip.name", "<#b9b9b9>페인트 조각")));
+            meta.itemName(Text.item(cfg.getString("chip.name", "<#b9b2a8>페인트 조각")));
             meta.setMaxStackSize(1);
             meta.lore(lore);
             meta.getPersistentDataContainer().set(CHIP_OWNER, PersistentDataType.STRING, p.getUniqueId().toString());
@@ -369,7 +370,7 @@ public final class Garage extends Secret {
             inv.setItem(i, null);
         }
         if (photo == null) photo = newPhoto(p);
-        List<Component> lore = lore("photo.done-lore", words(p));
+        List<Component> lore = lore("photo.done-lore", words(p), "<gray>이제 액자 안에 차가 두 대 있다. 나란히.", "<dark_gray>{date}");
         photo.editMeta(meta -> {
             meta.itemName(Text.item(cfg.getString("photo.done-name", "<gradient:#e8e8e8:#9fb2c8>사진 — 두 대")));
             meta.lore(lore);
@@ -525,10 +526,10 @@ public final class Garage extends Secret {
         boolean frame = after || st == 0 || !hasPhoto(p);
         String how = (after ? "after:" + plaque : "open") + (frame ? "+photo" : "");
         if (how.equals(memorials.get(u)) && props.has(u, MEMORIAL)) return;
-        Location at = places.roadside(0, cfg.getDouble("memorial.side", 4.6));
-        if (at == null) return;   // its chunk is not there yet
+        Places.Edge edge = places.edge(0, cfg.getDouble("memorial.side", 4.6));
+        if (edge == null) return;   // its chunk is not there yet
         props.drop(u, MEMORIAL);
-        buildMemorial(p, at, frame, plaque, "memorial");
+        buildMemorial(p, edge.at(), frame, plaque, "memorial");
         memorials.put(u, how);
     }
 
@@ -590,12 +591,14 @@ public final class Garage extends Secret {
         if (!chip) props.drop(u, CHIP_GROUP);
         else if (!props.has(u, CHIP_GROUP)) {
             props.drop(u, CHIP_GROUP);
-            Location at = places.roadside(cfg.getDouble("chip.along", 3), cfg.getDouble("memorial.side", 4.6));
-            if (at != null) {
-                props.item(p, CHIP_GROUP, at, chipItem(p), new Vector3f(0, 0.95f, 0), new Vector3f(0.28f, 0.28f, 0.28f),
-                        new Quaternionf().rotateX((float) Math.toRadians(-70)));
-                props.hit(p, CHIP_GROUP, at.clone().add(0, 0.55, 0), 0.8f, 0.8f, "chip");
-                p.spawnParticle(Particle.WAX_OFF, at.clone().add(0, 1.0, 0), 4, 0.15, 0.1, 0.15, 0);
+            Places.Edge edge = places.edge(cfg.getDouble("chip.along", 3), cfg.getDouble("memorial.side", 4.6));
+            if (edge != null) {
+                // lying on the rail's top (on the ground where the bend has no rail)
+                Location at = edge.rail() != null ? edge.rail() : edge.at();
+                props.item(p, CHIP_GROUP, at, chipItem(p), new Vector3f(0, 0.04f, 0), new Vector3f(0.3f, 0.3f, 0.3f),
+                        new Quaternionf().rotateX((float) Math.toRadians(-90)));
+                props.hit(p, CHIP_GROUP, at.clone().add(0, -0.25, 0), 0.8f, 0.6f, "chip");
+                p.spawnParticle(Particle.WAX_OFF, at.clone().add(0, 0.2, 0), 4, 0.15, 0.1, 0.15, 0);
                 if (cool(u, "chip", 60)) whisper(p, "chip-seen", "<dark_gray>…난간에 뭔가 긁혀 묻어 있다.");
             }
         }

@@ -294,7 +294,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         TextDisplay d = m.haunt().text(p, where, "<#d8d2c4><i>" + line);
         d.setBackgroundColor(Color.fromARGB(170, 16, 16, 22));
         d.setShadowed(false);
-        d.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(0, rides ? 0.55f : 0, 0), new org.joml.AxisAngle4f(),
+        d.setTransformation(new org.bukkit.util.Transformation(new org.joml.Vector3f(0, rides ? 0.95f : 0, 0), new org.joml.AxisAngle4f(),
                 new org.joml.Vector3f(0.7f, 0.7f, 0.7f), new org.joml.AxisAngle4f()));
         if (rides && !over.addPassenger(d)) d.teleport(where);
         later(p, 90, () -> m.haunt().remove(p, d));

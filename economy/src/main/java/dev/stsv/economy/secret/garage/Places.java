@@ -289,21 +289,43 @@ final class Places {
         return new Location(w, p[0], Roadway.height(s.halves(), s.bend()), p[1]);
     }
 
+    /** A spot on the bend's outer roadside (a frame on the ground, facing the road), and the top of the guardrail it stands against (null: no rail there). */
+    record Edge(Location at, Location rail) {}
+
+    private static boolean rail(Material t) {
+        return Tag.WALLS.isTagged(t) || Tag.FENCES.isTagged(t) || t == Material.YELLOW_TERRACOTTA || t == Material.BLACK_TERRACOTTA || t == Material.END_ROD;
+    }
+
     /**
-     * A frame on the bend's outer roadside, {@code along} points past the bend and {@code lateral} blocks from the road's
-     * middle, on the ground there and facing the road. Null while its chunk is not loaded.
+     * The bend's outer roadside {@code along} points past the bend: just inside the guardrail there (the first wall, fence
+     * or striped block found going out from the kerb), or {@code side} blocks from the road's middle where there is no
+     * rail. Null while its chunk is not loaded.
      */
-    Location roadside(double along, double lateral) {
+    Edge edge(double along, double side) {
         Site s = site;
         World w = s == null ? null : s.bukkit();
         if (w == null) return null;
         double at = s.bend() + along;
         double[] t = Roadway.tangent(s.pts(), at, 4);
-        double[] p = Roadway.beside(s.pts(), at, s.outside() * lateral, 4);
         int roadY = Roadway.surfaceY(s.halves(), (int) Math.round(at));
-        int y = ground(w, p[0], p[1], roadY, 3, 5);
+        float yaw = Roadway.yaw(t[1] * s.outside(), -t[0] * s.outside());
+        double lateral = side;
+        Location top = null;
+        find:
+        for (double l = 3.5; l <= 8.01; l += 0.5) {
+            double[] c = Roadway.beside(s.pts(), at, s.outside() * l, 4);
+            int bx = (int) Math.floor(c[0]), bz = (int) Math.floor(c[1]);
+            if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return null;
+            for (int y = roadY + 2; y >= roadY - 1; y--) {
+                if (!rail(w.getBlockAt(bx, y, bz).getType())) continue;
+                lateral = Math.max(3.4, l - 0.9);
+                top = new Location(w, bx + 0.5, y + 1, bz + 0.5, yaw, 0);
+                break find;
+            }
+        }
+        double[] p = Roadway.beside(s.pts(), at, s.outside() * lateral, 4);
+        int y = ground(w, p[0], p[1], roadY, 0, 2);
         if (y == UNKNOWN) return null;
-        double top = y == NONE ? Roadway.height(s.halves(), at) : y;
-        return new Location(w, p[0], top, p[1], Roadway.yaw(t[1] * s.outside(), -t[0] * s.outside()), 0);
+        return new Edge(new Location(w, p[0], y == NONE ? roadY + 1 : y, p[1], yaw, 0), top);
     }
 }
