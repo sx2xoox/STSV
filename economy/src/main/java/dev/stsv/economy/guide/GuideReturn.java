@@ -66,7 +66,19 @@ final class GuideReturn {
      * mailbox gets what does not fit. Returns false when there was nothing to put back or the record could not be read
      * (then nothing is touched and the tag stays for an admin to look at).
      */
+    /** Players being put back right now: a restore that starts again inside it (an event during its teleport) does nothing. */
+    private static final java.util.Set<java.util.UUID> RESTORING = new java.util.HashSet<>();
+
     static boolean restore(Player p, boolean back, Location fallback, BiConsumer<Player, ItemStack> mailbox) {
+        if (!RESTORING.add(p.getUniqueId())) return false;
+        try {
+            return restoreOnce(p, back, fallback, mailbox);
+        } finally {
+            RESTORING.remove(p.getUniqueId());
+        }
+    }
+
+    private static boolean restoreOnce(Player p, boolean back, Location fallback, BiConsumer<Player, ItemStack> mailbox) {
         String raw = p.getPersistentDataContainer().get(KEY, PersistentDataType.STRING);
         if (raw == null) return false;
         YamlConfiguration y = new YamlConfiguration();
@@ -109,6 +121,12 @@ final class GuideReturn {
             p.setExp((float) Math.clamp(y.getDouble("exp", 0), 0, 0.9999));
             for (PotionEffect e : new ArrayList<>(p.getActivePotionEffects())) p.removePotionEffect(e.getType());
             for (Object o : y.getList("effects", List.of())) if (o instanceof PotionEffect e) p.addPotionEffect(e);
+            // the things are back NOW: from here on the record holds only the trip, so nothing (an event during the teleport
+            // below, a crash, a second call) can ever put the things back a second time
+            y.set("items", null);
+            y.set("effects", null);
+            y.set("place-only", true);
+            p.getPersistentDataContainer().set(KEY, PersistentDataType.STRING, y.saveToString());
         }
         if (!back) {
             p.getPersistentDataContainer().remove(KEY);
