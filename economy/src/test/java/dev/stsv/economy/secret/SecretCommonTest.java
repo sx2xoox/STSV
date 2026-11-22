@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** The shared parts of the 숨은 비밀: which rumor comes next, when a monument stone is whole, and stray stones. */
+/** The shared parts of the 숨은 비밀: which rumor comes next, when a monument stone is whole, which model it shows, and stray stones. */
 class SecretCommonTest {
 
     @Test
@@ -34,6 +34,26 @@ class SecretCommonTest {
         assertFalse(Monument.whole(0, 1, 0));
         assertFalse(Monument.whole(1, 0, 2));   // a two-block stone from before the models: replaced
         assertFalse(Monument.whole(1, 1, 1));   // a model and a leftover block: set again
+    }
+
+    @Test
+    void solvedStoneShowsItsOwnEmblem() {
+        assertEquals("model/secret_stone", Monument.model("bus", false).getKey());
+        for (String id : List.of("bus", "dongbang", "letter", "designer", "usher", "fish", "vein", "lostkey", "doll", "scarecrow")) {
+            assertEquals("economy", Monument.model(id, true).getNamespace());
+            assertEquals("model/secret_stone_solved_" + id, Monument.model(id, true).getKey());
+        }
+        assertEquals(Monument.MODEL_SOLVED, Monument.model("someday", true));   // a secret without an emblem: the star
+    }
+
+    @Test
+    void stoneKeyChangesWithItsModel() {
+        // a stone set with the generic star (or before models were in the key) is set again with its emblem
+        String generic = Monument.key("fish", "x", Monument.MODEL_SOLVED), own = Monument.key("fish", "x", Monument.model("fish", true));
+        assertNotEquals(generic, own);
+        assertNotEquals("fish|" + "x".hashCode(), own);
+        assertTrue(own.startsWith("fish|"));   // still cleared by build()'s id prefix
+        assertEquals(own, Monument.key("fish", "x", Monument.model("fish", true)));
     }
 
     @Test

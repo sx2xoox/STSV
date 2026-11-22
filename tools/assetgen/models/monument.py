@@ -247,35 +247,36 @@ STAR_TOP = 25                # the star's top row (y of its upper texel row + 1)
 # --- the per-secret emblems ---------------------------------------------------------------------------------------------
 # Each solved secret's stone carries its own gold emblem in place of the star (economy:model/secret_stone_solved_<id>;
 # Monument picks it by the stone's id). Glyphs are drawn as the viewer sees them, top row first, at most 10 x 10, centred
-# in the face between the inlay border; "#" gold (shaded by its edges: lit above, darker below and on the right), "+" a
-# bright glint, "o" dark gold (a line inside the gold), "." bare stone.
+# in the face between the inlay border; "#" gold (its lower and right edges a darker gold, like a cut catching the
+# light from above left), "+" a bright glint, "o" dark gold (a line inside the gold), "k" dark glass and "*" its glint
+# (the sunglasses' lenses), "." bare stone.
 EMBLEMS = {
-    # 선글라스 (the bus secret): two dark lenses in a gold frame, a bridge and the arms' ends
+    # 선글라스 (the bus secret): two dark glass lenses in a gold frame, a bridge, the arms' ends
     "bus": (
         "#........#",
         "##########",
-        "#oooo#oooo",
-        "#+ooo#+ooo",
-        "#oooo#oooo",
-        ".####.####",
+        "#*kk##*kk#",
+        "#kkk##kkk#",
+        ".#kk#.#kk#",
+        "..##...##.",
     ),
     # 닻
     "dongbang": (
-        "...####...",
+        "....##....",
         "...#..#...",
-        "...####...",
+        "....##....",
         ".########.",
         "....##....",
         "....##....",
         "#...##...#",
         "##..##..##",
-        ".###########"[:10],
-        "..######..",
+        ".########.",
+        "...####...",
     ),
     # 봉투: the edge and the flap's V
     "letter": (
         "##########",
-        "##+....+##",
+        "##......##",
         "#.##..##.#",
         "#..####..#",
         "#...##...#",
@@ -283,18 +284,18 @@ EMBLEMS = {
         "#........#",
         "##########",
     ),
-    # 톱니: eight teeth round a ring with a hole
+    # 톱니: a cog, eight square teeth round a thick ring and its round hole
     "designer": (
-        "....##....",
-        ".##.##.##.",
-        ".########.",
+        "...####...",
+        ".#.####.#.",
         "..##..##..",
-        "####..####",
-        "####..####",
+        ".##....##.",
+        "###....###",
+        "###....###",
+        ".##....##.",
         "..##..##..",
-        ".########.",
-        ".##.##.##.",
-        "....##....",
+        ".#.####.#.",
+        "...####...",
     ),
     # 열쇠 구멍: a gold escutcheon with the keyhole cut through it
     "usher": (
@@ -321,8 +322,8 @@ EMBLEMS = {
     # 심장
     "vein": (
         ".###..###.",
-        "#+########",
-        "#+########",
+        "##########",
+        "##########",
         "##########",
         ".########.",
         "..######..",
@@ -355,22 +356,22 @@ EMBLEMS = {
         ".#oooooo#.",
         "..######..",
     ),
-    # 밀 이삭: grains in pairs up a stalk, an awn on top
+    # 밀 이삭: grains in pairs up a stalk, long awns fanning out of the top
     "scarecrow": (
-        "....#.....",
-        "....##....",
+        "#...##...#",
+        ".#..##..#.",
         "..#.##.#..",
+        "..######..",
         ".##.##.##.",
-        "..#.##.#..",
+        "..######..",
         ".##.##.##.",
-        "..#.##.#..",
-        ".##.##.##.",
+        "..######..",
         "....##....",
         "....##....",
     ),
 }
-EM_TOP = 24                  # an emblem's 10-row box: rows y 23 .. 14 (its glyph centred in it)
-EM_RULE = 12                 # the short gold rule under it
+EM_TOP = 23                  # an emblem's 10-row box: rows y 22 .. 13 (its glyph centred in it)
+EM_RULE = 11                 # the short gold rule under it
 
 
 def _glyph_at(glyph, top, box_w, box_h):
@@ -391,6 +392,8 @@ def _glyph_at(glyph, top, box_w, box_h):
 def _gold(at, x, y):
     """The gold step of an emblem texel: "#" shaded by its neighbours (as the viewer sees it, left is +x)."""
     ch = at(x, y)
+    if ch in ("k", "*"):
+        return None
     if ch == "+":
         return 3
     if ch == "o":
@@ -398,8 +401,6 @@ def _gold(at, x, y):
     up, down, left, right = at(x, y + 1), at(x, y - 1), at(x + 1, y), at(x - 1, y)
     if (down is None and up is not None) or (right is None and left is not None):
         return 1
-    if up is None and down is not None:
-        return 3
     return 2
 
 
@@ -419,7 +420,10 @@ def new_decal(rows, emblem=None):
         # the gold inlay: a ring 1 texel wide, 1 in from the edge, round the arch
         if _inset(rows, x, y, 1) and not _inset(rows, x, y, 2) and y > FOOT:
             return (GOLD, 2 if y > 14 else 1)
-        if at(x, y):
+        ch = at(x, y)
+        if ch in ("k", "*"):                # a dark glass (sunglasses' lenses) and its glint
+            return ("mn_black", 0 if ch == "k" else 4)
+        if ch:
             return (GOLD, 2 if flat else _gold(at, x, y))
         if at(x, y + 1):                   # the cut's shadow under the emblem
             return ("mn_black", 0)

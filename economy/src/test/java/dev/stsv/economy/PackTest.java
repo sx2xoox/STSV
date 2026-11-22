@@ -35,9 +35,9 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(7 * 5 + 3 * 5 + 77 + 9 + 1 + 1 + 5 + 2 + 2, models.size(),
+        assertEquals(7 * 5 + 3 * 5 + 77 + 9 + 1 + 1 + 5 + 2 + 2 + 10, models.size(),
                 "7 machines in 5 tiers (4세대: 4강), 3 spinning parts in 5 tiers, 77 growth stages of 17 crops, 9 하역장 props (6 container colours), the 국도 sign, "
-                        + "its guide sign and its 5 arrows, the 통발 and the 가두리, the 숨은 비밀 기념비 stone unsolved and solved");
+                        + "its guide sign and its 5 arrows, the 통발 and the 가두리, the 숨은 비밀 기념비 stone unsolved and solved, and solved with each secret's own emblem (10)");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);

@@ -21,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -28,8 +29,10 @@ import java.util.UUID;
  * (/관리자 비밀 비석 세우기), in a gentle arc facing the way they look. An unsolved stone shows only "???"; a solved one
  * the secret's name, who solved it first and the date. Each stone is one item display of a 3D gravestone model
  * (tools/assetgen/models/monument.py: economy:model/secret_stone, a weathered mossy tablet with a faint "?" groove;
- * economy:model/secret_stone_solved, polished black stone with a gold inlay and star) and one text display just above
- * its arched top. Displays are saved with the chunk (tag economy:secret_stone);
+ * economy:model/secret_stone_solved_&lt;id&gt;, polished black stone with a gold inlay and that secret's own gold emblem;
+ * economy:model/secret_stone_solved, the same with a star, for a secret without one) and one text display just above
+ * its arched top. Displays are saved with the chunk (tag economy:secret_stone = id|text hash|model, so a stone
+ * still showing an older model, such as the generic star, is set again);
  * once a minute they are checked and rebuilt if missing or out of date. Place: eco.kv "secret.monument".
  */
 final class Monument {
@@ -38,6 +41,9 @@ final class Monument {
     /** The stone models (economy pack): unsolved and solved. */
     static final NamespacedKey MODEL = new NamespacedKey("economy", "model/secret_stone"),
             MODEL_SOLVED = new NamespacedKey("economy", "model/secret_stone_solved");
+    /** Stones with their own solved model (economy:model/secret_stone_solved_&lt;id&gt;, each its own gold emblem). */
+    static final Set<String> EMBLEMS = Set.of("bus", "dongbang", "letter", "designer", "usher", "fish",
+            "vein", "lostkey", "doll", "scarecrow");
     /** The model's top over the ground (blocks: plinth 0.25 + tablet 1.5) and where the text display stands. */
     static final double TOP = 1.75, TEXT_Y = TOP + 0.2;
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(SecretModule.KST);
@@ -49,6 +55,17 @@ final class Monument {
 
     /** One stone: its id (kv tag), the name when solved, the solver and when (ms, 0 unknown). */
     record Stone(String id, String name, Optional<UUID> solver, long at) {}
+
+    /** The model a stone shows: unsolved, its own solved emblem, or the generic solved star. */
+    static NamespacedKey model(String id, boolean solved) {
+        if (!solved) return MODEL;
+        return EMBLEMS.contains(id) ? new NamespacedKey("economy", "model/secret_stone_solved_" + id) : MODEL_SOLVED;
+    }
+
+    /** A stone's tag: its id, its text and its model, so a change to either sets the stone again. */
+    static String key(String id, String text, NamespacedKey model) {
+        return id + "|" + text.hashCode() + "|" + model.getKey();
+    }
 
     List<Stone> stones() {
         List<Stone> out = new ArrayList<>();
@@ -131,7 +148,7 @@ final class Monument {
         for (int i = 0; i < list.size(); i++) {
             Stone s = list.get(i);
             String text = text(s);
-            String key = s.id() + "|" + text.hashCode();
+            String key = key(s.id(), text, model(s.id(), s.solver().isPresent()));
             int texts = 0, models = 0, others = 0;
             for (Entity e : mine) {
                 if (!key.equals(e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING))) continue;
@@ -203,9 +220,9 @@ final class Monument {
 
     private void spawn(Location at, Stone s, String key, String text) {
         World w = at.getWorld();
-        boolean solved = s.solver().isPresent();
+        NamespacedKey model = model(s.id(), s.solver().isPresent());
         ItemStack shown = new ItemStack(Material.PAPER);
-        shown.editMeta(meta -> meta.setItemModel(solved ? MODEL_SOLVED : MODEL));
+        shown.editMeta(meta -> meta.setItemModel(model));
         Location body = at.clone();
         body.setPitch(0);
         // FIXED shows the model's face (drawn to the north) towards the way the entity looks: the arc's centre (stoneAt);
