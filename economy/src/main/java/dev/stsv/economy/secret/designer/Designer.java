@@ -66,7 +66,9 @@ import java.util.concurrent.ThreadLocalRandom;
  * gem bench) and the heart gear (the three parts in one lane of a fourth kind of machine, with something the player made
  * left in that lane's output slot). Each lane runs backwards a few seconds, breathes, and gives the part (stages 2..4). With
  * the heart the four machines stop together, the book's last page thanks them and the 13th machine stands up beside the
- * last one ({@link Thirteenth}) — solved.
+ * last one ({@link Thirteenth}) — solved. He never vanished: he went into his machines, and the parts are the body he wants
+ * back; only the heart needs something of a living person. Afterwards every product of the solver's machines carries the
+ * maker line "제작: 이름 · 설계자의 후계" ({@link #makerLine}).
  * <p>
  * Saved (eco.kv "secret.designer.&lt;uuid&gt;."): stage, marked (the day it first signed), read (notes seen), &lt;part&gt;.machine
  * and &lt;part&gt;.kind (where each part was made), owed (solved while offline). The 13th machine: {@link Thirteenth#KEY}.
@@ -232,6 +234,25 @@ public final class Designer extends Secret {
         });
     }
 
+    /**
+     * Whether this player's machines carry his name beside theirs: they solved it — the one real solver, or a tester while
+     * test mode is on. Admin 초기화 (stage gone) takes it away. Not while the secret is switched off.
+     */
+    boolean heir(UUID u) {
+        if (!on() || stage(u) <= stages()) return false;
+        return m.test(u) || m.solver(this).map(u::equals).orElse(false);
+    }
+
+    /**
+     * MachineModule: the maker line for a product of op's machine — "제작: 이름 · 설계자의 후계" for the heir, else null (the
+     * usual line). Asked for every product and every lane's stacking check, so the two always agree.
+     */
+    public Component makerLine(UUID op, String name) {
+        if (op == null || !heir(op)) return null;
+        String t = Parts.heirLine(text("heir-line"), name);
+        return t == null ? null : Text.item(t);
+    }
+
     private void begin(Player p) {
         UUID u = p.getUniqueId();
         m.stage(this, u, 1);
@@ -293,7 +314,7 @@ public final class Designer extends Secret {
         it.editMeta(meta -> {
             meta.itemName(Text.item(last ? text("memo.final-name") : text("memo.name").replace("{n}", String.valueOf(i + 1))));
             List<Component> lore = new ArrayList<>();
-            for (String l : lines) lore.add(Text.item("<#8a8170><i>" + l));
+            for (String l : lines) if (!Parts.PAGE_BREAK.equals(l)) lore.add(Text.item("<#8a8170><i>" + l));
             lore.add(Component.empty());
             lore.add(Text.item(text("memo.click")));
             meta.lore(lore);
@@ -319,7 +340,8 @@ public final class Designer extends Secret {
         for (int k = 0; k < n; k++) {
             int i = (first + k) % n;
             List<String> lines = i == 4 ? cfg.getStringList("memo.final") : page(i);
-            pages.add(Text.mm("<#3b3326>" + String.join("\n", lines)));
+            // a note too long for one book page goes on over the next at its "---" line
+            for (List<String> part : Parts.bookPages(lines)) pages.add(Text.mm("<#3b3326>" + String.join("\n", part)));
         }
         return Book.book(Text.mm(text("memo.book-title")), Text.mm(text("memo.book-author")), pages);
     }
@@ -607,6 +629,10 @@ public final class Designer extends Secret {
         m.haunt().whisper(p, text("born-whisper"));
         sound(p, p.getLocation(), "page");
         m.solve(this, p);
+        if (!heir(p.getUniqueId())) return;   // too late after all
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (p.isOnline() && !text("heir-whisper").isEmpty()) m.haunt().whisper(p, text("heir-whisper"));
+        }, 80L);
     }
 
     /** Machines stop for a while, their heartbeat slowing. */
@@ -800,6 +826,7 @@ public final class Designer extends Secret {
             String k = m.get(this, u, id + ".kind");
             b.append(' ').append(names.get(id)).append(k == null ? " <dark_gray>·</dark_gray>" : " <green>✔</green><dark_gray>(" + kindName(k) + ")</dark_gray>");
         }
+        if (heir(u)) b.append(" <gray>· <#c9a46b>후계 표시</#c9a46b>");
         b.append(" <gray>· 오늘 표시 ").append(m.today(u).equals(m.get(this, u, "marked")) ? "있음" : "없음");
         b.append(" · 메모 ").append(m.getLong(this, u, "read", 0)).append('/').append(notes(u));
         b.append(" · 13번째 기계 ").append(thirteenth.where().map(w -> w + " " + facingName(thirteenth.facing()) + (thirteenth.isTest() ? " (테스트)" : "")
@@ -809,7 +836,7 @@ public final class Designer extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("설계자표시", "메모", "종이", "거꾸로", "숨소리", "멈춤", "탄생", "13번째기계", "13번째기계이동", "13번째기계회전", "13번째기계제거");
+        return List.of("설계자표시", "후계표시", "메모", "종이", "거꾸로", "숨소리", "멈춤", "탄생", "13번째기계", "13번째기계이동", "13번째기계회전", "13번째기계제거");
     }
 
     @Override
@@ -819,6 +846,14 @@ public final class Designer extends Secret {
                 ItemStack sample = Items.create(cfg.getString("start.sample-item", "minecraft:iron_ingot"), 1).orElse(new ItemStack(Material.IRON_INGOT));
                 sign(sample, p.getUniqueId());
                 give(p, sample);
+            }
+            case "후계표시" -> {
+                ItemStack sample = Items.create(cfg.getString("start.sample-item", "minecraft:iron_ingot"), 1).orElse(new ItemStack(Material.IRON_INGOT));
+                String t = Parts.heirLine(text("heir-line"), Players.accountName(p.getUniqueId()));
+                if (t != null) sample.editMeta(meta -> meta.lore(List.of(Text.item(t))));
+                give(p, sample);
+                admin.sendMessage(Text.msg("<gray>후계 표시가 찍힌 견본을 줬어요 (모양만, 진행 · 후계 여부는 그대로). 지금 후계: "
+                        + (heir(p.getUniqueId()) ? "<green>예" : "<white>아니오")));
             }
             case "메모" -> p.openBook(book(5, 0));
             case "종이" -> {

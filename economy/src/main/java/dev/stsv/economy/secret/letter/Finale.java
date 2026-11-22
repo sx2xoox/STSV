@@ -328,10 +328,16 @@ final class Finale {
         if (real) s.caught(p);
     }
 
-    /** It made it: it stops, turns, says its line, and is gone. */
+    /**
+     * It made it: it stops, turns, and talks — first that the place did not come free (it rewound all the way back to find
+     * the moment they began, and there is room for one), then "그럼 네가 계속 해" — and is gone.
+     */
     private void end(Run r) {
         Player p = r.p;
-        if (r.t <= 30) {
+        String before = s.cfg().getString("chase.before-words", "");
+        // with a first line it waits a little longer before the last words
+        int say = before.isEmpty() ? 30 : 60;
+        if (r.t <= say) {
             if (r.twin.isValid()) {
                 Location at = r.twin.getLocation();
                 face(at, p.getEyeLocation());
@@ -341,18 +347,23 @@ final class Finale {
             }
         }
         String words = s.cfg().getString("chase.last-words", "그럼 네가 계속 해");
-        if (r.t == 30) {
+        if (r.t == 20 && !before.isEmpty()) {
+            r.words = haunt().text(p, r.twin.getLocation().add(0, 2.25, 0), "<dark_gray>" + before);
+            haunt().chat(p, p.getName(), before);
+        }
+        if (r.t == say) {
+            if (r.words != null) haunt().remove(p, r.words);
             r.words = haunt().text(p, r.twin.getLocation().add(0, 2.25, 0), "<gray>" + words);
             haunt().chat(p, p.getName(), words);
         }
-        if (r.t == 90) {
+        if (r.t == say + 60) {
             Location at = r.twin.getLocation().add(0, 1, 0);
             p.spawnParticle(Particle.SMOKE, at, 30, 0.25, 0.6, 0.25, 0.01);
             haunt().sound(p, at, Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.5f, 0.8f);
             haunt().remove(p, r.twin);
             if (r.words != null) haunt().remove(p, r.words);
         }
-        if (r.t >= 140) {
+        if (r.t >= say + 110) {
             boolean real = r.mode == Mode.FULL;
             stop(p.getUniqueId());
             if (real) s.survived(p);

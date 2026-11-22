@@ -42,6 +42,30 @@ final class Paper {
         return (h < 12 ? "오전 " : "오후 ") + (h % 12 == 0 ? 12 : h % 12) + "시 " + t.getMinute() + "분";
     }
 
+    /** The first lost item given back, as kept: "time\tthing\towner". */
+    static String encodeBack(long at, String thing, String owner) {
+        return at + "\t" + clean(thing) + "\t" + clean(owner);
+    }
+
+    private static String clean(String s) {
+        return s == null ? "" : s.replace('\t', ' ').trim();
+    }
+
+    /**
+     * The paper's line for the first lost item given back: format with {owner} and {thing} ("할머니의 지갑"), or the
+     * plain one ({thing}) when who left it is not known. Null when nothing was kept (given back before it was kept): the
+     * line is left out.
+     */
+    static String firstBack(String saved, String format, String plain) {
+        if (saved == null || saved.isBlank()) return null;
+        String[] w = saved.split("\t", -1);
+        if (w.length < 2 || w[1].isBlank()) return null;
+        String owner = w.length > 2 ? w[2] : "";
+        String f = owner.isBlank() || format == null || format.isBlank() ? plain : format;
+        if (f == null || f.isBlank()) f = "{thing}";
+        return f.replace("{owner}", owner).replace("{thing}", w[1]);
+    }
+
     /**
      * Fills {key} in each line; a line with a {key} that has no value (null) is left out, so a record that is not known
      * simply is not written.

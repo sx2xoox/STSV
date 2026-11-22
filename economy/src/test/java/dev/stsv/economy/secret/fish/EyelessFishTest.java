@@ -126,11 +126,24 @@ class EyelessFishTest {
         YamlConfiguration y = file();
         for (String k : EyelessFish.keys()) assertTrue(y.contains(k), "fish.yml: " + k);
         assertEquals(0.0005, y.getDouble("start.chance"), 1e-9);
-        assertEquals(300000, y.getLong("rewards.money"));
+        assertEquals(0, y.getLong("rewards.money"), "one of a kind, not money");
         assertEquals("economy:water_name", y.getString("rewards.title"));
+        assertEquals("이름 모를 낚시꾼", y.getString("final.first-fisher"));
+        assertTrue(y.getString("final.surface-name").contains("{first}"));
+        assertTrue(y.getString("codex.name").contains("{player}"), "the codex line names who gave it back");
+        assertTrue(y.getList("final.given").stream().anyMatch(o -> String.valueOf(o).contains("{first}")), "the first fisher's name is spoken");
         assertEquals(7, y.getMapList("item.stages").size(), "one look per stage");
         for (Object o : y.getList("final.rise")) assertTrue(o instanceof List<?> l && l.size() == 2, "final.rise: [초, 줄]");
         for (Object o : y.getList("final.given")) assertTrue(o instanceof List<?> l && l.size() == 2, "final.given: [초, 줄]");
+    }
+
+    @Test
+    void theFirstFisherIsWhoeverCaughtFirst() {
+        assertNull(EyelessFish.earliest(Map.of()));
+        java.util.UUID a = java.util.UUID.fromString("00000000-0000-0000-0000-00000000000a");
+        java.util.UUID b = java.util.UUID.fromString("00000000-0000-0000-0000-00000000000b");
+        assertEquals(b, EyelessFish.earliest(Map.of(a, 500L, b, 100L)));
+        assertEquals(a, EyelessFish.earliest(Map.of(a, 100L, b, 100L)), "a tie goes to the smaller id");
     }
 
     @Test

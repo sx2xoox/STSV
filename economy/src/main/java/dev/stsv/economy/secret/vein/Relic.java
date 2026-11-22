@@ -1,5 +1,6 @@
 package dev.stsv.economy.secret.vein;
 
+import dev.stsv.core.util.Text;
 import dev.stsv.economy.util.Items;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -10,6 +11,8 @@ import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -24,6 +27,10 @@ import java.util.UUID;
  * <p>
  * Called once a second (one beat) from {@link Vein#tick}: every few beats it looks for ores again (main thread, a small
  * cube), and on each beat the shown ores swell and shrink.
+ * <p>
+ * Bound to the one who stopped the heart ({@link Vein#HEART_OWNER}): it beats only in their hands, and if anyone else ends up
+ * holding it (a trade, a chest, a pickup, the mail) it crumbles in their hands and goes back to its owner — into their bag if
+ * they are on, else (or if it is full) into their mailbox. Vein keeps it from being dropped or lost (see its events).
  */
 final class Relic {
 
@@ -43,16 +50,93 @@ final class Relic {
         return m == Material.ANCIENT_DEBRIS || m.name().contains("DIAMOND") || m.name().contains("EMERALD");
     }
 
+    private String id() {
+        return vein.cfg().getString("relic.item", "economy:vein_heart");
+    }
+
+    /** Holds their own heart in either hand (someone else's does nothing for them). */
     boolean holds(Player p) {
-        String id = vein.cfg().getString("relic.item", "economy:vein_heart");
-        return is(p.getInventory().getItemInMainHand(), id) || is(p.getInventory().getItemInOffHand(), id);
+        String id = id();
+        UUID u = p.getUniqueId();
+        ItemStack main = p.getInventory().getItemInMainHand(), off = p.getInventory().getItemInOffHand();
+        return (is(main, id) && worksFor(owner(main), u)) || (is(off, id) && worksFor(owner(off), u));
     }
 
     private static boolean is(ItemStack it, String id) {
         return it != null && !it.isEmpty() && it.getType() == Material.PAPER && Items.key(it).equals(id);
     }
 
+    /** Whether this stack is a 광맥의 심장. */
+    boolean heart(ItemStack it) {
+        return is(it, id());
+    }
+
+    /** The uuid (as written) of the one who stopped it, or null. */
+    static String owner(ItemStack it) {
+        if (it == null || !it.hasItemMeta()) return null;
+        return it.getItemMeta().getPersistentDataContainer().get(Vein.HEART_OWNER, PersistentDataType.STRING);
+    }
+
+    /** It beats only for the one who stopped it. */
+    static boolean worksFor(String owner, UUID holder) {
+        return owner != null && holder != null && owner.equals(holder.toString());
+    }
+
+    /** In someone else's keeping: it goes home. One without an owner (should not exist) is left alone. */
+    static boolean stray(String owner, UUID holder) {
+        return owner != null && holder != null && !owner.equals(holder.toString());
+    }
+
+    /** Every second (with the beat): a heart in the wrong hands crumbles and goes back to its owner. */
+    void sweep() {
+        String id = id();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID u = p.getUniqueId();
+            PlayerInventory inv = p.getInventory();
+            for (int i = 0; i < inv.getSize(); i++) {
+                ItemStack it = inv.getItem(i);
+                if (!is(it, id) || !stray(owner(it), u)) continue;
+                inv.setItem(i, null);
+                home(p, it);
+            }
+            ItemStack cur = p.getItemOnCursor();
+            if (is(cur, id) && stray(owner(cur), u)) {
+                p.setItemOnCursor(null);
+                home(p, cur);
+            }
+        }
+    }
+
+    /** Crumbles in {@code from}'s hands (null: nobody saw it) and is back with its owner. */
+    void home(Player from, ItemStack it) {
+        UUID owner;
+        try {
+            owner = UUID.fromString(owner(it));
+        } catch (RuntimeException e) {
+            return;
+        }
+        if (from != null) {
+            String t = vein.cfg().getString("relic.crumble", "");
+            if (!t.isEmpty()) vein.haunt().whisper(from, t);
+            vein.sound(from, from.getLocation(), "crumble", 1, 1.1f);
+            from.spawnParticle(org.bukkit.Particle.DUST, from.getLocation().add(0, 1, 0), 18, 0.3, 0.4, 0.3, 0,
+                    new org.bukkit.Particle.DustOptions(Vein.color(vein.cfg().getString("relic.glow", "#c22a2a"), Color.RED), 1.2f));
+        }
+        Player o = Bukkit.getPlayer(owner);
+        if (o != null) {
+            for (ItemStack left : o.getInventory().addItem(it).values()) mail(owner, left);
+            String t = vein.cfg().getString("relic.returned", "");
+            if (!t.isEmpty()) o.sendMessage(Text.msg(t));
+        } else mail(owner, it);
+        vein.plugin().getLogger().info("[비밀] 광맥의 심장: " + (from == null ? "주인 없는 자리" : from.getName()) + " → 주인 " + owner + " 에게 돌아감");
+    }
+
+    private void mail(UUID owner, ItemStack it) {
+        vein.plugin().mail().store().send(owner, Items.bytes(it), "secret_vein", System.currentTimeMillis());
+    }
+
     void tick() {
+        sweep();
         for (UUID u : List.copyOf(shown.keySet())) {
             Player p = Bukkit.getPlayer(u);
             if (p == null || !holds(p)) clear(u);

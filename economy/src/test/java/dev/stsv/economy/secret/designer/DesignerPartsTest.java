@@ -162,6 +162,22 @@ class DesignerPartsTest {
     }
 
     @Test
+    void longNotesGoOverToTheNextBookPage() {
+        assertEquals(List.of(List.of("a", "b")), Parts.bookPages(List.of("a", "b")));
+        assertEquals(List.of(List.of("a"), List.of("b", "")), Parts.bookPages(List.of("a", Parts.PAGE_BREAK, "b", "")));
+        assertEquals(List.of(List.of("a")), Parts.bookPages(List.of(Parts.PAGE_BREAK, "a", Parts.PAGE_BREAK)), "no empty pages");
+        assertEquals(List.of(List.of()), Parts.bookPages(List.of()));
+    }
+
+    @Test
+    void theHeirsMakerLine() {
+        assertEquals("제작: Alex · 설계자의 후계", Parts.heirLine("제작: {player} · 설계자의 후계", "Alex"));
+        assertNull(Parts.heirLine("", "Alex"), "empty setting: the usual line");
+        assertNull(Parts.heirLine(null, "Alex"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void theSettingsFileHasWhatTheCodeReads() {
         YamlConfiguration y = YamlConfiguration.loadConfiguration(new File(System.getProperty("stsv.content"), "economy/secrets/designer.yml"));
         for (String id : Parts.ORDER) {
@@ -177,8 +193,13 @@ class DesignerPartsTest {
         assertEquals(3, kinds.size());
         assertEquals(Parts.ANY, y.getString("parts.heart.machine"));
         assertEquals(4, y.getList("memo.pages").size(), "one note per part");
-        assertEquals(List.of("고마워.", "이제 내가 돌게."), y.getStringList("memo.final"));
-        assertEquals(300_000, y.getLong("rewards.money"));
+        assertEquals(List.of("고마워.", "이제 내가 돌게."), y.getStringList("memo.final").subList(0, 2));
+        // the heart's note says plainly what goes in the output slot
+        String heart = String.join(" ", (List<String>) (List<?>) y.getList("memo.pages").get(3));
+        assertTrue(heart.contains("살아 있는 사람") && heart.contains("결과 칸") && heart.contains("네 이름"), heart);
+        // no money: the reward is one of a kind (the title, the 13th machine, the heir's maker line)
+        assertEquals(0, y.getLong("rewards.money"));
+        assertEquals("<dark_gray>제작: Steve · <#c9a46b>설계자의 후계", Parts.heirLine(y.getString("heir-line"), "Steve"));
         assertEquals("economy:designer_heir", y.getString("rewards.title"));
         // no clock condition, and a very low chance per product (machines run thousands of times a day)
         assertFalse(y.contains("start.hours"), "the designer has no time-of-day condition");

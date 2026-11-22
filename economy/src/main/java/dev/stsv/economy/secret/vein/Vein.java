@@ -31,7 +31,11 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.ItemDespawnEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerBucketEmptyEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -64,7 +68,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * the next. A light placed nearby wipes the trail ("…눈부셔.") and it starts over from the start point on a new path.
  * Stage 2 (heart): the last ore gives way to a beating heart stone (a block display). Struck on the beat 13 times
  * ({@link Rhythm}) it stops: silence, then the player's own heartbeat, "…이제 네가 뛰어." — solved, and the one 광맥의 심장
- * ({@link Relic}). Three misses: the cave collapses and the trail starts over from the start point (same seed).
+ * ({@link Relic}), bound to them. Three misses: the cave collapses and the trail starts over from the start point (same seed).
+ * <p>
+ * The echoing pickaxe and the miner at the edge of sight are the ones who followed the sound before and became the vein; they
+ * hate light because it is what they never saw again. Stopping the heart lets them stop: "…우리 대신." "…이제 네가 뛰어."
  * <p>
  * Saved (eco.kv "secret.vein.&lt;uuid&gt;."): stage, start ("world x y z"), seed, attempt, heard (the day it last spoke),
  * heart ("world x y z" while at stage 2), collapses, lights. The heart's holder: "secret.vein.heart". The trail itself is
@@ -748,7 +755,10 @@ public final class Vein extends Secret {
             later(100L + i * 22L, () -> {
                 if (!p.isOnline()) return;
                 sound(p, p.getLocation().add(0, 1.2, 0), "heartbeat", 0.5f + k * 0.2f, 0.75f);
-                if (k == 2) p.showTitle(Title.title(Component.empty(), Text.mm(text("end")),
+                // the miners who became the vein, one line before the last: they can stop now
+                if (k == 1 && !text("end-before").isEmpty()) p.showTitle(Title.title(Component.empty(), Text.mm(text("end-before")),
+                        Title.Times.times(Duration.ofMillis(500), Duration.ofMillis(1200), Duration.ofMillis(300))));
+                if (k == 3) p.showTitle(Title.title(Component.empty(), Text.mm(text("end")),
                         Title.Times.times(Duration.ofMillis(600), Duration.ofMillis(3500), Duration.ofMillis(1200))));
             });
         }
@@ -777,6 +787,8 @@ public final class Vein extends Secret {
             List<Component> lore = new ArrayList<>();
             for (String l : cfg.getStringList("relic.lore")) lore.add(Text.item(l.replace("{radius}", String.valueOf(radius))));
             lore.add(Text.item(cfg.getString("relic.owner-line", "<dark_gray>멈춘 사람: {player}").replace("{player}", p.getName())));
+            String bound = cfg.getString("relic.bound-line", "");
+            if (!bound.isEmpty()) lore.add(Text.item(bound));
             if (test) lore.add(Text.item(cfg.getString("relic.test-line", "<yellow>[테스트]")));
             meta.lore(lore);
             meta.getPersistentDataContainer().set(HEART_OWNER, PersistentDataType.STRING, p.getUniqueId().toString());
@@ -785,6 +797,51 @@ public final class Vein extends Secret {
         for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
         p.sendMessage(Text.msg("<gray>받은 것: " + Items.mmName(it)));
         if (!test) eco.kv().set("secret.vein.heart", p.getUniqueId().toString());
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // the heart stays with the one who stopped it (Relic sends it home from anyone else's bag)
+    // ------------------------------------------------------------------------------------------
+
+    /** It does not leave their hand (a tester's may: they throw it away to clean up). */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDropHeart(PlayerDropItemEvent e) {
+        ItemStack it = e.getItemDrop().getItemStack();
+        if (!relic.heart(it) || it.getItemMeta().getPersistentDataContainer().has(HEART_TEST)) return;
+        e.setCancelled(true);
+        String t = cfg.getString("relic.keep", "");
+        if (!t.isEmpty()) m.haunt().whisper(e.getPlayer(), t);
+    }
+
+    /** Dying does not part them from it either; someone else's that they somehow still carried goes home. */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDeathHeart(PlayerDeathEvent e) {
+        UUID u = e.getPlayer().getUniqueId();
+        for (var it = e.getDrops().iterator(); it.hasNext(); ) {
+            ItemStack d = it.next();
+            if (!relic.heart(d) || Relic.owner(d) == null) continue;
+            it.remove();
+            if (Relic.worksFor(Relic.owner(d), u)) e.getItemsToKeep().add(d);
+            else relic.home(null, d);
+        }
+    }
+
+    /** On the ground (a broken chest, a dropper) it neither burns nor despawns; a tester's is an ordinary item. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onSpawnHeart(ItemSpawnEvent e) {
+        ItemStack it = e.getEntity().getItemStack();
+        if (!relic.heart(it) || Relic.owner(it) == null || it.getItemMeta().getPersistentDataContainer().has(HEART_TEST)) return;
+        e.getEntity().setInvulnerable(true);
+        e.getEntity().setUnlimitedLifetime(true);
+    }
+
+    /** Should one still be about to despawn, it goes home instead. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDespawnHeart(ItemDespawnEvent e) {
+        ItemStack it = e.getEntity().getItemStack();
+        if (!relic.heart(it) || Relic.owner(it) == null || it.getItemMeta().getPersistentDataContainer().has(HEART_TEST)) return;
+        e.getEntity().remove();
+        relic.home(null, it);
     }
 
     // ------------------------------------------------------------------------------------------

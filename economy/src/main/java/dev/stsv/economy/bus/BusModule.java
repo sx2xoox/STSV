@@ -2450,6 +2450,9 @@ public final class BusModule extends EcoModule {
         /** The driver's bus pulled into a stop's bay. */
         default void stopped(Player driver, BusStop here) {}
 
+        /** The driver gave a lost item back to its owner: what it was ("지갑") and who left it (their kind's name, "할머니"). */
+        default void gaveBack(Player driver, String thing, String owner, BusStop here) {}
+
         /** Rows shown under the driver's /버스 list, after its n passengers. */
         default List<Component> riderRows(Player driver, int n) {
             return List.of();
@@ -2477,6 +2480,11 @@ public final class BusModule extends EcoModule {
                 eco.getLogger().log(java.util.logging.Level.WARNING, "[버스] watcher 오류", e);
             }
         }
+    }
+
+    /** LostItems: a lost item went back to its owner. */
+    void watcherGaveBack(Player driver, String thing, String owner, BusStop here) {
+        forWatchers(x -> x.gaveBack(driver, thing, owner, here));
     }
 
     /** LostItems: whether a watcher left something of its own in place of a lost item. */

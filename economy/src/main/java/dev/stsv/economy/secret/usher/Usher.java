@@ -211,6 +211,38 @@ public final class Usher extends Secret {
         if (at.getWorld() == p.getWorld()) p.playSound(at, Sound.BLOCK_NOTE_BLOCK_HAT, SoundCategory.AMBIENT, 0.35f, 0.6f);
     }
 
+    /** Its own name (usher.yml name), and "이에요"/"예요" fitted to it: {name}, {이에요}. */
+    private String named(String l) {
+        String n = cfg.getString("name", "윤해담");
+        return l.replace("{name}", esc(n)).replace("{이에요}", UsherPlan.copula(n));
+    }
+
+    /**
+     * After it was found: now and then (remember-chance, at most once a day per player) it tells anyone who talks to it who
+     * found it and its name, before the usual menu. Everyone once someone solved it for real; a tester who solved it in test
+     * mode hears it themselves (always). True when it spoke (the menu follows).
+     */
+    private boolean remember(Player p, Location npc) {
+        UUID u = p.getUniqueId();
+        UUID by;
+        if (m.closed(this)) by = m.solver(this).orElse(null);
+        else if (m.test(u) && m.stage(this, u) > stages()) by = u;
+        else return false;
+        if (by == null) return false;
+        String today = m.today(u);
+        if (today.equals(m.get(this, u, "remember-day")) || !m.roll(u, cfg.getDouble("remember-chance", 0.1))) return false;
+        String l = line("remember", "");
+        if (l.isEmpty()) return false;
+        m.set(this, u, "remember-day", today);
+        String who = Optional.ofNullable(Bukkit.getOfflinePlayer(by).getName()).orElse("누군가");
+        speak(p, named(l.replace("{player}", esc(who))), npc);
+        GuideModule g = eco.guide();
+        if (g != null) Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (p.isOnline()) g.open(p);
+        }, 40L);
+        return true;
+    }
+
     private boolean failed(UUID u) {
         return m.get(this, u, "failed") != null;
     }
@@ -294,7 +326,9 @@ public final class Usher extends Secret {
         }
         if (st == 0 && eligible(p)) {
             if (ask(p, c.getLocation(), false)) e.setCancelled(true);
+            return;
         }
+        if (remember(p, c.getLocation())) e.setCancelled(true);
     }
 
     /** Every topic done (or testing), dawn (any hour in test mode), and not just asked (a minute after the last try). */
@@ -920,7 +954,10 @@ public final class Usher extends Secret {
         boolean left = realLeft(u);
         Mannequin other = left ? w.right : w.left;
         TextDisplay says = left ? w.leftSays : w.rightSays, otherSays = left ? w.rightSays : w.leftSays;
-        List<String> lines = lines("real-chosen", List.of("…아.", "찾았네요. 저를.", "이제 올라가셔도 돼요. 저는 여기서 안내할게요. 제 말로요."));
+        // it says its own name for the first time
+        List<String> lines = new ArrayList<>();
+        for (String l : lines("real-chosen", List.of("…아.", "찾았네요. 저를.", "제 이름은 {name}{이에요}.", "이제 올라가셔도 돼요. 저는 여기서 안내할게요. 제 말로요.")))
+            lines.add(named(l));
         if (other != null) w.room.forget(other);
         if (otherSays != null) w.room.forget(otherSays);
         p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.AMBIENT, 0.8f, 0.6f);
@@ -947,12 +984,12 @@ public final class Usher extends Secret {
             } else statue.save(q);
             if (!dry) m.solve(this, q);
             if (!dry && !m.test(u)) statue.ensure(gw);
-            q.sendMessage(Text.mm(line("after-solve", "<gray>광장에 못 보던 동상이 서 있다. 낯익은 얼굴이다.")));
+            q.sendMessage(Text.mm(named(line("after-solve", "<gray>광장에 못 보던 동상이 서 있다. 낯익은 얼굴이다."))));
         });
         if (!dry) later(u, out + 30 + 200, q -> {
             GuideModule g = eco.guide();
             if (g != null && g.visiting(q)) {
-                q.sendMessage(Text.mm(line("goodbye", "<dark_gray>멀리서 안내원이 손을 흔든다. 처음 보는 표정이다.")));
+                q.sendMessage(Text.mm(named(line("goodbye", "<dark_gray>멀리서 안내원이 손을 흔든다. 처음 보는 표정이다."))));
                 g.unvisit(q, true);
             }
         });
@@ -1146,7 +1183,7 @@ public final class Usher extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("질문", "기록", "틀린그림", "다가옴", "숨은방", "두안내원", "가짜엔딩", "동상", "쪽지", "틀린안내원", "동상치우기");
+        return List.of("질문", "기록", "틀린그림", "다가옴", "숨은방", "두안내원", "가짜엔딩", "동상", "쪽지", "틀린안내원", "이름", "동상치우기");
     }
 
     @Override
@@ -1200,6 +1237,11 @@ public final class Usher extends Secret {
                 x.add(m.haunt().figure(p, at, skin(), maskName(p)));
                 maskTalk(p, at);
                 Bukkit.getScheduler().runTaskLater(eco, () -> clearScene(u), 20L * 20);
+            }
+            case "이름" -> {
+                // what it tells anyone now and then once found (the solver's name, or theirs when no one has yet)
+                String who = m.solver(this).map(id -> Bukkit.getOfflinePlayer(id).getName()).orElse(p.getName());
+                speak(p, named(line("remember", "").replace("{player}", esc(who == null ? "누군가" : who))), null);
             }
             case "동상치우기" -> {
                 statue.forget(guideWorld());

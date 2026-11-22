@@ -57,7 +57,9 @@ import java.util.function.Consumer;
  * While it is carried, now and then: the stop bell rings on an empty bus, a nameless passenger is on the list, a seat is
  * taken for a moment. At home a locker waits behind them (stage 6, {@link Locker}); the key opens it: the paper of their
  * own first records on this server ({@link Paper}), the locker fades, solved. The key keeps its owner's name for good and
- * the 분실물 센터 where it rattled 4th bears a gold plate.
+ * the 분실물 센터 where it rattled 4th bears a gold plate; on the solver's own bus a small key charm hangs at the mirror
+ * ({@link Charm}). The paper also names the first lost item they ever gave back, and to whom (kept from the bus's
+ * {@link BusModule.Watcher#gaveBack} as it happens: "secret.lostkey.first-back.&lt;uuid&gt;").
  * <p>
  * Saved (eco.kv "secret.lostkey.&lt;uuid&gt;."): stage, since, given (the key was left them once), found (the stop it was
  * left at), clue (the clue being looked for: {@link Clues.Clue#encode}), heard (the last whisper, for the key's lore),
@@ -72,9 +74,12 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     static final NamespacedKey DONE = new NamespacedKey("economy", "lostkey_done");
     static final String ITEM = "economy:lost_key_nameless";
     private static final String PLAQUE = "secret.lostkey.plaque";
+    /** eco.kv: the first lost item a driver gave back (outside the per-player keys, so a reset keeps it) */
+    static final String FIRST_BACK = "secret.lostkey.first-back.";
     private static final int HOME = 6;
 
     private final Locker locker;
+    private final Charm charm;
     private BusModule watched;
     /** player -> {stop id, since (ms)}: standing at a line's end for the 4th clue */
     private final Map<UUID, long[]> standing = new HashMap<>();
@@ -87,6 +92,12 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     public LostKey(SecretModule m) {
         super(m);
         locker = new Locker(this, m, eco);
+        charm = new Charm(this);
+        BusModule b = eco.bus();
+        if (b != null) {   // at once, so the first lost item given back is kept even while this secret is off
+            b.watch(id(), this);
+            watched = b;
+        }
     }
 
     @Override
@@ -119,6 +130,18 @@ public final class LostKey extends Secret implements BusModule.Watcher {
 
     private BusModule bus() {
         return eco.bus();
+    }
+
+    BusModule busModule() {
+        return bus();
+    }
+
+    dev.stsv.core.STSVPlugin core() {
+        return m.core();
+    }
+
+    org.bukkit.plugin.Plugin plugin() {
+        return eco;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -667,6 +690,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
             v.put("sold", first == null ? text("paper.never-sold") : text("paper.sold").replace("{item}", Items.mmName(first.item()) + "<black>")
                     .replace("{count}", String.format("%,d", first.count())));
             v.put("sold-date", first == null ? null : Paper.date(first.at()) + " " + Paper.time(first.at()));
+            v.put("first-back", Paper.firstBack(eco.kv().get(FIRST_BACK + u), text("paper.first-back"), text("paper.first-back-plain")));
             List<Component> pages = new ArrayList<>();
             for (Object page : cfg.getList("paper.pages", List.of())) {
                 if (!(page instanceof List<?> raw)) continue;
@@ -707,6 +731,13 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         }
     }
 
+    /** BusModule: a lost item went back to its owner. The first one a driver ever gave back is kept (for the paper). */
+    @Override
+    public void gaveBack(Player driver, String thing, String owner, BusStop here) {
+        String k = FIRST_BACK + driver.getUniqueId();
+        if (!eco.kv().has(k)) eco.kv().set(k, Paper.encodeBack(System.currentTimeMillis(), thing, owner));
+    }
+
     /** BusModule: the plate on the 분실물 센터's sign. */
     @Override
     public String sign(BusStop s) {
@@ -745,6 +776,14 @@ public final class LostKey extends Secret implements BusModule.Watcher {
             }
             if (hasKey(p)) omens(p, now);
         }
+        // the solver's charm (a tester who solved it sees theirs too)
+        java.util.Optional<UUID> first = m.solver(this);
+        List<Player> owners = new ArrayList<>();
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID u = p.getUniqueId();
+            if (stage(u) > HOME && (first.isPresent() && first.get().equals(u) || m.test(u))) owners.add(p);
+        }
+        charm.beat(owners);
     }
 
     /** The key does not stay away: some time without it on them, and it is back in their pocket. */
@@ -800,6 +839,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     @Override
     public void cleanup(UUID u) {
         locker.hide(u);
+        charm.take(u);
         standing.remove(u);
         omenAt.remove(u);
         ghostUntil.remove(u);

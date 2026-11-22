@@ -122,7 +122,10 @@ class DollChainTest {
     void dollYmlHasEveryLine() {
         File content = new File(System.getProperty("stsv.content"), "economy");
         YamlConfiguration y = YamlConfiguration.loadConfiguration(new File(content, "secrets/doll.yml"));
-        assertEquals(300000, y.getInt("rewards.money"));
+        assertEquals(0, y.getInt("rewards.money"), "one of a kind, not money");
+        assertTrue(String.join("", y.getStringList("auction.lore")).contains("거꾸로"), "the backwards listing tells why");
+        assertTrue(String.join("", y.getStringList("talk.first")).contains("일곱"));
+        assertTrue(String.join("", y.getStringList("talk.ask")).contains("거꾸로"));
         assertEquals("economy:returned_one", y.getString("rewards.title"));
         assertTrue(y.getDouble("start.chance") <= 0.05, "the listing must stay very rare");
         for (Riddles.Kind k : Riddles.Kind.values()) assertFalse(y.getString("riddles." + k.id(), "").isBlank(), k.id());

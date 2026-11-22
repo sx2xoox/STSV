@@ -321,6 +321,8 @@ final class LostItems {
         eco.kv().set(key, String.valueOf(count));
         p.sendMessage(Lang.mm("bus.lost-back", "thing", thing, "g", BusModule.g(paid[0]), "why", why.toString(), "fee", fee(paid[1]), "n", count));
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 2f);
+        BusSpec.Type ownerType = bus.spec().types().get(t.owner());
+        bus.watcherGaveBack(p, thing, ownerType == null ? "" : ownerType.name(), here);   // a hidden secret keeps the first one
         for (String title : lo.titlesReached(before, count)) {
             if (core.profiles() == null || !core.profiles().grantTitle(p.getUniqueId(), title)) continue;
             String name = core.profiles().title(title).map(x -> x.name()).orElse(title);

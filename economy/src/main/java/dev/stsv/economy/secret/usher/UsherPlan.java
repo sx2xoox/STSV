@@ -142,8 +142,12 @@ final class UsherPlan {
     // the question at dawn (the way in)
     // ------------------------------------------------------------------------------------------
 
-    /** Letters beyond the answer a typed line may carry (particles, "요", "같아요", a hesitation). */
-    static final int ANSWER_SLACK = 10;
+    /** What may follow the answer itself: a counter ("열세 개", "13번") … */
+    static final List<String> COUNTERS = List.of("", "개", "칸", "번");
+    /** … then a plain sentence ending ("원내안이요", "직업입니다", "열셋이죠"). Nothing else. */
+    static final List<String> ENDINGS = List.of("", "요", "이요", "예요", "이에요", "에요", "입니다", "이다", "죠", "이죠", "이지", "지");
+    /** A correction ("열다섯이 아니라 열여섯"): only what comes after the last of these is the reply. */
+    static final List<String> CORRECTIONS = List.of("아니라", "아니고");
 
     /** A typed line, loosely: lower case, letters and digits only (spaces, punctuation, quotes, "…" dropped). */
     static String squash(String s) {
@@ -154,17 +158,33 @@ final class UsherPlan {
     }
 
     /**
-     * Whether a typed line answers: one of the answers appears in it (both squashed), and little else is said around it
-     * (at most {@link #ANSWER_SLACK} more letters: "원내안이요", "열세 개 아닌가요", "길라잡이 체험관!" all count).
+     * Whether a typed line answers: once squashed, the reply must BE one of the answers, with at most a counter and a
+     * plain ending after it ("원내안이요", "열세 개", "13개요", "길라잡이 체험관!"). Containing it is not enough: "직업 아닌데요",
+     * "열세 개 아닌가요", "음 원내안 아니면 뭐…" all fail. A correction counts by its second half ("열다섯이 아니라 열여섯").
      */
     static boolean answers(String typed, List<String> answers) {
         String t = squash(typed);
+        for (String c : CORRECTIONS) {
+            int at = t.lastIndexOf(c);
+            if (at >= 0) t = t.substring(at + c.length());
+        }
         if (t.isEmpty()) return false;
         for (String a : answers) {
             String k = squash(a);
-            if (!k.isEmpty() && t.contains(k) && t.length() - k.length() <= ANSWER_SLACK) return true;
+            if (k.isEmpty() || !t.startsWith(k)) continue;
+            String rest = t.substring(k.length());
+            for (String n : COUNTERS)
+                for (String e : ENDINGS) if (rest.equals(n + e)) return true;
         }
         return false;
+    }
+
+    /** "이에요" after a name ending in a final consonant (윤해담이에요), "예요" after a vowel (나래예요); "이에요" for anything else. */
+    static String copula(String name) {
+        if (name == null || name.isEmpty()) return "이에요";
+        char c = name.charAt(name.length() - 1);
+        if (c < 0xAC00 || c > 0xD7A3) return "이에요";
+        return (c - 0xAC00) % 28 == 0 ? "예요" : "이에요";
     }
 
     /** The question asked next: the one after the last asked (rotating), or the given first pick if none was asked yet. */

@@ -17,7 +17,30 @@ final class Parts {
     /** "Any kind not used yet" in a part's machine setting. */
     static final String ANY = "*";
 
+    /** A line in a note that starts the next book page (a note too long for one page). */
+    static final String PAGE_BREAK = "---";
+
     private Parts() {}
+
+    /** A note's lines as book pages: split at each {@link #PAGE_BREAK} line (empty pieces are dropped). */
+    static List<List<String>> bookPages(List<String> lines) {
+        List<List<String>> out = new java.util.ArrayList<>();
+        List<String> cur = new java.util.ArrayList<>();
+        for (String l : lines) {
+            if (PAGE_BREAK.equals(l)) {
+                if (!cur.isEmpty()) out.add(cur);
+                cur = new java.util.ArrayList<>();
+            } else cur.add(l);
+        }
+        if (!cur.isEmpty() || out.isEmpty()) out.add(cur);
+        return out;
+    }
+
+    /** The heir's maker line from designer.yml's heir-line with the name filled in, or null when the setting is empty. */
+    static String heirLine(String template, String name) {
+        if (template == null || template.isBlank()) return null;
+        return template.replace("{player}", name == null ? "" : name);
+    }
 
     /** The part a stage asks for, or null (not started, or done). */
     static String forStage(int stage) {

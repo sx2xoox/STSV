@@ -66,7 +66,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 주인 없는 경매품 (docs/admin/숨은_비밀/주인_없는_경매품.md; contents/economy/secrets/doll.yml). Very rarely a listing
  * with no seller ("—") shows up in the auction house: a 낡은 인형 for 1 G, its description written backwards, ten minutes.
- * Whoever wins it is its first owner. The doll cannot go home alone: it has to pass through seven different pairs of hands
+ * Whoever wins it is its first owner. Lost long ago, it passed through seven hands before it reached the auction house and
+ * can only sleep once it has gone back the way it came (hence the backwards writing and "in the order they held me").
+ * It cannot go home alone: it has to pass through seven different pairs of hands
  * (직거래 or anything else that puts it in someone's inventory). Each time it changes hands it whispers a riddle naming
  * the next one, from what the server really knows ({@link Riddles}); the wrong person makes it giggle and does not count.
  * Thirty minutes with one hand and it goes home to the first owner on its own, and the run starts again. The seventh

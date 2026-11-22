@@ -778,9 +778,9 @@ public final class Dongbang extends Secret {
         if (!on()) return null;
         UUID u = viewer.getUniqueId();
         long now = System.currentTimeMillis();
-        if (!(holding(u) && open(u))) {
-            Memorial mem = memorial(u, now);
-            if (mem != null) return tab.equals("all") ? icon(fillMemorial(line("memorial.name"), mem), fillMemorial(lines("memorial.lore"), mem)) : null;
+        Memorial mem = rowMemorial(u, now);
+        if (mem != null) {
+            return tab.equals("all") ? icon(fillMemorial(line("memorial.name"), mem), fillMemorial(lines("memorial.lore"), mem)) : null;
         }
         if (holding(u)) {
             if (!open(u) || !(tab.equals("all") || tab.equals("mine"))) return null;
@@ -815,6 +815,13 @@ public final class Dongbang extends Secret {
         return null;
     }
 
+    /** The memorial in place of the row, unless their own share (or, testing, a fresh offer) is what the row is for. */
+    private Memorial rowMemorial(UUID u, long now) {
+        if (holding(u) && open(u)) return null;
+        if (m.test(u) && m.stage(this, u) == 0 && !sold(u) && memorialPreview.getOrDefault(u, 0L) <= now) return null;
+        return memorial(u, now);
+    }
+
     private Memorial memorialOf(UUID who, long at) {
         String name = Optional.ofNullable(Bukkit.getOfflinePlayer(who).getName()).orElse("?");
         String date = at <= 0 ? "-" : DateTimeFormatter.ofPattern("yyyy. M. d.").format(Instant.ofEpochMilli(at).atZone(SecretModule.KST));
@@ -835,7 +842,7 @@ public final class Dongbang extends Secret {
     private void openRow(Player p) {
         UUID u = p.getUniqueId();
         long now = System.currentTimeMillis();
-        Memorial mem = holding(u) && open(u) ? null : memorial(u, now);
+        Memorial mem = rowMemorial(u, now);
         if (mem == null) {
             window(p, "m10");
             return;

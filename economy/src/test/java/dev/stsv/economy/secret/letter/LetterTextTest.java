@@ -1,6 +1,9 @@
 package dev.stsv.economy.secret.letter;
 
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
+
+import java.io.File;
 
 import java.util.HashMap;
 import java.util.List;
@@ -100,5 +103,21 @@ class LetterTextTest {
         assertEquals(9, LetterText.between(List.of(), 9, r));
         long swapped = LetterText.between(List.of(20, 10), 0, r);
         assertTrue(swapped >= 10 && swapped <= 20);
+    }
+
+    @Test
+    void theStoryInTheSettingsFile() {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(new File(System.getProperty("stsv.content"), "economy/secrets/letter.yml"));
+        // no money: the shadow and the title are the reward
+        assertEquals(0, y.getLong("rewards.money"));
+        assertEquals("economy:yesterday_me", y.getString("rewards.title"));
+        assertEquals("그럼 네가 계속 해", y.getString("chase.last-words"));
+        assertFalse(y.getString("chase.before-words", "").isEmpty());
+        // why the letters walk backwards: it looks for the moment I began (letter 1's end, letter 5)
+        assertTrue(String.join("\n", y.getStringList("letters.1.pages")).contains("네가 너이기 시작한"));
+        assertTrue(String.join("\n", y.getStringList("letters.5.pages")).contains("네가 너이기 시작한"));
+        // the epilogue: the one that could not take my place is one second behind me, for good
+        String epilogue = String.join("\n", y.getStringList("letters.epilogue.pages"));
+        assertTrue(epilogue.contains("1초 뒤") && epilogue.contains("영원히") && epilogue.contains("{name}"), epilogue);
     }
 }

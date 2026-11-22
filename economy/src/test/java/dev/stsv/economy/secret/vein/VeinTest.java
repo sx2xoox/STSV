@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -242,6 +243,17 @@ class VeinTest {
     // ------------------------------------------------------------------------------------------
 
     @Test
+    void theHeartBeatsOnlyForItsOwner() {
+        UUID owner = UUID.randomUUID(), other = UUID.randomUUID();
+        assertTrue(Relic.worksFor(owner.toString(), owner));
+        assertFalse(Relic.worksFor(owner.toString(), other));
+        assertFalse(Relic.worksFor(null, owner), "no owner: it works for nobody");
+        assertTrue(Relic.stray(owner.toString(), other), "in someone else's bag: it goes home");
+        assertFalse(Relic.stray(owner.toString(), owner));
+        assertFalse(Relic.stray(null, other), "no owner written: left alone");
+    }
+
+    @Test
     void settingsFile() {
         YamlConfiguration y = YamlConfiguration.loadConfiguration(new File(System.getProperty("stsv.content"), "economy/secrets/vein.yml"));
         assertTrue(y.getBoolean("enabled"));
@@ -253,13 +265,15 @@ class VeinTest {
         assertEquals(3, y.getInt("heart.misses"));
         assertEquals(120, y.getInt("heart.window-ms"));
         assertEquals(24, y.getInt("light.radius"));
-        assertEquals(300000, y.getLong("rewards.money"));
+        assertEquals(0, y.getLong("rewards.money"), "no money: the heart is the reward");
         assertEquals("economy:heart_miner", y.getString("rewards.title"));
         assertEquals("economy:vein_heart", y.getString("relic.item"));
-        for (String k : List.of("start", "resume", "relocate", "heart", "glare", "again", "collapse", "retry", "end"))
+        for (String k : List.of("start", "resume", "relocate", "heart", "glare", "again", "collapse", "retry", "end-before", "end"))
             assertFalse(y.getString("text." + k, "").isEmpty(), "text." + k);
         for (String k : List.of("heartbeat", "whisper", "crumble", "scrape", "glare", "strike", "collapse", "falling"))
             assertNotNull(y.getString("sounds." + k + ".sound"), "sounds." + k);
+        for (String k : List.of("bound-line", "keep", "crumble", "returned"))
+            assertFalse(y.getString("relic." + k, "").isEmpty(), "relic." + k);
         assertFalse(y.getStringList("trail.ores.stone").isEmpty());
         assertFalse(y.getStringList("trail.ores.deep").isEmpty());
         // the reward item and the title exist

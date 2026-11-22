@@ -453,9 +453,11 @@ public final class MachineModule extends EcoModule {
         if (it == null || op == null) return it;
         // the account name: goods stack by this line, a nickname change must not split them
         String name = Players.accountName(op);
+        // 숨은 비밀 설계자: the one who solved it gets "제작: 이름 · 설계자의 후계" (also on the stacking check's prototype)
+        Component heir = !trial(m) && designer() != null ? designer().makerLine(op, name) : null;
         it.editMeta(meta -> {
             List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-            lore.add(Lang.item("machine.maker", "player", name));
+            lore.add(heir != null ? heir : Lang.item("machine.maker", "player", name));
             meta.lore(lore);
             meta.getPersistentDataContainer().set(MAKER, PersistentDataType.STRING, op.toString());
         });

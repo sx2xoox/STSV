@@ -178,11 +178,13 @@ class UsherTest {
         assertFalse(Statue.BZ == UsherPlan.OPEN_Z);
     }
     @Test
-    void answersAreCheckedLoosely() {
+    void answersMustBeTheAnswer() {
         List<String> name = List.of("원내안");
         assertTrue(UsherPlan.answers("원내안", name));
-        assertTrue(UsherPlan.answers(" 원 내 안 이요?! ", name), "spaces, particles, punctuation");
-        assertTrue(UsherPlan.answers("'원내안'이라고 쓰여 있었어요", name));
+        assertTrue(UsherPlan.answers(" 원 내 안 이요?! ", name), "spaces, a plain ending, punctuation");
+        assertTrue(UsherPlan.answers("'원내안'", name), "quotes");
+        assertTrue(UsherPlan.answers("원내안입니다.", name));
+        assertFalse(UsherPlan.answers("'원내안'이라고 쓰여 있었어요", name), "a sentence around it is not the answer");
         assertFalse(UsherPlan.answers("안내원", name), "not reversed is not the answer");
         assertFalse(UsherPlan.answers("", name));
         assertFalse(UsherPlan.answers("음 잘 모르겠는데 원내안 아니면 뭐 다른 거겠죠 아마도", name), "not a whole paragraph around it");
@@ -190,12 +192,35 @@ class UsherTest {
         assertTrue(UsherPlan.answers("열세 개", count));
         assertTrue(UsherPlan.answers("13개요", count));
         assertTrue(UsherPlan.answers("열셋!", count));
+        assertFalse(UsherPlan.answers("열세 개 아닌가요?", count), "a doubt is not the answer");
         assertFalse(UsherPlan.answers("열네 개", count));
         assertFalse(UsherPlan.answers("14", count));
+        assertFalse(UsherPlan.answers("130", count));
+        List<String> first = List.of("직업", "직업 고르기");
+        assertTrue(UsherPlan.answers("직업", first));
+        assertTrue(UsherPlan.answers("직업이요", first));
+        assertTrue(UsherPlan.answers("직업 고르기요", first));
+        assertFalse(UsherPlan.answers("직업 아닌데요", first), "containing it is not enough");
+        assertFalse(UsherPlan.answers("직업은 아니고", first));
         assertTrue(UsherPlan.answers("길라잡이 체험관", List.of("길라잡이체험관")));
         assertFalse(UsherPlan.answers("체험관", List.of("길라잡이체험관")));
-        assertTrue(UsherPlan.answers("열다섯이 아니라 열여섯", List.of("열여섯", "16")));
-        assertTrue(UsherPlan.answers("16x16", List.of("열여섯", "16")));
+        assertTrue(UsherPlan.answers("열다섯이 아니라 열여섯", List.of("열여섯", "16")), "a correction counts by what comes after");
+        assertTrue(UsherPlan.answers("16칸이요", List.of("열여섯", "16")));
+        assertFalse(UsherPlan.answers("열여섯이 아니라 열다섯", List.of("열여섯", "16")));
+    }
+
+    @Test
+    void itsNameAndTheRewards() {
+        assertEquals("이에요", UsherPlan.copula("윤해담"));
+        assertEquals("예요", UsherPlan.copula("나래"));
+        assertEquals("이에요", UsherPlan.copula("Steve"));
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("secrets/usher.yml").toFile());
+        assertFalse(y.getString("name", "").isBlank(), "it has a name to remember");
+        assertEquals(0, y.getLong("rewards.money", -1), "no money: the statue and its name are the reward");
+        assertTrue(y.getStringList("lines.real-chosen").stream().anyMatch(l -> l.contains("{name}")), "it says its name when found");
+        assertTrue(y.getString("lines.remember", "").contains("{player}") && y.getString("lines.remember").contains("{name}"));
+        double c = y.getDouble("remember-chance", -1);
+        assertTrue(c > 0 && c <= 1);
     }
 
     @Test

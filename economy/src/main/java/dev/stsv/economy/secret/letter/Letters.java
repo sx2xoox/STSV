@@ -690,7 +690,18 @@ public final class Letters extends Secret {
         Mannequin twin = m.haunt().likeness(p, p, at, null);
         twin.setBodyYaw(at.getYaw());
         String words = cfg.getString("chase.last-words", "그럼 네가 계속 해");
+        String before = cfg.getString("chase.before-words", "");
         Location top = at.clone().add(0, 2.25, 0);
+        long wait = 30L;
+        if (!before.isEmpty()) {
+            wait = 60L;
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (!p.isOnline()) return;
+                TextDisplay t = m.haunt().text(p, top, "<dark_gray>" + before);
+                m.haunt().chat(p, p.getName(), before);
+                Bukkit.getScheduler().runTaskLater(eco, () -> m.haunt().remove(p, t), 38L);
+            }, 20L);
+        }
         Bukkit.getScheduler().runTaskLater(eco, () -> {
             if (!p.isOnline()) return;
             TextDisplay t = m.haunt().text(p, top, "<gray>" + words);
@@ -701,6 +712,6 @@ public final class Letters extends Secret {
                 m.haunt().remove(p, twin);
                 m.haunt().remove(p, t);
             }, 60L);
-        }, 30L);
+        }, wait);
     }
 }
