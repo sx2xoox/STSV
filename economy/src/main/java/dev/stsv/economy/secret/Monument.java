@@ -6,10 +6,11 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.World;
-import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.TextDisplay;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.Transformation;
 import org.joml.AxisAngle4f;
@@ -25,12 +26,20 @@ import java.util.UUID;
 /**
  * 숨은 비밀 기념비: one stone per secret (the bus secret first, then the module's secrets), set where an admin stands
  * (/관리자 비밀 비석 세우기), in a gentle arc facing the way they look. An unsolved stone shows only "???"; a solved one
- * the secret's name, who solved it first and the date. Displays are saved with the chunk (tag economy:secret_stone);
+ * the secret's name, who solved it first and the date. Each stone is one item display of a 3D gravestone model
+ * (tools/assetgen/models/monument.py: economy:model/secret_stone, a weathered mossy tablet with a faint "?" groove;
+ * economy:model/secret_stone_solved, polished black stone with a gold inlay and star) and one text display just above
+ * its arched top. Displays are saved with the chunk (tag economy:secret_stone);
  * once a minute they are checked and rebuilt if missing or out of date. Place: eco.kv "secret.monument".
  */
 final class Monument {
 
     static final NamespacedKey TAG = new NamespacedKey("economy", "secret_stone");
+    /** The stone models (economy pack): unsolved and solved. */
+    static final NamespacedKey MODEL = new NamespacedKey("economy", "model/secret_stone"),
+            MODEL_SOLVED = new NamespacedKey("economy", "model/secret_stone_solved");
+    /** The model's top over the ground (blocks: plinth 0.25 + tablet 1.5) and where the text display stands. */
+    static final double TOP = 1.75, TEXT_Y = TOP + 0.2;
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(SecretModule.KST);
     private final SecretModule m;
 
@@ -123,13 +132,14 @@ final class Monument {
             Stone s = list.get(i);
             String text = text(s);
             String key = s.id() + "|" + text.hashCode();
-            int texts = 0, blocks = 0;
+            int texts = 0, models = 0, others = 0;
             for (Entity e : mine) {
                 if (!key.equals(e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING))) continue;
                 if (e instanceof TextDisplay) texts++;
-                else if (e instanceof BlockDisplay) blocks++;
+                else if (e instanceof ItemDisplay) models++;
+                else others++;   // the two block displays of a stone from before the models: it is set again
             }
-            if (whole(texts, blocks)) continue;
+            if (whole(texts, models, others)) continue;
             for (Entity e : new ArrayList<>(mine)) {
                 String t = e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING);
                 if (t != null && t.startsWith(s.id() + "|")) {
@@ -141,9 +151,12 @@ final class Monument {
         }
     }
 
-    /** One stone is exactly its text and its two blocks (a part missing, or one too many, and it is set again). */
-    static boolean whole(int texts, int blocks) {
-        return texts == 1 && blocks == 2;
+    /**
+     * One stone is exactly its text and its model, nothing else (a part missing, one too many, or a block display left
+     * from the old two-block stones, and it is set again).
+     */
+    static boolean whole(int texts, int models, int others) {
+        return texts == 1 && models == 1 && others == 0;
     }
 
     private static boolean ready(Location l) {
@@ -191,22 +204,20 @@ final class Monument {
     private void spawn(Location at, Stone s, String key, String text) {
         World w = at.getWorld();
         boolean solved = s.solver().isPresent();
-        Material stone = solved ? Material.POLISHED_BLACKSTONE : Material.COBBLED_DEEPSLATE;
+        ItemStack shown = new ItemStack(Material.PAPER);
+        shown.editMeta(meta -> meta.setItemModel(solved ? MODEL_SOLVED : MODEL));
         Location body = at.clone();
         body.setPitch(0);
-        w.spawn(body, BlockDisplay.class, b -> {
-            b.setBlock(stone.createBlockData());
-            b.setPersistent(true);
-            b.setTransformation(new Transformation(new Vector3f(-0.4f, 0.25f, -0.15f), new AxisAngle4f(), new Vector3f(0.8f, 1.5f, 0.3f), new AxisAngle4f()));
-            b.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, key);
+        // FIXED shows the model's face (drawn to the north) towards the way the entity looks: the arc's centre (stoneAt);
+        // it draws model (8, 8, 8) on the entity, so lift it half a block to stand the plinth on the ground
+        w.spawn(body, ItemDisplay.class, d -> {
+            d.setItemStack(shown);
+            d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+            d.setPersistent(true);
+            d.setTransformation(new Transformation(new Vector3f(0, 0.5f, 0), new AxisAngle4f(), new Vector3f(1, 1, 1), new AxisAngle4f()));
+            d.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, key);
         });
-        w.spawn(body, BlockDisplay.class, b -> {
-            b.setBlock(Material.POLISHED_DEEPSLATE.createBlockData());
-            b.setPersistent(true);
-            b.setTransformation(new Transformation(new Vector3f(-0.5f, 0f, -0.25f), new AxisAngle4f(), new Vector3f(1f, 0.25f, 0.5f), new AxisAngle4f()));
-            b.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, key);
-        });
-        w.spawn(at.clone().add(0, 2.05, 0), TextDisplay.class, t -> {
+        w.spawn(at.clone().add(0, TEXT_Y, 0), TextDisplay.class, t -> {
             t.text(Text.mm(text));
             t.setPersistent(true);
             t.setBillboard(Display.Billboard.CENTER);

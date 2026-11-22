@@ -27,17 +27,19 @@ class SecretCommonTest {
     }
 
     @Test
-    void stoneIsWholeOnlyWithOneTextAndTwoBlocks() {
-        assertTrue(Monument.whole(1, 2));
-        assertFalse(Monument.whole(1, 0));   // its blocks were killed: set again
-        assertFalse(Monument.whole(2, 4));   // doubled: set again (the extras go)
-        assertFalse(Monument.whole(0, 2));
+    void stoneIsWholeOnlyWithOneTextAndOneModel() {
+        assertTrue(Monument.whole(1, 1, 0));
+        assertFalse(Monument.whole(1, 0, 0));   // its model was killed: set again
+        assertFalse(Monument.whole(2, 2, 0));   // doubled: set again (the extras go)
+        assertFalse(Monument.whole(0, 1, 0));
+        assertFalse(Monument.whole(1, 0, 2));   // a two-block stone from before the models: replaced
+        assertFalse(Monument.whole(1, 1, 1));   // a model and a leftover block: set again
     }
 
     @Test
     void strayStones() {
         assertFalse(Monument.stray("world", 0.5, 64, 0.5, "world", 4.5, 64, -3.5));   // on the arc (radius 6)
-        assertFalse(Monument.stray("world", 0.5, 64, 0.5, "world", 0.5, 66.05, 6.5)); // its text
+        assertFalse(Monument.stray("world", 0.5, 64, 0.5, "world", 0.5, 64 + Monument.TEXT_Y, 6.5)); // its text
         assertTrue(Monument.stray("world", 0.5, 64, 0.5, "world", 200, 64, 0));       // the old place
         assertTrue(Monument.stray("world", 0.5, 64, 0.5, "world_nether", 0.5, 64, 0.5));
     }

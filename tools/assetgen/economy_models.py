@@ -158,3 +158,7 @@ ALL.update(ROADS.ALL)
 # 통발 · 가두리 (models/fishing_gear.py): the fisher's water furniture
 from models import fishing_gear as FISHING_GEAR   # noqa: E402
 ALL.update(FISHING_GEAR.ALL)
+
+# 숨은 비밀 기념비 (models/monument.py): the weathered unsolved stone and the polished solved one
+from models import monument as MONUMENT   # noqa: E402
+ALL.update(MONUMENT.ALL)
