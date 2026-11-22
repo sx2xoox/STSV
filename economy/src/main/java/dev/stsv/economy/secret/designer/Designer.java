@@ -89,6 +89,8 @@ public final class Designer extends Secret {
 
     private final Map<String, Part> parts = new LinkedHashMap<>();
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
+    /** Players with a part on its way (one at a time: two lanes at once must not both count for one stage). */
+    private final Set<UUID> making = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> hinted = new ConcurrentHashMap<>();
     private final Thirteenth thirteenth;
     private final Mover mover;
@@ -379,7 +381,7 @@ public final class Designer extends Secret {
         String id = Parts.forStage(stage(u));
         Part part = id == null ? null : parts.get(id);
         Player p = Bukkit.getPlayer(u);
-        if (part == null || p == null || !open(u)) return false;
+        if (part == null || p == null || !open(u) || making.contains(u)) return false;
         List<String> keys = new ArrayList<>();
         List<Integer> amounts = new ArrayList<>();
         for (int s : l.inputs()) {
@@ -402,7 +404,8 @@ public final class Designer extends Secret {
             hint(p, heart ? "heart-empty" : "no-room");
             return false;
         }
-        if (machines().machineAt(l.machine()) == null) return false;
+        Location where = machines().machineAt(l.machine());
+        if (where == null) return false;
         // it goes in: the things are taken now, the part comes out at the end
         take(l, want);
         if (heart) {
@@ -411,10 +414,12 @@ public final class Designer extends Secret {
         }
         machines().touched(l.machine());
         busy.add(l.machine());
+        making.add(u);
         int seconds = cfg.getInt(heart ? "heart-reverse-seconds" : "reverse-seconds", heart ? 6 : 4);
         reverse(l.machine(), seconds, heart, () -> {
             busy.remove(l.machine());
-            made(l, u, part);
+            making.remove(u);
+            made(l, u, part, where);
         });
         return true;
     }
@@ -466,22 +471,27 @@ public final class Designer extends Secret {
     }
 
     /** The lane ran backwards: the part lies in its output slot (or in their hands, if the machine is gone). */
-    private void made(Lane l, UUID u, Part part) {
+    private void made(Lane l, UUID u, Part part, Location where) {
         Location at = machines().machineAt(l.machine());
         ItemStack it = partItem(part, u);
         ItemStack slot = l.inv().getItem(l.output());
         Player p = Bukkit.getPlayer(u);
-        if (at != null && (slot == null || slot.isEmpty())) {
+        // the machine still stands (its chunk may have unloaded since they left): the part waits in its output slot
+        if (machines().machineKind(l.machine()) != null && (slot == null || slot.isEmpty())) {
             l.inv().setItem(l.output(), it);
             machines().touched(l.machine());
         } else if (p != null) give(p, it);
+        else where.getWorld().dropItem(where.clone().add(0, 0.5, 0), it);   // broken meanwhile and they are gone: where it stood
         m.set(this, u, part.id() + ".machine", l.machine().toString());
         m.set(this, u, part.id() + ".kind", l.kind());
         if (at != null) sound(at.clone().add(0, 0.8, 0), part.id().equals("heart") ? "heartbeat" : "breath");
         if (p != null && at != null && p.getWorld() == at.getWorld() && p.getLocation().distanceSquared(at) < 32 * 32 && !part.made().isEmpty())
             m.haunt().whisper(p, part.made());
+        // only the stage this part was for moves on (not again after an admin reset or jump meanwhile)
+        int st = Parts.ORDER.indexOf(part.id()) + 1;
+        if (stage(u) != st) return;
         if (!part.id().equals("heart")) {
-            m.stage(this, u, stage(u) + 1);
+            m.stage(this, u, st + 1);
             return;
         }
         Bukkit.getScheduler().runTaskLater(eco, () -> finale(u, l), 30L);
@@ -613,10 +623,9 @@ public final class Designer extends Secret {
             Location spot = spot(at != null ? at : p != null ? p.getLocation() : null, p);
             if (spot != null && !thirteenth.place(spot, m.test(u), true, u) && p != null)
                 p.sendMessage(Text.mm("<yellow>[테스트] 13번째 기계가 이미 서 있어 옮기지 않았어요 (진짜 주인의 것)"));
-            if (p == null) {
-                m.set(this, u, "owed", 1);   // solved on their next join
-                return;
-            }
+            // owed until solveNow runs: gone now, or leaving (or a restart) in the seconds before it does → solved on their next join
+            m.set(this, u, "owed", 1);
+            if (p == null) return;
             Bukkit.getScheduler().runTaskLater(eco, () -> {
                 if (p.isOnline()) solveNow(p);
             }, 150L);

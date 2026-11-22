@@ -137,6 +137,12 @@ final class Locker {
         s.hit.remove();
     }
 
+    /** Takes it away once they walked 40 blocks off (an admin's preview shown outside stage 6). */
+    void hideFar(Player p) {
+        Location at = where(p.getUniqueId());
+        if (at == null || !near(p, at, 40)) hide(p.getUniqueId());
+    }
+
     /** A soft rattle from it now and then while they are near (it wants to be found). */
     void ambient(Player p) {
         Shown s = shown.get(p.getUniqueId());
@@ -150,6 +156,11 @@ final class Locker {
         if (tag == null || !tag.startsWith(p.getUniqueId().toString())) return;
         Shown s = shown.get(p.getUniqueId());
         if (s == null || !s.hit.equals(hit) || opening.contains(p.getUniqueId())) return;
+        if (!s.preview && key.taken(p.getUniqueId())) {   // someone else came for it first
+            p.sendMessage(Text.mm(key.text("too-late")));
+            m.haunt().sound(p, s.at, Sound.BLOCK_BARREL_OPEN, 0.5f, 0.6f);
+            return;
+        }
         if (!s.preview && !key.holdingKey(p)) {
             m.haunt().whisper(p, key.text("lines.locked"));
             m.haunt().sound(p, s.at, Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.5f, 0.6f);
@@ -161,7 +172,7 @@ final class Locker {
     /** The end: the key turns, the lid opens, the paper, the last lines, the fading. */
     void open(Player p, boolean preview) {
         Shown s = shown.get(p.getUniqueId());
-        if (s == null) {
+        if (s == null || s.preview != preview) {   // an admin's 끝 never opens (and solves) the real one
             show(p, preview);
             s = shown.get(p.getUniqueId());
         }

@@ -741,6 +741,19 @@ public final class EyelessFish extends Secret {
         if (watched.containsKey(e.getItem().getUniqueId())) e.setCancelled(true);
     }
 
+    /** Dying is not throwing it away: the owner keeps the fish they carry (else it would lie on land while they respawn). */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDeath(org.bukkit.event.entity.PlayerDeathEvent e) {
+        if (e.getKeepInventory()) return;
+        UUID u = e.getPlayer().getUniqueId();
+        for (var it = e.getDrops().iterator(); it.hasNext(); ) {
+            ItemStack d = it.next();
+            if (!u.equals(fishOwner(d)) || !current(d)) continue;
+            it.remove();
+            e.getItemsToKeep().add(d);
+        }
+    }
+
     /** /쓰레기통 (the core's bin): the fish thrown in is thrown away. */
     @EventHandler(priority = EventPriority.LOWEST)
     public void onBin(InventoryCloseEvent e) {

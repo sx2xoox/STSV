@@ -259,7 +259,7 @@ public final class Letters extends Secret {
         long online = System.currentTimeMillis() - m.memory().sessionStart(u);
         if (!m.test(u) && online < cfg.getLong("start.after-online-minutes", 10) * 60_000L) return;
         m.set(this, u, "rolled", today);
-        if (m.roll(u, cfg.getDouble("start.chance", 0.005))) start(p);
+        if (m.roll(u, cfg.getDouble("start.chance", 0.05))) start(p);
     }
 
     /**
@@ -586,7 +586,12 @@ public final class Letters extends Secret {
 
     @Override
     public void cleanup(UUID u) {
-        if (finale.stop(u)) caught(u);
+        if (finale.won(u)) {
+            // they outlasted it and left (or the secret stopped) during its last words: still solved
+            Player p = Bukkit.getPlayer(u);
+            finale.stop(u);
+            if (p != null && eco.isEnabled()) survived(p);
+        } else if (finale.stop(u)) caught(u);
         omens.cleanup(u);
         shadow.cleanup(u);
         Long q = quiet.remove(u);

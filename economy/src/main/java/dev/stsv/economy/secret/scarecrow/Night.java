@@ -45,7 +45,7 @@ final class Night {
     private Block door;
     private Phase phase;
     private int t, nextAsk, deadline, wrongs, nextCrow, nextRustle, awayUntil, done;
-    private boolean hurried, closing;
+    private boolean hurried, closing, sky;
     private TextDisplay words;
     private List<Block> withered = new ArrayList<>();
     private Block pending;
@@ -77,7 +77,10 @@ final class Night {
         e = Effigy.of(s.props(), p, real, s.field().yawOffset());
         e.clickable();
         door = s.field().door(home.getLocation().add(0.5, 0, 0.5), u, cfg().getInt("night.door-radius", 24));
-        if (s.testing(u)) p.setPlayerTime(18000, false);
+        if (s.testing(u)) {
+            p.setPlayerTime(18000, false);
+            sky = true;
+        }
         if (done > 0) {
             Block at = spot(done);
             if (at != null) e.moveTo(at, e.yawTo(p.getLocation()));
@@ -234,6 +237,7 @@ final class Night {
 
     /** They held something out to it (right-click). */
     void offer(ItemStack hand) {
+        if (closing) return;   // turned away (or the seventh eaten): nothing more counts tonight
         if (phase != Phase.ASK) {
             s.fx().sound(p, e.head(), "rustle", "block.azalea_leaves.step", 0.3f, 0.5f);
             return;
@@ -341,7 +345,7 @@ final class Night {
         if (e != null) e.remove();
         if (p.isOnline()) {
             s.props().restoreAll(p, withered);
-            if (s.testing(u)) p.resetPlayerTime();
+            if (sky) p.resetPlayerTime();   // even if test mode was switched off meanwhile
         }
         withered = List.of();
     }

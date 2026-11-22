@@ -456,6 +456,8 @@ final class Boardroom {
         if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Motion) p.closeInventory();
         if (shownTag >= 0) tag(shownTag, false);
         h.whisper(p, d.line("meeting.named").replace("{name}", seats.get(seat).name()));
+        // a wrong name counts the moment it is cast: leaving during the flood must not give a free second guess
+        if (seat != q.liar) d.lost(p, preview);
         Bukkit.getScheduler().runTaskLater(d.plugin(), () -> {
             if (gone || !p.isOnline()) return;
             if (seat == q.liar) release(seat);
@@ -603,10 +605,7 @@ final class Boardroom {
         if (gone) return;
         ended = true;
         List<String> lines = d.lines(yes ? "meeting.released" : "meeting.flooded");
-        if (!yes) {
-            d.lost(p, preview);
-            teardown();
-        }
+        if (!yes) teardown();   // the loss itself was recorded when the name was cast (accuse)
         for (int i = 0; i < lines.size(); i++) {
             String l = lines.get(i);
             Bukkit.getScheduler().runTaskLater(d.plugin(), () -> {

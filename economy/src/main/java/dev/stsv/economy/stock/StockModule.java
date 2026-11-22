@@ -931,7 +931,13 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         @Override
         public void onListClick(MenuView v, int index, ClickType click) {
             if (index < shown.size()) openCompany(v.player(), shown.get(index), "h24");
-            else if (extra && index == shown.size() && hidden != null) hidden.open(v.player());
+            else if (extra && index == shown.size() && hidden != null) {
+                try {
+                    hidden.open(v.player());
+                } catch (RuntimeException e) {
+                    eco.getLogger().log(java.util.logging.Level.WARNING, "숨은 회사 오류", e);
+                }
+            }
         }
 
         @Override

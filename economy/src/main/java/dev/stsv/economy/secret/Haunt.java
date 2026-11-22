@@ -86,9 +86,14 @@ public final class Haunt {
         return track(viewer, x);
     }
 
-    private void base(Mannequin e, Player viewer) {
+    /** Hidden from everyone before it enters the world (set later, others would see it for a moment). */
+    private static void hidden(Entity e) {
         e.setPersistent(false);
         e.setVisibleByDefault(false);
+    }
+
+    private void base(Mannequin e, Player viewer) {
+        hidden(e);
         e.setInvulnerable(true);
         e.setGravity(false);
         e.setSilent(true);
@@ -111,6 +116,7 @@ public final class Haunt {
     /** Floating text only the viewer sees (faces them). */
     public TextDisplay text(Player viewer, Location at, String mm) {
         TextDisplay t = at.getWorld().spawn(at, TextDisplay.class, e -> {
+            hidden(e);
             e.text(Text.mm(mm));
             e.setBillboard(Display.Billboard.CENTER);
             e.setBackgroundColor(org.bukkit.Color.fromARGB(0, 0, 0, 0));
@@ -122,7 +128,10 @@ public final class Haunt {
     /** A block only the viewer sees, as a display (it does not stop anyone). */
     public BlockDisplay block(Player viewer, Location at, BlockData data) {
         Location l = at.getBlock().getLocation();
-        BlockDisplay b = l.getWorld().spawn(l, BlockDisplay.class, e -> e.setBlock(data));
+        BlockDisplay b = l.getWorld().spawn(l, BlockDisplay.class, e -> {
+            hidden(e);
+            e.setBlock(data);
+        });
         return track(viewer, b);
     }
 

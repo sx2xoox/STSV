@@ -109,9 +109,12 @@ final class Monument {
     /** (Re)builds every stone whose displays are missing or show an old text. */
     void build() {
         Optional<Location> p = place();
-        if (p.isEmpty() || !p.get().isChunkLoaded()) return;
+        if (p.isEmpty()) return;
         Location base = p.get();
         List<Stone> list = stones();
+        // every chunk a stone stands in must be loaded with its entities, else its saved displays are not seen and get doubled
+        if (!ready(base)) return;
+        for (int i = 0; i < list.size(); i++) if (!ready(stoneAt(base, i, list.size()))) return;
         List<Entity> mine = new ArrayList<>();
         for (Entity e : base.getWorld().getNearbyEntities(base, 16, 8, 16)) {
             if (e.getPersistentDataContainer().has(TAG, PersistentDataType.STRING)) mine.add(e);
@@ -120,9 +123,13 @@ final class Monument {
             Stone s = list.get(i);
             String text = text(s);
             String key = s.id() + "|" + text.hashCode();
-            boolean ok = false;
-            for (Entity e : mine) if (e instanceof TextDisplay && key.equals(e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING))) ok = true;
-            if (ok) continue;
+            int texts = 0, blocks = 0;
+            for (Entity e : mine) {
+                if (!key.equals(e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING))) continue;
+                if (e instanceof TextDisplay) texts++;
+                else if (e instanceof BlockDisplay) blocks++;
+            }
+            if (whole(texts, blocks)) continue;
             for (Entity e : new ArrayList<>(mine)) {
                 String t = e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING);
                 if (t != null && t.startsWith(s.id() + "|")) {
@@ -132,6 +139,46 @@ final class Monument {
             }
             spawn(stoneAt(base, i, list.size()), s, key, text);
         }
+    }
+
+    /** One stone is exactly its text and its two blocks (a part missing, or one too many, and it is set again). */
+    static boolean whole(int texts, int blocks) {
+        return texts == 1 && blocks == 2;
+    }
+
+    private static boolean ready(Location l) {
+        World w = l.getWorld();
+        int cx = l.getBlockX() >> 4, cz = l.getBlockZ() >> 4;
+        return w.isChunkLoaded(cx, cz) && w.getChunkAt(cx, cz).isEntitiesLoaded();
+    }
+
+    /**
+     * Stones found in a chunk as its entities load: those not at the current place (it moved, or was taken away, while
+     * that chunk was not loaded, so {@link #clear} could not see them) are removed.
+     */
+    void orphans(List<Entity> loaded) {
+        String v = null;
+        Optional<Location> p = Optional.empty();
+        for (Entity e : loaded) {
+            if (!e.getPersistentDataContainer().has(TAG, PersistentDataType.STRING)) continue;
+            if (v == null) {
+                v = m.eco().kv().get("secret.monument");
+                p = place();
+                if (v == null) v = "";
+            }
+            Location at = e.getLocation(), l = p.orElse(null);
+            if (v.isEmpty() || (l != null && stray(l.getWorld().getName(), l.getX(), l.getY(), l.getZ(), at.getWorld().getName(), at.getX(), at.getY(), at.getZ()))) {
+                e.remove();
+            }
+            // a place that cannot be read now (its world not loaded) keeps them
+        }
+    }
+
+    /** Whether a stone at (world, x, y, z) is away from the monument's place: another world, or beyond the arc. */
+    static boolean stray(String placeWorld, double px, double py, double pz, String world, double x, double y, double z) {
+        if (!placeWorld.equals(world)) return true;
+        double dx = px - x, dz = pz - z;
+        return dx * dx + dz * dz > 12 * 12 || Math.abs(py - y) > 8;
     }
 
     private String text(Stone s) {

@@ -74,7 +74,8 @@ final class Charm {
         if (!s.cfg().getBoolean("charm.enabled", true)) owners = List.of();
         for (UUID u : List.copyOf(hung.keySet())) {
             Player p = Bukkit.getPlayer(u);
-            if (p == null || !owners.contains(p) || bus(p) == null) take(u);
+            Hung h = hung.get(u);
+            if (p == null || !owners.contains(p) || bus(p) == null || h == null || !h.d.isValid()) take(u);   // gone with its chunk: hung again below
         }
         for (Player p : owners) {
             if (hung.containsKey(p.getUniqueId()) || bus(p) == null) continue;

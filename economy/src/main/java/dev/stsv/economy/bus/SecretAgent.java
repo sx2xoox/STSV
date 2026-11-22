@@ -854,7 +854,13 @@ public final class SecretAgent implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onOpenNotes(org.bukkit.event.inventory.InventoryOpenEvent e) {
         refreshNotes(e.getPlayer().getInventory());
-        refreshNotes(e.getInventory());
+        // only real storage (a chest, barrel, shulker, ender chest, a minecart's or animal's): a plugin menu shows copies
+        // of notes with its own lore (거래소 listings ...) that must not be rewritten into plain notes
+        var holder = e.getInventory().getHolder(false);
+        if (holder instanceof org.bukkit.inventory.BlockInventoryHolder || holder instanceof org.bukkit.block.DoubleChest
+                || holder instanceof org.bukkit.entity.Entity) {
+            refreshNotes(e.getInventory());
+        }
     }
 
     private void refreshNotes(org.bukkit.inventory.Inventory inv) {

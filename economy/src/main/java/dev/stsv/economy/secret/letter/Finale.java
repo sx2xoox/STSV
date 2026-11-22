@@ -182,7 +182,7 @@ final class Finale {
     private void step(Run r) {
         Player p = r.p;
         if (!p.isOnline() || p.isDead()) {
-            stop(p.getUniqueId());
+            if (stop(p.getUniqueId())) s.caught(p);   // gone or dead while it was out: caught
             return;
         }
         Location l = p.getLocation();
@@ -368,6 +368,12 @@ final class Finale {
             stop(p.getUniqueId());
             if (real) s.survived(p);
         }
+    }
+
+    /** The real night is over and won: it is only saying its last words (leaving now must not take the win away). */
+    boolean won(UUID u) {
+        Run r = runs.get(u);
+        return r != null && r.mode == Mode.FULL && r.phase == Phase.END;
     }
 
     /** Stops whatever runs for them. True when it was the real night with it already out (that counts as being caught). */

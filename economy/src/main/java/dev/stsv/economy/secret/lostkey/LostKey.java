@@ -72,6 +72,9 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     static final NamespacedKey OWNER = new NamespacedKey("economy", "lostkey_owner");
     /** On the key once its owner was found (its name is back). */
     static final NamespacedKey DONE = new NamespacedKey("economy", "lostkey_done");
+    /** On the key: which copy it is (eco.kv "key"); only the latest one given works, so a copy left in a chest or dropped
+     *  on death goes dead once the pocket gets its key back (no second key). */
+    static final NamespacedKey SERIAL = new NamespacedKey("economy", "lostkey_serial");
     static final String ITEM = "economy:lost_key_nameless";
     private static final String PLAQUE = "secret.lostkey.plaque";
     /** eco.kv: the first lost item a driver gave back (outside the per-player keys, so a reset keeps it) */
@@ -151,7 +154,9 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     private boolean ownKey(ItemStack it, UUID u) {
         if (it == null || it.isEmpty() || !it.hasItemMeta()) return false;
         var pdc = it.getItemMeta().getPersistentDataContainer();
-        return u.toString().equals(pdc.get(OWNER, PersistentDataType.STRING)) && !pdc.has(DONE);
+        if (!u.toString().equals(pdc.get(OWNER, PersistentDataType.STRING)) || pdc.has(DONE)) return false;
+        String want = m.get(this, u, "key");
+        return want == null || want.equals(pdc.get(SERIAL, PersistentDataType.STRING));
     }
 
     /** Whether they have their (nameless) key on them. */
@@ -166,10 +171,13 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     }
 
     private ItemStack newKey(Player p) {
+        String serial = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
+        m.set(this, p.getUniqueId(), "key", serial);   // the copies given before stop working
         ItemStack it = Items.create(ITEM, 1).orElseGet(() -> new ItemStack(Material.TRIPWIRE_HOOK));
         it.editMeta(meta -> {
             meta.setMaxStackSize(1);
             meta.getPersistentDataContainer().set(OWNER, PersistentDataType.STRING, p.getUniqueId().toString());
+            meta.getPersistentDataContainer().set(SERIAL, PersistentDataType.STRING, serial);
         });
         Items.markBought(it);
         dress(it, p);
@@ -764,7 +772,14 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         for (Player p : Bukkit.getOnlinePlayers()) {
             UUID u = p.getUniqueId();
             int st = stage(u);
-            if (st < 1 || st > HOME || !open(u)) continue;
+            if (st == HOME && on() && !open(u)) {   // someone else was first: the locker still comes, empty
+                homeBeat(p);
+                continue;
+            }
+            if (st < 1 || st > HOME || !open(u)) {
+                if (locker.showing(u) && !locker.opening(u) && (st != HOME || !on())) locker.hideFar(p);   // an admin's preview left behind
+                continue;
+            }
             if (st == HOME) homeBeat(p);
             if (beats % 5 == 0) keepKey(p, now);
             if (st > 5) continue;
@@ -844,6 +859,11 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         omenAt.remove(u);
         ghostUntil.remove(u);
         without.remove(u);
+    }
+
+    /** Whether the secret is closed for this player (someone else solved it first). */
+    boolean taken(UUID u) {
+        return on() && !open(u);
     }
 
     // ------------------------------------------------------------------------------------------

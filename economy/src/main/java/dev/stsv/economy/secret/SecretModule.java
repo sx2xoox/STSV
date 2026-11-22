@@ -94,6 +94,7 @@ public final class SecretModule extends EcoModule {
         }
         Bukkit.getPluginManager().registerEvents(memory, eco);
         memory.start();
+        every(1200L, memory::sample);   // a module task, so a reload does not leave the old one running
         monument = new Monument(this);
         rumors = new Rumors(this);
         secretItems = new java.util.HashSet<>();
@@ -133,6 +134,12 @@ public final class SecretModule extends EcoModule {
     public void onQuit(PlayerQuitEvent e) {
         for (Secret s : secrets.values()) s.cleanup(e.getPlayer().getUniqueId());
         haunt.clear(e.getPlayer().getUniqueId());
+    }
+
+    /** Stones left behind where the monument used to stand (moved or removed while that chunk was not loaded) go when it loads. */
+    @EventHandler
+    public void onEntitiesLoad(org.bukkit.event.world.EntitiesLoadEvent e) {
+        if (monument != null) monument.orphans(e.getEntities());
     }
 
     // ------------------------------------------------------------------------------------------
@@ -324,7 +331,14 @@ public final class SecretModule extends EcoModule {
         }
         for (String line : r.getStringList("items")) {
             String[] w = line.trim().split("\\s+");
-            int n = w.length > 1 ? Integer.parseInt(w[1]) : 1;
+            if (w[0].isEmpty()) continue;
+            int n;
+            try {
+                n = w.length > 1 ? Integer.parseInt(w[1]) : 1;
+            } catch (NumberFormatException e) {
+                eco.getLogger().warning("[비밀] 보상 아이템 수량이 잘못됨: " + line);
+                n = 1;
+            }
             Items.create(w[0], n).ifPresentOrElse(it -> {
                 for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
                 got.add(Items.mmName(it));
@@ -415,7 +429,7 @@ public final class SecretModule extends EcoModule {
                     s.sendMessage(Text.msg("<red>/관리자 비밀 상태 <플레이어>"));
                     return;
                 }
-                Players.find(a[1], found -> {
+                findPlayer(s, a[1], found -> {
                     if (found.isEmpty()) {
                         s.sendMessage(Text.msg("<red>없는 플레이어"));
                         return;
@@ -435,7 +449,7 @@ public final class SecretModule extends EcoModule {
                     s.sendMessage(Text.msg("<red>/관리자 비밀 초기화 <비밀> <플레이어>"));
                     return;
                 }
-                Players.find(a[2], found -> {
+                findPlayer(s, a[2], found -> {
                     if (found.isEmpty()) {
                         s.sendMessage(Text.msg("<red>없는 플레이어"));
                         return;
@@ -462,6 +476,10 @@ public final class SecretModule extends EcoModule {
                         s.sendMessage(Text.msg("<green>기념비를 치웠어요"));
                     }
                     case "다시" -> {
+                        if (monument.place().isEmpty()) {
+                            s.sendMessage(Text.msg("<red>세워 둔 기념비가 없어요 (그 월드가 없거나). /관리자 비밀 비석 세우기"));
+                            return;
+                        }
                         monument.build();
                         s.sendMessage(Text.msg("<green>기념비를 다시 그렸어요"));
                     }
@@ -492,7 +510,7 @@ public final class SecretModule extends EcoModule {
         String sub = a[0];
         if (a.length == 2) return switch (sub) {
             case "상태" -> Players.complete(s, a[1]);
-            case "테스트" -> List.of("켜기", "끄기");
+            case "테스트" -> java.util.stream.Stream.concat(java.util.stream.Stream.of("켜기", "끄기"), Players.complete(s, a[1]).stream()).toList();
             case "목록" -> List.of();
             case "비석" -> List.of("세우기", "지우기", "다시");
             case "소문" -> List.of("bus", "dongbang", "letter", "designer", "usher", "fish", "vein", "lostkey", "doll", "scarecrow");
@@ -521,8 +539,19 @@ public final class SecretModule extends EcoModule {
         then.accept(x.get());
     }
 
+    /** "나" (the docs' own example: 초기화 &lt;비밀&gt; 나) is the admin themselves. */
+    private static boolean me(CommandSender s, String name) {
+        return name == null || (name.equals("나") && s instanceof Player);
+    }
+
+    private static void findPlayer(CommandSender s, String name, java.util.function.Consumer<Optional<UUID>> then) {
+        if (s instanceof Player me && me(s, name)) then.accept(Optional.of(me.getUniqueId()));
+        else Players.find(name, then);
+    }
+
     private static void online(CommandSender s, String name, java.util.function.Consumer<Player> then) {
-        Player p = name == null ? (s instanceof Player me ? me : null) : Bukkit.getPlayerExact(name);
+        // nickname-aware, like the tab completion (Players.complete offers nicknames too)
+        Player p = me(s, name) ? (s instanceof Player me ? me : null) : Players.online(name);
         if (p == null) {
             s.sendMessage(Text.msg("<red>" + (name == null ? "플레이어 이름을 쓰세요" : "접속 중인 플레이어가 아니에요")));
             return;

@@ -47,7 +47,6 @@ final class Rumors {
         ConfigurationSection lines = c.getConfigurationSection("lines");
         if (lines == null) return;
         for (String id : lines.getKeys(false)) {
-            if (id.equals(last)) continue;
             if (id.equals("bus")) {
                 var bus = m.eco().bus() == null ? null : m.eco().bus().secretAgent();
                 if (bus == null || !bus.on() || m.eco().kv().has("bus.secret.first")) continue;
@@ -57,14 +56,25 @@ final class Rumors {
             }
             if (!lines.getStringList(id).isEmpty()) open.add(id);
         }
-        if (open.isEmpty()) return;
+        String id = pick(open, last, ThreadLocalRandom.current());
+        if (id == null) return;
         ThreadLocalRandom r = ThreadLocalRandom.current();
-        String id = open.get(r.nextInt(open.size()));
         List<String> say = lines.getStringList(id);
         Player p = online.get(r.nextInt(online.size()));
         String fmt = c.getString("format", "<dark_gray><i>…{line}");
         p.sendMessage(Text.mm(fmt.replace("{line}", say.get(r.nextInt(say.size())))));
         last = id;
+    }
+
+    /**
+     * Which secret this time: any open one but the last; when the last is the only one still open it may come again (else
+     * the final unsolved secret would never be rumored about). Null when none is open.
+     */
+    static String pick(List<String> open, String last, java.util.random.RandomGenerator r) {
+        if (open.isEmpty()) return null;
+        List<String> others = open.stream().filter(id -> !id.equals(last)).toList();
+        List<String> from = others.isEmpty() ? open : others;
+        return from.get(r.nextInt(from.size()));
     }
 
     /** An admin's look: one rumor about this id to that player now. */

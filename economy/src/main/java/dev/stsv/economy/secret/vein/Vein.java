@@ -763,6 +763,8 @@ public final class Vein extends Secret {
             });
         }
         later(100L + 5 * 22L + 30L, () -> {
+            // gone meanwhile (a quit puts it away; back near the heart it starts again): no solve from this old run
+            if (runs.get(u) != run) return;
             stop(u);
             if (!real || !p.isOnline()) return;
             boolean late = !m.test(u) && m.closed(this);
@@ -823,6 +825,24 @@ public final class Vein extends Secret {
             it.remove();
             if (Relic.worksFor(Relic.owner(d), u)) e.getItemsToKeep().add(d);
             else relic.home(null, d);
+        }
+    }
+
+    /** /쓰레기통 (the core's bin) does not take it either: it goes back (to its owner's bag, or their mailbox). */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onBinHeart(org.bukkit.event.inventory.InventoryCloseEvent e) {
+        var holder = e.getInventory().getHolder(false);
+        if (holder == null || !holder.getClass().getName().endsWith("TrashCan$Bin") || !(e.getPlayer() instanceof Player p)) return;
+        for (int i = 0; i < e.getInventory().getSize(); i++) {
+            ItemStack it = e.getInventory().getItem(i);
+            if (!relic.heart(it) || Relic.owner(it) == null || it.getItemMeta().getPersistentDataContainer().has(HEART_TEST)) continue;
+            e.getInventory().setItem(i, null);
+            boolean own = Relic.worksFor(Relic.owner(it), p.getUniqueId());
+            if (own) {
+                String t = cfg.getString("relic.keep", "");
+                if (!t.isEmpty()) m.haunt().whisper(p, t);
+            }
+            relic.home(own ? null : p, it);
         }
     }
 

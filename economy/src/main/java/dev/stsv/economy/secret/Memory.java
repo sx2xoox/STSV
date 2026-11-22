@@ -75,11 +75,10 @@ public final class Memory implements Listener {
 
     void start() {
         for (Player p : Bukkit.getOnlinePlayers()) seen(p);
-        Bukkit.getScheduler().runTaskTimer(eco, this::sample, 1200L, 1200L);
     }
 
-    /** Every minute: each player's nearest other player within 48 blocks gets a minute. */
-    private void sample() {
+    /** Every minute (the module's task): each player's nearest other player within 48 blocks gets a minute. */
+    void sample() {
         for (Player p : Bukkit.getOnlinePlayers()) {
             Player best = null;
             double bd = 48 * 48;

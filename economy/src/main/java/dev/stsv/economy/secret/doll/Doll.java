@@ -1088,11 +1088,11 @@ public final class Doll extends Secret {
     /** Admin 시작: the listing goes up now (whatever the chance, hour or players online). A doll already out is gone. */
     @Override
     public void start(Player p) {
-        for (Player o : Bukkit.getOnlinePlayers()) strip(o);
         if (kvGet("auction") != null && eco.auction() != null && eco.auction().store().get(kvLong("auction", -1)) != null) {
             p.sendMessage(Text.mm("<yellow>[낡은인형] 경매 #" + kvGet("auction") + " 이(가) 이미 진행 중 (/관리자 경매 종료 " + kvGet("auction") + " 로 바로 끝내기)"));
             return;
         }
+        for (Player o : Bukkit.getOnlinePlayers()) strip(o);   // the doll out now is gone (only once the new listing really goes up)
         Auction a = list();
         if (a != null && (m.test(p.getUniqueId()) || p.hasPermission("stsv.economy.admin")))
             p.sendMessage(Text.mm("<yellow>[낡은인형] 경매 #" + a.id + " 에 올렸어요. 1 G 입찰 → (" + Math.round(cfg.getDouble("auction.minutes", 10))

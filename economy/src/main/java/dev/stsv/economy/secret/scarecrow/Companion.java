@@ -81,6 +81,7 @@ final class Companion {
             t[0] += 2;
             if (!o.isOnline() || !e.valid()) {
                 stop(ou, e);
+                if (o.isOnline()) s.marks().hideFor(o, sc, false);
                 return;
             }
             if (t[0] < ticks) e.turn(e.yawTo(o.getLocation()), 3.5f);

@@ -31,6 +31,9 @@ import java.util.function.Consumer;
  */
 final class Marks {
 
+    /** On the lasting marks: left over from before (the module restarted) they are found and taken away, never doubled. */
+    private static final org.bukkit.NamespacedKey TAG = new org.bukkit.NamespacedKey("economy", "scarecrow_mark");
+
     private final Scarecrow s;
     /** "world x y z" -> the marks on that scarecrow (everyone sees them) */
     private final Map<String, List<Entity>> on = new HashMap<>();
@@ -75,7 +78,19 @@ final class Marks {
             Block b = Field.block(en.getValue()).orElse(null);
             if (real == null || b == null) continue;
             float facing = (float) Geometry.wrap(real.getYaw() - s.field().yawOffset());
-            on.put(en.getKey(), build(b.getLocation().add(0.5, 0, 0.5), facing, true, e -> { }));
+            Location base = b.getLocation().add(0.5, 0, 0.5);
+            orphans(base);
+            on.put(en.getKey(), build(base, facing, true,
+                    e -> e.getPersistentDataContainer().set(TAG, org.bukkit.persistence.PersistentDataType.BYTE, (byte) 1)));
+        }
+    }
+
+    /** Lasting marks at this scarecrow that nobody keeps track of (made before a restart of the module): gone. */
+    private void orphans(Location base) {
+        java.util.Set<java.util.UUID> kept = new java.util.HashSet<>();
+        for (List<Entity> l : on.values()) for (Entity e : l) kept.add(e.getUniqueId());
+        for (Entity e : base.getWorld().getNearbyEntities(base.clone().add(0, 1.2, 0), 1.2, 1.6, 1.2)) {
+            if (e.getPersistentDataContainer().has(TAG) && !kept.contains(e.getUniqueId())) e.remove();
         }
     }
 

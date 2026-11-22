@@ -387,6 +387,7 @@ public final class Scarecrow extends Secret {
             }
         }
         companion.forget(player);
+        if (!on()) marks.clear();   // switched off: the lasting marks go too (made again when it is on)
         hold.remove(player);
         gone.remove(player);
         props.clear(player);

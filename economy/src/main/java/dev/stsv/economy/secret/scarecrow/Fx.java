@@ -62,7 +62,7 @@ final class Fx {
     /** Straw rustling just behind them, two or three soft steps. */
     void rustleBehind(Player p) {
         Location l = p.getLocation();
-        Location at = l.clone().subtract(l.getDirection().setY(0).normalize().multiply(2.2));
+        Location at = l.clone().subtract(flat(l).multiply(2.2));
         for (int i = 0; i < 3; i++) {
             float v = 0.35f + i * 0.12f;
             props.later(p, 1 + i * 7L, () -> sound(p, at, "rustle", "block.azalea_leaves.step", v, 0.6f));
@@ -153,12 +153,22 @@ final class Fx {
             meta.displayName(Text.item(c.getString("lines.straw-name", "<#d9c27a>허수아비의 지푸라기")));
             meta.lore(Text.itemLines(c.getStringList("lines.straw-lore")));
         });
-        Location at = p.getLocation().add(p.getLocation().getDirection().setY(0).normalize().multiply(0.6));
+        Location at = p.getLocation().add(flat(p.getLocation()).multiply(0.6));
         Item drop = p.getWorld().dropItem(at, it);
         drop.setOwner(p.getUniqueId());
         drop.setVelocity(new org.bukkit.util.Vector(0, 0, 0));
         sound(p, at, "straw", "block.grass.break", 0.6f, 0.5f);
         p.sendActionBar(Text.mm(c.getString("lines.straw-whisper", "<dark_gray>…")));
+    }
+
+    /** The way they face, flat (looking straight up or down — pitch ±90 — has none: then along their yaw). */
+    private static org.bukkit.util.Vector flat(Location l) {
+        org.bukkit.util.Vector v = l.getDirection().setY(0);
+        if (v.lengthSquared() < 1e-6) {
+            double r = Math.toRadians(l.getYaw());
+            v = new org.bukkit.util.Vector(-Math.sin(r), 0, Math.cos(r));
+        }
+        return v.normalize();
     }
 
     /** The scare: a sting, and a second later black. */

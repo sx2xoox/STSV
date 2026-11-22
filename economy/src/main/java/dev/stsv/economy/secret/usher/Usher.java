@@ -542,6 +542,12 @@ public final class Usher extends Secret {
             try {
                 if (failed(u)) mask(p);
                 Walk w = walks.get(u);
+                // the true one was chosen, but they left before it finished speaking: finish it now
+                if ((w == null || !w.ending) && m.stage(this, u) == stages() && "real".equals(m.get(this, u, "chose")) && open(u)) {
+                    end(u);
+                    w = null;
+                    solveTrue(p);
+                }
                 boolean inside = gw != null && p.getWorld().equals(gw);
                 if (inside && !intro.contains(u) && (walking(u) || w != null && (w.preview || w.roomPreview))) {
                     if (w == null) walks.put(u, w = new Walk(u));
@@ -970,10 +976,13 @@ public final class Usher extends Secret {
         long out = 10L + lines.size() * 50L;
         later(u, out, q -> m.haunt().black(q, 3));
         later(u, out + 30, q -> {
+            // already finished by the tick (they left the 체험관 or the server during the words, and came back)
+            if (!dry && m.stage(this, u) != stages()) return;
             World gw = q.getWorld();
+            boolean here = inGuide(q);
             end(u);
-            q.teleport(new Location(gw, Statue.BX + 0.5, GuideLayout.FLOOR_Y, Statue.BZ + 4.5, 180, -10));
-            if (dry || m.test(u)) {
+            if (here) q.teleport(new Location(gw, Statue.BX + 0.5, GuideLayout.FLOOR_Y, Statue.BZ + 4.5, 180, -10));
+            if (here && (dry || m.test(u))) {
                 Props x = scenes.computeIfAbsent(u, k -> new Props(eco, m.haunt(), u));
                 x.add(m.haunt().likeness(q, q, Statue.figureAt(gw), null));
                 x.text(new Location(gw, Statue.BX + 0.5, GuideLayout.FLOOR_Y + 0.6, Statue.BZ + 1.03),
@@ -981,10 +990,8 @@ public final class Usher extends Secret {
                 x.block(new Location(gw, Statue.BX + 0.5, GuideLayout.FLOOR_Y, Statue.BZ + 0.5), Material.CHISELED_STONE_BRICKS.createBlockData(), 1f, 1f, 1f, 0);
                 if (dry) q.sendMessage(Text.mm("<yellow>[미리보기] 진짜를 고른 끝 (아무것도 저장 안 함, 동상은 나만 잠시 보임)"));
                 Bukkit.getScheduler().runTaskLater(eco, () -> clearScene(u), 20L * 40);
-            } else statue.save(q);
-            if (!dry) m.solve(this, q);
-            if (!dry && !m.test(u)) statue.ensure(gw);
-            q.sendMessage(Text.mm(named(line("after-solve", "<gray>광장에 못 보던 동상이 서 있다. 낯익은 얼굴이다."))));
+            }
+            if (!dry) solveTrue(q);
         });
         if (!dry) later(u, out + 30 + 200, q -> {
             GuideModule g = eco.guide();
@@ -993,6 +1000,28 @@ public final class Usher extends Secret {
                 g.unvisit(q, true);
             }
         });
+    }
+
+    /**
+     * The true one was chosen ("chose" = real): solved — the statue (not for a tester, nor when someone else was first:
+     * then only the too-late line), the rewards, the line about the statue. Also run by the tick for someone whose choice
+     * was saved but who left before its words were over, so a saved right choice can never be stuck.
+     */
+    private void solveTrue(Player q) {
+        UUID u = q.getUniqueId();
+        boolean test = m.test(u);
+        if (!test && m.closed(this)) {
+            m.solve(this, q);   // says it is too late; the statue stays whose it is
+            return;
+        }
+        World gw = guideWorld();
+        if (!test) {
+            statue.forget(gw);   // a statue left from before a 서버초기화 makes way
+            statue.save(q);
+        }
+        m.solve(this, q);
+        if (!test && gw != null) statue.ensure(gw);
+        q.sendMessage(Text.mm(named(line("after-solve", "<gray>광장에 못 보던 동상이 서 있다. 낯익은 얼굴이다."))));
     }
 
     /** The false one is chosen: it smiles, and now it guides. dry = an admin look. */

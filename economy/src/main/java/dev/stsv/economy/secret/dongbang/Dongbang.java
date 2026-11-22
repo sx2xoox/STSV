@@ -260,7 +260,7 @@ public final class Dongbang extends Secret {
         held.remove(u);
         for (String k : List.of("price", "t", "m10", "h2", "d1", "closes", "bought", "held-s", "notice-at", "found", "news-n", "run", "names",
                 "locked-until", "sold", "sold-at", "x", "z", "news-end", "news-echo", "offer-min", "offer-day",
-                "kx", "p0", "lost-day"))
+                "kx", "p0", "lost-day", "test-solved"))
             m.remove(this, u, k);
     }
 
@@ -656,6 +656,7 @@ public final class Dongbang extends Secret {
         tickers.remove(u);
         m.solve(this, p);
         if (test) m.set(this, u, "test-solved", 1);
+        else m.remove(this, u, "test-solved");   // solved for real now: everyone's memorial, not a tester's
         p.getInventory().addItem(certificate(p)).values().forEach(left -> p.getWorld().dropItem(p.getLocation(), left));
     }
 
