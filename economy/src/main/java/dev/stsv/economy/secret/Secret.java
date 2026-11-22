@@ -32,6 +32,16 @@ public abstract class Secret implements Listener {
     /** Korean name for admins and the solved line ("동방해운"). */
     public abstract String name();
 
+    /** What the monument stone says once solved (the first line; the solver and the day follow). */
+    public String stoneTitle() {
+        return name();
+    }
+
+    /** A secret whose stone stays empty (no "???") until it is solved: nobody is told it exists. */
+    public boolean hiddenStone() {
+        return false;
+    }
+
     /** How many stages before the end (the status shows n/stages). */
     public abstract int stages();
 
