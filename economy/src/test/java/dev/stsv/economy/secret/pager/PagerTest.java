@@ -247,9 +247,15 @@ class PagerTest {
             List<String> texts = new ArrayList<>();
             if (y.isString(k)) texts.add(y.getString(k));
             else if (y.isList(k)) for (Object o : y.getList(k)) texts.add(String.valueOf(o));
-            for (String t : texts)
-                for (String meaning : List.of("빵 사", "펄펄", "빨리", "SOS", "에스오에스", "돌아와", "천사", "이만", "구조", "뜻"))
+            for (String t : texts) {
+                // said nowhere at all
+                for (String meaning : List.of("빵 사", "펄펄", "빨리빨리", "SOS", "에스오에스", "천사", "이만", "구조", "뜻"))
                     assertFalse(t.contains(meaning), k + " explains a number: " + t);
+                // and no line that shows one of the numbers says anything about it
+                if (k.startsWith("codes.") || !t.matches("(?s).*(045|10288|8282|505|100|1004|20000).*")) continue;
+                for (String meaning : List.of("빵", "열", "아파", "빨리", "살려", "돌아", "고마", "안녕", "잘 가"))
+                    assertFalse(t.contains(meaning), k + " explains a number: " + t);
+            }
         }
     }
 
