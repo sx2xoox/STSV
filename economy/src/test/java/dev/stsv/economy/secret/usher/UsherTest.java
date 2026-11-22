@@ -179,6 +179,9 @@ class UsherTest {
     }
     @Test
     void answersMustBeTheAnswer() {
+        for (String ok : new String[]{"13", "13개", "열세개", "열세 개", "13개요", "열세 개였어요", "13개였죠", "열셋이요", "열세 개입니다"})
+            assertTrue(UsherPlan.answers(ok, java.util.List.of("열세", "열셋", "13")), ok);
+
         List<String> name = List.of("원내안");
         assertTrue(UsherPlan.answers("원내안", name));
         assertTrue(UsherPlan.answers(" 원 내 안 이요?! ", name), "spaces, a plain ending, punctuation");

@@ -145,7 +145,8 @@ final class UsherPlan {
     /** What may follow the answer itself: a counter ("열세 개", "13번") … */
     static final List<String> COUNTERS = List.of("", "개", "칸", "번");
     /** … then a plain sentence ending ("원내안이요", "직업입니다", "열셋이죠"). Nothing else. */
-    static final List<String> ENDINGS = List.of("", "요", "이요", "예요", "이에요", "에요", "입니다", "이다", "죠", "이죠", "이지", "지");
+    static final List<String> ENDINGS = List.of("", "요", "이요", "예요", "이에요", "에요", "입니다", "이다", "죠", "이죠", "이지", "지", "야", "이야",
+            "였어요", "이었어요", "였어", "이었어", "였죠", "이었죠", "였습니다", "이었습니다", "였다", "이었다", "였지", "이었지", "요요");
     /** A correction ("열다섯이 아니라 열여섯"): only what comes after the last of these is the reply. */
     static final List<String> CORRECTIONS = List.of("아니라", "아니고");
 
