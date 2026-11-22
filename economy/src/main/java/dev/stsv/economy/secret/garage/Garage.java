@@ -865,7 +865,7 @@ public final class Garage extends Secret {
     }
 
     private long retryMs(UUID u) {
-        return (m.test(u) ? cfg.getLong("test-retry-seconds", 10) : cfg.getLong("retry-seconds", 600)) * 1000L;
+        return (m.test(u) ? cfg.getLong("test-retry-seconds", 10) : cfg.getLong("retry-seconds", 300)) * 1000L;
     }
 
     /** Home together: solved (unless someone else was first): the car, the photo, the plaque. */

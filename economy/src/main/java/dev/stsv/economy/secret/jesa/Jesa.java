@@ -63,7 +63,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * The solver keeps a family register with their own name inked in last and, for good, two old people who now and then
  * stand behind them where others can see ({@link Blessing}).
  * <p>
- * Saved (eco.kv "secret.jesa.&lt;uuid&gt;."): stage, since, day (the last day the chance was tried), heard (the stop where
+ * Saved (eco.kv "secret.jesa.&lt;uuid&gt;."): stage, since, heard (the stop where
  * she was overheard), house ("world x y z": the table's block), stop (where she got off), layout (what is laid:
  * {@link Table#encode}), retry (ms: no rite before it), tries, late (told that someone else was first), done.
  * The bus calls in through {@link BusModule.Watcher}; which passenger she is, is only remembered while the server runs.
@@ -94,7 +94,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             Map.entry("lines.meal-1", "…영감, 많이 드시우."),
             Map.entry("lines.meal-2", "…나도 한 술 뜨고."),
             Map.entry("lines.meal-3", "…고맙수. 길에서 만난 사람한테 얻어먹는 제삿밥이 제일 달다더니."),
-            Map.entry("lines.meal-4", "…버스비는, 못 냈네."),
+            Map.entry("lines.meal-4", "…차비는 냈수. 밥값은, 이걸로 받우."),
             Map.entry("lines.dawn", "<gray>…날이 밝았다. 감나무 아래에는 풀만 자라 있다."),
             Map.entry("tablets.father", "顯考學生府君神位"),
             Map.entry("tablets.mother", "顯妣孺人達城徐氏神位"),
@@ -257,9 +257,6 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             BusModule b = bus();
             List<Entity> aboard = b == null ? List.of() : b.ridersOf(p, kind());
             if (aboard.isEmpty()) return;
-            String today = m.today(u);
-            if (today.equals(m.get(this, u, "day"))) return;   // one try a day
-            m.set(this, u, "day", today);
             if (!m.roll(u, cfg.getDouble("start.chance", 0.01))) return;
             begin(p, aboard.get(ThreadLocalRandom.current().nextInt(aboard.size())), here);
         } else if (st == HEARD) {
@@ -843,8 +840,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     public String status(UUID u) {
         List<String> out = new ArrayList<>();
         int st = stage(u);
-        String day = m.get(this, u, "day");
-        if (st == 0) out.add(m.today(u).equals(day) ? "오늘 확률은 이미 굴림" : "할머니 손님을 태우고 정류장에 서면 확률 " + cfg.getDouble("start.chance", 0.01));
+        if (st == 0) out.add("할머니 손님을 태우고 정류장에 설 때마다 확률 " + cfg.getDouble("start.chance", 0.01));
         if (st == HEARD) out.add(riding.containsKey(u) ? "할머니가 타고 있음 (내리는 정류장에 집)" : "할머니를 놓침 → 다음에 서는 정류장에 집");
         String h = m.get(this, u, "house");
         if (h != null) out.add("집 " + h + " (" + stopName(m.get(this, u, "stop")) + " 정류장)" + (house.get(u) != null ? " · 보이는 중" : ""));

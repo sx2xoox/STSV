@@ -198,9 +198,11 @@ final class Monument {
             Location at = stoneAt(base, i, list.size());
             int texts = 0, models = 0, others = 0;
             for (Entity e : mine) {
-                if (!key.equals(e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING))) continue;
+                String t = e.getPersistentDataContainer().get(TAG, PersistentDataType.STRING);
+                if (t == null || !idOf(t).equals(s.id())) continue;
                 Location el = e.getLocation();
-                if (!here(at.getX(), at.getZ(), el.getX(), el.getZ())) others++;   // set for another arc: it moves
+                // an old text or model, or set for another arc (fewer stones, a smaller radius): it is set again here
+                if (!key.equals(t) || !here(at.getX(), at.getZ(), el.getX(), el.getZ())) others++;
                 else if (e instanceof TextDisplay) texts++;
                 else if (e instanceof ItemDisplay) models++;
                 else others++;   // the two block displays of a stone from before the models: it is set again

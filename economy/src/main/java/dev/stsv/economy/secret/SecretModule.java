@@ -490,7 +490,7 @@ public final class SecretModule extends EcoModule {
                 }
             }
             case "소문" -> online(s, a.length > 2 ? a[2] : null, p -> {
-                if (a.length < 2 || !rumors.tell(p, a[1])) s.sendMessage(Text.msg("<red>/관리자 비밀 소문 <bus|dongbang|letter|designer|usher|fish|lostkey|doll|scarecrow> [플레이어]"));
+                if (a.length < 2 || !rumors.tell(p, a[1])) s.sendMessage(Text.msg("<red>/관리자 비밀 소문 <" + String.join("|", rumorIds()) + "> [플레이어]"));
             });
             case "테스트" -> {
                 String mode = a.length > 1 && (a[1].equals("켜기") || a[1].equals("끄기")) ? a[1] : null;
@@ -516,7 +516,7 @@ public final class SecretModule extends EcoModule {
             case "테스트" -> java.util.stream.Stream.concat(java.util.stream.Stream.of("켜기", "끄기"), Players.complete(s, a[1]).stream()).toList();
             case "목록" -> List.of();
             case "비석" -> List.of("세우기", "지우기", "다시");
-            case "소문" -> List.of("bus", "dongbang", "letter", "designer", "usher", "fish", "lostkey", "doll", "scarecrow");
+            case "소문" -> rumorIds();
             case "켜기", "끄기" -> java.util.stream.Stream.concat(names.stream(), java.util.stream.Stream.of("버스")).toList();
             default -> names;
         };
@@ -531,6 +531,14 @@ public final class SecretModule extends EcoModule {
             return n;
         }).orElse(List.of());
         return List.of();
+    }
+
+    /** Ids a rumor can be about: the bus secret and every secret here. */
+    private List<String> rumorIds() {
+        List<String> out = new ArrayList<>();
+        out.add("bus");
+        out.addAll(secrets.keySet());
+        return out;
     }
 
     private void withSecret(CommandSender s, String[] a, int at, java.util.function.Consumer<Secret> then) {
