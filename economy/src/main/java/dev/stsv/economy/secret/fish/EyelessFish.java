@@ -987,7 +987,7 @@ public final class EyelessFish extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("시작", "속삭임", "놓아주기", "거품", "무거운줄", "발자국", "형체", "이름표", "떠오름", "돌려줌", "실패", "빠진곳", "빠진곳다시");
+        return List.of("시작", "속삭임", "놓아주기", "거품", "무거운줄", "발자국", "형체", "이름표", "떠오름", "돌려줌", "실패", "빠진곳", "빠진곳다시", "빠진곳여기");
     }
 
     @Override
@@ -1046,6 +1046,11 @@ public final class EyelessFish extends Secret {
                 admin.sendMessage(Text.msg("<gray>첫 낚시꾼: <white>" + esc(first) + "</white> (진행은 안 바뀜)"));
             }
             case "실패" -> dread.rising(p);
+            case "빠진곳여기" -> {
+                drowned.setHere(p.getLocation());
+                admin.sendMessage(Text.msg("<green>내가 빠진 곳을 " + p.getName() + " 의 자리로 정했어요: <white>" + drowned.place().map(Drowned.Place::toString).orElse("?")
+                        + "</white> <gray>(반경 " + cfg.getInt("final.radius", 20) + "칸 안에서 낚으면 돼요)"));
+            }
             case "빠진곳", "빠진곳다시" -> {
                 if (word.equals("빠진곳다시")) {
                     if (drowned.searching()) {

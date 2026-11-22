@@ -67,7 +67,7 @@ def _ground(tex, x0, z0, x1, z1):
 
 # the stones in Monument's order (stones(): the bus first, then the secrets as registered), with their emblems
 ORDER = [("bus", "버스 · 선글라스"), ("dongbang", "동방 · 닻"), ("letter", "편지 · 봉투"), ("designer", "설계자 · 톱니"),
-         ("usher", "안내원 · 열쇠 구멍"), ("fish", "물고기 · 물고기"), ("vein", "광맥 · 심장"), ("lostkey", "잃어버린 열쇠 · 열쇠"),
+         ("usher", "안내원 · 열쇠 구멍"), ("fish", "물고기 · 물고기"), ("lostkey", "잃어버린 열쇠 · 열쇠"),
          ("doll", "인형 · 단추"), ("scarecrow", "허수아비 · 밀 이삭")]
 
 

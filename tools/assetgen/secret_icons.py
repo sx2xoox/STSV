@@ -378,46 +378,6 @@ def wet_nametag(c):
 
 
 @icon
-def vein_heart(c):
-    """광맥의 심장: a lump of dark deepslate broken roughly into a heart, its faces chipped flat and banded, threaded with
-    blood-red redstone veins that run out from one bright spot beating near its middle."""
-    rows = ["................",
-            "................",
-            "...AAA..BBB.....",
-            "..AAAAA.BBBBB...",
-            ".AAAAAAABBBBBB..",
-            ".AAAAAAABBBBBBB.",
-            ".AAAAAACCBBBBBE.",
-            "..AAAACCCCBBBE..",
-            "..AAACCCCCCBBEE.",
-            "...ADDCCCCCCEE..",
-            "....DDDCCCCEE...",
-            ".....DDDDEEE....",
-            "......DDDE......",
-            ".......DE.......",
-            "................",
-            "................"]
-    steps = {"A": 4, "B": 3, "C": 3, "D": 2, "E": 1}
-    for y, row in enumerate(rows):
-        for x, ch in enumerate(row):
-            if ch in steps:
-                s = steps[ch] - (1 if (y + (x // 4)) % 3 == 0 and steps[ch] > 1 else 0)   # deepslate's bands
-                c.put(x, y, "iron", s, z=1)
-    c.lit_edge([p for p in c.where("iron")], 1)
-    c.dots([(3, 3), (2, 4)], "iron", 5)
-    # the veins, a dark rim of dried blood round the bright redstone
-    vein = [(7, 8), (6, 7), (5, 6), (4, 6), (3, 5), (5, 5), (4, 4),
-            (9, 8), (10, 7), (11, 6), (12, 6), (11, 5), (11, 4),
-            (8, 10), (8, 11), (9, 12), (7, 10), (6, 11), (10, 10), (11, 10)]
-    c.dots(vein, "toadstool", 2, z=4)
-    c.dots([(6, 7), (10, 7), (8, 10), (5, 5), (11, 5)], "toadstool", 3, z=4)
-    c.dots([(3, 5), (4, 4), (12, 6), (11, 4), (9, 12), (6, 11), (11, 10)], "toadstool", 1, z=4)
-    c.dots([(7, 8), (9, 8), (8, 7), (7, 9), (9, 9), (8, 9)], "toadstool", 3, z=5)          # the pulse
-    c.put(8, 8, "toadstool", 4, z=5).put(8, 8, "toadstool", 5, z=5).put(7, 8, "toadstool", 4, z=5)
-    return c
-
-
-@icon
 def lost_key_nameless(c):
     """주인 이름이 지워진 열쇠: an old brass key gone dull and tarnished, a scrap of paper tied to its bow with string, and on
     the scrap the owner's name scratched out until nothing is left of it."""

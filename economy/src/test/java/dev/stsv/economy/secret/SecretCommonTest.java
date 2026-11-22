@@ -39,7 +39,7 @@ class SecretCommonTest {
     @Test
     void solvedStoneShowsItsOwnEmblem() {
         assertEquals("model/secret_stone", Monument.model("bus", false).getKey());
-        for (String id : List.of("bus", "dongbang", "letter", "designer", "usher", "fish", "vein", "lostkey", "doll", "scarecrow")) {
+        for (String id : List.of("bus", "dongbang", "letter", "designer", "usher", "fish", "lostkey", "doll", "scarecrow")) {
             assertEquals("economy", Monument.model(id, true).getNamespace());
             assertEquals("model/secret_stone_solved_" + id, Monument.model(id, true).getKey());
         }

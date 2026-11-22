@@ -43,7 +43,9 @@ final class Monument {
             MODEL_SOLVED = new NamespacedKey("economy", "model/secret_stone_solved");
     /** Stones with their own solved model (economy:model/secret_stone_solved_&lt;id&gt;, each its own gold emblem). */
     static final Set<String> EMBLEMS = Set.of("bus", "dongbang", "letter", "designer", "usher", "fish",
-            "vein", "lostkey", "doll", "scarecrow");
+            "lostkey", "doll", "scarecrow");
+    /** How many stones stand: the secrets, then blank stones kept for secrets yet to come ("blank1" …: no text). */
+    static final int SLOTS = 10;
     /** The model's top over the ground (blocks: plinth 0.25 + tablet 1.5) and where the text display stands. */
     static final double TOP = 1.75, TEXT_Y = TOP + 0.2;
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(SecretModule.KST);
@@ -82,6 +84,7 @@ final class Monument {
         for (Secret s : m.all()) {
             out.add(new Stone(s.id(), s.cfg.getString("stone-name", s.name()), m.solver(s), m.eco().kv().getLong("secret." + s.id() + ".first-at", 0)));
         }
+        for (int n = 1; out.size() < SLOTS; n++) out.add(new Stone("blank" + n, "", Optional.empty(), 0));
         return out;
     }
 
@@ -212,6 +215,7 @@ final class Monument {
     }
 
     private String text(Stone s) {
+        if (s.id().startsWith("blank")) return "";   // a stone kept for a secret yet to come
         if (s.solver().isEmpty()) return "<dark_gray>???";
         String who = Optional.ofNullable(Bukkit.getOfflinePlayer(s.solver().get()).getName()).orElse("—");
         String when = s.at() > 0 ? DAY.format(Instant.ofEpochMilli(s.at())) : "";

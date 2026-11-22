@@ -22,7 +22,7 @@ import java.util.Optional;
  */
 final class Drowned {
 
-    static final String KEY = "secret.fish.drowned";
+    static final String KEY = "secret.fish.drowned2";   // 2: the search now skips waterfalls and streams (the old spot is searched again)
 
     /** The place: world, the water's top block, how deep it is (-1 = set by hand). */
     record Place(String world, int x, int y, int z, int depth) {
@@ -117,6 +117,27 @@ final class Drowned {
         }, 1L, 1L);
     }
 
+    /**
+     * A spot one can fish and stand by: the top is a still water SOURCE (not falling or flowing), with still source water
+     * all around it in a 5x5 at the same height (a pond, not the thin column of a waterfall) and water at least two deep.
+     */
+    static boolean pool(World w, int x, int top, int z) {
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dz = -2; dz <= 2; dz++) {
+                var b = w.getBlockAt(x + dx, top, z + dz);
+                if (b.getType() != Material.WATER || !(b.getBlockData() instanceof org.bukkit.block.data.Levelled l) || l.getLevel() != 0) return false;
+                if (w.getBlockAt(x + dx, top + 1, z + dz).getType() == Material.WATER) return false;   // water falling onto it
+            }
+        }
+        return w.getBlockAt(x, top - 1, z).getType() == Material.WATER;
+    }
+
+    /** An admin's choice: this spot (the water under or near them) is where it drowned. */
+    void setHere(org.bukkit.Location at) {
+        stop();
+        eco.kv().set(KEY, Waters.encode(at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ(), -1));
+    }
+
     /** Every column of a chunk within the circle: open water on top, how far down to the floor. */
     private static void scan(World w, Chunk ch, int sx, int sz, long rr, int[] best, double[] bestD) {
         if (!ch.isLoaded()) return;
@@ -128,7 +149,7 @@ final class Drowned {
                 long d2 = ddx * ddx + ddz * ddz;
                 if (d2 > rr) continue;
                 int top = w.getHighestBlockYAt(x, z, HeightMap.WORLD_SURFACE);
-                if (w.getBlockAt(x, top, z).getType() != Material.WATER) continue;
+                if (!pool(w, x, top, z)) continue;   // still water in a real pond, not a waterfall or a stream
                 int depth = top - w.getHighestBlockYAt(x, z, HeightMap.OCEAN_FLOOR);
                 if (Waters.deeper(depth, d2, best[3], bestD[0])) {
                     best[0] = top;

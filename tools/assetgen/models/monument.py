@@ -11,7 +11,7 @@ solver, the date, or "???").
                         a thin gold inlay border following the arch, a small gold star engraved at the top over a short
                         gold rule; a clean two-step plinth with a gold trim line. The generic fallback.
   secret_stone_solved_<id>  the same, with that secret's own gold emblem in place of the star (EMBLEMS: bus sunglasses,
-                        dongbang anchor, letter envelope, designer gear, usher keyhole, fish fish, vein heart, lostkey
+                        dongbang anchor, letter envelope, designer gear, usher keyhole, fish fish, lostkey
                         key, doll a four-hole button, scarecrow a wheat ear).
 
     drawn at real size (16 px a block): the stone's middle at x = z = 8, the plinth on the ground at y = 0, the face to
@@ -318,17 +318,6 @@ EMBLEMS = {
         "#########.",
         ".######.##",
         "..####...#",
-    ),
-    # 심장
-    "vein": (
-        ".###..###.",
-        "##########",
-        "##########",
-        "##########",
-        ".########.",
-        "..######..",
-        "...####...",
-        "....##....",
     ),
     # 열쇠: the bow on top, the bit at the foot
     "lostkey": (
