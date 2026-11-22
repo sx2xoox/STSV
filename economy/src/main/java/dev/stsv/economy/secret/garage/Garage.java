@@ -501,7 +501,7 @@ public final class Garage extends Secret {
         props.drop(u, CHIP_GROUP);
         checking.remove(u);
         held.remove(u);
-        if (p.getOpenInventory().getTopInventory().getHolder() instanceof Bench) p.closeInventory();
+        if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof Bench) p.closeInventory();
         p.sendMessage(Text.mm(cfg.getString("too-late", "<dark_gray>…셔터가 내려가 있다. 누군가 먼저 그를 집에 데려다주었다.")));
     }
 
@@ -737,7 +737,7 @@ public final class Garage extends Secret {
 
     @EventHandler
     public void onBenchClick(InventoryClickEvent e) {
-        if (!(e.getView().getTopInventory().getHolder() instanceof Bench b)) return;
+        if (!(e.getView().getTopInventory().getHolder(false) instanceof Bench b)) return;
         e.setCancelled(true);
         if (!(e.getWhoClicked() instanceof Player p) || !p.getUniqueId().equals(b.viewer())) return;
         if (e.getClickedInventory() != e.getView().getTopInventory()) return;
@@ -754,7 +754,7 @@ public final class Garage extends Secret {
 
     @EventHandler
     public void onBenchDrag(InventoryDragEvent e) {
-        if (e.getView().getTopInventory().getHolder() instanceof Bench) e.setCancelled(true);
+        if (e.getView().getTopInventory().getHolder(false) instanceof Bench) e.setCancelled(true);
     }
 
     /** The shutter comes down on a look; a few seconds later he says how many of the three are his. */
@@ -994,7 +994,7 @@ public final class Garage extends Secret {
         demoMemorial.remove(u);
         demoShed.remove(u);
         Player p = Bukkit.getPlayer(u);
-        if (p != null && p.getOpenInventory().getTopInventory().getHolder() instanceof Bench) p.closeInventory();
+        if (p != null && p.getOpenInventory().getTopInventory().getHolder(false) instanceof Bench) p.closeInventory();
     }
 
     // ------------------------------------------------------------------------------------------
