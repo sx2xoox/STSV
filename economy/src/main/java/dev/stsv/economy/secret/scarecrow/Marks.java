@@ -97,6 +97,14 @@ final class Marks {
         });
     }
 
+    /** Admin scene: the solver's look (scratches and the crown), only one player sees it. */
+    List<Entity> preview(Player viewer, Location base, float facing) {
+        return build(base, facing, true, e -> {
+            e.setVisibleByDefault(false);
+            viewer.showEntity(s.props().plugin(), e);
+        });
+    }
+
     /**
      * Builds them: three claw lines across the chest and two tufts of torn straw (front), and — when crown — a flat ring
      * of hay on the head with straw standing up around it. base = the middle of its feet block, on the ground.

@@ -20,11 +20,13 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The last night (scarecrow.yml {@code final}). After the seventh offering it stands right outside their nearest door
- * (or, with no door, a few blocks from them) and knocks, louder and louder, until their own sky reaches dawn. Their
- * friend's voice calls their name in chat; the handle rattles (the door seems to move for them only); a straw hand is
- * pressed on the window. The rule was said once, faintly, by the last riddle: do not open the door until the sun is up.
- * Open it — or step off their land — and it is right there, face to face, then black: "…다음 밤에." Last until dawn and
- * it is back in its field, everything around it ripe: "…고마워. 이제 네 밭이야." — solved.
+ * (or, with no door, a few blocks from them) — with its back to it: something else knocks, louder and louder, until their
+ * own sky reaches dawn. Their friend's voice calls their name in chat; the handle rattles (the door seems to move for them
+ * only); a straw hand is pressed on the window. The rule was the scarecrow's warning, said once, faintly, by the last
+ * riddle: do not open the door until the sun is up. Open it — or step off their land — and what is right there, face to
+ * face, is not the scarecrow (a pale faceless figure), then black: "…다음 밤에." Last until dawn and the scarecrow is still
+ * at the door, its back to it, its body clawed: the seven offerings were the strength to guard them all night. Its words
+ * ({@code final.dawn}), then it is back in its field, everything around it ripe — solved.
  */
 final class Knock {
 
@@ -38,10 +40,12 @@ final class Knock {
     private Block door, window;
     private int t, total, nextKnock, round, outside;
     private long skyStart;
-    private int calls, rattles;
+    private int calls, rattles, dawnAt;
     private boolean hand, over;
     private String friend;
     private TextDisplay words;
+    private List<org.bukkit.entity.Entity> scratches = List.of();
+    private org.bukkit.entity.Mannequin other;
     private List<Block> withered = new ArrayList<>();
     private BukkitTask task;
 
@@ -78,9 +82,9 @@ final class Knock {
             Block g = Field.ground(l.getWorld(), l.getX() + Math.cos(a) * d, l.getBlockY(), l.getZ() + Math.sin(a) * d);
             stand = g != null ? g : l.getBlock();
         }
-        // facing the door (or them): it has come for the house
-        e.moveTo(stand, door != null ? Geometry.yawTo(door.getX() - stand.getX(), door.getZ() - stand.getZ())
-                : Geometry.yawTo(p.getLocation().getX() - stand.getX() - 0.5, p.getLocation().getZ() - stand.getZ() - 0.5));
+        // its back to the door (or to them): it has come to guard the house, not to get in
+        e.moveTo(stand, door != null ? Geometry.yawTo(stand.getX() - door.getX(), stand.getZ() - door.getZ())
+                : away(stand.getLocation().add(0.5, 0, 0.5)));
         World w = home.getWorld();
         boolean night = s.night(p, w) && !s.testing(u);
         long from = cfg().getLong("night.from", 13000), to = cfg().getLong("night.to", 23000);
@@ -114,8 +118,17 @@ final class Knock {
         return door;
     }
 
+    /** Facing away from them, from a spot. */
+    private float away(Location from) {
+        return Geometry.yawTo(from.getX() - p.getLocation().getX(), from.getZ() - p.getLocation().getZ());
+    }
+
+    /** Where the knocks come from: the door, or (no door) out beyond the scarecrow, in the dark it is facing. */
     private Location knockAt() {
-        return door != null ? door.getLocation().add(0.5, 1.0, 0.5) : e.head();
+        if (door != null) return door.getLocation().add(0.5, 1.0, 0.5);
+        Location b = e.base();
+        double r = Math.toRadians(e.facing());
+        return b.add(-Math.sin(r) * 3, 1.2, Math.cos(r) * 3);
     }
 
     private void step() {
@@ -136,7 +149,7 @@ final class Knock {
                 }
             } else outside = 0;
         }
-        if (door == null && t % 4 == 0) e.turn(e.yawTo(p.getLocation()), 2f);
+        if (door == null && t % 4 == 0) e.turn(away(e.base()), 2f);
         if (t >= total) {
             dawn();
             return;
@@ -185,18 +198,18 @@ final class Knock {
         caught(true);
     }
 
-    /** Face to face, then black. That night is over; the knocking comes back another night. */
+    /** Face to face — with what was knocking, not the scarecrow — then black. That night is over; it comes back another night. */
     private void caught(boolean viaDoor) {
         over = true;
         Location eye = p.getEyeLocation();
         Vector dir = eye.getDirection().setY(0);
         if (dir.lengthSquared() < 1e-4) dir = new Vector(0, 0, 1);
         dir.normalize();
-        Location feet = eye.clone().add(dir.clone().multiply(0.55)).subtract(0, Effigy.HEAD, 0);
-        e.placeAt(feet, Geometry.yawTo(-dir.getX(), -dir.getZ()));
+        other = s.knocker(p, eye.clone().add(dir.clone().multiply(0.55)).subtract(0, 1.62, 0), Geometry.yawTo(-dir.getX(), -dir.getZ()));
         s.fx().scare(p, eye);
         s.props().later(p, 14, () -> s.haunt().black(p, 4));
         s.props().later(p, 30, () -> {
+            if (other != null) s.haunt().remove(p, other);
             e.remove();
             if (door != null) {
                 s.props().restore(p, door);
@@ -207,21 +220,42 @@ final class Knock {
         s.props().later(p, 90, () -> s.endKnock(this, false));
     }
 
-    /** Dawn for them: back in its field, the crops around it ripe, and its thanks. */
+    /**
+     * Dawn for them: it is still at the door, its back to it, clawed all over — the knocking was never it. Its few words
+     * (final.dawn, over its head), then it is back in its field, the crops around it ripe, and its thanks.
+     */
     private void dawn() {
         over = true;
+        dawnAt = t;
         p.setPlayerTime(23400, false);
-        e.remove();
         s.props().restoreAll(p, withered);
         withered = List.of();
+        scratches = s.marks().show(p, e.base(), e.facing());
+        s.fx().sound(p, e.head(), "straw", "block.grass.break", 0.6f, 0.5f);
+        s.fx().crows(p, e.base(), 4);
+        List<String> said = cfg().getStringList("final.dawn");
+        int gap = Math.max(20, cfg().getInt("final.dawn-gap-seconds", 3) * 20);
+        for (int i = 0; i < said.size(); i++) {
+            String line = said.get(i);
+            s.props().later(p, 40 + (long) i * gap, () -> {
+                if (words != null) s.haunt().remove(p, words);
+                words = s.haunt().text(p, e.head().add(0, 0.75, 0), "<gray><i>" + line);
+                s.haunt().whisper(p, "<gray><i>" + line);
+            });
+        }
+        long back = 40 + (long) said.size() * gap + 20;
         Location head = home.getLocation().add(0.5, Effigy.HEAD + 0.75, 0.5);
-        s.field().ripen(home, cfg().getInt("night.wither-radius", 5) + 1);
-        s.fx().crows(p, home.getLocation(), 5);
-        s.props().later(p, 40, () -> {
+        s.props().later(p, back, () -> {
+            if (words != null) s.haunt().remove(p, words);
+            for (org.bukkit.entity.Entity x : scratches) if (x.isValid()) x.remove();
+            scratches = List.of();
+            e.remove();   // back in its field (the real one shows again)
+            s.field().ripen(home, cfg().getInt("night.wither-radius", 5) + 1);
+            s.fx().crows(p, home.getLocation(), 5);
             words = s.haunt().text(p, head, "<gray><i>" + cfg().getString("lines.thanks", "…"));
             s.haunt().whisper(p, cfg().getString("lines.thanks-whisper", "<gray>…"));
         });
-        s.props().later(p, 160, () -> {
+        s.props().later(p, back + 120, () -> {
             if (words != null) s.haunt().remove(p, words);
             s.endKnock(this, true);
         });
@@ -231,6 +265,8 @@ final class Knock {
         over = true;
         if (task != null) task.cancel();
         if (e != null) e.remove();
+        for (org.bukkit.entity.Entity x : scratches) if (x.isValid()) x.remove();
+        if (other != null && other.isValid()) other.remove();
         if (words != null && p.isOnline()) s.haunt().remove(p, words);
         if (p.isOnline()) {
             p.resetPlayerTime();
@@ -240,6 +276,11 @@ final class Knock {
                 s.props().restore(p, door.getRelative(BlockFace.UP));
             }
         }
+    }
+
+    /** Dawn has come for them (the end is playing): leaving now does not undo it. */
+    boolean dawned() {
+        return dawnAt > 0;
     }
 
     boolean forced() {

@@ -127,6 +127,21 @@ public final class Scarecrow extends Secret {
         return marks;
     }
 
+    /**
+     * What was really knocking, face to face when the door is opened: not the scarecrow — a pale figure with no face
+     * (final.knocker-skin; final.knocker-head, a block worn over the face, blank when empty). Only they see it.
+     */
+    org.bukkit.entity.Mannequin knocker(Player p, Location feet, float yaw) {
+        Location at = feet.clone();
+        at.setYaw(yaw);
+        at.setPitch(0);
+        String skin = cfg.getString("final.knocker-skin", "");
+        org.bukkit.entity.Mannequin f = haunt().figure(p, at, skin == null || skin.isBlank() ? null : skin, null);
+        org.bukkit.Material head = org.bukkit.Material.matchMaterial(cfg.getString("final.knocker-head", ""));
+        if (head != null && head.isItem()) f.getEquipment().setHelmet(new org.bukkit.inventory.ItemStack(head));
+        return f;
+    }
+
     Riddles riddles() {
         return riddles;
     }
@@ -360,10 +375,16 @@ public final class Scarecrow extends Secret {
         if (n != null) n.stop();
         Knock k = knocks.remove(player);
         if (k != null) {
-            // leaving in the middle of the knocking (quitting) does not escape it: that night is over
             k.stop();
-            m.set(this, player, "over", nightKey(player, k.p.getWorld()));
-            forced.remove(player);
+            if (k.dawned()) {
+                // they lasted till dawn: leaving while it says its last words does not take that away
+                forced.remove(player);
+                if (m.stage(this, player) <= stages()) m.solve(this, k.p);
+            } else {
+                // leaving in the middle of the knocking (quitting) does not escape it: that night is over
+                m.set(this, player, "over", nightKey(player, k.p.getWorld()));
+                forced.remove(player);
+            }
         }
         companion.forget(player);
         hold.remove(player);
@@ -449,7 +470,7 @@ public final class Scarecrow extends Secret {
         return testing(u) || (p != null ? night(p, w) : Geometry.night(w.getTime(), cfg.getLong("night.from", 13000), cfg.getLong("night.to", 23000)));
     }
 
-    private static final List<String> SCENES = List.of("고개", "지푸라기", "부탁", "오답", "다가옴", "까마귀", "시든밭", "노크", "손잡이", "창문손", "문열림", "새벽", "지킴이");
+    private static final List<String> SCENES = List.of("고개", "지푸라기", "부탁", "오답", "다가옴", "까마귀", "시든밭", "노크", "손잡이", "창문손", "문열림", "새벽", "지킴이", "왕관");
 
     @Override
     public List<String> scenes() {
@@ -550,32 +571,49 @@ public final class Scarecrow extends Secret {
                 else fx.hand(p, win, 120);
             }
             case "문열림" -> {
-                Effigy e = sceneEffigy(p, 3);
-                if (e == null) break;
                 Location eye = p.getEyeLocation();
                 Vector dir = eye.getDirection().setY(0);
                 if (dir.lengthSquared() < 1e-4) dir = new Vector(0, 0, 1);
                 dir.normalize();
-                e.placeAt(eye.clone().add(dir.clone().multiply(0.55)).subtract(0, Effigy.HEAD, 0), Geometry.yawTo(-dir.getX(), -dir.getZ()));
+                var f = knocker(p, eye.clone().add(dir.clone().multiply(0.55)).subtract(0, 1.62, 0), Geometry.yawTo(-dir.getX(), -dir.getZ()));
                 fx.scare(p, eye);
                 props.later(p, 14, () -> h.black(p, 4));
-                props.later(p, 30, e::remove);
+                props.later(p, 30, () -> h.remove(p, f));
                 props.later(p, 85, () -> h.whisper(p, cfg.getString("lines.locked", "<dark_gray>…")));
             }
             case "새벽" -> {
                 p.setPlayerTime(23400, false);
                 Effigy e = sceneEffigy(p, 0);
                 fx.crows(p, p.getLocation(), 5);
+                if (e != null) e.face(e.yawTo(p.getLocation()) + 180);   // its back to them, as at the door
+                List<org.bukkit.entity.Entity> marked = e == null ? List.of() : marks.show(p, e.base(), e.facing());
                 TextDisplay[] w = {null};
-                props.later(p, 40, () -> {
-                    Location at = e != null ? e.head().add(0, 0.75, 0) : p.getEyeLocation().add(p.getLocation().getDirection().multiply(3));
-                    w[0] = h.text(p, at, "<gray><i>" + cfg.getString("lines.thanks", "…"));
-                    h.whisper(p, cfg.getString("lines.thanks-whisper", "<gray>…"));
-                });
-                props.later(p, 200, () -> {
+                List<String> said = new java.util.ArrayList<>(cfg.getStringList("final.dawn"));
+                said.add(cfg.getString("lines.thanks", "…"));
+                for (int i = 0; i < said.size(); i++) {
+                    String line = said.get(i);
+                    props.later(p, 40 + i * 60L, () -> {
+                        if (w[0] != null) h.remove(p, w[0]);
+                        Location at = e != null ? e.head().add(0, 0.75, 0) : p.getEyeLocation().add(p.getLocation().getDirection().multiply(3));
+                        w[0] = h.text(p, at, "<gray><i>" + line);
+                        h.whisper(p, "<gray><i>" + line);
+                    });
+                }
+                props.later(p, 100 + said.size() * 60L, () -> {
                     if (w[0] != null) h.remove(p, w[0]);
+                    for (var x : marked) if (x.isValid()) x.remove();
                     if (e != null) e.remove();
                     p.resetPlayerTime();
+                });
+            }
+            case "왕관" -> {
+                Effigy e = sceneEffigy(p, 0);
+                if (e == null) break;
+                List<org.bukkit.entity.Entity> marked = marks.preview(p, e.base(), e.facing());
+                admin.sendMessage(Text.msg("<gray>푼 사람의 허수아비 모습 (긁힌 자국 + 지푸라기 왕관, 20초, 그 사람에게만)"));
+                props.later(p, 400, () -> {
+                    for (var x : marked) if (x.isValid()) x.remove();
+                    e.remove();
                 });
             }
             case "지킴이" -> {

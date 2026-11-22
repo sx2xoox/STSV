@@ -57,6 +57,21 @@ class ScarecrowTest {
     }
 
     @Test
+    void theKnockerIsNotTheScarecrowAndTheRewardIsNotMoney() {
+        YamlConfiguration y = yml("secrets/scarecrow.yml");
+        assertEquals(0, y.getLong("rewards.money"), "one of a kind, not money");
+        assertEquals("economy:field_master", y.getString("rewards.title"));
+        assertFalse(y.getStringList("final.dawn").isEmpty(), "its words at dawn");
+        assertTrue(String.join(" ", y.getStringList("final.dawn")).contains("내가 아니야"), "the twist is said");
+        assertTrue(y.getString("final.knocker-skin", "").startsWith("economy:entity/"), "what was knocking has its own look");
+        assertTrue(PACK.resolve("assets/" + y.getString("final.knocker-skin").replace("economy:", "economy/textures/") + ".png").toFile().isFile(),
+                "the knocker's skin exists");
+        assertTrue(y.getBoolean("marks.enabled"));
+        assertTrue(y.getDouble("marks.crown-y") > y.getDouble("marks.body-y"), "the crown is above the scratches");
+        assertTrue(y.getBoolean("companion.enabled"), "the intruder glare stays");
+    }
+
+    @Test
     void theSlowestCropIsTheOneThatRipensLast() {
         YamlConfiguration crops = yml("crops/crops.yml");
         String slowest = null;
