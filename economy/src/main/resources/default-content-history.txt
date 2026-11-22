@@ -797,6 +797,7 @@ f61d6dcbc9d4e8d574cb511e9320e3d756fe9dd2 economy/guide/topics/land.yml
 13bd35eaa5da0ecd879c3371f7ab1484f9abeefc economy/guide/topics/machines.yml
 5a2bff954d1ebb99012ecfb15b6075ab37e0b485 economy/guide/topics/machines.yml
 07efbe793bfe4f33304f95c3b551d7fb03332ce0 economy/guide/topics/mining.yml
+38bca62428790af2388fcfa0e3d094c18163cd3a economy/guide/topics/mining.yml
 8dcce0ef250d939e7a93a2fda1c3307cd33d5589 economy/guide/topics/mining.yml
 a9b663bb57bb2e7c494e22821ab3ff437a78256f economy/guide/topics/missions.yml
 b824a187f62e836a499f95f5a0705b79d04e5f8a economy/guide/topics/missions.yml
@@ -838,6 +839,7 @@ ed327f6a9709803072b357f8ee23b6ad8d16ad3e economy/items/jobs.yml
 3ab13f67620162ece5744da3090396d6a22ec1c4 economy/items/secrets.yml
 71c776e9ff9be561dddc95f7521364a634507779 economy/items/secrets.yml
 b8a5d52ed4bccd150f69826bcab2db96391ee79f economy/items/secrets.yml
+bb63f92079629b125c2e7b564bfac60b806965af economy/items/secrets.yml
 0279948cc1c88687f6b598ec86a7506f1c708240 economy/jobs.yml
 065604c00f9e842967b4e3c8e0a9e2e8474b9b97 economy/jobs.yml
 101df92b6759e94c9670d8f6723988e26c38c82a economy/jobs.yml
@@ -1464,6 +1466,7 @@ f3c85fd1b590e11695e565a57503fb208ab98154 economy/requests.yml
 121d6a413959bee05fe2b6e5521d23fcf18dd855 economy/season.yml
 113326d98ebc1375cd57621382da825ecc33aa40 economy/secrets/common.yml
 509fc48d8f5ea8f837531944290e96c2d3764aa7 economy/secrets/common.yml
+6c35b6b1eb6b8fb945867b336b3d5d60b4084f46 economy/secrets/common.yml
 a2cb974a1ba4de0b2266ff0b3b5d3ea8f1ded021 economy/secrets/common.yml
 ae5114b123cf7c1a33f28fb4c4a8e06500af6ac2 economy/secrets/common.yml
 2ae08445a1bde7b1a0ad7e9c5d659101c9444d7f economy/secrets/designer.yml
@@ -2375,6 +2378,7 @@ e67ffe09d175cd10d6befc921f9948954ef6eb93 economy/titles/codex.yml
 22af39666237f3b5a50a4ff107c0fdcd8ca15aec economy/titles/secrets.yml
 3d95471cf2baea79bddec7f36eb2e9eb81aa7bf0 economy/titles/secrets.yml
 ae11565c3587466a0a46d796218c71e9a927b538 economy/titles/secrets.yml
+cfd851e52d18a4fd15dcb5850ea3c754e58b6d33 economy/titles/secrets.yml
 2aa1954cdb2062cacea42d9ecb6590d7487b78f0 economy/titles/titles.yml
 2b440cd27f3d229c586e4e5add9515e9c9f3c438 economy/titles/titles.yml
 3df01425fcde4642abd6517097b977dbd0abad9c economy/titles/titles.yml
