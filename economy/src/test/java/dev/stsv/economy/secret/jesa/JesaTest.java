@@ -23,32 +23,34 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 주인 없는 제사: the judging of the table by the real rules (반서갱동 · 어동육서 · 좌포우혜 · 홍동백서, the taboos), the
- * remembered layout, where the house may stand, and that jesa.yml names only things that exist.
+ * 주인 없는 제사: the judging of what lies on the vessels by the real rules (반서갱동 · 어동육서 · 좌포우혜 · 홍동백서, the
+ * taboos), where the vessels stand and how what lies on one is kept, where the house may stand (never on water), and that
+ * jesa.yml names only things that exist.
  */
 class JesaTest {
 
     static final Path PACK = Path.of(System.getProperty("stsv.content")).resolve("economy");
     static final Table.Rules RULES = Table.Rules.defaults();
+    static final int W = Table.WEST_AT, MID = Table.MID, E = Table.EAST_AT;
 
     static final String RICE = "economy:rice", JIRI = "economy:bogeo_jiri", EOMUK = "economy:eomuktang", CHEONGJU = "economy:cheongju",
             BULGOGI = "economy:bulgogi", GUI = "economy:godeungeo_gui", JEON = "economy:hobakjeon", BUGEO = "economy:dried_pollack",
             SIKHYE = "economy:sikhye", MELON = "economy:muskmelon", APPLE = "minecraft:apple";
 
-    /** A right table: row, column, id … */
+    /** A right table: row, vessel (west, middle, east), id … */
     static Map<Integer, String> right() {
         Map<Integer, String> t = new TreeMap<>();
-        t.put(Table.slot(0, 1), RICE);
-        t.put(Table.slot(0, 4), CHEONGJU);
-        t.put(Table.slot(0, 7), JIRI);
-        t.put(Table.slot(1, 2), BULGOGI);
-        t.put(Table.slot(1, 4), JEON);
-        t.put(Table.slot(1, 6), GUI);
-        t.put(Table.slot(2, 4), EOMUK);
-        t.put(Table.slot(3, 0), BUGEO);
-        t.put(Table.slot(3, 8), SIKHYE);
-        t.put(Table.slot(4, 3), MELON);
-        t.put(Table.slot(4, 5), APPLE);
+        t.put(Table.slot(0, W), RICE);
+        t.put(Table.slot(0, MID), CHEONGJU);
+        t.put(Table.slot(0, E), JIRI);
+        t.put(Table.slot(1, W), BULGOGI);
+        t.put(Table.slot(1, MID), JEON);
+        t.put(Table.slot(1, E), GUI);
+        t.put(Table.slot(2, MID), EOMUK);
+        t.put(Table.slot(3, W), BUGEO);
+        t.put(Table.slot(3, E), SIKHYE);
+        t.put(Table.slot(4, W), MELON);
+        t.put(Table.slot(4, E), APPLE);
         return t;
     }
 
@@ -61,65 +63,80 @@ class JesaTest {
         Table.Verdict v = Table.judge(right(), RULES);
         assertTrue(v.ok(), v.toString());
         assertTrue(Table.judge(Table.sample(RULES), RULES).ok(), "the sample table is a right one");
+        Map<Integer, String> sample = Table.sample(RULES);
+        assertEquals(RICE, sample.get(Table.slot(0, W)), "rice in the west bowl");
+        assertTrue(RULES.liquor().contains(sample.get(Table.slot(0, MID))), "liquor in the cup");
+        assertTrue(RULES.soup().contains(sample.get(Table.slot(0, E))), "soup in the east bowl");
+        assertNotEquals(sample.get(Table.slot(0, E)), sample.get(Table.slot(2, MID)), "the 탕 is another soup");
     }
 
     @Test
     void theOptionalPlacesMayBeEmptyOrFilled() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(3, 4), "economy:japchae");          // 나물 between 포 and 혜
-        t.put(Table.slot(4, 4), "economy:injeolmi");         // a rice cake between the fruits
-        t.put(Table.slot(1, 3), "economy:pajeon");           // a second 전
-        t.put(Table.slot(0, 2), RICE);                       // two bowls (합설)
-        t.put(Table.slot(0, 6), JIRI);
-        t.put(Table.slot(0, 0), "economy:makgeolli");        // liquor may stand anywhere in its row
-        t.put(Table.slot(2, 0), "economy:kalguksu");         // more than one 탕, all different
+        t.put(Table.slot(3, MID), "economy:japchae");        // 나물 between 포 and 혜
+        t.put(Table.slot(4, MID), "economy:injeolmi");       // a rice cake between the fruits
+        t.put(Table.slot(2, W), "economy:kalguksu");         // three 탕, all different
+        t.put(Table.slot(2, E), "economy:pollack_stew");
         assertTrue(Table.judge(t, RULES).ok(), Table.judge(t, RULES).toString());
         // 나물 outside the two is wrong
-        t.put(Table.slot(3, 4), null);
-        t.remove(Table.slot(3, 4));
-        t.put(Table.slot(3, 0), "economy:japchae");
-        t.put(Table.slot(3, 1), BUGEO);
-        assertEquals(Set.of(Table.slot(3, 0)), Table.judge(t, RULES).wrong());
+        t.remove(Table.slot(3, MID));
+        t.put(Table.slot(3, W), "economy:japchae");
+        t.put(Table.slot(3, MID), BUGEO);
+        assertEquals(Set.of(Table.slot(3, W)), Table.judge(t, RULES).wrong());
+    }
+
+    @Test
+    void theCupHoldsTheLiquorAndOnlyIt() {
+        Map<Integer, String> t = right();
+        t.put(Table.slot(0, W), CHEONGJU);
+        t.put(Table.slot(0, MID), RICE);
+        Table.Verdict v = Table.judge(t, RULES);
+        assertEquals(Set.of(Table.slot(0, W), Table.slot(0, MID)), v.wrong(), "rice in the cup, the liquor in the rice bowl");
+        assertTrue(v.missing().isEmpty(), "both are there, only misplaced");
+        t = right();
+        t.remove(Table.slot(0, MID));
+        assertEquals(List.of(Table.slot(0, MID)), Table.judge(t, RULES).missing(), "an empty cup is owed");
+        t.put(Table.slot(0, MID), JIRI);
+        assertEquals(Set.of(Table.slot(0, MID)), Table.judge(t, RULES).wrong(), "soup in the cup");
     }
 
     @Test
     void fishEastMeatWest() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(1, 2), GUI);
-        t.put(Table.slot(1, 6), BULGOGI);
+        t.put(Table.slot(1, W), GUI);
+        t.put(Table.slot(1, E), BULGOGI);
         Table.Verdict v = Table.judge(t, RULES);
-        assertEquals(Set.of(Table.slot(1, 2), Table.slot(1, 6)), v.wrong(), "both are on the wrong side");
+        assertEquals(Set.of(Table.slot(1, W), Table.slot(1, E)), v.wrong(), "both are on the wrong side");
         assertTrue(v.missing().isEmpty(), "they are there, only misplaced");
         // the same by order alone
         Table.Rules loose = new Table.Rules(RULES.rice(), RULES.soup(), RULES.liquor(), RULES.meat(), RULES.fish(), RULES.jeon(), RULES.dried(),
                 RULES.sikhye(), RULES.namul(), RULES.pale(), RULES.red(), RULES.cake(), RULES.taboo(), false);
-        assertEquals(Set.of(Table.slot(1, 2), Table.slot(1, 6)), Table.judge(t, loose).wrong());
-        // by order alone a table pushed to one end is fine; by halves its east dishes are not east
-        Map<Integer, String> left = new TreeMap<>();
-        int[] cols = {0, 1, 2};
-        left.put(Table.slot(0, cols[0]), RICE);
-        left.put(Table.slot(0, cols[1]), CHEONGJU);
-        left.put(Table.slot(0, cols[2]), JIRI);
-        left.put(Table.slot(1, cols[0]), BULGOGI);
-        left.put(Table.slot(1, cols[1]), JEON);
-        left.put(Table.slot(1, cols[2]), GUI);
-        left.put(Table.slot(2, 0), EOMUK);
-        left.put(Table.slot(3, cols[0]), BUGEO);
-        left.put(Table.slot(3, cols[2]), SIKHYE);
-        left.put(Table.slot(4, cols[0]), MELON);
-        left.put(Table.slot(4, cols[2]), APPLE);
-        assertTrue(Table.judge(left, loose).ok());
-        assertEquals(Set.of(Table.slot(0, 2), Table.slot(1, 2), Table.slot(3, 2), Table.slot(4, 2)), Table.judge(left, RULES).wrong());
+        assertEquals(Set.of(Table.slot(1, W), Table.slot(1, E)), Table.judge(t, loose).wrong());
+        // a fish alone on the west vessel: wrong by sides, not by order alone (nothing of the west is east of it)
+        t = right();
+        t.remove(Table.slot(1, W));
+        t.put(Table.slot(1, W), GUI);
+        t.remove(Table.slot(1, E));
+        assertEquals(Set.of(Table.slot(1, W)), Table.judge(t, RULES).wrong());
+        assertTrue(Table.judge(t, loose).wrong().isEmpty());
+        // the middle belongs to neither side: meat in the middle with the fish east of it is still meat west of fish
+        t = right();
+        t.remove(Table.slot(1, W));
+        t.put(Table.slot(1, MID), BULGOGI);
+        Table.Verdict mid = Table.judge(t, RULES);
+        assertTrue(mid.wrong().isEmpty(), mid.toString());
+        assertEquals(List.of(Table.slot(1, MID)), mid.missing(), "but the 전 has no place between them then");
     }
 
     @Test
     void theJeonLiesBetweenMeatAndFish() {
         Map<Integer, String> t = right();
-        t.remove(Table.slot(1, 4));
-        assertEquals(List.of(Table.slot(1, Table.MID)), Table.judge(t, RULES).missing(), "no 전: the middle of that row is owed");
-        t.put(Table.slot(1, 0), JEON);
+        t.remove(Table.slot(1, MID));
+        assertEquals(List.of(Table.slot(1, MID)), Table.judge(t, RULES).missing(), "no 전: the middle of that row is owed");
+        t.put(Table.slot(1, MID), BULGOGI);
+        t.put(Table.slot(1, W), JEON);
         Table.Verdict v = Table.judge(t, RULES);
-        assertEquals(Set.of(Table.slot(1, 0)), v.wrong(), "a 전 outside the two is misplaced");
+        assertEquals(Set.of(Table.slot(1, W)), v.wrong(), "a 전 outside the two is misplaced");
         assertTrue(v.missing().isEmpty());
     }
 
@@ -137,11 +154,13 @@ class JesaTest {
         Table.Rules r = RULES.alsoTaboo(chi);
         for (String allowed : r.fish()) assertFalse(chi.contains(allowed), allowed + " is offered and is a 치 fish");
         Map<Integer, String> t = right();
-        t.put(Table.slot(1, 7), "economy:hairtail");
-        assertEquals(Set.of(Table.slot(1, 7)), Table.judge(t, r).wrong());
-        t.remove(Table.slot(1, 7));
-        t.put(Table.slot(4, 4), "economy:saury");   // wherever it lies
-        assertEquals(Set.of(Table.slot(4, 4)), Table.judge(t, r).wrong());
+        t.put(Table.slot(1, E), "economy:hairtail");
+        Table.Verdict v = Table.judge(t, r);
+        assertEquals(Set.of(Table.slot(1, E)), v.wrong());
+        assertEquals(List.of(Table.slot(1, E)), v.missing(), "and the fish's vessel is owed a fish");
+        t = right();
+        t.put(Table.slot(4, MID), "economy:saury");   // wherever it lies
+        assertEquals(Set.of(Table.slot(4, MID)), Table.judge(t, r).wrong());
         assertTrue(Table.endsIn(" 거대 가물치 ", "치"));
         assertFalse(Table.endsIn("참돔", "치"));
         assertFalse(Table.endsIn("참치", ""));
@@ -151,95 +170,78 @@ class JesaTest {
     @Test
     void garlicAndChiliAndRedBeansAreTaboo() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(2, 4), "economy:miyeokguk");   // a soup, but with garlic
+        t.put(Table.slot(2, MID), "economy:miyeokguk");   // a soup, but with garlic
         Table.Verdict v = Table.judge(t, RULES);
-        assertEquals(Set.of(Table.slot(2, 4)), v.wrong());
-        assertEquals(List.of(Table.slot(2, Table.MID)), v.missing(), "and the 탕 row has no soup then");
+        assertEquals(Set.of(Table.slot(2, MID)), v.wrong());
+        assertEquals(List.of(Table.slot(2, MID)), v.missing(), "and the 탕 row has no soup then");
         t = right();
-        t.put(Table.slot(0, 7), "economy:kimchi_jjigae");
+        t.put(Table.slot(0, E), "economy:kimchi_jjigae");
         v = Table.judge(t, RULES);
-        assertEquals(Set.of(Table.slot(0, 7)), v.wrong());
-        assertEquals(List.of(Table.slot(0, Table.EAST_AT)), v.missing());
+        assertEquals(Set.of(Table.slot(0, E)), v.wrong());
+        assertEquals(List.of(Table.slot(0, E)), v.missing());
         t = right();
-        t.put(Table.slot(4, 4), "economy:gosa_tteok");
-        t.put(Table.slot(3, 4), "economy:kimchi");
-        t.put(Table.slot(1, 8), "economy:garlic");
-        assertEquals(Set.of(Table.slot(4, 4), Table.slot(3, 4), Table.slot(1, 8)), Table.judge(t, RULES).wrong());
+        t.put(Table.slot(4, MID), "economy:gosa_tteok");
+        t.put(Table.slot(3, MID), "economy:kimchi");
+        t.put(Table.slot(2, W), "economy:garlic");
+        assertEquals(Set.of(Table.slot(4, MID), Table.slot(3, MID), Table.slot(2, W)), Table.judge(t, RULES).wrong());
     }
 
     @Test
     void redFruitEastPaleFruitWest() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(4, 3), APPLE);
-        t.put(Table.slot(4, 5), MELON);
-        assertEquals(Set.of(Table.slot(4, 3), Table.slot(4, 5)), Table.judge(t, RULES).wrong());
+        t.put(Table.slot(4, W), APPLE);
+        t.put(Table.slot(4, E), MELON);
+        assertEquals(Set.of(Table.slot(4, W), Table.slot(4, E)), Table.judge(t, RULES).wrong());
         t = right();
-        t.put(Table.slot(4, 1), "economy:strawberry");   // one red thing on the west, beside a right pair
-        assertEquals(Set.of(Table.slot(4, 1)), Table.judge(t, RULES).wrong());
-        // the middle place is neither half: what stands on it is judged by its neighbour (a pair one place off-centre is right)
+        t.put(Table.slot(4, W), "economy:strawberry");   // red on the west vessel
+        t.put(Table.slot(4, MID), MELON);
+        assertEquals(Set.of(Table.slot(4, W), Table.slot(4, MID)), Table.judge(t, RULES).wrong(), "and the pale one east of a red one");
+        // the middle vessel is neither half: what stands on it is judged by its neighbour
         t = right();
-        t.put(Table.slot(4, 4), APPLE);
-        t.remove(Table.slot(4, 5));
-        assertTrue(Table.judge(t, RULES).ok(), "pale on 3, red on 4");
+        t.put(Table.slot(4, MID), APPLE);
+        t.remove(Table.slot(4, E));
+        assertTrue(Table.judge(t, RULES).ok(), "pale west, red in the middle");
         t = right();
-        t.put(Table.slot(4, 4), MELON);
-        t.remove(Table.slot(4, 3));
-        assertTrue(Table.judge(t, RULES).ok(), "pale on 4, red on 5");
-        t.put(Table.slot(4, 4), APPLE);
-        t.put(Table.slot(4, 5), MELON);                  // but not the wrong way round about it
-        assertEquals(Set.of(Table.slot(4, 5)), Table.judge(t, RULES).wrong());
+        t.put(Table.slot(4, MID), MELON);
+        t.remove(Table.slot(4, W));
+        assertTrue(Table.judge(t, RULES).ok(), "pale in the middle, red east");
         t = right();
-        t.put(Table.slot(4, 4), APPLE);
-        t.put(Table.slot(4, 5), MELON);
-        t.remove(Table.slot(4, 3));
-        assertFalse(Table.judge(t, RULES).ok());
-        // rice on the middle with the soup beside it; meat and fish side by side leave the 전 no room between them
-        t = right();
-        t.remove(Table.slot(0, 1));
-        t.remove(Table.slot(0, 7));
-        t.put(Table.slot(0, 4), RICE);
-        t.put(Table.slot(0, 5), JIRI);
-        t.put(Table.slot(0, 3), CHEONGJU);
-        assertTrue(Table.judge(t, RULES).ok(), Table.judge(t, RULES).toString());
-        t.put(Table.slot(1, 2), JEON);
-        t.put(Table.slot(1, 4), BULGOGI);
-        t.put(Table.slot(1, 5), GUI);
-        t.remove(Table.slot(1, 6));
-        assertEquals(Set.of(Table.slot(1, 2)), Table.judge(t, RULES).wrong());
+        t.remove(Table.slot(4, W));
+        t.put(Table.slot(4, MID), APPLE);
+        t.put(Table.slot(4, E), MELON);                  // but not the wrong way round about it
+        assertEquals(Set.of(Table.slot(4, E)), Table.judge(t, RULES).wrong());
     }
 
     @Test
     void riceWestSoupEast() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(0, 1), JIRI);
-        t.put(Table.slot(0, 7), RICE);   // as the living eat
-        assertEquals(Set.of(Table.slot(0, 1), Table.slot(0, 7)), Table.judge(t, RULES).wrong());
+        t.put(Table.slot(0, W), JIRI);
+        t.put(Table.slot(0, E), RICE);   // as the living eat
+        assertEquals(Set.of(Table.slot(0, W), Table.slot(0, E)), Table.judge(t, RULES).wrong());
     }
 
     @Test
     void theSameSoupTwiceIsWrong() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(2, 4), JIRI);   // the 갱 of row 0 again
+        t.put(Table.slot(2, MID), JIRI);   // the 갱 of row 0 again
         Table.Verdict v = Table.judge(t, RULES);
-        assertEquals(Set.of(Table.slot(2, 4)), v.wrong());
+        assertEquals(Set.of(Table.slot(2, MID)), v.wrong());
         assertTrue(v.missing().isEmpty());
         t = right();
-        t.put(Table.slot(2, 6), EOMUK);  // the same 탕 twice in its own row: the second goes
-        assertEquals(Set.of(Table.slot(2, 6)), Table.judge(t, RULES).wrong());
+        t.put(Table.slot(2, E), EOMUK);    // the same 탕 twice in its own row: the second goes
+        assertEquals(Set.of(Table.slot(2, E)), Table.judge(t, RULES).wrong());
         t = right();
-        t.put(Table.slot(2, 6), BULGOGI);
-        assertEquals(Set.of(Table.slot(2, 6)), Table.judge(t, RULES).wrong(), "only soups in the 탕 row");
+        t.put(Table.slot(2, E), BULGOGI);
+        assertEquals(Set.of(Table.slot(2, E)), Table.judge(t, RULES).wrong(), "only soups in the 탕 row");
     }
 
     @Test
     void aMisplacedSoupDoesNotTakeTheTangWithIt() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(0, 2), EOMUK);   // a second 갱 on the rice's side: it goes, the same soup in the 탕 row stays
+        t.put(Table.slot(0, W), EOMUK);   // the 탕's soup in the rice bowl: it goes, the same soup in the 탕 row stays
         Table.Verdict v = Table.judge(t, RULES);
-        assertEquals(Set.of(Table.slot(0, 2)), v.wrong());
-        assertTrue(v.missing().isEmpty());
-        t.put(Table.slot(0, 2), "economy:kimchi_jjigae");   // nor does a taboo one
-        assertEquals(Set.of(Table.slot(0, 2)), Table.judge(t, RULES).wrong());
+        assertEquals(Set.of(Table.slot(0, W)), v.wrong());
+        assertEquals(List.of(Table.slot(0, W)), v.missing(), "and the rice is owed");
     }
 
     @Test
@@ -253,72 +255,112 @@ class JesaTest {
         }
         // plain dried fish is a 포 like the dried pollack
         Map<Integer, String> t = right();
-        t.put(Table.slot(3, 0), "economy:dried_fish");
+        t.put(Table.slot(3, W), "economy:dried_fish");
         assertTrue(Table.judge(t, RULES).ok());
     }
 
     @Test
     void whatIsOwedIsPointedAt() {
         Map<Integer, String> t = right();
-        t.remove(Table.slot(0, 1));
+        t.remove(Table.slot(0, W));
         Table.Verdict v = Table.judge(t, RULES);
         assertTrue(v.wrong().isEmpty());
-        assertEquals(List.of(Table.slot(0, Table.WEST_AT)), v.missing(), "no rice: the west of the first row");
+        assertEquals(List.of(Table.slot(0, W)), v.missing(), "no rice: the west bowl of the first row");
         assertFalse(v.ok());
-        t.remove(Table.slot(0, 4));
-        assertEquals(List.of(Table.slot(0, Table.WEST_AT), Table.slot(0, Table.MID)), Table.judge(t, RULES).missing(), "and no liquor");
+        t.remove(Table.slot(0, MID));
+        assertEquals(List.of(Table.slot(0, W), Table.slot(0, MID)), Table.judge(t, RULES).missing(), "and no liquor: the cup");
         Table.Verdict empty = Table.judge(Map.of(), RULES);
         assertTrue(empty.wrong().isEmpty());
         assertEquals(11, empty.missing().size(), "rice liquor soup · meat 전 fish · 탕 · 포 혜 · pale red");
+        for (int slot : empty.missing()) assertTrue(slot >= 0 && slot < Vessel.COUNT, "a vessel the spoon can tap");
     }
 
     @Test
     void whatHasNoBusinessInARowIsWrong() {
         Map<Integer, String> t = right();
-        t.put(Table.slot(0, 8), "minecraft:dirt");
-        t.put(Table.slot(3, 4), CHEONGJU);       // liquor belongs to the first row
-        t.put(Table.slot(4, 0), SIKHYE);
-        assertEquals(Set.of(Table.slot(0, 8), Table.slot(3, 4), Table.slot(4, 0)), Table.judge(t, RULES).wrong());
+        t.put(Table.slot(2, W), "minecraft:dirt");
+        t.put(Table.slot(3, MID), CHEONGJU);       // liquor belongs to the cup
+        t.put(Table.slot(4, MID), SIKHYE);
+        assertEquals(Set.of(Table.slot(2, W), Table.slot(3, MID), Table.slot(4, MID)), Table.judge(t, RULES).wrong());
         // gulbi is a fish in the 적 row and a 포 in its own
         t = right();
-        t.put(Table.slot(1, 7), "economy:gulbi");
-        t.put(Table.slot(3, 1), "economy:gulbi");
+        t.put(Table.slot(1, E), "economy:gulbi");
+        t.put(Table.slot(3, W), "economy:gulbi");
         assertTrue(Table.judge(t, RULES).ok());
     }
 
     @Test
-    void theLayoutIsRemembered() {
-        Map<Integer, String> t = right();
-        String saved = Table.encode(t);
-        assertEquals(t, Table.decode(saved));
-        assertTrue(saved.startsWith("1=economy:rice;4=economy:cheongju"), saved);
-        assertTrue(Table.decode(null).isEmpty());
-        assertTrue(Table.decode("").isEmpty());
-        assertEquals(Map.of(3, "minecraft:apple"), Table.decode("x=1;3=minecraft:apple;99=economy:rice;=;7="));
-        Map<Integer, String> two = new TreeMap<>(t);
-        two.put(Table.slot(0, 2), RICE);
-        assertEquals(2, Table.needs(two).get(RICE));
-        assertTrue(Table.lacking(two, Table.needs(two)).isEmpty());
-        Map<String, Integer> have = new java.util.HashMap<>(Table.needs(two));
-        have.put(RICE, 1);
-        have.remove(APPLE);
-        assertEquals(Map.of(RICE, 1, APPLE, 1), Table.lacking(two, have));
+    void theVesselsStandWestToEastAsTheOneWhoBowsSeesThem() {
+        // row 0: lidded bowls either side of the cup; row 2: deep bowls; the rest pedestal plates
+        assertEquals(Vessel.Kind.BOWL, Vessel.kind(Table.slot(0, W)));
+        assertEquals(Vessel.Kind.CUP, Vessel.kind(Table.slot(0, MID)));
+        assertEquals(Vessel.Kind.BOWL, Vessel.kind(Table.slot(0, E)));
+        for (int c = 0; c < Table.COLS; c++) {
+            assertEquals(Vessel.Kind.DEEP, Vessel.kind(Table.slot(2, c)));
+            for (int r : new int[] {1, 3, 4}) assertEquals(Vessel.Kind.PLATE, Vessel.kind(Table.slot(r, c)));
+        }
+        assertTrue(Vessel.at(Table.slot(0, W))[0] < 0, "the west vessel is at -x");
+        assertTrue(Vessel.at(Table.slot(0, E))[0] > 0, "the east vessel is at +x");
+        assertEquals(0, Vessel.at(Table.slot(2, MID))[0], 1e-9);
+        assertTrue(Vessel.at(Table.slot(0, MID))[1] < Vessel.at(Table.slot(4, MID))[1], "row 0 is the north row, by the screen");
+        // from the south, where one bows, facing the screen: west on the left, east on the right
+        for (int r = 0; r < Table.ROWS; r++) {
+            assertEquals(-1, Vessel.seenFrom(Table.slot(r, W), 0, 3), "row " + r);
+            assertEquals(0, Vessel.seenFrom(Table.slot(r, MID), 0, 3));
+            assertEquals(1, Vessel.seenFrom(Table.slot(r, E), 0, 3));
+            // from behind the screen it would be the other way round: the orientation is the puzzle
+            assertEquals(1, Vessel.seenFrom(Table.slot(r, W), 0, -3));
+            assertEquals(-1, Vessel.seenFrom(Table.slot(r, E), 0, -3));
+        }
+        assertEquals(-1, Vessel.rollTo(Table.slot(1, W)));
+        assertEquals(1, Vessel.rollTo(Table.slot(1, E)));
+        assertNotEquals(0, Vessel.rollTo(Table.slot(1, MID)));
+        // every vessel on the table top, none touching its neighbour, and every click box apart
+        for (int s = 0; s < Vessel.COUNT; s++) {
+            double[] a = Vessel.at(s);
+            double half = Vessel.width(Vessel.kind(s)) / 2;
+            assertTrue(Math.abs(a[0]) + half <= Vessel.HALF_W - 0.05, "inside west/east edges: " + s);
+            assertTrue(a[1] - half >= Vessel.NORTH && a[1] + half <= Vessel.SOUTH, "inside north/south edges: " + s);
+            assertEquals(s, Table.slot(Table.row(s), Table.col(s)));
+            for (int o = s + 1; o < Vessel.COUNT; o++) {
+                double[] b = Vessel.at(o);
+                double reach = Math.min(0.31, Vessel.width(Vessel.kind(s)) + 0.04) / 2 + Math.min(0.31, Vessel.width(Vessel.kind(o)) + 0.04) / 2;
+                assertTrue(Math.abs(a[0] - b[0]) >= reach || Math.abs(a[1] - b[1]) >= reach, "click boxes overlap: " + s + " " + o);
+            }
+        }
     }
 
     @Test
-    void theTableReadsInTheWorldAsInTheWindow() {
-        assertTrue(Table.at(Table.slot(0, 0))[0] < 0, "column 0 is the west end (-x)");
-        assertTrue(Table.at(Table.slot(0, 8))[0] > 0, "column 8 is the east end (+x)");
-        assertEquals(0, Table.at(Table.slot(2, Table.MID))[0], 1e-9);
-        assertTrue(Table.at(Table.slot(0, 4))[1] < Table.at(Table.slot(4, 4))[1], "row 0 is the north row, by the screen");
-        for (int s = 0; s < Table.SLOTS; s++) {
-            double[] at = Table.at(s);
-            assertTrue(Math.abs(at[0]) < 1.2 && Math.abs(at[1]) < 0.7, "on the table top: " + s);
-            assertEquals(s, Table.slot(Table.row(s), Table.col(s)));
+    void whatLiesOnAVesselIsKeptWhole() {
+        Random r = new Random(5);
+        for (int n : new int[] {1, 2, 3, 57, 400, 4096}) {
+            byte[] bytes = new byte[n];
+            r.nextBytes(bytes);
+            String saved = Vessel.pack(bytes);
+            assertFalse(saved.contains("\n") || saved.contains(" "), "one kv value");
+            assertArrayEquals(bytes, Vessel.unpack(saved));
         }
-        assertEquals(-1, Table.rollTo(Table.slot(1, 0)));
-        assertEquals(1, Table.rollTo(Table.slot(1, 8)));
-        assertNotEquals(0, Table.rollTo(Table.slot(1, 4)));
+        assertNull(Vessel.unpack(null));
+        assertNull(Vessel.unpack(""));
+        assertNull(Vessel.unpack("@@not base64@@"));
+        assertEquals("plate.0", Vessel.key(0));
+        assertEquals("plate.14", Vessel.key(Vessel.COUNT - 1));
+    }
+
+    @Test
+    void neverOnWater() {
+        assertTrue(Place.wet("WATER", false, true));
+        assertTrue(Place.wet("LAVA", false, true));
+        assertTrue(Place.wet("ICE", false, false), "ice over water");
+        assertTrue(Place.wet("KELP_PLANT", false, false));
+        assertTrue(Place.wet("SEAGRASS", false, false));
+        assertTrue(Place.wet("TALL_SEAGRASS", false, false));
+        assertTrue(Place.wet("OAK_SLAB", true, false), "anything waterlogged");
+        assertTrue(Place.wet("BRAIN_CORAL_BLOCK", false, false));
+        assertFalse(Place.wet("DEAD_BRAIN_CORAL_BLOCK", false, false));
+        for (String dry : List.of("GRASS_BLOCK", "DIRT", "SAND", "MUD", "SNOW_BLOCK", "AIR", "SHORT_GRASS", "STONE"))
+            assertFalse(Place.wet(dry, false, false), dry);
+        assertTrue(Place.WET_BELOW >= 2 && Place.WET_ABOVE >= 1, "the ground, just under it and just over it");
     }
 
     @Test
@@ -363,6 +405,8 @@ class JesaTest {
         assertFalse(Place.before(0.5, -2.0, 0.5, 0.5, 5), "from behind the screen it does not count");
         assertFalse(Place.before(0.5, 9.0, 0.5, 0.5, 5), "too far");
         assertFalse(Place.before(0.5, 0.6, 0.5, 0.5, 5), "standing in the table");
+        assertFalse(Place.before(0.5, 1.3, 0.5, 0.5, 5), "still over the table's front half");
+        assertTrue(Place.before(0.5, 1.6, 0.5, 0.5, 5), "just before its front edge");
     }
 
     @Test
@@ -404,10 +448,12 @@ class JesaTest {
         assertEquals(0, y.getLong("rewards.money"));
         assertTrue(y.getBoolean("enabled"));
         for (String key : List.of("solved-line", "too-late", "lines.overhear", "lines.house", "lines.day", "lines.incense-out", "lines.relit",
-                "lines.empty", "lines.not-in-hand", "lines.laid", "lines.bow-once", "lines.out", "lines.no-more", "lines.not-this", "lines.gone",
-                "lines.meal-1", "lines.meal-2", "lines.meal-3", "lines.meal-4", "lines.dawn", "tablets.father", "tablets.mother", "gui.title",
-                "gui.screen", "gui.hand", "jokbo.name", "jokbo.title", "jokbo.author"))
+                "lines.empty", "lines.bow-once", "lines.out", "lines.not-this", "lines.not-now", "lines.gone", "lines.returned",
+                "lines.meal-1", "lines.meal-2", "lines.meal-3", "lines.meal-4", "lines.dawn", "tablets.father", "tablets.mother", "mail-reason",
+                "jokbo.name", "jokbo.title", "jokbo.author"))
             assertTrue(y.isString(key) && !y.getString(key).isBlank(), "jesa.yml 에 없음: " + key);
+        for (String key : List.of("lines.placed", "lines.taken")) assertTrue(y.isString(key), "jesa.yml 에 없음 (비워 둘 수는 있음): " + key);
+        assertFalse(y.contains("gui"), "the window is gone");
         // the second tablet is a wife's (顯妣): the quiet clue
         assertTrue(y.getString("tablets.father").startsWith("顯考"));
         assertTrue(y.getString("tablets.mother").startsWith("顯妣"));
