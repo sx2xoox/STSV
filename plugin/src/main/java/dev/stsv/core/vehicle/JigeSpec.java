@@ -60,4 +60,9 @@ public record JigeSpec(int slots, double slowdown, List<NamespacedKey> stages, o
     public int stage(int used) {
         return CargoStages.stage(used, slots, stages.size() - 1);
     }
+
+    /** The look for this many filled slots weighing this much: the fuller of the slots and the weight over its payload (0 = not weighed). */
+    public int stage(int used, double weight) {
+        return CargoStages.stage(used, slots, weight, payload, stages.size() - 1);
+    }
 }

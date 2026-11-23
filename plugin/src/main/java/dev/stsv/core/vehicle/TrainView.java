@@ -34,6 +34,12 @@ final class TrainView {
     /** the towed units, front to back */
     final List<VehiclePhysics.State> units;
     final Gait gait = new Gait();
+    /**
+     * 적재 무게 for the load models: what a slot of the storage weighs and the train's payload now (both null = nothing
+     * weighs, the slots alone decide). Set by the module that owns the bed.
+     */
+    java.util.function.IntToDoubleFunction slotWeight;
+    java.util.function.DoubleSupplier payload;
 
     private final List<ItemDisplay> bodies = new ArrayList<>(), loads = new ArrayList<>();
     private final List<List<ItemDisplay>> wheels = new ArrayList<>();
@@ -74,7 +80,7 @@ final class TrainView {
             List<ItemDisplay> ws = new ArrayList<>();
             for (int w = 0; w < u.wheels().size(); w++) ws.add(display(v, st, s, model(u.wheelModel()), wheel(u, w, st.roll), u, l));
             wheels.add(ws);
-            NamespacedKey stage = spec.stage(cargo, i + 1);
+            NamespacedKey stage = stage(cargo, i + 1);
             loadShown.add(stage);
             loads.add(tr.cargo() == null ? null : display(v, st, s, model(stage), part(tr.cargo().at()), u, l));
             List<Interaction> hs = new ArrayList<>();
@@ -127,7 +133,7 @@ final class TrainView {
         bodies.get(i).setItemStack((parts & BODY) != 0 ? ItemStack.empty() : model(tr.model()));
         for (ItemDisplay w : wheels.get(i)) w.setItemStack((parts & WHEELS) != 0 ? ItemStack.empty() : model(tr.unit().wheelModel()));
         if (loads.get(i) != null) {
-            NamespacedKey stage = (parts & LOAD) != 0 ? null : spec.stage(cargo, unit);
+            NamespacedKey stage = (parts & LOAD) != 0 ? null : stage(cargo, unit);
             loadShown.set(i, stage);
             loads.get(i).setItemStack(model(stage));
         }
@@ -330,12 +336,27 @@ final class TrainView {
         d.setTransformation(t);
     }
 
+    /** The load model of a unit for the storage as it is (empty stacks count as empty slots). */
+    private NamespacedKey stage(ItemStack[] cargo, int unit) {
+        return spec.stage(filled(cargo), unit, slotWeight, payload());
+    }
+
+    private double payload() {
+        return payload == null ? 0 : payload.getAsDouble();
+    }
+
+    private static Object[] filled(ItemStack[] cargo) {
+        if (cargo == null) return null;
+        Object[] used = new Object[cargo.length];
+        for (int i = 0; i < cargo.length; i++) used[i] = cargo[i] == null || cargo[i].isEmpty() ? null : cargo[i];
+        return used;
+    }
+
     /** Each trailer shows the load of its own pages of the storage. */
     void loads(ItemStack[] cargo) {
-        Object[] used = cargo == null ? null : new Object[cargo.length];
-        if (cargo != null) for (int i = 0; i < cargo.length; i++) used[i] = cargo[i] == null || cargo[i].isEmpty() ? null : cargo[i];
+        Object[] used = filled(cargo);
         for (int i = 0; i < loads.size(); i++) {
-            NamespacedKey want = (hidden.getOrDefault(i + 1, 0) & LOAD) != 0 ? null : spec.stage(used, i + 1);
+            NamespacedKey want = (hidden.getOrDefault(i + 1, 0) & LOAD) != 0 ? null : spec.stage(used, i + 1, slotWeight, payload());
             if (loads.get(i) == null || java.util.Objects.equals(want, loadShown.get(i))) continue;
             loadShown.set(i, want);
             loads.get(i).setItemStack(model(want));

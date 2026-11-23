@@ -372,11 +372,13 @@ public final class VehicleModule implements StsvModule, Listener {
     public void cargoWeight(java.util.function.ToDoubleFunction<ItemStack> weight) {
         this.cargoWeight = weight;
         weightEpoch++;
+        restage();
     }
 
     /** What stacks weigh changed (the content plugin read its weights again): every bed is weighed again when next asked. */
     public void weightsChanged() {
         weightEpoch++;
+        restage();
     }
 
     /**
@@ -1171,6 +1173,7 @@ public final class VehicleModule implements StsvModule, Listener {
         st.onGround = true;
         LiveVehicle v = new LiveVehicle(r.id(), item.get(), r.owner(), r.ownerName(), w, st);
         if (v.spec.train() != null) v.train = new TrainView(v.spec.train(), TrainPhysics.restore(st, v.spec.train(), trainSaved.remove(r.id())));
+        weighed(v);
         ParkedLoad kept = parkedLoads.remove(r.id());
         v.cargo = resized(kept != null && kept.row() == r ? kept.cargo() : decode(r.cargo()), v.spec);   // hidden by this run: as it was
         v.cargoBytes = r.cargo();
@@ -3079,9 +3082,35 @@ public final class VehicleModule implements StsvModule, Listener {
         if (e.getPlayer() instanceof Player p) p.playSound(p.getLocation(), Sound.BLOCK_BARREL_CLOSE, 0.6f, 1.0f);
     }
 
-    private static int stageOf(LiveVehicle v) {
+    /**
+     * The load model a bed shows: by the fuller of its slots and its weight over its payload ({@link CargoStages}; without a
+     * weight hook: the slots). The weight is the remembered one ({@link WeightCache}: only changed slots are weighed again).
+     */
+    private int stageOf(LiveVehicle v) {
         VehicleSpec.Cargo c = v.spec.cargo();
-        return c == null ? 0 : CargoStages.stage(v.cargoUsed(), c.slots(), c.stages().size());
+        if (c == null) return 0;
+        if (cargoWeight == null || c.stages().isEmpty()) return CargoStages.stage(v.cargoUsed(), c.slots(), c.stages().size());
+        return CargoStages.stage(v.cargoUsed(), c.slots(), v.weights.total(v.cargo, this::weightOf, weightEpoch), payload(v), c.stages().size());
+    }
+
+    /** A train's trailers weigh their own beds for their load models (nothing weighs without a weight hook). */
+    private void weighed(LiveVehicle v) {
+        if (v.train == null) return;
+        v.train.slotWeight = i -> cargoWeight == null ? 0 : v.weights.weight(v.cargo, i, this::weightOf, weightEpoch);
+        v.train.payload = () -> cargoWeight == null ? 0 : payload(v);
+    }
+
+    /** What things weigh changed: every shown bed's load model follows (each bed weighed once). */
+    private void restage() {
+        for (LiveVehicle v : live.values()) {
+            if (v.spec.cargo() == null || v.cargo == null) continue;
+            int stage = stageOf(v);
+            if (stage != v.stage) {
+                v.stage = stage;
+                if (v.load != null) v.load.setItemStack(model(stageModel(v)));
+            }
+            if (v.train != null) v.train.loads(v.cargo);
+        }
     }
 
     private static NamespacedKey stageModel(LiveVehicle v) {

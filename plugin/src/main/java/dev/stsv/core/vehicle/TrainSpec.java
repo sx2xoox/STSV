@@ -273,11 +273,40 @@ public record TrainSpec(double jackknife, double slowFrom, List<Trailer> trailer
 
     /** The load model a unit's bed shows now (null = none): by how full its own pages are ({@link CargoStages}). */
     public NamespacedKey stage(Object[] storage, int unit) {
+        return stage(storage, unit, null, 0);
+    }
+
+    /**
+     * The load model a unit's bed shows now (null = none): the fuller of its own slots and its own weight over its part of
+     * the train's payload (the payload is the whole train's, {@link #unitPayload}); slotWeight null = nothing weighs.
+     *
+     * @param slotWeight what a slot of the storage weighs
+     * @param payload    the whole train's payload (0 = no limit: slots only)
+     */
+    public NamespacedKey stage(Object[] storage, int unit, java.util.function.IntToDoubleFunction slotWeight, double payload) {
         if (unit < 1 || unit > trailers.size()) return null;
         VehicleSpec.Cargo c = trailers.get(unit - 1).cargo();
         if (c == null || c.stages().isEmpty()) return null;
-        int s = CargoStages.stage(used(storage, unit), c.slots(), c.stages().size());
+        double weight = slotWeight == null ? 0 : weight(storage, unit, slotWeight);
+        int s = CargoStages.stage(used(storage, unit), c.slots(), weight, unitPayload(unit, payload), c.stages().size());
         return s <= 0 ? null : c.stages().get(s - 1);
+    }
+
+    /** What a unit's own bed weighs (the filled slots of its pages). */
+    public double weight(Object[] storage, int unit, java.util.function.IntToDoubleFunction slotWeight) {
+        int first = firstPage(unit);
+        if (first < 0 || storage == null) return 0;
+        int from = first * VehicleSpec.Cargo.PAGE, to = Math.min(storage.length, from + trailers.get(unit - 1).cargo().slots());
+        double sum = 0;
+        for (int i = from; i < to; i++) if (storage[i] != null) sum += Math.max(0, slotWeight.applyAsDouble(i));
+        return sum;
+    }
+
+    /** A unit's part of the train's payload: by its share of all the slots (0 = it has no bed, or no limit). */
+    public double unitPayload(int unit, double payload) {
+        int all = slots();
+        if (firstPage(unit) < 0 || all <= 0 || !(payload > 0)) return 0;
+        return payload * trailers.get(unit - 1).cargo().slots() / all;
     }
 
     /** The unit a seat is on. */

@@ -399,7 +399,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         if (last > load.length) load = new ItemStack[Math.min(JigeSpec.MAX_SLOTS, (last + 8) / 9 * 9)];
         System.arraycopy(stored, 0, load, 0, Math.min(stored.length, load.length));
         Session s = new Session(row.id(), token, item, spec, load);
-        s.stage = spec.stage(s.used());
+        s.stage = stageOf(s);
         // 하역장: the load's trip goes on only if it is put on again where it came off (else it was carried off the road)
         org.bukkit.Location at = p.getLocation();
         VehicleTrip trip = trips.get(row.id());
@@ -576,7 +576,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         store.save(s.id, s.token, VehicleModule.encode(s.load), System.currentTimeMillis()).thenAccept(ok -> {
             if (!ok) plugin.getLogger().warning("[지게] #" + s.id + " 저장 실패 (토큰이 바뀜)");
         });
-        int stage = s.spec.stage(s.used());
+        int stage = stageOf(s);
         if (stage != s.stage) {
             s.stage = stage;
             UUID who = holders.get(s.id);
@@ -659,6 +659,11 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
     /** Are there weights (the economy server's weights.yml, through VehicleModule#cargoWeight)? */
     private boolean weighs() {
         return plugin.vehicles() != null && plugin.vehicles().weighs();
+    }
+
+    /** The look its load gives: the fuller of the slots used and the weight over its payload (not weighed: the slots). */
+    private int stageOf(Session s) {
+        return s.spec.stage(s.used(), weighs() ? weight(s.load) : 0);
     }
 
     private double weight(ItemStack[] items) {
@@ -843,7 +848,7 @@ public final class JigeModule implements StsvModule, Listener, TabExecutor {
         if (out.isEmpty()) return out;
         loadChanged(s, true);
         store.save(s.id, s.token, VehicleModule.encode(s.load), System.currentTimeMillis());
-        int stage = s.spec.stage(s.used());
+        int stage = stageOf(s);
         if (stage != s.stage) {
             s.stage = stage;
             refreshLook(p);
