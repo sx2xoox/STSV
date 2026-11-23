@@ -78,11 +78,28 @@ final class Place {
     }
 
     /**
-     * Whether someone at (px, pz) stands before a table whose middle is (tx, tz): on its south side (the screen is on the
-     * north), within `reach` blocks.
+     * Whether someone at (px, pz) stands before a table whose block's middle is (tx, tz): on its south side (the screen is
+     * on the north), past its front edge, within `reach` blocks.
      */
     static boolean before(double px, double pz, double tx, double tz, double reach) {
         double dx = px - tx, dz = pz - tz;
-        return dz >= 0.6 && dx * dx + dz * dz <= reach * reach;
+        return dz >= Vessel.SOUTH + 0.05 && dx * dx + dz * dz <= reach * reach;
     }
+
+    /** Blocks that are water, or water's: never under, in or just over the house's ground (it must not stand on water). */
+    private static final java.util.Set<String> WET = java.util.Set.of("WATER", "LAVA", "ICE", "FROSTED_ICE", "PACKED_ICE", "BLUE_ICE",
+            "KELP", "KELP_PLANT", "SEAGRASS", "TALL_SEAGRASS", "BUBBLE_COLUMN", "LILY_PAD", "SEA_PICKLE", "BUBBLE_CORAL",
+            "MANGROVE_ROOTS", "MUDDY_MANGROVE_ROOTS");
+
+    /**
+     * Whether a block (its material's name) is water or of the water: liquid, ice (over water, as like as not), what grows
+     * only in water, or anything waterlogged.
+     */
+    static boolean wet(String material, boolean waterlogged, boolean liquid) {
+        return waterlogged || liquid || material != null && (WET.contains(material) || material.endsWith("_CORAL")
+                || material.endsWith("_CORAL_FAN") || material.endsWith("_CORAL_WALL_FAN") || material.endsWith("_CORAL_BLOCK") && !material.startsWith("DEAD_"));
+    }
+
+    /** How far under the ground (blocks) and over it a column is looked at for water. */
+    static final int WET_BELOW = 3, WET_ABOVE = 1;
 }

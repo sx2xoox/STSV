@@ -538,7 +538,7 @@ public final class Garage extends Secret {
         String how = (after ? "after:" + plaque : "open") + (frame ? "+photo" : "");
         if (how.equals(memorials.get(u)) && props.has(u, MEMORIAL)) return;
         Places.Edge edge = places.edge(0, cfg.getDouble("memorial.side", 4.6));
-        if (edge == null || !loaded(edge.at(), -1.2, 3.6, -1, 1)) return;   // its chunk is not there yet
+        if (edge == null || edge.at() == null || !loaded(edge.at(), -1.2, 3.6, -1, 1)) return;   // its chunk is not there yet (or no dry ground at the bend's edge: none)
         props.drop(u, MEMORIAL);
         buildMemorial(p, edge.at(), frame, plaque, "memorial");
         memorials.put(u, how);
@@ -606,9 +606,9 @@ public final class Garage extends Secret {
         else if (!props.has(u, CHIP_GROUP)) {
             props.drop(u, CHIP_GROUP);
             Places.Edge edge = places.edge(cfg.getDouble("chip.along", 3), cfg.getDouble("memorial.side", 4.6));
-            if (edge != null) {
-                // lying on the rail's top (on the ground where the bend has no rail)
-                Location at = edge.rail() != null ? edge.rail() : edge.at();
+            // lying on the rail's top (on the ground where the bend has no rail; nowhere where neither is there)
+            Location at = edge == null ? null : edge.rail() != null ? edge.rail() : edge.at();
+            if (at != null) {
                 props.item(p, CHIP_GROUP, at, chipItem(p), new Vector3f(0, 0.04f, 0), new Vector3f(0.3f, 0.3f, 0.3f),
                         new Quaternionf().rotateX((float) Math.toRadians(-90)));
                 props.hit(p, CHIP_GROUP, at.clone().add(0, -0.25, 0), 0.8f, 0.6f, "chip");
@@ -663,7 +663,11 @@ public final class Garage extends Secret {
         if (d > range) return;
         places.fit();
         Location o = places.garage();
-        if (o == null || !loaded(o, -3.8, 3.8, -7.3, 2.6)) return;   // the ground there cannot be read yet
+        if (o == null || !loaded(o, -3.8, 3.8, -7.3, 2.6)) return;   // the ground there cannot be read yet (or no dry ground: none)
+        if (!places.stillDry()) {   // its ground is not dry (any more): fitted again elsewhere, nothing left standing here
+            for (Player q : Bukkit.getOnlinePlayers()) if (!demoShed.containsKey(q.getUniqueId())) shed.hide(q.getUniqueId());
+            return;
+        }
         Double hold = held.get(u);
         if (after) {
             shed.show(p, o, true, hold != null ? hold : 0, Shed.EMPTY);
@@ -1046,7 +1050,7 @@ public final class Garage extends Secret {
         Places.Site s = places.site();
         if (s == null) out.add("잠듦: " + (places.why().isEmpty() ? "아직 국도를 보지 않음" : places.why()));
         else out.add("커브 " + s.world() + " " + Places.coords(s, s.bend()) + (s.hard() ? "" : " (어려운길 아님)") + " · 차고 " + Places.coords(s, s.garage())
-                + (s.fitted() ? "" : " (자리 맞추기 전)"));
+                + (s.fitted() ? "" : places.dryWhy().isEmpty() ? " (자리 맞추기 전)" : " · 잠듦: " + places.dryWhy()));
         Combo a = answer();
         out.add("정답 " + (a == null ? "(옵션 없음)" : Bench.words(cfg, a)));
         int st = stage(u);
@@ -1107,7 +1111,8 @@ public final class Garage extends Secret {
                 Places.Site s = site();
                 admin.sendMessage(Text.mm(s == null ? "<gray>장소: <red>없음 <gray>(" + places.why() + ")" : "<gray>커브 <white>" + s.world() + " " + Places.coords(s, s.bend())
                         + " <gray>(" + Math.round(s.degrees()) + "도" + (s.hard() ? ", 어려운길" : ", 어려운길 아님") + ", 바깥쪽 " + (s.outside() > 0 ? "오른쪽" : "왼쪽")
-                        + ") · 차고 <white>" + Places.coords(s, s.garage()) + " <gray>(" + (s.fitted() ? (s.side() > 0 ? "오른쪽" : "왼쪽") + ", 바닥 y " + s.floor() : "자리 맞추기 전")
+                        + ") · 차고 <white>" + Places.coords(s, s.garage()) + " <gray>(" + (s.fitted() ? (s.side() > 0 ? "오른쪽" : "왼쪽") + " " + Math.round(places.off(s)) + "칸, 바닥 y " + s.floor()
+                        : places.dryWhy().isEmpty() ? "자리 맞추기 전" : "<red>" + places.dryWhy() + "<gray>")
                         + ") · 길 <white>" + s.dock() + " <gray>" + s.pts().size() + "칸"));
                 return true;
             }

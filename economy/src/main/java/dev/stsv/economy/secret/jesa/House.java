@@ -2,7 +2,6 @@ package dev.stsv.economy.secret.jesa;
 
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.secret.SecretModule;
-import dev.stsv.economy.util.Items;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -23,6 +22,7 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
+import java.util.function.IntConsumer;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -37,24 +37,29 @@ import java.util.UUID;
 
 /**
  * The house under the persimmon tree (주인 없는 제사), there for one player only: four posts and a thatch of hay, a low
- * table, a folding screen behind it on the north with two paper tablets, two candles, an incense burner on its own small
- * stand before the table, a spoon and chopsticks, a click box, and the dishes the player laid (small item displays).
- * It also plays what happens on the table: a wrong table shaking its dishes off, and the meal of the dead.
- * Nothing here is saved; everything is a display (it stops nobody) and goes with {@link #hide}.
+ * rite table of dark red-brown lacquered wood, a folding screen behind it on the north with two paper tablets, two candles,
+ * an incense burner on its own small stand before the table, a spoon and chopsticks, and on the table fifteen rite vessels
+ * ({@link Vessel}: five rows of three) each with its own small click box. What the player put on a vessel is shown lying
+ * on it (the very item, as an item display). It also plays what happens on the table: a wrong table shaking its dishes
+ * off, and the meal of the dead. Nothing here is saved; everything is a display (it stops nobody) and goes with {@link #hide}.
  * <p>
  * Measures are from the table's block (its north-west bottom corner): x east, z south. The screen is at z -0.6, the one
- * who bows stands at z 2 or more, so their right hand is the east.
+ * who bows stands south of the table, so west is their left hand and east their right.
  */
 final class House {
 
-    /** On the click box: whose table it is (" preview" after it for an admin's look). */
+    /** On a vessel's click box: whose table it is (" preview" after it for an admin's look). */
     static final NamespacedKey TAG = new NamespacedKey("economy", "jesa_table");
-    /** The table top over the ground, and how big a dish lies on it. */
-    static final float TOP = 0.69f, DISH = 0.24f;
-    private static final float HALF_W = 1.35f;
-    private static final float[] BURNER = {0.5f, 0.74f, 1.7f};
-    private static final float[][] WICK = {{0.5f - 1.22f, TOP + 0.47f, -0.1f}, {0.5f + 1.22f, TOP + 0.47f, -0.1f}};
-    private static final float[] SPOON = {0.5f - 0.1f, TOP + 0.012f, -0.13f}, STICKS = {0.5f + 0.1f, TOP + 0.012f, -0.13f};
+    /** On a vessel's click box: which vessel (0..14). */
+    static final NamespacedKey VESSEL = new NamespacedKey("economy", "jesa_vessel");
+    /** The table top over the ground. */
+    static final float TOP = 0.62f;
+    private static final float HALF_W = (float) Vessel.HALF_W;
+    private static final float[] BURNER = {0.5f, 0.74f, 1.8f};
+    private static final float[][] WICK = {{0.5f - 1.18f, TOP + 0.47f, -0.22f}, {0.5f + 1.18f, TOP + 0.47f, -0.22f}};
+    private static final float[] SPOON = {0.5f - 0.31f, TOP + 0.012f, -0.1f}, STICKS = {0.5f + 0.29f, TOP + 0.012f, -0.1f};
+    private static final Material LACQUER = Material.MANGROVE_PLANKS, WOOD = Material.STRIPPED_OAK_WOOD, PORCELAIN = Material.SMOOTH_QUARTZ,
+            BRASS = Material.GOLD_BLOCK;
 
     final class Shown {
         final UUID owner;
@@ -68,9 +73,12 @@ final class House {
         private final TextDisplay[] names = new TextDisplay[2];
         private final ItemDisplay[] sticks = new ItemDisplay[2];
         private ItemDisplay spoon;
-        Interaction hit;
+        /** vessel -> its click box */
+        final Map<Integer, Interaction> hits = new HashMap<>();
+        /** vessel -> its lid (the porcelain bowls of row 0) */
+        private final Map<Integer, BlockDisplay> lids = new HashMap<>();
         private final Map<Integer, ItemDisplay> food = new HashMap<>();
-        private final Map<Integer, String> laid = new TreeMap<>();
+        private final Map<Integer, ItemStack> laid = new TreeMap<>();
         private final List<BukkitTask> tasks = new ArrayList<>();
         private final List<Location> cleared = new ArrayList<>();
         private BukkitTask pulse;
@@ -94,7 +102,9 @@ final class House {
         }
 
         boolean valid() {
-            return hit != null && hit.isValid();
+            if (hits.isEmpty()) return false;
+            for (Interaction i : hits.values()) if (!i.isValid()) return false;
+            return true;
         }
     }
 
@@ -160,10 +170,10 @@ final class House {
     }
 
     /**
-     * Builds the house for this player with its table's block at base (the first air over flat ground). layout: what
-     * they laid on it. Whatever they were shown before goes first.
+     * Builds the house for this player with its table's block at base (the first air over flat ground). food: what lies on
+     * each vessel. Whatever they were shown before goes first.
      */
-    Shown show(Player p, Location base, boolean preview, Map<Integer, String> layout) {
+    Shown show(Player p, Location base, boolean preview, Map<Integer, ItemStack> food) {
         hide(p.getUniqueId());
         Location b = base.getBlock().getLocation();
         Shown s = new Shown(p.getUniqueId(), b, preview);
@@ -176,10 +186,14 @@ final class House {
             block(p, s, Material.HAY_BLOCK, box(0.5 + c[0] * 2.8, 2.7, 0.5 + c[1] * 2.8, 2.8, 0.45, 2.8));
         block(p, s, Material.HAY_BLOCK, box(0.5 - 1.6, 3.15, 0.5 - 1.6, 3.2, 0.4, 3.2));
         block(p, s, Material.HAY_BLOCK, box(0.5 - 0.7, 3.55, 0.5 - 0.7, 1.4, 0.3, 1.4));
-        // the table: a top on two sides
-        s.warm.add(block(p, s, Material.DARK_OAK_SLAB, box(0.5 - HALF_W, TOP - 0.15, -0.25, HALF_W * 2, 0.3, 1.5)));
-        s.warm.add(block(p, s, Material.DARK_OAK_PLANKS, box(0.5 - 1.25, 0, -0.1, 0.12, TOP - 0.15, 1.2)));
-        s.warm.add(block(p, s, Material.DARK_OAK_PLANKS, box(0.5 + 1.13, 0, -0.1, 0.12, TOP - 0.15, 1.2)));
+        // the rite table: a thin lacquered top, an apron under it, four legs
+        double n = 0.5 + Vessel.NORTH, depth = Vessel.SOUTH - Vessel.NORTH;
+        s.warm.add(block(p, s, LACQUER, box(0.5 - HALF_W, TOP - 0.07, n, HALF_W * 2, 0.07, depth)));
+        s.warm.add(block(p, s, LACQUER, box(0.5 - HALF_W + 0.07, TOP - 0.17, n + 0.07, HALF_W * 2 - 0.14, 0.1, depth - 0.14)));
+        for (int[] c : new int[][] {{-1, -1}, {1, -1}, {-1, 1}, {1, 1}}) {
+            double x = c[0] < 0 ? 0.5 - HALF_W + 0.1 : 0.5 + HALF_W - 0.19, z = c[1] < 0 ? n + 0.1 : n + depth - 0.19;
+            s.warm.add(block(p, s, LACQUER, box(x, 0, z, 0.09, TOP - 0.17, 0.09)));
+        }
         // the folding screen behind it, on the north: four leaves in a zigzag
         for (int i = 0; i < 4; i++)
             s.warm.add(block(p, s, Material.WHITE_TERRACOTTA, turned(0.5 + (i - 1.5) * 0.8, 0, -0.6, 0.82, 1.9, 0.05, i % 2 == 0 ? 14 : -14, 0)));
@@ -208,28 +222,82 @@ final class House {
             s.candles[i] = block(p, s, Material.WHITE_CANDLE, candleAt(i, 0));
             s.warm.add(s.candles[i]);
         }
-        s.warm.add(block(p, s, Material.DARK_OAK_PLANKS, box(0.25, 0, 1.5, 0.5, 0.42, 0.4)));
+        s.warm.add(block(p, s, Material.DARK_OAK_PLANKS, box(0.25, 0, BURNER[2] - 0.2, 0.5, 0.42, 0.4)));
         s.warm.add(block(p, s, Material.CAULDRON, box(BURNER[0] - 0.16, 0.42, BURNER[2] - 0.16, 0.32, 0.32, 0.32)));
-        // a spoon and chopsticks, laid by the screen
+        // a spoon and chopsticks, laid beside the cup
         s.spoon = item(p, s, s.at(SPOON[0], SPOON[1], SPOON[2]), new ItemStack(Material.GOLDEN_SHOVEL), flat(35), 0.3f);
         for (int i = 0; i < 2; i++)
             s.sticks[i] = item(p, s, s.at(STICKS[0] + i * 0.05, STICKS[1], STICKS[2]), new ItemStack(Material.BLAZE_ROD), flat(45), 0.28f);
         s.warm.add(s.spoon);
         s.warm.add(s.sticks[0]);
         s.warm.add(s.sticks[1]);
-        s.hit = b.getWorld().spawn(s.at(0.5, 0, 0.5), Interaction.class, e -> {
-            e.setPersistent(false);
-            e.setVisibleByDefault(false);
-            e.setInteractionWidth(2.7f);
-            e.setInteractionHeight(1.3f);
-            e.setResponsive(true);
-            e.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, p.getUniqueId() + (preview ? " preview" : ""));
-        });
-        p.showEntity(eco, s.hit);
-        s.own.add(s.hit);
-        food(p, layout);
+        // the vessels, each with its own click box
+        for (int v = 0; v < Vessel.COUNT; v++) {
+            vessel(p, s, v);
+            int slot = v;
+            double[] at = Vessel.at(v);
+            double w = Vessel.width(Vessel.kind(v));
+            Interaction hit = b.getWorld().spawn(s.at(0.5 + at[0], TOP, 0.5 + at[1]), Interaction.class, e -> {
+                e.setPersistent(false);
+                e.setVisibleByDefault(false);
+                e.setInteractionWidth((float) Math.min(0.31, w + 0.04));
+                e.setInteractionHeight((float) (Vessel.top(Vessel.kind(slot)) + 0.1));
+                e.setResponsive(true);
+                e.getPersistentDataContainer().set(TAG, PersistentDataType.STRING, p.getUniqueId() + (preview ? " preview" : ""));
+                e.getPersistentDataContainer().set(VESSEL, PersistentDataType.INTEGER, slot);
+            });
+            p.showEntity(eco, hit);
+            s.own.add(hit);
+            s.hits.put(v, hit);
+        }
+        food(p, food);
         s.pulse = Bukkit.getScheduler().runTaskTimer(eco, () -> pulse(s), 5L, 5L);
         return s;
+    }
+
+    /** The vessel's own place on its click box, or -1 when it is not one of these. */
+    static int vesselOf(Interaction hit) {
+        Integer v = hit.getPersistentDataContainer().get(VESSEL, PersistentDataType.INTEGER);
+        return v == null || v < 0 || v >= Vessel.COUNT ? -1 : v;
+    }
+
+    /** One vessel, about three displays: a foot, a stem or body, and a plate, bowl or lid (see {@link Vessel}). */
+    private void vessel(Player p, Shown s, int slot) {
+        double[] at = Vessel.at(slot);
+        double cx = 0.5 + at[0], cz = 0.5 + at[1], y = TOP;
+        switch (Vessel.kind(slot)) {
+            case PLATE -> {   // 굽 높은 목기 접시: small foot, short stem, a round-ish plate (turned against the foot)
+                s.warm.add(block(p, s, WOOD, turned(cx, y, cz, 0.15, 0.03, 0.15, 45, 0)));
+                s.warm.add(block(p, s, WOOD, turned(cx, y + 0.03, cz, 0.06, 0.09, 0.06, 0, 0)));
+                s.warm.add(block(p, s, WOOD, turned(cx, y + 0.12, cz, 0.24, 0.035, 0.24, 22.5, 0)));
+            }
+            case BOWL -> {   // white porcelain bowl with its lid
+                s.warm.add(block(p, s, PORCELAIN, turned(cx, y, cz, 0.11, 0.02, 0.11, 45, 0)));
+                s.warm.add(block(p, s, PORCELAIN, turned(cx, y + 0.02, cz, 0.19, 0.1, 0.19, 0, 0)));
+                BlockDisplay lid = block(p, s, PORCELAIN, lidOn(cx, cz));
+                s.warm.add(lid);
+                s.lids.put(slot, lid);
+            }
+            case CUP -> {   // a small brass cup on its saucer
+                s.warm.add(block(p, s, BRASS, turned(cx, y, cz, 0.17, 0.02, 0.17, 45, 0)));
+                s.warm.add(block(p, s, BRASS, turned(cx, y + 0.02, cz, 0.04, 0.04, 0.04, 0, 0)));
+                s.warm.add(block(p, s, BRASS, turned(cx, y + 0.06, cz, 0.09, 0.06, 0.09, 45, 0)));
+            }
+            case DEEP -> {   // a deep bowl on a foot (탕기)
+                s.warm.add(block(p, s, WOOD, turned(cx, y, cz, 0.12, 0.03, 0.12, 45, 0)));
+                s.warm.add(block(p, s, WOOD, turned(cx, y + 0.03, cz, 0.16, 0.05, 0.16, 0, 0)));
+                s.warm.add(block(p, s, WOOD, turned(cx, y + 0.08, cz, 0.22, 0.09, 0.22, 45, 0)));
+            }
+        }
+    }
+
+    /** A bowl's lid on it, or (something laid in the bowl) set down beside it on the table, on the outer side. */
+    private static Transformation lidOn(double cx, double cz) {
+        return turned(cx, TOP + 0.12, cz, 0.17, 0.035, 0.17, 45, 0);
+    }
+
+    private static Transformation lidOff(double cx, double cz, int side) {
+        return turned(cx + side * 0.2, TOP, cz + 0.06, 0.17, 0.035, 0.17, 30, side * 8);
     }
 
     private static Transformation candleAt(int i, double tiltSouthDeg) {
@@ -281,33 +349,61 @@ final class House {
     // the dishes
     // ------------------------------------------------------------------------------------------
 
-    private Location dishAt(Shown s, int slot) {
-        double[] at = Table.at(slot);
-        return s.at(0.5 + at[0], TOP + 0.012, 0.5 + at[1]);
+    /** Where what lies on a vessel lies: on its plate, in its bowl or cup. */
+    Location dishAt(Shown s, int slot) {
+        double[] at = Vessel.at(slot);
+        return s.at(0.5 + at[0], TOP + Vessel.top(Vessel.kind(slot)) + 0.012, 0.5 + at[1]);
     }
 
-    /** Shows what is laid (place -> item id) as small dishes on the table; places that changed are redrawn. */
-    void food(Player p, Map<Integer, String> layout) {
+    private static Quaternionf lying(int slot) {
+        // the liquor stands up in its cup; everything else lies flat on its vessel
+        return Vessel.kind(slot) == Vessel.Kind.CUP ? new Quaternionf() : flat(0);
+    }
+
+    private static Vector3f lift(int slot) {
+        return Vessel.kind(slot) == Vessel.Kind.CUP ? new Vector3f(0, Vessel.food(Vessel.Kind.CUP) / 2, 0) : new Vector3f();
+    }
+
+    /** Shows what lies on each vessel (vessel -> the item); vessels whose item changed are redrawn, lids follow. */
+    void food(Player p, Map<Integer, ItemStack> food) {
         Shown s = shown.get(p.getUniqueId());
         if (s == null || s.busy) return;
         for (Integer slot : new ArrayList<>(s.food.keySet())) {
-            if (layout.containsKey(slot) && layout.get(slot).equals(s.laid.get(slot))) continue;
-            ItemDisplay d = s.food.remove(slot);
-            s.laid.remove(slot);
-            s.own.remove(d);
-            s.warm.remove(d);
-            if (d.isValid()) d.remove();
+            ItemStack now = food.get(slot), was = s.laid.get(slot);
+            if (now != null && was != null && now.isSimilar(was)) continue;
+            dropFood(s, slot);
         }
-        for (Map.Entry<Integer, String> e : layout.entrySet()) {
-            if (s.food.containsKey(e.getKey())) continue;
-            ItemStack it = Items.create(e.getValue(), 1).orElse(null);
-            if (it == null) continue;
-            ItemDisplay d = item(p, s, dishAt(s, e.getKey()), it, flat(0), DISH);
+        for (Map.Entry<Integer, ItemStack> e : food.entrySet()) {
+            int slot = e.getKey();
+            if (slot < 0 || slot >= Vessel.COUNT || e.getValue() == null || e.getValue().isEmpty() || s.food.containsKey(slot)) continue;
+            ItemStack one = e.getValue().asOne();
+            ItemDisplay d = item(p, s, dishAt(s, slot), one, lying(slot), Vessel.food(Vessel.kind(slot)));
+            Transformation t = d.getTransformation();
+            d.setTransformation(new Transformation(lift(slot), t.getLeftRotation(), t.getScale(), t.getRightRotation()));
             if (s.lit) d.setBrightness(new Display.Brightness(10, 0));
-            s.food.put(e.getKey(), d);
-            s.laid.put(e.getKey(), e.getValue());
+            s.food.put(slot, d);
+            s.laid.put(slot, one);
             s.warm.add(d);
         }
+        for (Map.Entry<Integer, BlockDisplay> l : s.lids.entrySet()) {
+            int slot = l.getKey();
+            double[] at = Vessel.at(slot);
+            boolean open = s.food.containsKey(slot);
+            BlockDisplay lid = l.getValue();
+            if (!lid.isValid()) continue;
+            lid.setInterpolationDelay(0);
+            lid.setInterpolationDuration(4);
+            lid.setTransformation(open ? lidOff(0.5 + at[0], 0.5 + at[1], Vessel.rollTo(slot)) : lidOn(0.5 + at[0], 0.5 + at[1]));
+        }
+    }
+
+    private void dropFood(Shown s, int slot) {
+        ItemDisplay d = s.food.remove(slot);
+        s.laid.remove(slot);
+        if (d == null) return;
+        s.own.remove(d);
+        s.warm.remove(d);
+        if (d.isValid()) d.remove();
     }
 
     // ------------------------------------------------------------------------------------------
@@ -376,17 +472,20 @@ final class House {
         return new Vector3f((float) (to.getX() - home[0]), (float) (to.getY() - home[1]), (float) (to.getZ() - home[2]));
     }
 
-    /** From the spoon's own spot to a place on the table (as a translation of its display). */
+    /** From the spoon's own spot to over a vessel (as a translation of its display). */
     private Vector3f spoonTo(Shown s, int slot, float lift) {
         Location to = dishAt(s, slot);
-        return new Vector3f((float) (to.getX() - s.base.getX() - SPOON[0]), lift, (float) (to.getZ() - s.base.getZ() - SPOON[2]));
+        return new Vector3f((float) (to.getX() - s.base.getX() - SPOON[0]), (float) (to.getY() - s.base.getY() - SPOON[1]) + lift,
+                (float) (to.getZ() - s.base.getZ() - SPOON[2]));
     }
 
     /**
-     * The table is wrong: the flames sink, every wrong dish rolls off its edge and drops, the spoon taps each place that
-     * is owed a dish, and the incense goes out. `then` runs at the end (the dishes left are drawn again by the caller).
+     * The table is wrong: the flames sink, what lies on each wrong vessel rolls off its edge and drops (fell: called with
+     * the vessel the moment it reaches the ground — the caller gives the thing back then), the spoon taps each empty vessel
+     * that is owed a dish, and the incense goes out. `then` runs at the end. A house taken away before then (a quit, a
+     * reload) cancels the rest: what had not yet fallen is still on its vessel.
      */
-    void refuse(Player p, Shown s, Table.Verdict v, Runnable then) {
+    void refuse(Player p, Shown s, Table.Verdict v, IntConsumer fell, Runnable then) {
         s.busy = true;
         s.dimUntil = System.currentTimeMillis() + 3500;
         m.haunt().sound(p, s.table(), Sound.BLOCK_CANDLE_EXTINGUISH, 0.35f, 0.6f);
@@ -394,21 +493,23 @@ final class House {
         for (int slot : v.wrong()) {
             ItemDisplay d = s.food.get(slot);
             if (d == null) continue;
-            int side = Table.rollTo(slot);
-            double[] at = Table.at(slot);
-            float toEdge = (float) (side * (HALF_W + 0.12) - at[0]);
+            int side = Vessel.rollTo(slot);
+            double[] at = Vessel.at(slot);
+            float up = (float) Vessel.top(Vessel.kind(slot));
+            float scale = Vessel.food(Vessel.kind(slot));
+            float toEdge = (float) (side * (HALF_W + 0.1) - at[0]);
             later(s, t, () -> {
-                glide(d, new Vector3f(toEdge, 0.04f, 0), flat(0).rotateY((float) (side * Math.PI)), DISH, 9);
+                glide(d, new Vector3f(toEdge, 0.03f - up, 0), flat(0).rotateY((float) (side * Math.PI)), scale, 9);
                 m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOD_STEP, 0.25f, 1.6f);
             });
-            later(s, t + 9, () -> glide(d, new Vector3f(toEdge + side * 0.12f, -TOP + 0.02f, 0), flat(0).rotateY((float) (side * Math.PI * 1.5)), DISH, 6));
-            later(s, t + 15, () -> m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOL_FALL, 0.7f, 0.6f));
+            later(s, t + 9, () -> glide(d, new Vector3f(toEdge + side * 0.12f, -TOP - up + 0.02f, 0), flat(0).rotateY((float) (side * Math.PI * 1.5)), scale, 6));
+            later(s, t + 15, () -> {
+                m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOL_FALL, 0.7f, 0.6f);
+                fell.accept(slot);
+            });
             later(s, t + 70, () -> {
-                s.food.remove(slot, d);
-                s.laid.remove(slot);
-                s.own.remove(d);
-                s.warm.remove(d);
-                if (d.isValid()) d.remove();
+                if (s.food.get(slot) == d) dropFood(s, slot);
+                else if (d.isValid()) d.remove();
             });
             t += 9;
         }
@@ -465,11 +566,11 @@ final class House {
         later(s, 50, () -> s.bend = true);
         int rice = find(layout, rules.rice(), Table.slot(0, Table.WEST_AT));
         int dish = find(layout, rules.fish(), Table.slot(1, Table.EAST_AT));
-        int cup = find(layout, rules.liquor(), -1);
+        int cup = find(layout, rules.liquor(), Table.slot(0, Table.MID));
         // the spoon stands in the rice
         later(s, 90, () -> glide(s.spoon, spoonTo(s, rice, 0.16f), flat(35), 0.3f, 14));
         later(s, 106, () -> {
-            glide(s.spoon, spoonTo(s, rice, 0.1f), new Quaternionf().rotateY((float) Math.PI).rotateZ((float) Math.toRadians(160)), 0.3f, 8);
+            glide(s.spoon, spoonTo(s, rice, 0.08f), new Quaternionf().rotateY((float) Math.PI).rotateZ((float) Math.toRadians(160)), 0.3f, 8);
             m.haunt().sound(p, dishAt(s, rice), Sound.BLOCK_AMETHYST_BLOCK_HIT, 0.5f, 1.5f);
         });
         // the chopsticks cross to a dish and tap it
@@ -478,7 +579,7 @@ final class House {
             for (int i = 0; i < 2; i++) {
                 Vector3f v = from(new float[] {(float) s.base.getX() + STICKS[0] + i * 0.05f, (float) s.base.getY() + STICKS[1],
                         (float) s.base.getZ() + STICKS[2]}, to);
-                v.y = 0.03f;
+                v.y += 0.03f;
                 glide(s.sticks[i], v, flat(20), 0.28f, 12);
             }
         });
@@ -489,7 +590,7 @@ final class House {
         // the cup goes down
         if (cup >= 0) later(s, 176, () -> {
             ItemDisplay d = s.food.get(cup);
-            if (d != null) glide(d, new Vector3f(0, -0.008f, 0), flat(0), DISH * 0.68f, 34);
+            if (d != null) glide(d, new Vector3f(0, Vessel.food(Vessel.kind(cup)) * 0.34f, 0), lying(cup), Vessel.food(Vessel.kind(cup)) * 0.68f, 34);
             m.haunt().sound(p, dishAt(s, cup), Sound.ENTITY_GENERIC_DRINK, 0.18f, 0.7f);
         });
         // two spoons, not quite together: his on the west, and one more
@@ -509,17 +610,10 @@ final class House {
             later(s, 300 + i * step, () -> {
                 ItemDisplay d = s.food.get(slot);
                 if (d == null || !d.isValid()) return;
-                glide(d, new Vector3f(0, -0.01f, 0), flat(0), 0.01f, 14);
+                glide(d, new Vector3f(0, -0.01f, 0), lying(slot), 0.01f, 14);
                 if (chew) m.haunt().sound(p, d.getLocation(), Sound.ENTITY_GENERIC_EAT, 0.1f, 0.75f);
             });
-            later(s, 300 + i * step + 16, () -> {
-                ItemDisplay d = s.food.remove(slot);
-                s.laid.remove(slot);
-                if (d == null) return;
-                s.own.remove(d);
-                s.warm.remove(d);
-                if (d.isValid()) d.remove();
-            });
+            later(s, 300 + i * step + 16, () -> dropFood(s, slot));
         }
         // the tablets stir, both of them
         for (int k = 0; k < 5; k++) {

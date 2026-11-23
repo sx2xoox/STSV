@@ -500,13 +500,16 @@ final class Drive {
         return null;
     }
 
-    /** Whether someone can be stood here now: room for them, something to stand on that is no rail, fence or fire. */
+    /** Whether someone can be stood here now: dry room for them, something dry to stand on that is no rail, fence, ice or fire. */
     static boolean standable(Location l) {
         World w = l.getWorld();
         if (w == null || !w.isChunkLoaded(l.getBlockX() >> 4, l.getBlockZ() >> 4)) return false;
         org.bukkit.block.Block feet = l.getBlock(), under = feet.getRelative(0, -1, 0);
         org.bukkit.Material t = under.getType();
-        return feet.isPassable() && !feet.isLiquid() && feet.getRelative(0, 1, 0).isPassable() && !under.isPassable()
+        // (dry: never into water or onto a sea floor among kelp, never on ice)
+        Dry.Cell below = Dry.of(under);
+        return Dry.of(feet) == Dry.Cell.AIR && Dry.of(feet.getRelative(0, 1, 0)) == Dry.Cell.AIR && !under.isPassable()
+                && below != Dry.Cell.WET && below != Dry.Cell.ICE
                 && !org.bukkit.Tag.WALLS.isTagged(t) && !org.bukkit.Tag.FENCES.isTagged(t) && !org.bukkit.Tag.FENCE_GATES.isTagged(t)
                 && t != org.bukkit.Material.MAGMA_BLOCK && t != org.bukkit.Material.CAMPFIRE && t != org.bukkit.Material.SOUL_CAMPFIRE
                 && t != org.bukkit.Material.CACTUS;

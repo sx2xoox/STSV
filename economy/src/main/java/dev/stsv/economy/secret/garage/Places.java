@@ -37,7 +37,8 @@ final class Places {
 
     /**
      * @param outside the bend's outer side (+1: right of the way the road runs, -1: left): where he went off, where the flowers are
-     * @param side    the garage's side of the road (0: not fitted to the ground yet)
+     * @param side    the garage's side of the road (0: not fitted to the ground yet), and how far from the road's middle its
+     *                front stands (±1, as kept before: {@code garage.side})
      * @param floor   the garage's floor (the y to stand on)
      */
     record Site(String world, String dock, List<double[]> pts, int[] halves, boolean hard, int bend, int outside, double degrees,
@@ -71,6 +72,17 @@ final class Places {
     private boolean loaded;
     private long checkedAt;
     private String why = "";
+    /** why the garage could not be fitted (no dry ground anywhere near the road): for the status line; "" when it could */
+    private String dryWhy = "";
+    /** the place ({@link Site#encode}) last found with no dry ground, and when (looked for again ten minutes later) */
+    private String dryFor = "";
+    private long dryAt;
+    /** the place last looked at further along the road while some of that land was not loaded, and when */
+    private String waitFor = "";
+    private long waitAt;
+    /** the fitted place last found still dry, and when (looked at again ten minutes later) */
+    private String verifiedFor = "";
+    private long verifiedAt;
     /** every road as it was at the last look at all of them ("world;dock;start;points"): one that grew since is still being built */
     private Set<String> seen = Set.of();
     /** looks in a row at which the kept place's road was not there */
@@ -88,6 +100,12 @@ final class Places {
     /** Why there is no place (for the status line). */
     String why() {
         return why;
+    }
+
+    /** Why the garage has no spot yet although there is a place ("" when nothing is wrong). */
+    String dryWhy() {
+        Site s = site;
+        return s == null || s.fitted() ? "" : dryWhy;
     }
 
     /** The place as last worked out (null: none). */
@@ -133,7 +151,7 @@ final class Places {
             if (!s.signature().equals(k[1] + ";" + k[2] + ";" + k[3] + ";" + k[4] + ";" + k[5])) continue;
             try {
                 int bend = Integer.parseInt(k[6]), outside = Integer.parseInt(k[7]) < 0 ? -1 : 1, garage = Integer.parseInt(k[8]);
-                int side = Integer.signum(Integer.parseInt(k[9])), floor = Integer.parseInt(k[10]), n = s.pts().size();
+                int side = Math.clamp(Integer.parseInt(k[9]), -64, 64), floor = Integer.parseInt(k[10]), n = s.pts().size();
                 if (bend < 1 || bend >= n - 1 || garage <= bend || garage >= n) return null;
                 if (site != null && site.encode().equals(kept)) return site;   // nothing changed: the copy we hold
                 return copy(s, bend, outside, Math.abs(Roadway.turn(s.pts(), bend, window / 2)), garage, side, floor);
@@ -239,79 +257,173 @@ final class Places {
 
     /**
      * The y to stand on at a column, looking from {@code up} over nearY down to {@code down} under it: over the first
-     * solid block (no leaves) with two free blocks on it. {@link #UNKNOWN} while its chunk is not loaded, {@link #NONE}
-     * when there is no such ground.
+     * full, solid, dry block with three open blocks over it ({@link Dry}: never water, lava, ice or a sea floor).
+     * {@link #UNKNOWN} while its chunk is not loaded, {@link #NONE} when there is no such ground.
      */
     static int ground(World w, double x, double z, int nearY, int up, int down) {
         int bx = (int) Math.floor(x), bz = (int) Math.floor(z);
         if (!w.isChunkLoaded(bx >> 4, bz >> 4)) return UNKNOWN;
-        for (int y = Math.min(w.getMaxHeight() - 3, nearY + up); y >= Math.max(w.getMinHeight(), nearY - down); y--) {
-            Block b = w.getBlockAt(bx, y, bz);
-            Material t = b.getType();
-            if (!t.isSolid() || Tag.LEAVES.isTagged(t)) continue;
-            Block over = b.getRelative(0, 1, 0), over2 = b.getRelative(0, 2, 0);
-            if (over.isPassable() && over2.isPassable() && !over.isLiquid()) return y + 1;
-        }
-        return NONE;
+        int y = Dry.ground(Dry.world(w), bx, bz, Math.min(w.getMaxHeight() - 4, nearY + up), Math.max(w.getMinHeight(), nearY - down));
+        return Dry.found(y) ? y : NONE;
     }
 
-    /** The garage's side of the road and its floor, fitted to the ground; the same site while that ground is not loaded. */
+    /** How far from the road's middle the garage's front stands at the usual place ({@code garage.side}). */
+    private double baseOff() {
+        return Math.max(4, cfg.getDouble("garage.side", 8));
+    }
+
+    /** How far from the road's middle this site's garage front stands. */
+    double off(Site s) {
+        return Math.abs(s.side()) > 1 ? Math.abs(s.side()) : baseOff();
+    }
+
+    /** The garage's frame: the middle of its front, on the road's level, facing the road. */
+    private static Location frame(World w, Site s, int g, int side, double off) {
+        double[] t = Roadway.tangent(s.pts(), g, 4);
+        double[] front = Roadway.beside(s.pts(), g, side * off, 4);
+        return new Location(w, front[0], Roadway.surfaceY(s.halves(), g), front[1], Roadway.yaw(t[1] * side, -t[0] * side), 0);
+    }
+
+    /** The ground under a garage (its floor, the apron before its door) and what that ground is. */
+    private record Foot(List<int[]> cols, Dry.Check check) {}
+
+    /** Every column under a garage at this frame, against the dry-ground rule near nearY; null while any of it is not loaded. */
+    private static Foot footprint(World w, double x, double z, float yaw, int nearY) {
+        List<int[]> cols = Dry.cells(x, z, yaw, -3.45, 3.45, -6.95, 1.55);
+        for (int[] c : cols) if (!w.isChunkLoaded(c[0] >> 4, c[1] >> 4)) return null;
+        return new Foot(cols, Dry.footprint(Dry.world(w), cols, Math.min(w.getMaxHeight() - 4, nearY + 6), Math.max(w.getMinHeight(), nearY - 8)));
+    }
+
+    private static Foot footprint(World w, Site s, int g, int side, double off) {
+        Location f = frame(w, s, g, side, off);
+        return footprint(w, f.getX(), f.getZ(), f.getYaw(), f.getBlockY());
+    }
+
+    /** The best spot of a search so far, and how many spots could not be read. */
+    private static final class Best {
+        double score = Double.MAX_VALUE;
+        int at = -1, side, floor, unknown;
+        double off;
+    }
+
+    /** Looks at a garage at road point g on this side, off blocks out: dry everywhere under it, the flatter the better. */
+    private void consider(Best b, World w, Site s, int g, int side, double off, Material road, double extra) {
+        Foot f = footprint(w, s, g, side, off);
+        if (f == null) {
+            b.unknown++;
+            return;
+        }
+        if (!f.check().ok()) return;
+        int roadY = Roadway.surfaceY(s.halves(), g), onRoad = 0;
+        if (road != null)
+            for (int i = 0; i < f.cols().size(); i++)
+                if (w.getBlockAt(f.cols().get(i)[0], f.check().ys()[i] - 1, f.cols().get(i)[1]).getType() == road) onRoad++;
+        double score = extra + (f.check().max() - f.check().min()) + Math.abs(f.check().max() - (roadY + 1)) * 0.5 + 90.0 * onRoad / f.cols().size();
+        if (score < b.score) {
+            b.score = score;
+            b.at = g;
+            b.side = side;
+            b.off = off;
+            b.floor = f.check().max();
+        }
+    }
+
+    /**
+     * The garage's side of the road, how far out and its floor, fitted to the ground: the flattest spot whose every column
+     * is dry ground ({@link Dry}). Looked for near the road's end first (as always: ±24 points, both sides), then further
+     * (±60 points, up to 16 blocks from the road), then back along the road towards the bend (never closer than 20 points
+     * past it). The same site while the ground there is not loaded. When there is no dry ground anywhere on that stretch
+     * it is not fitted at all (nothing is shown; {@link #dryWhy}) and looked for again ten minutes later.
+     */
     Site fit() {
         Site s = site;
         if (s == null || s.fitted()) return s;
         World w = s.bukkit();
         if (w == null) return s;
-        double off = cfg.getDouble("garage.side", 8);
+        long now = System.currentTimeMillis();
+        if (s.encode().equals(dryFor) && now - dryAt < 600_000L) return s;
+        if (s.encode().equals(waitFor) && now - waitAt < 15_000L) return s;   // looked further a moment ago, some of it not loaded
         Material road = eco.roads() == null ? null : eco.roads().surfaceBlock();
         int n = s.pts().size();
-        double best = Double.MAX_VALUE;
-        int bestAt = -1, bestSide = 0, bestFloor = 0;
+        double off0 = baseOff();
+        // near the road's end, at the usual distance
+        Best b = new Best();
         for (int shift : new int[]{0, -8, 8, -16, 16, -24}) {
             int g = s.garage() + shift;
             if (g <= s.bend() + 20 || g > n - 1 - 6) continue;
-            int roadY = Roadway.surfaceY(s.halves(), g);
             for (int side : new int[]{s.outside(), -s.outside()}) {
-                double[] t = Roadway.tangent(s.pts(), g, 4);
-                double[] front = Roadway.beside(s.pts(), g, side * off, 4);
-                double ax = -t[1] * side, az = t[0] * side;   // away from the road
-                int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
-                double score = Math.abs(shift) * 0.05;
-                boolean known = true;
-                for (double along : new double[]{-3, 0, 3}) {
-                    for (double deep : new double[]{0.5, 3.5, 6.5}) {
-                        double x = front[0] + t[0] * along + ax * deep, z = front[1] + t[1] * along + az * deep;
-                        int y = ground(w, x, z, roadY, 6, 8);
-                        if (y == UNKNOWN) known = false;
-                        else if (y == NONE) score += 6;
-                        else {
-                            min = Math.min(min, y);
-                            max = Math.max(max, y);
-                            if (road != null && w.getBlockAt((int) Math.floor(x), y - 1, (int) Math.floor(z)).getType() == road) score += 10;
-                        }
-                    }
-                }
-                if (!known) {
-                    if (shift == 0) return s;   // the ground at the place itself cannot be read yet: later
-                    continue;
-                }
-                if (max == Integer.MIN_VALUE) continue;
-                score += (max - min) + Math.abs(max - (roadY + 1)) * 0.5;
-                if (score < best) {
-                    best = score;
-                    bestAt = g;
-                    bestSide = side;
-                    bestFloor = max;
-                }
+                int before = b.unknown;
+                consider(b, w, s, g, side, off0, road, Math.abs(shift) * 0.05);
+                if (shift == 0 && b.unknown > before) return s;   // the ground at the place itself cannot be read yet: later
             }
         }
-        if (bestAt < 0) {   // no ground at all near the road there (a bridge): on the road's own level, on the bend's outer side
-            bestAt = s.garage();
-            bestSide = s.outside();
-            bestFloor = Roadway.surfaceY(s.halves(), s.garage()) + 1;
+        double[] offs = off0 >= 16 ? new double[]{off0}
+                : java.util.stream.DoubleStream.of(off0, Math.round(off0) + 3, Math.round(off0) + 6, 16).map(o -> Math.min(16, o)).distinct().toArray();
+        // further along and further out
+        if (b.at < 0) {
+            for (int shift = 0; shift <= 60; shift += 4)
+                for (int sign : shift == 0 ? new int[]{1} : new int[]{-1, 1}) {
+                    int g = s.garage() + sign * shift;
+                    if (g <= s.bend() + 20 || g > n - 1 - 6) continue;
+                    for (int side : new int[]{s.outside(), -s.outside()})
+                        for (double off : offs) consider(b, w, s, g, side, off, road, shift * 0.05 + (off - off0) * 0.3);
+                }
+            if (b.at < 0 && b.unknown > 0) {   // some of it is not loaded yet: later, when someone is nearer
+                waitFor = s.encode();
+                waitAt = now;
+                return s;
+            }
         }
-        site = s.fitted(bestAt, bestSide, bestFloor);
+        // back towards the bend
+        int unread = 0;
+        if (b.at < 0) {
+            b.unknown = 0;
+            for (int g = s.garage() - 64; g > s.bend() + 20; g -= 4) {
+                if (g > n - 1 - 6) continue;
+                for (int side : new int[]{s.outside(), -s.outside()})
+                    for (double off : offs) consider(b, w, s, g, side, off, road, (s.garage() - g) * 0.05 + (off - off0) * 0.3);
+                if (b.at >= 0) break;   // the first stretch with dry ground, nearest the road's end
+            }
+            unread = b.unknown;
+        }
+        if (b.at < 0) {
+            dryWhy = "차고를 세울 마른 땅이 없음 (길 끝 ±60칸 · 길가 " + Math.round(off0) + "~16칸, 커브 뒤 20칸까지 물 · 얼음뿐"
+                    + (unread > 0 ? "; 커브 쪽 " + unread + "곳은 땅이 아직 불러와지지 않아 못 봄" : "") + ". 10분 뒤 다시 찾음)";
+            if (!s.encode().equals(dryFor))
+                eco.getLogger().warning("[비밀] 폐차고: " + dryWhy + " — 차고 " + coords(s, s.garage()) + ". `연출 폐차고 차고여기` 로 직접 정할 수 있음");
+            dryFor = s.encode();
+            dryAt = now;
+            return s;
+        }
+        dryWhy = "";
+        dryFor = "";
+        int off = (int) Math.round(b.off);
+        site = s.fitted(b.at, b.side * (Math.abs(b.off - baseOff()) < 1e-6 ? 1 : Math.max(2, off)), b.floor);
         eco.kv().set(KEY, site.encode());
         return site;
+    }
+
+    /**
+     * Whether the fitted garage still stands on dry ground, every column (looked at again every ten minutes while someone
+     * is near; never loads land). When it does not (water was poured, the sea came, it was fitted before this rule, an
+     * admin put it on water) it is unfitted, to be fitted again: false, and whatever is shown of it must go.
+     */
+    boolean stillDry() {
+        Site s = site;
+        World w = s == null ? null : s.bukkit();
+        if (w == null || !s.fitted()) return true;
+        long now = System.currentTimeMillis();
+        if (s.encode().equals(verifiedFor) && now - verifiedAt < 600_000L) return true;
+        Foot f = footprint(w, s, s.garage(), Integer.signum(s.side()), off(s));
+        if (f == null) return true;   // not all of it loaded: another time
+        verifiedFor = s.encode();
+        verifiedAt = now;
+        if (f.check().ok()) return true;
+        eco.getLogger().warning("[비밀] 폐차고: 저장된 차고 자리 " + coords(s, s.garage()) + " 가 마른 땅이 아님 (" + Dry.why(f.check())
+                + "). 다시 땅에 맞춤");
+        site = s.fitted(s.garage(), 0, 0);
+        eco.kv().set(KEY, site.encode());
+        return false;
     }
 
     /**
@@ -356,7 +468,8 @@ final class Places {
 
     /**
      * Admin (연출 폐차고 차고여기): the garage at the road point nearest this spot, on the side of the road this spot is
-     * on, its floor fitted to the ground there. Only on the bend's road, after the bend. Null when done, else why not.
+     * on, its floor fitted to the ground there. Only on the bend's road, after the bend, and only on dry ground (every
+     * column under it, {@link Dry}): never on water. Null when done, else why not.
      */
     String setGarage(Location at) {
         Site s = site;
@@ -371,10 +484,11 @@ final class Places {
         double[] t = Roadway.tangent(s.pts(), i, 4);
         double lateral = (at.getX() - q[0]) * -t[1] + (at.getZ() - q[1]) * t[0];
         int side = lateral >= 0 ? 1 : -1;
-        double[] front = Roadway.beside(s.pts(), i, side * cfg.getDouble("garage.side", 8), 4);
-        int y = ground(at.getWorld(), front[0], front[1], Roadway.surfaceY(s.halves(), i), 6, 8);
-        int floor = y == UNKNOWN || y == NONE ? at.getBlockY() : y;
-        return keep(s.fitted(i, side, floor));
+        Foot f = footprint(at.getWorld(), s, i, side, baseOff());
+        String where = " (차고 자리: 내가 선 쪽 길가, 길 가운데에서 " + Math.round(baseOff()) + "~" + Math.round(baseOff() + 7) + "칸)";
+        if (f == null) return "그 자리 땅이 아직 불러와지지 않았어요" + where;
+        if (!f.check().ok()) return "여기에는 차고를 세울 수 없어요: " + Dry.why(f.check()) + where;
+        return keep(s.fitted(i, side, f.check().max()));
     }
 
     private String keep(Site s) {
@@ -393,9 +507,9 @@ final class Places {
         Site s = site;
         World w = s == null ? null : s.bukkit();
         if (w == null || !s.fitted()) return null;
-        double[] t = Roadway.tangent(s.pts(), s.garage(), 4);
-        double[] front = Roadway.beside(s.pts(), s.garage(), s.side() * cfg.getDouble("garage.side", 8), 4);
-        return new Location(w, front[0], s.floor(), front[1], Roadway.yaw(t[1] * s.side(), -t[0] * s.side()), 0);
+        Location f = frame(w, s, s.garage(), Integer.signum(s.side()), off(s));
+        f.setY(s.floor());
+        return f;
     }
 
     /** Roughly where the garage is, fitted or not (to tell how near someone is). */
@@ -443,7 +557,9 @@ final class Places {
     /**
      * The bend's outer roadside {@code along} points past the bend: just inside the guardrail there (the first wall, fence
      * or striped block found going out from the kerb; the memorial's back stays clear of its near face), or {@code side}
-     * blocks from the road's middle where there is no rail. Null while its chunk is not loaded.
+     * blocks from the road's middle where there is no rail. Only on dry ground ({@link Dry}: the spot and a block to
+     * either hand): where it is not (a bridge over water), nearer the road, down to the kerb; nowhere dry: no spot
+     * ({@link Edge#at} null, the rail's top may still be there). Null while its chunk is not loaded.
      */
     Edge edge(double along, double side) {
         Site s = site;
@@ -474,9 +590,18 @@ final class Places {
                 break find;
             }
         }
-        double[] p = Roadway.beside(s.pts(), at, s.outside() * lateral, 4);
-        int y = ground(w, p[0], p[1], roadY, 0, 2);
-        if (y == UNKNOWN) return null;
-        return new Edge(new Location(w, p[0], y == NONE ? roadY + 1 : top(w, (int) Math.floor(p[0]), y, (int) Math.floor(p[1])), p[1], yaw, 0), top);
+        for (double l = lateral; l >= 2.9 - 1e-9; l -= 0.5) {
+            double[] p = Roadway.beside(s.pts(), at, s.outside() * l, 4);
+            int y = ground(w, p[0], p[1], roadY, 1, 2);
+            if (y == UNKNOWN) return null;
+            boolean dry = y != NONE;
+            for (int hand = -1; hand <= 1 && dry; hand += 2) {
+                int h = ground(w, p[0] + t[0] * hand, p[1] + t[1] * hand, roadY, 1, 2);
+                if (h == UNKNOWN) return null;
+                dry = h != NONE;
+            }
+            if (dry) return new Edge(new Location(w, p[0], top(w, (int) Math.floor(p[0]), y, (int) Math.floor(p[1])), p[1], yaw, 0), top);
+        }
+        return new Edge(null, top);
     }
 }
