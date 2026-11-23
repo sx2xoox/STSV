@@ -45,6 +45,8 @@ final class Drive {
         final int[] halves;
         final int bend, outside, end;
         long car;
+        /** the car's motion as the core handed it out: the id is only this car while it still answers with this object ({@link Drive#mine}) */
+        dev.stsv.core.vehicle.VehiclePhysics.State body;
         int phase, ticks;
         /** the ghost: its place along the road (points), its speed (blocks/s), its wheels' roll */
         double s, v, roll;
@@ -146,6 +148,11 @@ final class Drive {
         Combo answer = g.answer();
         long id = g.cars().spawnReal(vm, item, w, at, answer, driver);
         if (id == 0) return 0;
+        r.body = vm.temporaryState(id);
+        if (r.body == null) {
+            vm.removeTemporary(id);
+            return 0;
+        }
         vm.letOutOfTemporary(id);   // it drives like an owned car (the road's bonus) and its driver may get out (which ends the night)
         r.car = id;
         r.stands = at;
@@ -195,7 +202,7 @@ final class Drive {
     void board(Player p, long id) {
         Run r = runs.get(p.getUniqueId());
         VehicleModule vm = g.vm();
-        if (r == null || vm == null || r.car != id || r.phase != WAITING) return;
+        if (r == null || vm == null || r.car != id || r.phase != WAITING || !mine(r, vm)) return;
         if (!r.preview && !g.mayGoOn(p)) return;
         if (vm.seatTemporary(id, p)) ready(r, p);
     }
@@ -204,7 +211,7 @@ final class Drive {
     private void ready(Run r, Player p) {
         VehicleModule vm = g.vm();
         World w = p.getWorld();
-        vm.freezeTemporary(r.car, true);
+        if (mine(r, vm)) vm.freezeTemporary(r.car, true);
         g.props().drop(r.u, WAIT);
         g.props().drop(r.u, GHOST);
         r.phase = READY;
@@ -296,7 +303,7 @@ final class Drive {
                     return;
                 }
                 if (r.ticks >= 50) {
-                    vm.freezeTemporary(r.car, false);
+                    if (mine(r, vm)) vm.freezeTemporary(r.car, false);
                     r.phase = GO;
                     r.ticks = 0;
                 }
@@ -333,7 +340,7 @@ final class Drive {
         // far: further than anyone within drive.range of the bend can be from a car standing before it (else it would come
         // and go every second for someone on the bend's other side)
         double far = Math.max(72, cfg().getDouble("drive.range", 40) + Math.max(10, cfg().getInt("drive.lead", 30)) + 48);
-        boolean gone = late || !vm.temporaryAlive(r.car) || !p.getWorld().getName().equals(r.world)
+        boolean gone = late || !mine(r, vm) || !vm.temporaryAlive(r.car) || !p.getWorld().getName().equals(r.world)
                 || Math.hypot(p.getLocation().getX() - r.stands.getX(), p.getLocation().getZ() - r.stands.getZ()) > far
                 || !g.night(p) || !g.mayGoOn(p);
         if (late) rest.put(r.u, System.currentTimeMillis() + 60_000L);   // it does not come back the very next second
@@ -376,7 +383,7 @@ final class Drive {
             Location o = g.places().garage();
             r.door = o == null ? null : Props.local(o, 0, 0.06, 2.5);
             r.inside = o == null ? null : Shed.carSpot(o);
-            vm.freezeTemporary(r.car, true);
+            if (mine(r, vm)) vm.freezeTemporary(r.car, true);
             if (!r.preview) g.home(p);
             g.shutter(p, 1.0, 16);
             g.say(p, "home-1", "<#9fb2c8>…다 왔네.");
@@ -517,8 +524,17 @@ final class Drive {
 
     private void removeCar(Run r) {
         VehicleModule vm = g.vm();
-        if (r.car != 0 && vm != null) vm.removeTemporary(r.car);
+        if (r.car != 0 && vm != null && mine(r, vm)) vm.removeTemporary(r.car);
         r.car = 0;
+        r.body = null;
+    }
+
+    /**
+     * Whether the core still has this run's very car under its id. The core counts temporary ids anew when its vehicle
+     * module restarts, so the id alone could by then be someone else's kart or rented bus: never removed, boarded or frozen.
+     */
+    private static boolean mine(Run r, VehicleModule vm) {
+        return r.car != 0 && r.body != null && vm.temporaryState(r.car) == r.body;
     }
 
     /** Whatever this player's run was, it is over and nothing of it is left (no line, no penalty). */
