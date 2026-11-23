@@ -653,6 +653,9 @@ final class CosmeticAttachments {
                 bonusOf.remove(id);
                 continue;
             }
+            // a respawn packet went to this player (the same world: their client kept its entities): their own
+            // displays, as their client holds them, no longer match what the packet layer remembers
+            if (packets != null && packets.takeResync(p)) reshowOwn(p);
             boolean hide = badPose(p);
             float scale = scale(p);
             float body = turnBody(p);
@@ -729,8 +732,25 @@ final class CosmeticAttachments {
         tickCarried(resend);
     }
 
+    /**
+     * Shows the wearer their own displays afresh (own view on): hidden and shown again, they are sent as new, with
+     * their lifting entities and copies made again. What the client held before is replaced. Does nothing when the
+     * wearer does not see their own displays.
+     */
+    void reshowOwn(Player p) {
+        if (packets != null) packets.ownReset(p);
+        if (!selfView.test(p)) return;
+        List<Worn> all = new ArrayList<>(worn.getOrDefault(p.getUniqueId(), Map.of()).values());
+        Worn b = bonus.get(p.getUniqueId());
+        if (b != null) all.add(b);
+        for (Worn w : all) for (ItemDisplay d : w.all()) p.hideEntity(plugin, d);
+        for (Worn w : all) for (ItemDisplay d : w.all()) if (d.isValid() && d.getWorld() == p.getWorld()) p.showEntity(plugin, d);
+        if (!all.isEmpty()) relinkAt.put(p.getUniqueId(), new ArrayList<>(List.of(ticks + 2, ticks + 10)));
+    }
+
     /** The wearer's own view was switched: show or hide their displays to them now. */
     void selfViewChanged(Player p) {
+        if (packets != null) packets.ownReset(p);
         boolean want = selfView.test(p);
         List<Worn> all = new ArrayList<>(worn.getOrDefault(p.getUniqueId(), Map.of()).values());
         Worn b = bonus.get(p.getUniqueId());

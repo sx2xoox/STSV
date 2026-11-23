@@ -109,6 +109,8 @@ final class CosmeticPackets {
     final java.util.concurrent.atomic.AtomicLong ownMoves = new java.util.concurrent.atomic.AtomicLong();
     /** debug counter: own-view links sent */
     final java.util.concurrent.atomic.AtomicLong ownLinks = new java.util.concurrent.atomic.AtomicLong();
+    /** debug: respawn / login packets seen by the own view, and times a player's own displays were shown afresh */
+    final java.util.concurrent.atomic.AtomicLong respawnsSeen = new java.util.concurrent.atomic.AtomicLong(), resyncs = new java.util.concurrent.atomic.AtomicLong();
 
     /** entity id of a wearer -> the cosmetic (NMS stack) other players see on their head. */
     private final Map<Integer, Object> othersView = new ConcurrentHashMap<>();
@@ -460,6 +462,46 @@ final class CosmeticPackets {
         h.y = l.getY();
         h.z = l.getZ();
         h.ownView = on;
+    }
+
+    /**
+     * Whether this player's own view has to be built afresh (a respawn packet went out since the last call): the
+     * caller hides and shows the player their own displays, which sends them through here as new.
+     */
+    boolean takeResync(Player p) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h == null || !h.resync) return false;
+        h.resync = false;
+        return true;
+    }
+
+    /**
+     * Before a player's own displays are shown to them afresh: the lifting entities are made again with the next link
+     * (should the client have lost them), and copies left from before a respawn packet are removed. The copies of
+     * displays the client holds now go with their displays (the remove packets are extended on their way out).
+     */
+    void ownReset(Player p) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h == null) return;
+        h.liftSpawned = false;
+        resyncs.incrementAndGet();
+        if (h.stale.isEmpty() || removeNew == null) return;
+        int[] gone = h.stale.stream().mapToInt(Integer::intValue).toArray();
+        h.stale.clear();
+        try {
+            send(p, removeNew.newInstance((Object) gone));
+        } catch (Throwable t) {
+            warn(t);
+        }
+    }
+
+    /** Debug: what the own view holds for this player. */
+    String ownState(Player p) {
+        Handler h = handlers.get(p.getUniqueId());
+        if (h == null) return "없음";
+        return "받침대 " + (ownLift <= 0 ? "꺼짐" : h.liftSpawned ? "보냄" : "아직") + " / 사본 있는 몸 치장 " + h.copies.size()
+                + " / 자리 잡은 디스플레이 " + h.lowered.size() + " / 기억한 아이템 " + h.items.size()
+                + " / 내 치장 연결 " + ownLinks.get() + " / 리스폰 패킷 " + respawnsSeen.get() + " / 다시 맞춤 " + resyncs.get();
     }
 
     /**
@@ -1029,6 +1071,14 @@ final class CosmeticPackets {
         final Map<Integer, Float> ranges = new ConcurrentHashMap<>();
         /** own view: the item each body display shows (as the server sent it) */
         final Map<Integer, Object> items = new ConcurrentHashMap<>();
+        /**
+         * own view: a respawn packet went out. The client keeps its entities when the world stays the same (a skin
+         * refresh by another plugin, a respawn that did not untrack), so what it holds no longer matches what is
+         * recorded here: the main thread shows the player their own displays afresh ({@link #takeResync}).
+         */
+        volatile boolean resync;
+        /** own view: copies the client may still hold from before a respawn packet (removed at the resync) */
+        final Set<Integer> stale = ConcurrentHashMap.newKeySet();
         /** packets made for this client as they must arrive: not rewritten (by identity) */
         final Set<Object> asIs = java.util.Collections.synchronizedSet(java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>()));
 
@@ -1061,12 +1111,21 @@ final class CosmeticPackets {
             return link.size() == 1 ? link.get(0) : bundleNew.newInstance(link);
         }
         if (c == respawnCls || c == loginCls) {
-            // the client's world is replaced: it has none of its entities any more
+            // the client's world is replaced, or (a respawn into the same world: a skin refresh, say) kept with every
+            // entity in it. Either way nothing recorded here can be trusted: forget it, and have the main thread show
+            // the player their own displays afresh (their copies from before are removed then, should they still be
+            // there: left alone they would hang where the player stood, and the real displays would stay empty)
+            for (int d : h.copies) {
+                h.stale.add(copyId(d, SelfLift.Band.LOW));
+                h.stale.add(copyId(d, SelfLift.Band.MID));
+            }
             h.liftSpawned = false;
             h.lowered.clear();
             h.copies.clear();
             h.ranges.clear();
             h.items.clear();
+            h.resync = true;
+            respawnsSeen.incrementAndGet();
             return packet;
         }
         if (c == addEntityCls) {

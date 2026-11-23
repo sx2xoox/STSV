@@ -43,7 +43,7 @@ public final class StsvCommand implements TabExecutor {
         sub("recipe", "생성", "create", "삭제", "delete", "목록", "list");
         sub("fuel", "설정", "set", "제거", "remove", "목록", "list");
         sub("skin", "해제", "remove");
-        sub("cosmetic", "지급", "give", "회수", "take", "정보", "info");
+        sub("cosmetic", "지급", "give", "회수", "take", "정보", "info", "다시", "resync");
         sub("period", "시작", "start", "종료", "end", "정보", "info");
         sub("title", "지급", "give", "회수", "take", "목록", "list");
         sub("stat", "추가", "add");
@@ -548,8 +548,18 @@ public final class StsvCommand implements TabExecutor {
             plugin.cosmetics().info(target).forEach(l -> sender.sendMessage(Text.mm(" <dark_gray>-</dark_gray> <white>" + l)));
             return;
         }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("resync")) {
+            Player target = args.length > 2 ? online(args[2]) : sender instanceof Player p ? p : null;
+            if (target == null) {
+                sender.sendMessage(Text.msg("<red>/관리자 치장 다시 [플레이어]"));
+                return;
+            }
+            plugin.cosmetics().reshowOwn(target);
+            sender.sendMessage(Text.msg("<green>" + target.getName() + " 의 화면에 그 사람의 치장을 다시 보냈습니다."));
+            return;
+        }
         if (args.length < 4 || !(args[1].equalsIgnoreCase("give") || args[1].equalsIgnoreCase("take"))) {
-            sender.sendMessage(Text.msg("<red>/관리자 치장 <지급|회수> <플레이어> <치장>"));
+            sender.sendMessage(Text.msg("<red>/관리자 치장 <지급|회수|정보|다시> <플레이어> <치장>"));
             return;
         }
         Player target = online(args[2]);

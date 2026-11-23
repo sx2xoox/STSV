@@ -354,6 +354,11 @@ public final class CosmeticModule implements StsvModule, Listener {
         return p.getPersistentDataContainer().getOrDefault(keySelfView, PersistentDataType.BYTE, (byte) 1) == 1;
     }
 
+    /** Shows the player their own worn models afresh (admin: /관리자 치장 다시). */
+    public void reshowOwn(Player p) {
+        if (attachments != null) attachments.reshowOwn(p);
+    }
+
     public void selfView(Player p, boolean on) {
         p.getPersistentDataContainer().set(keySelfView, PersistentDataType.BYTE, (byte) (on ? 1 : 0));
         if (packets != null) packets.ownView(p, on);   // before the displays are shown: their packets are rewritten
@@ -1785,6 +1790,7 @@ public final class CosmeticModule implements StsvModule, Listener {
                 + (packets == null ? "" : " (몸 치장 자리: " + packets.ownBand(p) + ")") + " / 숨김(투명·사망·관전): " + concealed(p));
         if (packets != null) out.add("몸에 붙이기 패킷(서버 전체): 스폰 때 " + packets.linkedSpawns.get() + " / 탑승 패킷 보강 "
                 + packets.extendedPassengers.get() + " / 재전송 " + packets.resent.get());
+        if (packets != null) out.add("내 화면 상태: " + packets.ownState(p));
         if (packets != null) out.add("거리별 단순화: " + (lod == null ? "꺼짐" : lod.near() + "칸 밖 단순 모델, " + lod.far() + "칸 밖 안 그림")
                 + " / 단순 모델로 보낸 횟수 " + packets.lodSwapped.get());
         out.add("보유(직접 지급): " + (owned(p).isEmpty() ? "없음" : String.join(", ", owned(p))));
