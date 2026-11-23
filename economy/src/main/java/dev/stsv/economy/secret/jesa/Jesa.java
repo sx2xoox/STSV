@@ -125,12 +125,6 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     private final Set<UUID> concluding = new HashSet<>(), dawned = new HashSet<>();
     /** player -> when they last touched a vessel (ms): one touch per click, however the client sends it */
     private final Map<UUID, Long> touched = new HashMap<>();
-    /**
-     * player -> what lay on their vessels when their house was last taken away (vessel -> saved value). An admin's
-     * 초기화 takes the house away and then deletes everything saved in the same tick: whatever is gone from kv a moment
-     * later, without having gone through {@link #dropPlate}, is sent back by mail ({@link #parted}).
-     */
-    private final Map<UUID, Map<Integer, String>> parting = new HashMap<>();
     /** house places already looked at for water this run (player -> saved house) */
     private final Map<UUID, String> dryChecked = new HashMap<>();
     static final String MAIL = "jesa";
@@ -284,8 +278,6 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     /** Forgets a vessel's item in kv (the only way one is taken off: given back, eaten, or replaced). */
     private void dropPlate(UUID u, int v) {
         m.remove(this, u, Vessel.key(v));
-        Map<Integer, String> was = parting.get(u);
-        if (was != null) was.remove(v);
     }
 
     /** Back to them: their pockets, else the mailbox — never the ground. False when there is no mailbox to send it by. */
@@ -320,21 +312,6 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         int n = 0;
         for (int v : saved(u).keySet()) if (takeOff(u, v, null)) n++;
         return n;
-    }
-
-    /** After a house was taken away: what vanished from kv without going through {@link #dropPlate} (an admin's 초기화). */
-    private void parted(UUID u, boolean last) {
-        Map<Integer, String> was = parting.get(u);
-        if (was == null) return;
-        for (Map.Entry<Integer, String> e : new TreeMap<>(was).entrySet()) {
-            if (m.get(this, u, Vessel.key(e.getKey())) != null) continue;
-            was.remove(e.getKey());
-            ItemStack it = unpack(e.getValue());
-            if (it == null) continue;
-            if (!giveBack(u, it)) eco.getLogger().warning("[비밀] 주인없는제사: 초기화로 지워진 제기 위의 것을 돌려줄 우편함이 없음 (" + u + "): "
-                    + Items.key(it));
-        }
-        if (last || was.isEmpty()) parting.remove(u, was);
     }
 
     /** Things that may not lie on a vessel: 길라잡이 trial things, a secret's own things, anything that holds other things. */
@@ -674,7 +651,10 @@ public final class Jesa extends Secret implements BusModule.Watcher {
                 else if (!s.busy) house.light(s, night(u, s.base.getWorld()));
                 continue;
             }
-            if (st == HEARD && open(u)) watchHer(p);
+            if (st == HEARD) {
+                if (open(u)) watchHer(p);
+                else if (m.get(this, u, "late") == null && !saved(u).isEmpty()) late(p);   // things saved on a table that moved
+            }
             if (st != HOUSE && st != ACCEPTED || concluding.contains(u) || guide(p)) {
                 if (s != null && !s.busy && !concluding.contains(u)) house.hide(u);
                 continue;
@@ -818,8 +798,6 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             rest.setAmount(left);
             inv.setItemInMainHand(rest);
         }
-        Map<Integer, String> was = parting.get(u);
-        if (was != null) was.remove(v);
         if (before != null) giveBack(u, before);   // the one it replaced
         house.food(p, plates(u));
         Location at = house.dishAt(s, v);
@@ -1096,16 +1074,13 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         concluding.remove(u);
         if (p != null) undawn(p);
         else dawned.remove(u);
-        // an admin's 초기화 deletes everything saved right after this: look again in a moment (see parting)
-        Map<Integer, String> now = saved(u);
-        if (now.isEmpty() || !eco.isEnabled()) return;
-        parting.put(u, now);
-        try {
-            Bukkit.getScheduler().runTaskLater(eco, () -> parted(u, false), 2L);
-            Bukkit.getScheduler().runTaskLater(eco, () -> parted(u, true), 40L);
-        } catch (RuntimeException e) {
-            parting.remove(u);   // shutting down: nothing is deleted then, it all stays saved
-        }
+    }
+
+    /** An admin's 초기화: everything still on their vessels goes back to them first (pockets, else the mailbox). */
+    @Override
+    public void resetting(UUID u) {
+        int n = returnAll(u);
+        if (n > 0) eco.getLogger().info("[비밀] 주인없는제사: 초기화 전에 제기 위의 것 " + n + "개를 돌려줌 (" + u + ")");
     }
 
     @Override

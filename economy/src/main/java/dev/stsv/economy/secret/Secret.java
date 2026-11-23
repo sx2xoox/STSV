@@ -61,6 +61,12 @@ public abstract class Secret implements Listener {
         m.stage(this, p.getUniqueId(), stage);
     }
 
+    /**
+     * Called by an admin's 초기화 just before everything saved for this player in this secret is deleted (after
+     * {@link #cleanup}): give back anything of theirs the secret is holding.
+     */
+    public void resetting(UUID player) {}
+
     /** Takes away whatever it shows a player (visuals, effects) and forgets in-memory state; the saved stage stays. */
     public void cleanup(UUID player) {}
 

@@ -209,6 +209,11 @@ public final class SecretModule extends EcoModule {
     /** Forgets everything saved for this player in this secret. */
     public void reset(Secret s, UUID u) {
         s.cleanup(u);
+        try {
+            s.resetting(u);
+        } catch (RuntimeException e) {
+            eco.getLogger().log(java.util.logging.Level.WARNING, "[비밀] " + s.id() + " 초기화 전 정리 오류", e);
+        }
         eco.kv().removePrefix("secret." + s.id() + "." + u + ".");
     }
 
