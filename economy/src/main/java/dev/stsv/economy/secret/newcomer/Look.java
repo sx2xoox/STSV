@@ -39,6 +39,19 @@ final class Look {
         return who;
     }
 
+    /** Whether the core has its chat builders (0.122.0+). An older core: the same lines built here (and one warning). */
+    static final boolean CORE = coreLook();
+
+    private static boolean coreLook() {
+        try {
+            Class.forName("dev.stsv.core.profile.ChatLook");
+            return true;
+        } catch (ClassNotFoundException | LinkageError e) {
+            org.bukkit.Bukkit.getLogger().warning("[STSV-Economy] 코어가 오래됐어요 (0.122.0 이상 필요): 숨은 비밀 '새로 온 사람' 이 채팅 모양을 직접 만들어 씀. 코어 jar 를 경제와 같은 때 받은 것으로 바꿔 주세요.");
+            return false;
+        }
+    }
+
     static UUID fake(String name) {
         return UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
     }
@@ -46,7 +59,10 @@ final class Look {
     /** NAME: his name as the game writes a player's in a whisper: click to whisper, shift-click to paste, hover for who it is (core ChatLook). */
     Component name() {
         try {
-            return ChatLook.name(Component.text(who), who, id);
+            if (CORE) return ChatLook.name(Component.text(who), who, id);
+            return Component.text(who).insertion(who)
+                    .clickEvent(net.kyori.adventure.text.event.ClickEvent.suggestCommand("/tell " + who + " "))
+                    .hoverEvent(net.kyori.adventure.text.event.HoverEvent.showEntity(net.kyori.adventure.key.Key.key("minecraft", "player"), id, Component.text(who)));
         } catch (RuntimeException e) {
             return Component.text(who);
         }
@@ -68,12 +84,17 @@ final class Look {
 
     /** WHISPER IN: a whisper from him exactly as the core sends a real player's (ChatLook.incoming; plain words). mm: MiniMessage, read as plain text. */
     Component incoming(String mm) {
-        return ChatLook.incoming(name(), PlainTextComponentSerializer.plainText().serialize(Text.mm(mm)));
+        String words = PlainTextComponentSerializer.plainText().serialize(Text.mm(mm));
+        if (CORE) return ChatLook.incoming(name(), words);
+        return Component.translatable("commands.message.display.incoming", name(), Component.text(words))
+                .color(NamedTextColor.GRAY).decorate(net.kyori.adventure.text.format.TextDecoration.ITALIC);
     }
 
     /** WHISPER OUT: the sender's own whisper to him, as the core echoes a real one (ChatLook.outgoing). */
     Component outgoing(String message) {
-        return ChatLook.outgoing(name(), message);
+        if (CORE) return ChatLook.outgoing(name(), message);
+        return Component.translatable("commands.message.display.outgoing", name(), Component.text(message))
+                .color(NamedTextColor.GRAY).decorate(net.kyori.adventure.text.format.TextDecoration.ITALIC);
     }
 
     /**
@@ -81,6 +102,33 @@ final class Look {
      * the core uses; a real player's chat name is plain text, no hover or click).
      */
     static Component chatLine(String format, String name, String words) {
-        return ChatLook.line(format == null || format.isBlank() ? DEFAULT_CHAT_FORMAT : format, null, Component.text(name), Component.text(words));
+        String f = format == null || format.isBlank() ? DEFAULT_CHAT_FORMAT : format;
+        if (CORE) return ChatLook.line(f, null, Component.text(name), Component.text(words));
+        return oldLine(f, name, words);
+    }
+
+    /** The core's ProfileModule.chatLine as it was before ChatLook (an older core): {title} nothing, {name}/{message} plain. */
+    private static Component oldLine(String f, String name, String words) {
+        Component out = Component.empty();
+        int i = 0;
+        while (i < f.length()) {
+            int open = f.indexOf('{', i);
+            if (open < 0) {
+                out = out.append(Text.mm(f.substring(i)));
+                break;
+            }
+            int close = f.indexOf('}', open);
+            String key = close < 0 ? "" : f.substring(open + 1, close);
+            if (!key.equals("title") && !key.equals("name") && !key.equals("message")) {
+                out = out.append(Text.mm(f.substring(i, close < 0 ? f.length() : close + 1)));
+                i = close < 0 ? f.length() : close + 1;
+                continue;
+            }
+            if (open > i) out = out.append(Text.mm(f.substring(i, open)));
+            if (key.equals("name")) out = out.append(Component.text(name));
+            else if (key.equals("message")) out = out.append(Component.text(words));
+            i = close + 1;
+        }
+        return out;
     }
 }
