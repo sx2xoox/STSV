@@ -488,4 +488,21 @@ class JesaTest {
         for (String t : bus.getConfigurationSection("types").getKeys(false)) skins.addAll(bus.getStringList("types." + t + ".skins"));
         for (String skin : y.getStringList("blessing.skins")) assertTrue(skins.contains(skin), "bus.yml 에 없는 스킨: " + skin);
     }
+
+    /** The one change the weekly house made to the judging: only a 전 that names nothing is not owed; the cup always is. */
+    @Test
+    void anEmptyKindNeverMakesTheCupUnowed() {
+        Table.Rules r = RULES;
+        Table.Rules noLiquor = new Table.Rules(r.rice(), r.soup(), Set.of(), r.meat(), r.fish(), r.jeon(), r.dried(), r.sikhye(), r.namul(),
+                r.pale(), r.red(), r.cake(), r.taboo(), r.halves());
+        Map<Integer, String> t = right();
+        t.remove(Table.slot(0, MID));
+        assertEquals(List.of(Table.slot(0, MID)), Table.judge(t, noLiquor).missing(), "no liquor named: the cup is still owed (such a table cannot be set)");
+        Table.Rules noJeon = new Table.Rules(r.rice(), r.soup(), r.liquor(), r.meat(), r.fish(), Set.of(), r.dried(), r.sikhye(), r.namul(),
+                r.pale(), r.red(), r.cake(), r.taboo(), r.halves());
+        t = right();
+        t.remove(Table.slot(1, MID));
+        assertTrue(Table.judge(t, noJeon).ok(), "no 전 named at all (the weekly no-fish house): nothing is owed between");
+        assertEquals(List.of(Table.slot(1, MID)), Table.judge(t, RULES).missing(), "the secret's own table still owes its 전");
+    }
 }

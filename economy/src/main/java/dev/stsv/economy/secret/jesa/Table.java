@@ -200,8 +200,9 @@ final class Table {
         for (int col : e) if (!wrong.contains(slot(row, col))) hi = Math.min(hi, col);
         for (int col : b) if (col <= lo || col >= hi) wrong.add(slot(row, col));
         if (!anyWest) missing.add(slot(row, WEST_AT));
-        // (a between kind that names nothing at all is owed by nobody: a weekly house whose fish place takes the 전)
-        if (needBetween && !anyBetween && !between.isEmpty()) missing.add(slot(row, MID));
+        // (a between kind that names nothing at all is owed by nobody: a weekly house whose fish place takes the 전.
+        // Never the cup: a table whose liquor names nothing is not one that needs no drink — it cannot be set at all)
+        if (needBetween && !anyBetween && (cup || !between.isEmpty())) missing.add(slot(row, MID));
         if (!anyEast) missing.add(slot(row, EAST_AT));
     }
 
