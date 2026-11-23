@@ -20,7 +20,19 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.ItemSpawnEvent;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -29,6 +41,7 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
@@ -64,6 +77,8 @@ public final class LostKeySequel extends Sequel {
     private final Map<UUID, Mannequin> owners = new ConcurrentHashMap<>();
     /** player -> since when the thing is not on them */
     private final Map<UUID, Long> without = new ConcurrentHashMap<>();
+    /** players whose pockets were full when the thing was to be handed to them: tried again until it fits (never dropped) */
+    private final Set<UUID> waiting = ConcurrentHashMap.newKeySet();
     private long beats;
 
     LostKeySequel(LostKey key) {
@@ -181,7 +196,10 @@ public final class LostKeySequel extends Sequel {
         UUID u = p.getUniqueId();
         String serial = Long.toHexString(System.currentTimeMillis()) + Long.toHexString(ThreadLocalRandom.current().nextLong());
         set(u, "serial", serial);   // the copies given before are dead
-        ItemStack it = Items.create(t.item(), 1).or(() -> Items.create(LostKey.ITEM, 1)).orElseGet(() -> new ItemStack(Material.PAPER));
+        // A secret's own item (items/secrets.yml: the 거래소 and the auction refuse it) wearing the look of the lost thing.
+        // Never the bus's own economy:lost_* item itself: that one is ordinary goods (it can be listed and sold).
+        ItemStack it = Items.create(LostKey.ITEM, 1).orElseGet(() -> new ItemStack(Material.PAPER));
+        NamespacedKey look = Items.create(t.item(), 1).filter(ItemStack::hasItemMeta).map(x -> x.getItemMeta().hasItemModel() ? x.getItemMeta().getItemModel() : null).orElse(null);
         List<Component> lore = new ArrayList<>();
         for (String l : t.lore()) lore.add(Text.item(l));
         for (String l : cfg().getStringList("item.lore")) lore.add(Text.item(l));
@@ -189,12 +207,24 @@ public final class LostKeySequel extends Sequel {
         for (Clues.Clue c : Owners.decode(get(u, "clues"))) lore.add(Text.item(heard.replace("{line}", Text.plain(clueLine(c)))));
         it.editMeta(meta -> {
             meta.setMaxStackSize(1);
+            if (look != null) meta.setItemModel(look);
             meta.itemName(Text.item(line("item.name", "<#c9a26b>이름이 지워진 {thing}", "thing", t.name())));
             meta.lore(lore);
             meta.getPersistentDataContainer().set(THING, PersistentDataType.STRING, u.toString());
             meta.getPersistentDataContainer().set(SERIAL, PersistentDataType.STRING, serial);
         });
         return Items.markBought(it);   // the shop, requests and machines refuse it
+    }
+
+    /** Into their pockets, never onto the ground (a thing lying about could be picked up by anyone). False: no room now. */
+    private boolean hand(Player p, ItemStack it) {
+        UUID u = p.getUniqueId();
+        if (p.getInventory().addItem(it).isEmpty()) {
+            waiting.remove(u);
+            return true;
+        }
+        if (waiting.add(u)) tell(p, "no-room", "<dark_gray>…주머니에 자리가 없다. 그것은 아직 뒷자리에 있다. <gray>(자리를 비우면 들어온다)");
+        return false;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -244,10 +274,11 @@ public final class LostKeySequel extends Sequel {
         accept(p);
         step(u, 1);
         take(p, true);
-        give(p, make(p, t));
         without.remove(u);
+        waiting.remove(u);
         tell(p, "got", "<gray>뒷자리에 <white>{thing}</white> 하나가 남아 있다. 이름표의 이름이 문질러 지워져 있다.", "thing", t.name());
         p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.8f, 0.9f);
+        hand(p, make(p, t));
         List<String> lines = new ArrayList<>();
         lines.add(t.murmur());
         for (Clues.Clue c : clues) lines.add(clueLine(c));
@@ -405,13 +436,18 @@ public final class LostKeySequel extends Sequel {
         take(p, false);
         if (hasThing(p)) {
             without.remove(u);
+            waiting.remove(u);
+            return;
+        }
+        if (waiting.contains(u)) {   // their pockets were full: as soon as it fits
+            if (hand(p, make(p, thing(u)))) without.remove(u);
             return;
         }
         long now = System.currentTimeMillis();
         long since = without.computeIfAbsent(u, x -> now);
         if (now - since < seconds(u, "return-after", 60) * 1000L) return;
         without.remove(u);
-        give(p, make(p, thing(u)));
+        if (!hand(p, make(p, thing(u)))) return;
         m.haunt().whisper(p, line("back", "<dark_gray>…두고 온 줄 알았던 것이 조수석에 놓여 있다."));
         m.haunt().sound(p, p.getLocation(), Sound.ITEM_ARMOR_EQUIP_CHAIN, 0.4f, 0.7f);
     }
@@ -427,6 +463,85 @@ public final class LostKeySequel extends Sequel {
         } else {
             e.getItemDrop().remove();   // a dead copy: gone
         }
+    }
+
+    // The thing is in its driver's pockets and nowhere else: never on the ground, in a chest, a bundle, a frame, a pot,
+    // another player's hands or a trade window. So there is one of it, it cannot be passed on for money, and nothing of
+    // it is left anywhere once the week is over.
+
+    /** A thing never lies on the ground (a death, a full inventory somewhere, a dead copy thrown out of a window). */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onSpawn(ItemSpawnEvent e) {
+        if (isThing(e.getEntity().getItemStack())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onPickup(EntityPickupItemEvent e) {
+        if (!isThing(e.getItem().getItemStack())) return;
+        e.setCancelled(true);
+        e.getItem().remove();
+    }
+
+    private static boolean bundle(ItemStack it) {
+        return it != null && it.getType().name().endsWith("BUNDLE");
+    }
+
+    private static boolean own(InventoryType top) {
+        return top == InventoryType.CRAFTING || top == InventoryType.CREATIVE;
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onStore(InventoryClickEvent e) {
+        ItemStack cur = e.getCurrentItem(), cursor = e.getCursor();
+        ItemStack swap = e.getClick() == ClickType.NUMBER_KEY && e.getHotbarButton() >= 0 ? e.getWhoClicked().getInventory().getItem(e.getHotbarButton())
+                : e.getClick() == ClickType.SWAP_OFFHAND ? e.getWhoClicked().getInventory().getItemInOffHand() : null;
+        boolean a = isThing(cur), b = isThing(cursor), c = isThing(swap);
+        if (!a && !b && !c) return;
+        Inventory top = e.getView().getTopInventory();
+        if (own(top.getType())) {
+            if (a && bundle(cursor) || b && bundle(cur)) e.setCancelled(true);
+            return;
+        }
+        e.setCancelled(true);
+        // a window that moves things by itself whatever was cancelled (the trade window's shift-click): out of it again
+        if (e.getWhoClicked() instanceof Player p) Bukkit.getScheduler().runTask(eco, () -> pullBack(p, top));
+    }
+
+    /** Takes every thing out of a window; the live one goes back to its driver's pockets (else it comes back by itself). */
+    private void pullBack(Player p, Inventory top) {
+        UUID u = p.getUniqueId();
+        for (int i = 0; i < top.getSize(); i++) {
+            ItemStack it = top.getItem(i);
+            if (!isThing(it)) continue;
+            top.setItem(i, null);
+            if (p.isOnline() && mine(it, u) && !hasThing(p)) p.getInventory().addItem(it);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onStore(InventoryDragEvent e) {
+        if (isThing(e.getOldCursor()) && !own(e.getView().getTopInventory().getType())) e.setCancelled(true);
+    }
+
+    /** Not into a frame or an allay's hands (boarding the bus with it in hand is as ever). */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onPut(PlayerInteractEntityEvent e) {
+        Entity c = e.getRightClicked();
+        if (!(c instanceof org.bukkit.entity.ItemFrame) && !(c instanceof org.bukkit.entity.Allay)) return;
+        if (isThing(e.getPlayer().getInventory().getItem(e.getHand()))) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onStand(PlayerArmorStandManipulateEvent e) {
+        if (isThing(e.getPlayerItem())) e.setCancelled(true);
+    }
+
+    /** Not into a pot or onto a shelf. */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onBlock(PlayerInteractEvent e) {
+        if (e.getAction() != Action.RIGHT_CLICK_BLOCK || e.getClickedBlock() == null || !isThing(e.getItem())) return;
+        String type = e.getClickedBlock().getType().name();
+        if (type.equals("DECORATED_POT") || type.endsWith("_SHELF")) e.setCancelled(true);
     }
 
     @EventHandler
@@ -454,6 +569,7 @@ public final class LostKeySequel extends Sequel {
     protected void cleanup(UUID u) {
         hideOwner(u);
         without.remove(u);
+        waiting.remove(u);
     }
 
     @Override

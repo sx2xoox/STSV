@@ -473,7 +473,11 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     /** BusModule: their bus pulled into a stop's bay. */
     @Override
     public void stopped(Player p, BusStop here) {
-        sequel.stopped(p, here);   // 후속 임무 「주인 찾기」 (only for the one who solved it)
+        try {
+            sequel.stopped(p, here);   // 후속 임무 「주인 찾기」 (only for the one who solved it)
+        } catch (RuntimeException e) {   // never in the way of the secret itself
+            eco.getLogger().log(java.util.logging.Level.WARNING, "[비밀] 후속 분실물센터 오류 (" + p.getName() + ")", e);
+        }
         UUID u = p.getUniqueId();
         int st = stage(u);
         if (!on() || !open(u) || st < 1 || st > 5 || !hasKey(p)) return;

@@ -39,6 +39,23 @@ final class GuideReturn {
         return p.getPersistentDataContainer().has(KEY, PersistentDataType.STRING);
     }
 
+    /**
+     * Whether their own things are still put away (the record holds them). False once they were given back and only the
+     * trip is left (a teleport back that did not happen): what they hold then is REAL and must never be treated as the
+     * tutorial's.
+     */
+    static boolean holding(Player p) {
+        String raw = p.getPersistentDataContainer().get(KEY, PersistentDataType.STRING);
+        if (raw == null) return false;
+        YamlConfiguration y = new YamlConfiguration();
+        try {
+            y.loadFromString(raw);
+        } catch (org.bukkit.configuration.InvalidConfigurationException e) {
+            return true;   // unreadable: stay on the careful side (nothing is marked real by this)
+        }
+        return !y.getBoolean("place-only");
+    }
+
     static void save(Player p) {
         YamlConfiguration y = new YamlConfiguration();
         Location l = p.getLocation();

@@ -607,8 +607,14 @@ public final class FishSequel extends Sequel {
         Player p = e.getPlayer();
         UUID u = p.getUniqueId();
         EquipmentSlot hand = e.getHand() == null ? EquipmentSlot.HAND : e.getHand();
-        // never onto a shelf, into a pot or anything else a click on a block would put it in
-        if (e.getAction() == Action.RIGHT_CLICK_BLOCK) e.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
+        // never into a pot or onto a shelf
+        if (e.getAction() == Action.RIGHT_CLICK_BLOCK && e.getClickedBlock() != null) {
+            String type = e.getClickedBlock().getType().name();
+            if (type.equals("DECORATED_POT") || type.endsWith("_SHELF")) {
+                e.setCancelled(true);
+                return;
+            }
+        }
         if (!mine(it, u) || !may(p)) {
             if (u.toString().equals(pdc(it, NAMELESS)) && !mine(it, u) && on()) p.getInventory().setItem(hand, null);
             return;
@@ -665,16 +671,24 @@ public final class FishSequel extends Sequel {
         return it != null && it.getType().name().endsWith("BUNDLE");
     }
 
-    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.LOW)
     public void onStore(InventoryClickEvent e) {
         ItemStack cur = e.getCurrentItem(), cursor = e.getCursor();
         ItemStack swap = e.getClick() == ClickType.NUMBER_KEY && e.getHotbarButton() >= 0 ? e.getWhoClicked().getInventory().getItem(e.getHotbarButton())
                 : e.getClick() == ClickType.SWAP_OFFHAND ? e.getWhoClicked().getInventory().getItemInOffHand() : null;
         boolean a = isNameless(cur), b = isNameless(cursor), c = isNameless(swap);
         if (!a && !b && !c) return;
-        InventoryType top = e.getView().getTopInventory().getType();
-        boolean own = top == InventoryType.CRAFTING || top == InventoryType.CREATIVE;
-        if (!own || a && bundle(cursor) || b && bundle(cur)) e.setCancelled(true);
+        org.bukkit.inventory.Inventory top = e.getView().getTopInventory();
+        if (top.getType() == InventoryType.CRAFTING || top.getType() == InventoryType.CREATIVE) {
+            if (a && bundle(cursor) || b && bundle(cur)) e.setCancelled(true);
+            return;
+        }
+        e.setCancelled(true);
+        // a window that moves things by itself whatever was cancelled (the trade window's shift-click): out of it again;
+        // the one in hand comes back by itself (return-after)
+        Bukkit.getScheduler().runTask(eco, () -> {
+            for (int i = 0; i < top.getSize(); i++) if (isNameless(top.getItem(i))) top.setItem(i, null);
+        });
     }
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
@@ -686,6 +700,8 @@ public final class FishSequel extends Sequel {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onPut(PlayerInteractEntityEvent e) {
+        Entity c = e.getRightClicked();
+        if (!(c instanceof org.bukkit.entity.ItemFrame) && !(c instanceof org.bukkit.entity.Allay)) return;
         if (isNameless(e.getPlayer().getInventory().getItem(e.getHand()))) e.setCancelled(true);
     }
 

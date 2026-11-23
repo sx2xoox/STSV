@@ -459,7 +459,7 @@ public final class GuideModule extends EcoModule {
      * the mailbox stays shut, so nothing real lands in the tutorial inventory to be mixed with what the tutorial made.
      */
     public boolean inGuide(Player p) {
-        return p != null && GuideReturn.has(p);
+        return p != null && GuideReturn.holding(p);
     }
 
     /**
@@ -469,7 +469,7 @@ public final class GuideModule extends EcoModule {
      */
     private void sweep() {
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (!GuideReturn.has(p) || !inWorld(p)) continue;
+            if (!GuideReturn.holding(p) || !inWorld(p)) continue;   // things already given back (a way out that failed): all real
             var inv = p.getInventory();
             ItemStack[] all = inv.getContents();
             for (int i = 0; i < all.length; i++) {
