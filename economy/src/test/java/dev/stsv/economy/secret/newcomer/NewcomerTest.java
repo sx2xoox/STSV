@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 새로 온 사람: his questions spell what he really asks (in the code's defaults and in the settings file), the night's
+ * 새로 온 사람: his first questions spell what he really asks, the settings file says what the code says, the night's
  * minute is the same for the same date and always inside the window (also across midnight), which commands are whispers
  * to him, and which stone someone stands at.
  */
@@ -35,26 +35,36 @@ class NewcomerTest {
         return YamlConfiguration.loadConfiguration(FILE.toFile());
     }
 
-    // ---- the acrostic
+    // ---- the acrostic (the pools themselves: NewcomerTalkTest)
+
+    /** The first question of each default pool, in order. */
+    static List<String> firsts() {
+        return Questions.DEFAULTS.values().stream().map(l -> l.get(0).text()).toList();
+    }
 
     @Test
     void defaultQuestionsSpellHisQuestion() {
         assertEquals("내비석어디", Newcomer.DEFAULT_ACROSTIC);
-        assertEquals(Newcomer.DEFAULT_ACROSTIC, Acrostic.of(Newcomer.QUESTIONS));
-        assertTrue(Acrostic.spells(Newcomer.QUESTIONS, "내 비석 어디"), "spaces in the word do not count");
+        assertEquals(Questions.letters(Newcomer.DEFAULT_ACROSTIC), List.copyOf(Questions.DEFAULTS.keySet()));
+        assertEquals(Newcomer.DEFAULT_ACROSTIC, Acrostic.of(firsts()));
+        assertTrue(Acrostic.spells(firsts(), "내 비석 어디"), "spaces in the word do not count");
     }
 
     @Test
-    void theSettingsFilesQuestionsSpellItsAcrostic() {
+    void theSettingsFileSaysWhatTheCodeSays() {
         YamlConfiguration y = yml();
-        List<String> q = y.getStringList("visit.questions");
-        assertEquals(5, q.size());
-        assertEquals(y.getString("acrostic"), Acrostic.of(q));
-        assertTrue(Acrostic.spells(q, y.getString("acrostic")));
-        assertEquals(Newcomer.QUESTIONS, q, "the file and the code's defaults say the same");
+        List<String> problems = new java.util.ArrayList<>();
+        assertEquals(Questions.DEFAULTS, Questions.read(y.getConfigurationSection("questions"), y.getString("acrostic"), problems),
+                "the file's questions and the code's defaults say the same");
+        assertEquals(List.of(), problems);
+        assertFalse(y.contains("visit.questions"), "the old fixed five are gone");
+        assertFalse(y.contains("react"), "the old two-line reaction is gone");
+        assertFalse(y.contains("whisper.evasive"), "the old four-line cycle is gone");
+        assertEquals(Newcomer.DEFAULT_ACROSTIC, y.getString("acrostic"));
         assertEquals(Newcomer.ENDING, y.getStringList("ending.lines"));
-        assertEquals(Newcomer.EVASIVE, y.getStringList("whisper.evasive"));
-        assertEquals(Newcomer.REACTIONS, y.getStringList("react.lines"));
+        assertEquals(Newcomer.FIXES, y.getStringList("typo.fix"));
+        assertEquals(Newcomer.TIME_WORDS, y.getStringList("visit.time-words"));
+        assertEquals(Talk.STRANGE, y.getStringList("whisper.strange.lines"));
         assertEquals(Newcomer.DEFAULT_NAME, y.getString("name"));
         assertTrue(Whispers.account(y.getString("name")), "his name looks like an account");
         assertTrue(y.getString("stone-name").endsWith(y.getString("name")), "the solved stone keeps his name");
@@ -70,17 +80,31 @@ class NewcomerTest {
     @Test
     void hisWordsAreSpokenNotWritten() {
         // nobody says "당신" to a stranger in chat; the one he speaks to is called by name
-        for (List<String> l : List.of(Newcomer.QUESTIONS, Newcomer.EVASIVE, Newcomer.REACTIONS, Newcomer.ENDING)) {
-            for (String line : l) {
-                assertFalse(line.contains("당신"), line);
-                assertFalse(line.contains("!"), line);
-                assertEquals(line.strip(), line);
+        List<String> all = new java.util.ArrayList<>(Newcomer.ENDING);
+        for (List<Questions.Entry> pool : Questions.DEFAULTS.values()) {
+            for (Questions.Entry e : pool) {
+                all.add(e.text());
+                if (e.rain() != null) all.add(e.rain());
             }
+        }
+        for (Talk.Intent i : NewcomerTalkTest.all()) {
+            all.addAll(i.lines);
+            all.addAll(i.follow);
+            all.addAll(i.slip);
+        }
+        all.addAll(Talk.STRANGE);
+        all.addAll(Newcomer.FIXES);
+        for (String line : all) {
+            assertFalse(line.contains("당신"), line);
+            assertFalse(line.contains("!"), line);
+            assertEquals(line.strip(), line);
         }
         assertTrue(Newcomer.ENDING.stream().anyMatch(x -> x.contains("{player}님")));
         for (String line : Newcomer.ENDING) assertTrue(line.startsWith("…"), line);
-        for (String line : Newcomer.EVASIVE) assertTrue(line.startsWith("…"), line);
-        for (String line : Newcomer.QUESTIONS) assertFalse(line.startsWith("…"), "in public he is only a new player: " + line);
+        for (String line : Talk.STRANGE) assertTrue(line.startsWith("…"), line);
+        for (List<Questions.Entry> pool : Questions.DEFAULTS.values()) {
+            for (Questions.Entry e : pool) assertFalse(e.text().startsWith("…"), "in public he is only a new player: " + e.text());
+        }
     }
 
     // ---- his chat line is a real player's chat line
@@ -96,17 +120,17 @@ class NewcomerTest {
     void hisChatLineIsTheCoresChatLine() throws Exception {
         Field def = Class.forName("dev.stsv.core.profile.ProfileModule").getDeclaredField("DEFAULT_CHAT_FORMAT");
         def.setAccessible(true);
-        assertEquals(def.get(null), Newcomer.DEFAULT_CHAT_FORMAT);
+        assertEquals(def.get(null), Look.DEFAULT_CHAT_FORMAT);
         GsonComponentSerializer json = GsonComponentSerializer.gson();
         for (String f : new String[]{null, "", "  ", "{title}{name} <gray>»</gray> {message}", "{name} » {message}", "<gray>{name}: {message}",
                 "<{name}> {message}", "{title}<white>{name}</white><dark_gray>:</dark_gray> {message}", "{name} {nothing} {message}", "{name} {message} {", "[{title}] {name}: {message} <gray>(…)"}) {
             for (String words : new String[]{"내일도 이 시간에 사람 많아요?", "<red>a</red> {name} {message}"}) {
-                Component mine = Newcomer.chatLine(f, "sipsam_", words), core = coreLine(f, "sipsam_", words);
+                Component mine = Look.chatLine(f, "sipsam_", words), core = coreLine(f, "sipsam_", words);
                 assertEquals(json.serialize(core), json.serialize(mine), "format " + f);
             }
         }
         assertEquals("sipsam_ » 석탄은 어디 가야 많이 나와요?",
-                PlainTextComponentSerializer.plainText().serialize(Newcomer.chatLine(null, "sipsam_", "석탄은 어디 가야 많이 나와요?")));
+                PlainTextComponentSerializer.plainText().serialize(Look.chatLine(null, "sipsam_", "석탄은 어디 가야 많이 나와요?")));
     }
 
     @Test
@@ -114,7 +138,7 @@ class NewcomerTest {
         assertEquals("가나", Acrostic.of(List.of("  가방", "", "나무")));
         assertFalse(Acrostic.spells(List.of("내일", "비", "석탄", "어제"), "내비석어디"));       // a question taken out
         assertFalse(Acrostic.spells(List.of("내일", "석탄", "비", "어제", "디"), "내비석어디"));  // the order changed
-        assertFalse(Acrostic.spells(Newcomer.QUESTIONS, null));
+        assertFalse(Acrostic.spells(firsts(), null));
         assertEquals("😀a", Acrostic.of(List.of("😀 hi", "a")));   // one character, not half of one
     }
 

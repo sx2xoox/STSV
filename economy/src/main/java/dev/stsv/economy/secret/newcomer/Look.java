@@ -1,12 +1,10 @@
 package dev.stsv.economy.secret.newcomer;
 
+import dev.stsv.core.profile.ChatLook;
 import dev.stsv.core.util.Text;
-import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.format.TextDecoration;
 
 import java.nio.charset.StandardCharsets;
 import java.util.UUID;
@@ -15,7 +13,7 @@ import java.util.function.Supplier;
 /**
  * How he looks on screen, built in one place each: his name, his join / leave line, his public chat line, and the two
  * whisper lines (his coming in, the sender's own going out). Everything he shows goes through here, so that all of it can
- * be switched to the core's own builders (dev.stsv.core.profile.ChatLook) in one go once the core has them.
+ * come from the core's own builders (dev.stsv.core.profile.ChatLook): his lines are built by the same code as real ones.
  */
 final class Look {
 
@@ -45,11 +43,10 @@ final class Look {
         return UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
     }
 
-    /** NAME: his name as the game writes a player's: click to whisper, shift-click to paste, hover for who it is. */
+    /** NAME: his name as the game writes a player's in a whisper: click to whisper, shift-click to paste, hover for who it is (core ChatLook). */
     Component name() {
         try {
-            return Component.text(who).insertion(who).clickEvent(ClickEvent.suggestCommand("/tell " + who + " "))
-                    .hoverEvent(HoverEvent.showEntity(Key.key("minecraft", "player"), id, Component.text(who)));
+            return ChatLook.name(Component.text(who), who, id);
         } catch (RuntimeException e) {
             return Component.text(who);
         }
@@ -69,45 +66,21 @@ final class Look {
         }
     }
 
-    /** WHISPER IN: a whisper from him as the game shows one coming in (grey, slanted). mm: MiniMessage. */
+    /** WHISPER IN: a whisper from him exactly as the core sends a real player's (ChatLook.incoming; plain words). mm: MiniMessage, read as plain text. */
     Component incoming(String mm) {
-        return Component.translatable("commands.message.display.incoming", name(), Text.mm(mm))
-                .color(NamedTextColor.GRAY).decorate(TextDecoration.ITALIC);
+        return ChatLook.incoming(name(), PlainTextComponentSerializer.plainText().serialize(Text.mm(mm)));
     }
 
-    /** WHISPER OUT: the sender's own whisper to him as the game echoes it (plain words). */
+    /** WHISPER OUT: the sender's own whisper to him, as the core echoes a real one (ChatLook.outgoing). */
     Component outgoing(String message) {
-        return Component.translatable("commands.message.display.outgoing", name(), Component.text(message))
-                .color(NamedTextColor.GRAY).decorate(TextDecoration.ITALIC);
+        return ChatLook.outgoing(name(), message);
     }
 
     /**
-     * One chat line exactly as the core draws a real player's without a title (ProfileModule.chatLine: the format is read
-     * piece by piece, each piece MiniMessage of its own, {title} nothing, {name} and {message} plain text), so that his
-     * line is a real line in whatever format the owner sets (NewcomerTest holds the two together).
+     * One chat line exactly as the core draws a real player's without a title or nickname (ChatLook.line: the same code
+     * the core uses; a real player's chat name is plain text, no hover or click).
      */
     static Component chatLine(String format, String name, String words) {
-        String f = format == null || format.isBlank() ? DEFAULT_CHAT_FORMAT : format;
-        Component out = Component.empty();
-        int i = 0;
-        while (i < f.length()) {
-            int open = f.indexOf('{', i);
-            if (open < 0) {
-                out = out.append(Text.mm(f.substring(i)));
-                break;
-            }
-            int close = f.indexOf('}', open);
-            String key = close < 0 ? "" : f.substring(open + 1, close);
-            if (!key.equals("title") && !key.equals("name") && !key.equals("message")) {
-                out = out.append(Text.mm(f.substring(i, close < 0 ? f.length() : close + 1)));
-                i = close < 0 ? f.length() : close + 1;
-                continue;
-            }
-            if (open > i) out = out.append(Text.mm(f.substring(i, open)));
-            if (key.equals("name")) out = out.append(Component.text(name));
-            else if (key.equals("message")) out = out.append(Component.text(words));
-            i = close + 1;
-        }
-        return out;
+        return ChatLook.line(format == null || format.isBlank() ? DEFAULT_CHAT_FORMAT : format, null, Component.text(name), Component.text(words));
     }
 }
