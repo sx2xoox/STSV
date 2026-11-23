@@ -66,7 +66,8 @@ class AchievementSpecTest {
         Set<String> stats = Set.of("playtime", "deaths", "mob_kills", "blocks_broken", "blocks_placed",
                 "ores_mined", "crops_harvested", "fish_caught", "rare_finds", "animals_bred", "machine_made", "shop_sold", "shop_income",
                 "requests_done", "stock_trades", "market_sold", "auctions_won",
-                "missions_daily", "missions_weekly", "missions_daily_all", "missions_weekly_all");
+                "missions_daily", "missions_weekly", "missions_daily_all", "missions_weekly_all",
+                "bus_dog_found");   // economy: 마을버스 「바둑아 어디 가」 (LostDog)
         // nothing counts these since the boss system was removed: the achievements stay defined (currently unreachable)
         Set<String> uncounted = Set.of("boss_kills", "boss_damage");
         Set<String> providers = Set.of("stsv:achievements", "stsv:points", "stsv:titles", "stsv:cosmetics", "stsv:balance",
