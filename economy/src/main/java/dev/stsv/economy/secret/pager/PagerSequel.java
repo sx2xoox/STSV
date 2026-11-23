@@ -241,6 +241,8 @@ public final class PagerSequel extends Sequel {
         hook.hide(u);
         anchors.remove(u);
         nextBeep.remove(u);
+        String took = get(u, "took");   // (an admin changed the call after the basket took something: it goes back)
+        if (took != null && step(u) == 2) Items.create(took, 1).ifPresent(it -> give(p, it));
         for (String k : List.of("deadline", "day", "at", "took")) remove(u, k);
         set(u, "call", c.id());
         set(u, "tries", 0);
@@ -381,7 +383,7 @@ public final class PagerSequel extends Sequel {
         step(u, 0);
     }
 
-    /** Her answer: the number of thanks on the screen, the reward, and a little later a note in the mail. */
+    /** Her answer: the number of thanks on the screen, the reward, and a short note from her in the mail. */
     private void finish(Player p, Calls.Call c) {
         UUID u = p.getUniqueId();
         if (!live(u)) return;
@@ -390,15 +392,10 @@ public final class PagerSequel extends Sequel {
         hook.empty(u);
         remove(u, "took");   // it was hers from the moment the basket took it; now it is answered
         complete(p);
-        if (cfg().getBoolean("note.enabled", true)) {
-            long wait = Math.max(1, seconds(u, "note-seconds", 120)) * 20L;
-            long seed = Calls.seed(week(u), u.getLeastSignificantBits(), u.getMostSignificantBits());
-            Bukkit.getScheduler().runTaskLater(eco, () -> {
-                ItemStack note = note(u, c, seed);
-                if (note != null && eco.mail() != null) eco.mail().deliver(u, note, "pager");
-                Player q = Bukkit.getPlayer(u);
-                if (q != null) s.sound(q, q.getLocation(), "item.book.page_turn", 0.7f, 0.8f);
-            }, wait);
+        if (cfg().getBoolean("note.enabled", true) && eco.mail() != null) {
+            // at once (nothing to lose to a restart): into the pocket when there is room, else it waits in the mailbox
+            ItemStack note = note(u, c, Calls.seed(week(u), u.getLeastSignificantBits(), u.getMostSignificantBits()));
+            if (note != null) eco.mail().deliver(u, note, "pager");
         }
         Bukkit.getScheduler().runTaskLater(eco, () -> {
             if (!live(u)) hook.hide(u);

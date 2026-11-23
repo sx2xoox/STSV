@@ -265,7 +265,8 @@ public final class NextSequel extends Sequel {
     @Override
     protected void start(Player p) {
         UUID u = p.getUniqueId();
-        if (!begin(p, m.test(u) || !publicChat()) && p.hasPermission("stsv.admin")) {
+        if (begin(p, m.test(u) || !publicChat())) set(u, "forced", 1);   // (asks now, whatever the hour)
+        else if (p.hasPermission("stsv.admin")) {
             p.sendMessage(Text.msg("<red>다음 사람: 쓸 수 있는 이름이나 소원이 없어요 (sequel.names 가 모두 실제 계정 · 닉네임과 겹치거나, sequel.wishes 가 비었어요)"));
         }
     }
@@ -344,7 +345,7 @@ public final class NextSequel extends Sequel {
 
     /** Questions are only asked inside the visiting window, not on a night the visitor was sworn at, and to someone. */
     private boolean mayAsk(UUID u, Guest g, long now) {
-        if (!windowOpen(u) || sulking(u)) return false;
+        if (sulking(u) || !(windowOpen(u) || get(u, "forced") != null)) return false;
         if (g.solo) return true;
         return Bukkit.getOnlinePlayers().size() >= Math.max(1, cfg().getInt("min-online", 1));
     }
@@ -696,7 +697,7 @@ public final class NextSequel extends Sequel {
             case 1 -> "할 일: " + describe(w.task());
             default -> s.somebody(name, false) ? "같은 이름의 실제 플레이어가 접속 중이라 쉼"
                     : sulking(u) ? "삐져서 오늘 밤은 말이 없음 (남은 질문은 다음 밤에)"
-                    : !windowOpen(u) ? "방문 시간대(visit.hours)를 기다림: 남은 질문은 그때"
+                    : !windowOpen(u) && get(u, "forced") == null ? "방문 시간대(visit.hours)를 기다림: 남은 질문은 그때"
                     : g == null ? "푼 사람이 접속하면 이어서 물음" : "다음 질문까지 " + Math.max(0, (g.nextAt - now) / 1000) + "초";
         };
         return "방문자 " + name + (get(u, "solo") != null ? " (이 사람에게만 보임)" : " (모두에게 보임)") + " · 소원 " + w.id() + " “" + w.says() + "” · 질문 " + asked + "/" + n
