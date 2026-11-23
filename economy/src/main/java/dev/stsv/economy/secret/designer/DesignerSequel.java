@@ -16,9 +16,9 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.persistence.PersistentDataType;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -33,7 +33,7 @@ import java.util.UUID;
  * a bought thing, someone else's work stays in the hand); an empty hand opens the blueprint. Filled: it breathes deep, a
  * word of thanks, the reward.
  * <p>
- * Notes of the week: {@code order}, {@code item}, {@code need}, {@code got}. What it took is the heir's until the order is
+ * Notes of the week: {@code order}, {@code item}, {@code need}, {@code got}, {@code held} (the stacks it took). What it took is the heir's until the order is
  * filled: an unfinished order's goods go back ({@link #expired}: the bag, else the mailbox). Kept: {@code recent}.
  */
 public final class DesignerSequel extends Sequel {
@@ -43,6 +43,8 @@ public final class DesignerSequel extends Sequel {
     private final Designer d;
     private final Map<UUID, Tag> tags = new HashMap<>();
     private final Map<UUID, Long> said = new HashMap<>();
+    /** The held note stays well inside the store's value size (TEXT). */
+    private static final int MAX_HELD = 40_000;
 
     DesignerSequel(Designer d) {
         super(d);
@@ -201,15 +203,26 @@ public final class DesignerSequel extends Sequel {
             m.haunt().whisper(p, line("wrong", "<dark_gray>…그건 설계도에 없다."));
             return true;
         }
-        if (Items.shopBought(hand) || (cfg().getBoolean("own-only", true) && !Designer.ownWork(hand, u))) {
+        // a bought thing, a 길라잡이 trial thing (worth nothing) or someone else's work never counts
+        if (Items.shopBought(hand) || Items.trial(hand) || (cfg().getBoolean("own-only", true) && !Designer.ownWork(hand, u))) {
             m.haunt().whisper(p, line("not-yours", "<dark_gray>…네 기계에서, 네 이름으로 나온 것만."));
             return true;
         }
         int take = Blueprint.take(hand.getAmount(), got, o.need());
         if (take <= 0) return true;
+        // the very stack is kept (its bytes), so an unfinished order gives back exactly what was put in
+        String held;
+        try {
+            held = Blueprint.hold(get(u, "held"), Base64.getEncoder().encodeToString(hand.asOne().serializeAsBytes()), take);
+        } catch (RuntimeException e) {
+            eco.getLogger().log(java.util.logging.Level.WARNING, "[비밀] 설계자 후속: 물건을 적어 두지 못해 받지 않음 (" + p.getName() + ")", e);
+            return true;
+        }
+        if (held.length() > MAX_HELD) return true;   // absurdly many different stacks: it takes no more (nothing leaves the hand)
+        set(u, "held", held);
+        set(u, "got", got + take);
         int left = hand.getAmount() - take;
         p.getInventory().setItemInMainHand(left <= 0 ? null : hand.asQuantity(left));
-        set(u, "got", got + take);
         accept(p);
         d.sound(p, mid, "heartbeat");
         p.spawnParticle(Particle.DUST, mid, 8, 0.25, 0.3, 0.25, new Particle.DustOptions(org.bukkit.Color.fromRGB(0x9a2b1e), 0.9f));
@@ -227,6 +240,7 @@ public final class DesignerSequel extends Sequel {
         if (!live(u)) return;
         long done = count(u);
         hide(u);
+        remove(u, "held");   // filled: what it took is its own now
         breathe(p, mid, done);
         complete(p);
     }
@@ -303,23 +317,48 @@ public final class DesignerSequel extends Sequel {
         said.remove(u);
     }
 
-    /** An order that was never filled: what the machine took goes back (the bag, else the mailbox), as the heir's own work. */
+    /**
+     * An order that was never filled: what the machine took goes back (the bag, else the mailbox) — the very stacks it was
+     * given ({@code held}), so nothing comes back newer, better or with a tag it did not have.
+     */
     @Override
     protected void expired(UUID u) {
         long got = getLong(u, "got", 0);
         String item = get(u, "item");
-        if (got <= 0 || item == null) return;
-        ItemStack one = Items.create(item, 1).orElse(null);
-        if (one == null) {
-            eco.getLogger().warning("[비밀] 설계자 후속: 돌려줄 아이템 " + item + " 이 없어요 (" + u + ", " + got + "개)");
-            return;
+        String saved = get(u, "held");
+        long back = 0;
+        for (Map.Entry<String, Long> e : Blueprint.held(saved).entrySet()) {
+            long n = Math.min(e.getValue(), Math.max(0, got - back));   // never more than was counted
+            if (n <= 0) continue;
+            try {
+                ItemStack one = ItemStack.deserializeBytes(Base64.getDecoder().decode(e.getKey()));
+                if (one.isEmpty()) throw new IllegalArgumentException("empty");
+                for (int k : Blueprint.stacks(n, one.getMaxStackSize())) back(u, one.asQuantity(k));
+                back += n;
+            } catch (RuntimeException ex) {
+                eco.getLogger().severe("[비밀] 설계자 후속: 받아 둔 물건을 되살리지 못함 (" + u + ", " + n + "개), 복구용 값 (serializeAsBytes, Base64): " + e.getKey());
+            }
         }
-        one.editMeta(meta -> meta.getPersistentDataContainer().set(MachineModule.MAKER, PersistentDataType.STRING, u.toString()));
-        for (int n : Blueprint.stacks(got, one.getMaxStackSize())) give(u, one.asQuantity(n), "designer");
+        remove(u, "held");
         set(u, "got", 0);
+        if (back < got && item != null) {
+            // counted but not kept (a broken note): a plain new one of the good for each, without a maker tag
+            long missing = got - back;
+            ItemStack one = Items.create(item, 1).orElse(null);
+            if (one == null) eco.getLogger().warning("[비밀] 설계자 후속: 돌려줄 아이템 " + item + " 이 없어요 (" + u + ", " + missing + "개)");
+            else for (int k : Blueprint.stacks(missing, one.getMaxStackSize())) back(u, one.asQuantity(k));
+            if (one != null) back = got;
+        }
+        if (back <= 0) return;
         Player p = Bukkit.getPlayer(u);
         if (p != null) tell(p, "returned", "<dark_gray>…설계도가 바랬다. 기계가 받아 둔 것을 도로 내놓았다.");
-        eco.getLogger().info("[비밀] 후속 설계자: " + u + " 에게 " + item + " " + got + "개를 돌려줌");
+        eco.getLogger().info("[비밀] 후속 설계자: " + u + " 에게 " + item + " " + back + "개를 돌려줌");
+    }
+
+    /** Gives a stack back safely: the mailbox's way (the bag when there is room and they are alive and not in the 길라잡이, else the mailbox). */
+    private void back(UUID u, ItemStack it) {
+        if (eco.mail() != null) eco.mail().deliver(u, it, "designer");
+        else give(u, it, "designer");
     }
 
     @Override

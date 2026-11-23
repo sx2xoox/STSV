@@ -113,4 +113,20 @@ class DesignerSequelTest {
         assertEquals(0, Blueprint.turn(8, 8));
         assertEquals(-1, Blueprint.turn(3, 0));
     }
+
+    @Test
+    void whatItHoldsIsExactlyWhatWasCounted() {
+        String saved = Blueprint.hold(null, "AAA=", 3);
+        saved = Blueprint.hold(saved, "BBB+/", 2);
+        saved = Blueprint.hold(saved, "AAA=", 70);   // the same stack again: one entry, more of it
+        assertEquals("73:AAA=;2:BBB+/", saved);
+        assertEquals(Map.of("AAA=", 73L, "BBB+/", 2L), Blueprint.held(saved));
+        assertEquals(75, Blueprint.heldCount(saved));
+        assertEquals(saved, Blueprint.hold(saved, "CCC", 0), "nothing taken, nothing held");
+        assertEquals(saved, Blueprint.hold(saved, "", 4));
+        // broken parts are left out, never invented
+        assertEquals(Map.of("AAA=", 1L), Blueprint.held("x:QQ;;-3:ZZ;1:AAA=;5:;:7"));
+        assertTrue(Blueprint.held(null).isEmpty());
+        assertEquals(0, Blueprint.heldCount(""));
+    }
 }

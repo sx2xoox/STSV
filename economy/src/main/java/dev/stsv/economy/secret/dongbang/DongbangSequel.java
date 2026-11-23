@@ -274,6 +274,10 @@ public final class DongbangSequel extends Sequel {
         double d = same ? Math.hypot(p.getX() - at.getX(), p.getZ() - at.getZ()) : Double.MAX_VALUE;
         double r = cfg().getDouble("door.show-radius", 40);
         Shown sh = doors.get(u);
+        if (sh != null && (!sh.hit.isValid() || !sh.lower.isValid())) {   // its chunk was unloaded under it: it is put up again
+            hide(u);
+            sh = null;
+        }
         if (sh == null && d <= r && at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) {
             show(p, at);
             accept(p);

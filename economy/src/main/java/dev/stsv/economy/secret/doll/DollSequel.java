@@ -65,7 +65,8 @@ public final class DollSequel extends Sequel {
     /** solver -> when the doll last said the answer changed (ms), and whether its head is turned to someone in range */
     private final Map<UUID, Long> saidChanged = new HashMap<>();
     private final Map<UUID, Boolean> inRange = new HashMap<>();
-    private int clock;
+    /** solver -> seconds of the going errand ticked (each player their own, so two errands at once do not share one beat) */
+    private final Map<UUID, Integer> clocks = new HashMap<>();
 
     DollSequel(Doll d) {
         super(d);
@@ -118,7 +119,11 @@ public final class DollSequel extends Sequel {
 
     /** A tester who is not the doll's owner sees it on their own shoulder while the errand goes on. */
     private void shoulder(Player p) {
-        if (!p.getUniqueId().equals(d.companion().owner())) d.companion().hold(p, 6);
+        UUID owner = d.companion().owner();
+        if (p.getUniqueId().equals(owner)) return;
+        // never off its real owner's shoulder: a tester only borrows it while the owner is away or has it asleep
+        if (owner != null && Bukkit.getPlayer(owner) != null && d.companion().awake()) return;
+        d.companion().hold(p, 6);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -186,7 +191,7 @@ public final class DollSequel extends Sequel {
             return;
         }
         shoulder(p);
-        clock++;
+        int clock = clocks.merge(u, 1, Integer::sum);
         if (state(u) == SequelState.State.OFFERED) {   // begun with nobody else online: asked as soon as someone is
             if (clock % 3 == 0) ask(p, true);
             return;
@@ -280,7 +285,7 @@ public final class DollSequel extends Sequel {
         }
         // near enough to be seen: its head turns that way (the only pointer it gives before the hints)
         if (seen != null) {
-            d.companion().look(seen, 1600);
+            if (d.companion().on(u)) d.companion().look(seen, 1600);
             if (!Boolean.TRUE.equals(inRange.put(u, true))) creak(p, 0.25f, 0.55f);
         } else inRange.remove(u);
         if (by == null) {
@@ -317,8 +322,10 @@ public final class DollSequel extends Sequel {
 
     /** The head to them and the nod; the creak is the solver's alone (the doll itself is seen by everyone, as always). */
     private void bow(Player p, Player who) {
-        d.companion().look(who, 5000);
-        d.companion().bow();
+        if (d.companion().on(p.getUniqueId())) {   // only the doll on their own shoulder: a tester never moves the owner's
+            d.companion().look(who, 5000);
+            d.companion().bow();
+        }
         creak(p, 0.5f, 0.5f);
         Bukkit.getScheduler().runTaskLater(eco, () -> {
             if (p.isOnline()) creak(p, 0.4f, 0.62f);
@@ -329,6 +336,7 @@ public final class DollSequel extends Sequel {
         beside.remove(u);
         besideWho.remove(u);
         targets.remove(u);
+        clocks.remove(u);
         saidChanged.remove(u);
         inRange.remove(u);
     }

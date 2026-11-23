@@ -55,6 +55,8 @@ public final class UsherSequel extends Sequel {
     private final Map<UUID, Seen> seen = new ConcurrentHashMap<>();
     /** he is speaking to them: clicks wait */
     private final Set<UUID> talking = ConcurrentHashMap.newKeySet();
+    /** being let out because their week ran out inside: once */
+    private final Set<UUID> late = ConcurrentHashMap.newKeySet();
     private BukkitTask frames;
 
     UsherSequel(Usher usher) {
@@ -196,8 +198,15 @@ public final class UsherSequel extends Sequel {
         for (Player p : gw.getPlayers()) {
             UUID u = p.getUniqueId();
             try {
-                if (!playing(u) || step(u) >= 2) hide(u);
-                else show(p, gw);
+                if (!playing(u) || step(u) >= 2) {
+                    hide(u);
+                    // the week ran out while they were looking: nothing is left to find, so they are let out (once)
+                    if (on() && member(u) && state(u) == State.ACTIVE && step(u) < 2 && get(u, "week") != null
+                            && !talking.contains(u) && eco.guide() != null && eco.guide().visiting(p) && late.add(u)) {
+                        m.haunt().whisper(p, line("late", "<gray>…그림이 제자리로 돌아가 있다. 이번 주는 지나갔다."));
+                        leave(u);
+                    }
+                } else show(p, gw);
             } catch (RuntimeException e) {
                 eco.getLogger().warning("[비밀] 후속 안내원 " + p.getName() + ": " + e);
             }
@@ -297,6 +306,30 @@ public final class UsherSequel extends Sequel {
     protected void cleanup(UUID u) {
         hide(u);
         talking.remove(u);
+        late.remove(u);
+        if (seen.isEmpty() && frames != null) {   // a reload leaves no task behind
+            frames.cancel();
+            frames = null;
+        }
+    }
+
+    /**
+     * The mission ended without an outcome. Nothing of theirs is held by it (the guide keeps their things while they are
+     * inside and hands them back on the way out), so there is nothing to give back. Two things only: a picture already
+     * found whose reward was still waiting for them to come out when the week turned is paid now (outside), and someone
+     * still inside looking (an admin reset) is let out.
+     */
+    @Override
+    protected void expired(UUID u) {
+        Player p = Bukkit.getPlayer(u);
+        if (p == null) return;
+        if (step(u) >= 2) {
+            String asked = get(u, "week");
+            if (asked != null && !asked.equals(week(u)) && may(p)) complete(p);
+            return;
+        }
+        GuideModule g = eco.guide();
+        if (state(u) == State.ACTIVE && g != null && g.visiting(p)) leave(u);
     }
 
     // ------------------------------------------------------------------------------------------

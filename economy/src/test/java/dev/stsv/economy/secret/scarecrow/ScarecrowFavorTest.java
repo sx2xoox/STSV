@@ -99,6 +99,22 @@ class ScarecrowFavorTest {
         assertFalse(Favor.beat(5, 0));
     }
 
+    /** The engine's square pulses: every column of the chunk is rolled exactly once, and none of a neighbour's. */
+    @Test
+    void theGrowthPulseCoversTheChunkOnceAndNothingBeyondIt() {
+        for (int[] c : new int[][]{{0, 0}, {-1, 1}, {5, -7}}) {
+            java.util.Map<Long, Integer> hits = new java.util.HashMap<>();
+            for (int[] t : Favor.tiles(c[0], c[1])) {
+                for (int x = t[0] - t[2]; x <= t[0] + t[2]; x++) for (int z = t[1] - t[2]; z <= t[1] + t[2]; z++) {
+                    assertTrue(Favor.inChunk(x, z, c[0], c[1]), x + "," + z + " is outside chunk " + c[0] + "," + c[1]);
+                    hits.merge(((long) x << 32) ^ (z & 0xffffffffL), 1, Integer::sum);
+                }
+            }
+            assertEquals(256, hits.size());
+            for (int n : hits.values()) assertEquals(1, n);
+        }
+    }
+
     @Test
     void theFileIsTheEasyTierWithAModestGiftAndEnoughThanks() {
         var s = yml("secrets/scarecrow.yml").getConfigurationSection("sequel");

@@ -23,6 +23,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -95,6 +96,12 @@ public final class GarageSequel extends Sequel {
     private final Map<UUID, Errand.Course> courses = new HashMap<>();
     /** player -> the temporary car lent to them */
     private final Map<UUID, Long> lent = new HashMap<>();
+    /**
+     * player -> the motion of that car as the core handed it out when it was lent. The core counts temporary ids anew when
+     * its vehicle module restarts, so an id alone could later be someone else's kart or rented bus: a car is only ever
+     * taken away while its id still answers with this very object ({@link #remove}).
+     */
+    private final Map<UUID, VehiclePhysics.State> lentBody = new HashMap<>();
     /** player -> seconds they have stood before the shutter without a car */
     private final Map<UUID, Integer> afoot = new HashMap<>();
     /** player -> where their roadside box stands */
@@ -341,7 +348,7 @@ public final class GarageSequel extends Sequel {
         UUID u = p.getUniqueId();
         Long l = lent.get(u);
         VehicleModule vm = g.vm();
-        if (l == null || l != id || vm == null || !may(p) || !live(u)) return;
+        if (l == null || l != id || vm == null || !may(p) || !live(u) || vm.temporaryState(id) != lentBody.get(u)) return;
         vm.seatTemporary(id, p);
     }
 
@@ -354,9 +361,8 @@ public final class GarageSequel extends Sequel {
         Long id = lent.get(u);
         if (id != null) {
             VehiclePhysics.State s = vm.temporaryState(id);
-            if (s == null || !vm.temporaryAlive(id)) {
-                lent.remove(u);
-                vm.removeTemporary(id);
+            if (s == null || s != lentBody.get(u) || !vm.temporaryAlive(id)) {
+                remove(u);
             } else if (d != null && d.id() != id && his(d, u)) {   // they have their own after all
                 takeCar(p, false);
             } else if (!vm.drivesTemporary(id, p)) {
@@ -403,8 +409,14 @@ public final class GarageSequel extends Sequel {
                 if (!w.isChunkLoaded(cx, cz)) return false;
         long id = g.cars().spawnReal(vm, item, w, l, g.answer(), null);
         if (id == 0) return false;
+        VehiclePhysics.State body = vm.temporaryState(id);
+        if (body == null) {
+            vm.removeTemporary(id);
+            return false;
+        }
         vm.letOutOfTemporary(id);
         lent.put(u, id);
+        lentBody.put(u, body);
         return true;
     }
 
@@ -441,13 +453,16 @@ public final class GarageSequel extends Sequel {
      */
     private void takeCar(Player p, boolean settle) {
         UUID u = p.getUniqueId();
-        Long id = lent.remove(u);
+        Long id = lent.get(u);
         VehicleModule vm = g.vm();
-        if (id == null || vm == null) return;
-        VehicleModule.Driven d = vm.drivenBy(p);
+        if (id == null || vm == null) {
+            remove(u);
+            return;
+        }
+        VehicleModule.Driven d = vm.temporaryState(id) == lentBody.get(u) ? vm.drivenBy(p) : null;
         boolean seated = d != null && d.id() == id;
         Location safe = settle && seated && p.isOnline() && !p.isDead() ? roadside(u, d.world().getName(), d.x(), d.z()) : null;
-        vm.removeTemporary(id);
+        remove(u);
         if (safe == null || !eco.isEnabled()) return;   // (nothing can be scheduled while the plugin stops: the core has stepped them out beside it)
         Bukkit.getScheduler().runTaskLater(eco, () -> {   // after the core has stepped them out beside the car
             if (p.isOnline() && !p.isDead() && !p.isInsideVehicle() && p.getWorld().equals(safe.getWorld())
@@ -460,8 +475,21 @@ public final class GarageSequel extends Sequel {
     }
 
     private void dropCar(UUID u) {
+        remove(u);
+    }
+
+    /** Forgets the car lent to this player and takes it out of the world, if the core still has that very car under its id. */
+    private void remove(UUID u) {
         Long id = lent.remove(u);
-        if (id != null && g.vm() != null) g.vm().removeTemporary(id);
+        VehiclePhysics.State body = lentBody.remove(u);
+        VehicleModule vm = g.vm();
+        if (id != null && body != null && vm != null && vm.temporaryState(id) == body) vm.removeTemporary(id);
+    }
+
+    /** Dying: the lent car goes at once (one is lent again before the shutter). */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeath(PlayerDeathEvent e) {
+        if (lent.containsKey(e.getEntity().getUniqueId())) dropCar(e.getEntity().getUniqueId());
     }
 
     /** Leaving from the wheel of the lent car: where they stand next time is kept (the secret's own landing puts them there). */
@@ -472,7 +500,7 @@ public final class GarageSequel extends Sequel {
         Long id = lent.get(u);
         VehicleModule vm = g.vm();
         if (id == null || vm == null) return;
-        VehicleModule.Driven d = vm.drivenBy(p);
+        VehicleModule.Driven d = vm.temporaryState(id) == lentBody.get(u) ? vm.drivenBy(p) : null;
         if (d != null && d.id() == id) {
             Location safe = roadside(u, d.world().getName(), d.x(), d.z());
             if (safe != null) g.keepGround(u, safe);
@@ -773,17 +801,20 @@ public final class GarageSequel extends Sequel {
         UUID u = p.getUniqueId();
         Places.Site site = g.places().site();
         if (get(u, "task") == null) {   // an admin began it while nothing could be chosen: chosen when it can
+            takeCar(p, true);   // (only an admin's scene could have lent one here)
             if (elapsed(u) % 5 == 0) choose(p);
             return;
         }
         ConfigurationSection t = task(u);
         if (site == null || t == null) {   // the roads went, or the task was taken out of the file: it sleeps until the week turns
+            takeCar(p, true);
             quietly(u);
             return;
         }
         boolean here = p.getWorld().getName().equals(site.world());
         Location o = g.places().garage();
         if (state(u) == SequelState.State.OFFERED) {
+            lending(p, site, false);   // (an admin's scene lent one: it is watched like any)
             if (!here || o == null || flat(p, o) > 40 || !g.shedShowing(u)) {
                 g.props().drop(u, NOTE);
                 return;
@@ -1035,7 +1066,7 @@ public final class GarageSequel extends Sequel {
         takePart(p);
         g.props().drop(u, SPOT);
         keep(u, "stickers", Errand.stick(kept(u, "stickers", ""), date(System.currentTimeMillis()), id, Math.max(1, cfg().getInt("stickers", 6))));
-        boolean stuck = photo(p);
+        boolean stuck = photo(p, 1);   // (this one is counted a moment later, in complete)
         Location o = g.places().garage();
         if (o != null && g.shedShowing(u)) {
             lift(p, 0.1, 10);
@@ -1066,6 +1097,10 @@ public final class GarageSequel extends Sequel {
      * were; the list under them is written anew). True when a photo was there.
      */
     private boolean photo(Player p) {
+        return photo(p, 0);
+    }
+
+    private boolean photo(Player p, int coming) {
         UUID u = p.getUniqueId();
         String saved = kept(u, "stickers", "");
         List<Errand.Done> done = Errand.stuck(saved);
@@ -1076,7 +1111,7 @@ public final class GarageSequel extends Sequel {
             String what = all == null ? null : all.getString(d.id() + ".sticker");
             lines.add(ln("photo-line", "<gray>{date} <dark_gray>· <gray>{what}", "date", d.date(), "what", what == null ? ln("photo-unknown", "남기고 간 일 하나") : what));
         }
-        long more = count(u) - done.size();
+        long more = count(u) + coming - done.size();
         if (more > 0) lines.add(ln("photo-more", "<dark_gray>…그리고 {n}번 더.", "n", String.valueOf(more)));
         String mark = saved + "#" + more;
         boolean found = false;

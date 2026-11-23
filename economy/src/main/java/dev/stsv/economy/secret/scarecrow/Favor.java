@@ -89,9 +89,24 @@ final class Favor {
         return (x >> 4) == cx && (z >> 4) == cz;
     }
 
-    /** The middle block of a chunk along one axis (the growth pulse reaches 8 blocks each way from it). */
+    /** The middle block of a chunk along one axis. */
     static int middle(int chunk) {
         return (chunk << 4) + 8;
+    }
+
+    /**
+     * The growth pulse of the crop engine is a square of odd width around a block ({x, z, radius}: every column within
+     * `radius` of it on both axes), so no single one is a 16-wide chunk. These squares together cover every column of the
+     * chunk exactly once and none outside it: one of 15 x 15 from its north-west corner, and the last row and the last
+     * column one block at a time.
+     */
+    static List<int[]> tiles(int cx, int cz) {
+        int x0 = cx << 4, z0 = cz << 4;
+        List<int[]> out = new ArrayList<>();
+        out.add(new int[]{x0 + 7, z0 + 7, 7});
+        for (int i = 0; i < 16; i++) out.add(new int[]{x0 + 15, z0 + i, 0});
+        for (int i = 0; i < 15; i++) out.add(new int[]{x0 + i, z0 + 15, 0});
+        return out;
     }
 
     /** Whether a second of the clock is one on which something that happens every `every` seconds happens. */

@@ -252,7 +252,9 @@ public final class PagerSequel extends Sequel {
         Location a = gate(u);
         if (a == null) a = ahead(p);   // (a tester who never had the house: right in front of them)
         set(u, "anchor", a.getWorld().getName() + " " + a.getX() + " " + a.getBlockY() + " " + a.getZ());
-        ring(p, c);
+        // (from offer the framework only now marks the week as offered and sets the step back to 0: the number then comes on
+        // the next tick, through step 0. Ringing here as well would beep twice and start a run's clock twice.)
+        if (forced) ring(p, c);
     }
 
     /** The number comes: on the screen, the beep, the shaking. Its clock (a run, an evening) starts now. */
@@ -283,6 +285,11 @@ public final class PagerSequel extends Sequel {
         Calls.Call c = call(u);
         if (c == null) {   // the call was taken out of the file this week
             hook.hide(u);
+            String took = get(u, "took");   // (what the basket took and she never answered goes back: no later expiry would)
+            if (took != null && step(u) == 2) {
+                remove(u, "took");
+                Items.create(took, 1).ifPresent(it -> give(p, it));
+            }
             fail(p, "missed");
             return;
         }

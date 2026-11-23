@@ -370,7 +370,9 @@ public final class ScarecrowSequel extends Sequel {
     private void pulse(World w, Scarecrows.Scarecrow sc, double chance) {
         int reach = Math.max(1, cfg().getInt("perk.reach-y", 6));
         var crops = m.core().crops();
-        if (crops != null) crops.growAround(w, Favor.middle(sc.cx()), sc.y(), Favor.middle(sc.cz()), 8, reach, reach, chance);
+        // the engine's pulse is a square around a block: tiled so that every column of this chunk is rolled exactly once and
+        // nothing beyond it (the neighbour's land) is ever touched
+        if (crops != null) for (int[] t : Favor.tiles(sc.cx(), sc.cz())) crops.growAround(w, t[0], sc.y(), t[1], t[2], reach, reach, chance);
         ThreadLocalRandom r = ThreadLocalRandom.current();
         int x0 = sc.cx() << 4, z0 = sc.cz() << 4;
         for (int x = x0; x < x0 + 16; x++) for (int z = z0; z < z0 + 16; z++) for (int y = sc.y() - reach; y <= sc.y() + reach; y++) {
@@ -378,7 +380,9 @@ public final class ScarecrowSequel extends Sequel {
             Block b = w.getBlockAt(x, y, z);
             Material t = b.getType();
             if (!(Tag.CROPS.isTagged(t) || t == Material.SWEET_BERRY_BUSH || t == Material.COCOA || t == Material.NETHER_WART)) continue;
-            if (!(b.getBlockData() instanceof Ageable a) || a.getAge() >= a.getMaximumAge() || r.nextDouble() >= chance) continue;
+            // two-block crops (the pitcher plant) are left alone, as the farmer's job does: one half aged by hand breaks the plant
+            if (!(b.getBlockData() instanceof Ageable a) || a instanceof org.bukkit.block.data.Bisected || t == Material.PITCHER_CROP
+                    || a.getAge() >= a.getMaximumAge() || r.nextDouble() >= chance) continue;
             a.setAge(a.getAge() + 1);
             b.setBlockData(a, false);
         }

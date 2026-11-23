@@ -1,7 +1,9 @@
 package dev.stsv.economy.secret.designer;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The pure parts of 설계도 의뢰 (the 후속 임무 of 설계자): one order of the 13th machine (so many of a good one of the
@@ -75,6 +77,45 @@ final class Blueprint {
         int m = Math.max(1, max);
         for (long left = Math.max(0, count); left > 0; left -= m) out.add((int) Math.min(m, left));
         return out;
+    }
+
+    /**
+     * What the machine holds of an unfinished order, as saved: {@code count:stack;count:stack} where a stack is one item's
+     * bytes in Base64 (no ':' or ';' in it). The very stacks go back, never new ones. Broken parts are left out.
+     */
+    static Map<String, Long> held(String saved) {
+        Map<String, Long> out = new LinkedHashMap<>();
+        if (saved == null) return out;
+        for (String part : saved.split(";")) {
+            int cut = part.indexOf(':');
+            if (cut <= 0 || cut == part.length() - 1) continue;
+            try {
+                long n = Long.parseLong(part.substring(0, cut).trim());
+                if (n > 0) out.merge(part.substring(cut + 1).trim(), n, Long::sum);
+            } catch (NumberFormatException e) {
+                // left out
+            }
+        }
+        return out;
+    }
+
+    /** The held stacks with {@code count} more of one kind, as it is saved. */
+    static String hold(String saved, String stack, long count) {
+        Map<String, Long> all = held(saved);
+        if (count > 0 && stack != null && !stack.isEmpty()) all.merge(stack, count, Long::sum);
+        StringBuilder b = new StringBuilder();
+        for (Map.Entry<String, Long> e : all.entrySet()) {
+            if (!b.isEmpty()) b.append(';');
+            b.append(e.getValue()).append(':').append(e.getKey());
+        }
+        return b.toString();
+    }
+
+    /** How many items the saved stacks are. */
+    static long heldCount(String saved) {
+        long n = 0;
+        for (long v : held(saved).values()) n += v;
+        return n;
     }
 
     /** Which line of a pool a count gets: one after the other, round again. -1 for an empty pool. */

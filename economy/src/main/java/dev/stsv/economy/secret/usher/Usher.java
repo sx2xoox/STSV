@@ -534,8 +534,12 @@ public final class Usher extends Secret {
             Player q = Bukkit.getPlayer(u);
             if (q == null) return;
             Location plaza = new Location(w, 0.5, GuideLayout.FLOOR_Y, 0.5, 180, 0);
-            boolean in = g.visiting(q) && q.getLocation().distanceSquared(plaza) < 36 || g.visit(q, plaza);
+            // someone who died in the dark cannot be moved: never put their things aside for a trip that will not happen
+            boolean in = !q.isDead() && (g.visiting(q) && q.getLocation().distanceSquared(plaza) < 36 || g.visit(q, plaza));
             if (!in) {
+                // their things were put aside but they could not be moved (held back by something else): back at once,
+                // where they stand, so nobody is left outside with empty hands
+                if (g.inGuide(q) && !g.active(q) && !inGuide(q)) g.unvisit(q, false);
                 q.removePotionEffect(org.bukkit.potion.PotionEffectType.BLINDNESS);
                 q.sendMessage(Text.mm(line("busy", "<dark_gray>안내원이 당신 너머 어딘가를 본다. (지금은 체험관에 들어갈 수 없어요)")));
                 return;

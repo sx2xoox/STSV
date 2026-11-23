@@ -418,7 +418,10 @@ public final class LetterSequel extends Sequel {
         complete(p);
         behind(p);
         Bukkit.getScheduler().runTaskLater(eco, () -> {
-            if (p.isOnline()) send(p, reply(p, done, week), "reply.notice", "<gray>우편함에 답장이 와 있습니다. <white>/우편함");
+            ItemStack answer = reply(p, done, week);
+            if (p.isOnline()) send(p, answer, "reply.notice", "<gray>우편함에 답장이 와 있습니다. <white>/우편함");
+            // they left in those few seconds: the answer still waits in the mailbox
+            else if (answer != null && eco.mail() != null) eco.mail().store().send(u, Items.bytes(answer), "secret_letter", System.currentTimeMillis());
         }, 20L * Math.max(1, cfg().getLong("reply.after-seconds", 6)));
     }
 
