@@ -195,7 +195,8 @@ public final class NextSequel extends Sequel {
         if (g != null) return g;
         String name = get(u, "name");
         if (name == null) return null;
-        g = new Guest(u, name, get(u, "solo") != null, s);
+        // (public-chat switched off in the middle of a week: from then on only the solver sees them)
+        g = new Guest(u, name, get(u, "solo") != null || !publicChat(), s);
         // back after a join, a restart or a reload: they never left, so they simply go on after a first pause
         Wishes.Wish w = wish(u);
         int asked = (int) getLong(u, "asked", 0);
@@ -327,7 +328,10 @@ public final class NextSequel extends Sequel {
             set(u, "told", 1);
             p.sendMessage(told());
         }
-        if (s.somebody(g.name, false)) return;   // a real player of that name is online: the visitor is not, while they are
+        if (s.somebody(g.name, true)) {   // the name has become a real player's (a new account, a nickname): never theirs again
+            taken(p, g);
+            return;
+        }
         while (!g.pending.isEmpty() && now >= g.pending.peekFirst().at()) say(g, g.pending.removeFirst().words());
         if (step(u) == 2) {
             thank(p, g, w, now);
@@ -341,6 +345,23 @@ public final class NextSequel extends Sequel {
             rest(u, g, now);
         }
         if (step(u) == 1) errand(p, g, w);
+    }
+
+    /**
+     * Someone real has the visitor's name now (an account that joined since, or a nickname): the visitor is never heard
+     * under it again, online or not. An errand already done is still paid, without the last line; else the week ends
+     * quietly ({@code sequel.none}).
+     */
+    private void taken(Player p, Guest g) {
+        UUID u = p.getUniqueId();
+        guests.remove(u);
+        eco.getLogger().info("[비밀] 다음 사람 (" + g.name + "): 같은 이름의 실제 계정 · 닉네임이 생겨 이번 주 방문자는 더 말하지 않음");
+        if (step(u) == 2) {
+            set(u, "said", 1);
+            complete(p);
+        } else {
+            fail(p, "none");
+        }
     }
 
     /** Questions are only asked inside the visiting window, not on a night the visitor was sworn at, and to someone. */
@@ -547,7 +568,7 @@ public final class NextSequel extends Sequel {
         UUID u = g.solver;
         if (g.solo && !by.equals(u)) return;
         Player sp = Bukkit.getPlayer(by);
-        if (sp == null || inGuide(sp) || s.somebody(g.name, false)) return;
+        if (sp == null || inGuide(sp) || s.somebody(g.name, true)) return;
         if (step(u) == 2 || get(u, "tired") != null || sulking(u) || g.saidAt == 0) return;   // gone quiet, or not here tonight
         long now = System.currentTimeMillis();
         Wishes.Wish w = wish(u);
@@ -603,7 +624,7 @@ public final class NextSequel extends Sequel {
         }
         remember(g.recentWhispers, line, 4);
         Bukkit.getScheduler().runTaskLater(eco, () -> {
-            if (whisperTo.isOnline() && keeper(g) != null) whisperTo.sendMessage(g.look.incoming(line));
+            if (whisperTo.isOnline() && keeper(g) != null && !s.somebody(g.name, true)) whisperTo.sendMessage(g.look.incoming(line));
         }, Math.max(1, typing(line) / 50));
     }
 
@@ -620,7 +641,8 @@ public final class NextSequel extends Sequel {
         UUID by = p.getUniqueId();
         for (Guest g : guests.values()) {
             if (!Whispers.to(w.get(), g.name) || keeper(g) == null) continue;
-            if ((g.solo && !by.equals(g.solver)) || inGuide(p) || s.somebody(g.name, false)) return;
+            // (a name that is, or has become, a real account's or anyone's nickname is theirs: the game answers, not the visitor)
+            if ((g.solo && !by.equals(g.solver)) || inGuide(p) || s.somebody(g.name, true)) return;
             e.setCancelled(true);
             p.sendMessage(g.look.outgoing(w.get().message()));
             UUID u = g.solver;
@@ -641,7 +663,7 @@ public final class NextSequel extends Sequel {
             if (line == null || line.isBlank()) return;
             remember(g.recentWhispers, line, 4);
             Bukkit.getScheduler().runTaskLater(eco, () -> {
-                if (p.isOnline() && keeper(g) != null && step(u) != 2 && !s.somebody(g.name, false)) p.sendMessage(g.look.incoming(line));
+                if (p.isOnline() && keeper(g) != null && step(u) != 2 && !s.somebody(g.name, true)) p.sendMessage(g.look.incoming(line));
             }, Math.max(1, typing(line) / 50));
             return;
         }

@@ -29,7 +29,13 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.ItemSpawnEvent;
+import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryPickupItemEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerFishEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -97,6 +103,8 @@ public final class FishSequel extends Sequel {
     private final Map<UUID, UUID> dropped = new ConcurrentHashMap<>();
     /** players whose next bite was made rare by the perk (so only ours is taken back) */
     private final Set<UUID> forced = ConcurrentHashMap.newKeySet();
+    /** searches in a row that found no pond (then the fallback water is taken, so a week is never lost to the map) */
+    private final Map<UUID, Integer> misses = new ConcurrentHashMap<>();
     private long beats;
 
     FishSequel(EyelessFish fish) {
@@ -344,9 +352,14 @@ public final class FishSequel extends Sequel {
         search(p, at -> {
             if (!p.isOnline()) return;
             if (at == null) {   // no pond among the chunks around here: another cast, another place, later
-                searchAfter.put(u, System.currentTimeMillis() + cfg().getLong("search.retry", 300) * 1000L);
-                return;
+                Location other = misses.merge(u, 1, Integer::sum) >= Math.max(1, cfg().getInt("search.fallback-after", 2)) ? fallback(p) : null;
+                if (other == null) {
+                    searchAfter.put(u, System.currentTimeMillis() + cfg().getLong("search.retry", 300) * 1000L);
+                    return;
+                }
+                at = other;   // looked for more than once and found none: where it drowned, else the water right here
             }
+            misses.remove(u);
             if (!offered(p)) return;
             setWater(u, at);
             decide(p);
@@ -594,6 +607,8 @@ public final class FishSequel extends Sequel {
         Player p = e.getPlayer();
         UUID u = p.getUniqueId();
         EquipmentSlot hand = e.getHand() == null ? EquipmentSlot.HAND : e.getHand();
+        // never onto a shelf, into a pot or anything else a click on a block would put it in
+        if (e.getAction() == Action.RIGHT_CLICK_BLOCK) e.setUseInteractedBlock(org.bukkit.event.Event.Result.DENY);
         if (!mine(it, u) || !may(p)) {
             if (u.toString().equals(pdc(it, NAMELESS)) && !mine(it, u) && on()) p.getInventory().setItem(hand, null);
             return;
@@ -641,6 +656,42 @@ public final class FishSequel extends Sequel {
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onHopper(InventoryPickupItemEvent e) {
         if (isNameless(e.getItem().getItemStack())) e.setCancelled(true);
+    }
+
+    // It is carried or it lies on the ground, nothing else: not into a chest, a bundle, a frame or onto a stand, so no
+    // copy of it can be put by (the one in hand comes back after return-after, and a stored one would outlive the week).
+
+    private static boolean bundle(ItemStack it) {
+        return it != null && it.getType().name().endsWith("BUNDLE");
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onStore(InventoryClickEvent e) {
+        ItemStack cur = e.getCurrentItem(), cursor = e.getCursor();
+        ItemStack swap = e.getClick() == ClickType.NUMBER_KEY && e.getHotbarButton() >= 0 ? e.getWhoClicked().getInventory().getItem(e.getHotbarButton())
+                : e.getClick() == ClickType.SWAP_OFFHAND ? e.getWhoClicked().getInventory().getItemInOffHand() : null;
+        boolean a = isNameless(cur), b = isNameless(cursor), c = isNameless(swap);
+        if (!a && !b && !c) return;
+        InventoryType top = e.getView().getTopInventory().getType();
+        boolean own = top == InventoryType.CRAFTING || top == InventoryType.CREATIVE;
+        if (!own || a && bundle(cursor) || b && bundle(cur)) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onStore(InventoryDragEvent e) {
+        if (!isNameless(e.getOldCursor())) return;
+        InventoryType top = e.getView().getTopInventory().getType();
+        if (top != InventoryType.CRAFTING && top != InventoryType.CREATIVE) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onPut(PlayerInteractEntityEvent e) {
+        if (isNameless(e.getPlayer().getInventory().getItem(e.getHand()))) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onStand(PlayerArmorStandManipulateEvent e) {
+        if (isNameless(e.getPlayerItem())) e.setCancelled(true);
     }
 
     @EventHandler
@@ -767,6 +818,7 @@ public final class FishSequel extends Sequel {
         without.remove(u);
         searchAfter.remove(u);
         forced.remove(u);
+        misses.remove(u);
     }
 
     @Override

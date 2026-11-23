@@ -16,6 +16,8 @@ import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.BookMeta;
@@ -327,6 +329,11 @@ public final class JesaSequel extends Sequel {
         UUID u = p.getUniqueId();
         if (!free(u)) return;   // (a tester in the middle of the secret itself: the weekly house waits)
         if (step(u) == Giil.ASKED) {
+            // begun while it could not be (an admin's 시작 on someone in the middle of the secret, or with empty pools): now
+            if (get(u, "variant") == null) {
+                read();
+                if (!families.isEmpty() && !variants.isEmpty()) begin(p, null, null);
+            }
             watchRider(p);
             return;
         }
@@ -417,8 +424,9 @@ public final class JesaSequel extends Sequel {
         Long last = idled.get(u);
         if (last != null && now - last < 15_000L) return;
         idled.put(u, now);
+        // (before asking whether they are a member: a tester whose test mode was switched off is none, and their things lie there too)
+        if (!(member(u) && on() && live(u) && free(u)) && !j.saved(u, PRE).isEmpty()) giveBackAll(u, true);
         if (!member(u)) return;
-        if (!(on() && live(u) && free(u)) && !j.saved(u, PRE).isEmpty()) giveBackAll(u, true);
         if (on() && syncBook(p)) whisper(p, "book", "<gray>…족보의 끝 장에 먹 냄새가 난다.");
     }
 
@@ -589,6 +597,20 @@ public final class JesaSequel extends Sequel {
         forget(u);
         // the secret switched off (끄기): what lies on the weekly table goes back now rather than wait for it to be on again
         if (!m.enabled(secret) && !j.saved(u, PRE).isEmpty()) giveBackAll(u, Bukkit.getPlayer(u) != null);
+    }
+
+    /**
+     * The secret was switched off (끄기) while they were away: nothing ticks for it now, so what they left on the weekly
+     * table comes back as they join (an online solver got it back in {@link #cleanup} at the switch).
+     */
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        UUID u = p.getUniqueId();
+        if (m.enabled(secret) || j.saved(u, PRE).isEmpty()) return;
+        j.later(p, 40, () -> {
+            if (!m.enabled(secret) && !j.saved(u, PRE).isEmpty()) giveBackAll(u, true);
+        });
     }
 
     /** The week turned, an admin's reset, no longer the solver: everything on the weekly table goes back to them. */
