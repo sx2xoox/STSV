@@ -662,7 +662,7 @@ def _wing(m, ctx):
         return tone("rc_metal", 0.72 if c.face in ("east", "west") else 0.45)
     up = Paint("rc_metal", 5, noise=0, grad=0, rim=0.3, ao=0.2, decal=upright)
     for s in (-1, 1):
-        m.box("wing_upright", _lo(s, 8.5, 9.25, y0, 31), _hi(s, 8.5, 9.25, 20.5, 34), up)
+        m.box("wing_upright", _lo(s, 8.5, 9.25, y0 + 0.5, 31), _hi(s, 8.5, 9.25, 20.5, 34), up)
         m.box("wing_foot", _lo(s, 7.75, 10, y0, 30.5), _hi(s, 7.75, 10, y0 + 0.5, 34.5), METAL)
 
     def blade(c):
@@ -850,7 +850,7 @@ def _cabin(m, ctx):
     for xa, ya, xb, yb in ((-2.25, 1.75, 2.25, 2.25), (-2.25, -2.25, 2.25, -1.75), (-2.25, -1.75, -1.75, 1.75), (1.75, -1.75, 2.25, 1.75)):
         m.box("wheel", (cx + xa, cy + ya, cz), (cx + xb, cy + yb, cz + 0.5), rim)
     m.box("wheel_spoke", (cx - 1.75, cy - 0.3, cz + 0.1), (cx + 1.75, cy + 0.3, cz + 0.4), METAL)
-    m.box("wheel_spoke", (cx - 0.3, cy - 1.75, cz + 0.1), (cx + 0.3, cy, cz + 0.4), METAL)
+    m.box("wheel_spoke", (cx - 0.3, cy - 1.75, cz + 0.1), (cx + 0.3, cy - 0.3, cz + 0.4), METAL)
     m.box("column", (cx - 0.4, cy - 0.9, -9.5), (cx + 0.4, cy - 0.1, cz), BLACK)
     # the mirror at the screen's top, and the charm hanging from it: a red knot under a gold bead, a red tassel
     m.box("mirror_stalk", (-0.3, 22.2, 2.1), (0.3, GLASS_TOP, 2.6), BLACK)
@@ -892,7 +892,7 @@ def _cage(m):
     z0, z1 = HOOP, HOOP + 0.9
     top = GLASS_TOP - 0.35
     for s in (-1, 1):
-        m.box("cage_leg", _lo(s, x - 0.9, x, FLOOR, z0), _hi(s, x - 0.9, x, top, z1), CAGE)
+        m.box("cage_leg", _lo(s, x - 0.9, x, FLOOR, z0), _hi(s, x - 0.9, x, top - 0.9, z1), CAGE)
         m.box("cage_door_bar", _lo(s, x - 0.9, x, 8.5, -9.5), _hi(s, x - 0.9, x, 9.4, z0), CAGE)
         # a stay from the hoop's top corner down and back to the hatch floor
         drop = top - 0.2 - BELT
