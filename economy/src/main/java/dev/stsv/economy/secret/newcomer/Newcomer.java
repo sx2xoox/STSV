@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 /**
  * 새로 온 사람 (docs/admin/숨은_비밀/새로_온_사람.md, contents/economy/secrets/newcomer.yml). Every night someone new joins
@@ -56,11 +57,16 @@ import java.util.concurrent.ThreadLocalRandom;
  * An admin's 시작 is the visit of the night that is open or opens next, made now: he does not come a second time that night.
  * Per player ("secret.newcomer.&lt;uuid&gt;."): {@code seen} he came for them alone (test mode, admin), {@code whispers}
  * how often they whispered, {@code wnight} / {@code wnights} the last night they whispered and on how many nights,
- * {@code late} told that someone was first.
+ * {@code late} told that someone was first, {@code sulk} the night he sulked at them alone (test mode, a visit only they saw).
+ * <p>
+ * Sworn at ({@link Sulk}): in public chat when it is aimed at him, or in any whisper to him, he says one hurt line and is
+ * gone for the rest of that night, without a leave line. Saved: {@code sulk} the night, {@code sulkby} who it was; that
+ * night's {@code asked} is set to all five, so nothing (a restart, the min-online pause, an admin's 시작) brings him back.
  */
 public final class Newcomer extends Secret {
 
-    static final String K = "secret.newcomer.", SEEN = K + "seen", NIGHT = K + "night", ASKED = K + "asked", JOINED = K + "joined";
+    static final String K = "secret.newcomer.", SEEN = K + "seen", NIGHT = K + "night", ASKED = K + "asked", JOINED = K + "joined",
+            SULK = K + "sulk", SULK_BY = K + "sulkby";
     static final String DEFAULT_NAME = "sipsam_", DEFAULT_ACROSTIC = "내비석어디";
     static final List<String> ENDING = List.of(
             "…찾았네요.",
@@ -96,7 +102,10 @@ public final class Newcomer extends Secret {
     private List<String> letters = Questions.letters(DEFAULT_ACROSTIC), ending = ENDING, labels = Whispers.VANILLA, fixes = FIXES,
             strange = Talk.STRANGE, timeWords = TIME_WORDS;
     private Map<String, List<Questions.Entry>> pools = Questions.DEFAULTS;
-    private List<Talk.Intent> chat = Talk.CHAT, whisperTalk = Talk.WHISPER;
+    private List<Talk.Intent> chat = Talk.CHAT, whisperTalk = Talk.WHISPER, talk = smallTalk(Talk.CHAT);
+    /** swearing at him (rude's patterns, the allow list, what aims a line at him), his hurt lines, his sheepish word */
+    private List<Pattern> swears = Sulk.patterns(Sulk.SWEARS), allow = Sulk.patterns(Sulk.ALLOW), aim = Sulk.patterns(Sulk.AIM);
+    private List<String> hurt = Sulk.HURT, sorry = Sulk.SORRY;
     private int from = 22, to = 2;
     private long seed = 13;
 
@@ -150,6 +159,19 @@ public final class Newcomer extends Secret {
         pools = Questions.read(cfg.getConfigurationSection("questions"), word, problems);
         chat = Talk.read(cfg.getConfigurationSection("chat.intents"), Talk.CHAT, who, true, problems);
         whisperTalk = Talk.read(cfg.getConfigurationSection("whisper.intents"), Talk.WHISPER, who, false, problems);
+        talk = smallTalk(chat);
+        Talk.Intent rude = chat.stream().filter(i -> i.id.equals("rude")).findFirst().orElse(null);
+        swears = rude != null && !rude.patterns.isEmpty() ? rude.patterns : Sulk.patterns(Sulk.SWEARS);
+        hurt = rude != null && !rude.lines.isEmpty() ? rude.lines : Sulk.HURT;
+        if (rude == null) problems.add("chat.intents.rude 가 없어서 욕 · 삐짐은 코드의 기본 목록으로 읽어요");
+        allow = Sulk.patterns(cfg.isList("sulk.allow") ? Talk.clean(cfg.getStringList("sulk.allow")) : Sulk.ALLOW);
+        aim = Sulk.patterns(cfg.isList("sulk.aim") ? Talk.clean(cfg.getStringList("sulk.aim")) : Sulk.AIM);
+        List<String> so = new ArrayList<>();
+        for (String x : cfg.isList("sulk.sorry") ? Talk.clean(cfg.getStringList("sulk.sorry")) : Sulk.SORRY) {
+            if (Talk.small(x)) so.add(x);
+            else problems.add("sulk.sorry: \"" + x + "\" — \"?\" 를 쓰지 않아요 (빼고 읽음)");
+        }
+        sorry = List.copyOf(so);
         List<String> f = new ArrayList<>();
         for (String s : cfg.isList("typo.fix") ? Talk.clean(cfg.getStringList("typo.fix")) : FIXES) {
             if (Talk.small(s)) f.add(s);
@@ -163,7 +185,7 @@ public final class Newcomer extends Secret {
         List<String> l = new ArrayList<>();
         for (String s : cfg.getStringList("whisper.commands")) if (!s.isBlank()) l.add(s.strip().toLowerCase(Locale.ROOT).replaceFirst("^/", ""));
         labels = l.isEmpty() ? Whispers.VANILLA : List.copyOf(l);
-        int[] h = range("visit.hours", 22, 2);
+        int[] h = range("visit.hours", 20, 2);
         from = Schedule.hour(h[0]);
         to = Schedule.hour(h[1]);
         seed = cfg.getLong("visit.seed", 13);
@@ -206,6 +228,11 @@ public final class Newcomer extends Secret {
     private List<String> lines(String path, List<String> def) {
         List<String> l = Talk.clean(cfg.getStringList(path));
         return l.isEmpty() ? def : l;
+    }
+
+    /** The intents he makes small talk with: all but rude (swearing at him is a sulk, not small talk). */
+    private static List<Talk.Intent> smallTalk(List<Talk.Intent> all) {
+        return all.stream().filter(i -> !i.id.equals("rude")).toList();
     }
 
     /** A [low, high] pair (a single number is both). */
@@ -425,6 +452,14 @@ public final class Newcomer extends Secret {
         if (join) {
             eco.kv().set(JOINED, night);
             toAll(joinLine(true));
+            // the night after he sulked, now and then a sheepish word before his first question
+            if (!sorry.isEmpty() && v.next < v.qs.size() && Sulk.dayAfter(eco.kv().get(SULK), night)
+                    && ThreadLocalRandom.current().nextDouble() < cfg.getDouble("sulk.sorry-chance", 0.3)) {
+                String line = Talk.pick(sorry, recent, ThreadLocalRandom.current());
+                long at = now + gap(v, true) / 2 + typing(line);
+                v.pending.addLast(new Pending(line, at));
+                v.nextAt = Math.max(v.nextAt, at + 8000L + typing(v.qs.get(v.next).text()));
+            }
         }
         eco.getLogger().info("[비밀] 새로 온 사람 (" + who + ") " + (join ? "이 들어온 것처럼 보였습니다 (가짜 입장 줄"
                 : "이 질문을 이어 갑니다 (입장 줄은 이 밤에 이미 떴으므로 없음") + " · 접속 " + Bukkit.getOnlinePlayers().size() + "명 · " + why
@@ -539,7 +574,7 @@ public final class Newcomer extends Secret {
     public void onJoin(PlayerJoinEvent e) {
         lastJoin = System.currentTimeMillis();
         Visit v = visit;
-        if (v == null || !on() || !v.around(lastJoin)) return;
+        if (v == null || !on() || !v.around(lastJoin) || sulking(null)) return;
         if (ThreadLocalRandom.current().nextDouble() >= cfg.getDouble("chat.join-chance", 0.3)) return;
         Optional<Talk.Intent> greet = chat.stream().filter(i -> i.id.equals("greet")).findFirst();
         if (greet.isEmpty() || greet.get().lines.isEmpty()) return;
@@ -591,7 +626,7 @@ public final class Newcomer extends Secret {
     private record Reaction(Talk.Intent intent, String line, String follow) {}
 
     private Reaction react(String text, boolean addressed, boolean afterQuestion) {
-        Optional<Talk.Intent> found = Talk.match(chat, text, addressed, afterQuestion);
+        Optional<Talk.Intent> found = Talk.match(talk, text, addressed, afterQuestion);
         if (found.isEmpty()) return null;
         Talk.Intent i = found.get();
         ThreadLocalRandom r = ThreadLocalRandom.current();
@@ -609,6 +644,11 @@ public final class Newcomer extends Secret {
         if (v == null || !v.around(now) || (v.viewer != null && !v.viewer.equals(by))) return;
         Player p = Bukkit.getPlayer(by);
         if (p == null || inGuide(p) || impostor()) return;
+        if (sulking(v.viewer)) return;   // gone for the night
+        if (insult(text) && (Sulk.aimed(text, who, aim) || v.saidAt > 0 && now - v.saidAt <= seconds("sulk.window-seconds", 40))) {
+            sulk(p, v, false);
+            return;
+        }
         boolean named = Talk.mentions(text, who);
         long window = seconds("chat.answer-window-seconds", 40);
         boolean afterQuestion = v.next > 0 && v.thanked != v.next && now - v.askedAt <= window;
@@ -717,17 +757,87 @@ public final class Newcomer extends Secret {
         if (farewells.containsKey(u)) return;            // he is already answering them
         boolean test = m.test(u);
         if (!test && heir != null) return;               // he is answering someone else: silence
+        boolean sulky = sulking(test ? u : null);
+        if (insult(w.get().message())) {                 // sworn at, even at his stone: he sulks (once a night)
+            if (!sulky) sulk(p, null, true);
+            return;
+        }
         Stones.Where at = where(p);
-        if (at == Stones.Where.HIS) {
+        if (at == Stones.Where.HIS) {                    // the ending works on a sulky night too
             farewell(p, false);
             return;
         }
+        if (sulky) return;                               // gone for the night: no answer, as from someone away
         if (now - answered.getOrDefault(u, 0L) < seconds("whisper.cooldown-seconds", 20)) return;
         answered.put(u, now);
         String line = at == Stones.Where.OTHER ? cfg.getString("whisper.wrong-stone", "…그건 제 게 아니에요.")
                 : whisperReply(w.get().message(), nights, new StringBuilder());
         if (line == null || line.isBlank()) return;
         remember(recentWhispers, line, 4);
+        long wait = Math.max(1, typing(line) / 50);
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (p.isOnline() && open(u) && !farewells.containsKey(u) && !impostor()) p.sendMessage(incoming(line));
+        }, wait);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // sworn at: he sulks and is gone for the night
+    // ------------------------------------------------------------------------------------------
+
+    private static LocalDateTime nowKst() {
+        return ZonedDateTime.now(SecretModule.KST).toLocalDateTime();
+    }
+
+    boolean insult(String text) {
+        return Sulk.insult(text, swears, allow);
+    }
+
+    /** Whether he is gone for the night: for everyone, or (u, not null) for that one player alone. */
+    private boolean sulking(UUID u) {
+        LocalDateTime t = nowKst();
+        if (Sulk.sulking(eco.kv().get(SULK), t, from, to)) return true;
+        return u != null && Sulk.sulking(m.get(this, u, "sulk"), t, from, to);
+    }
+
+    /**
+     * Sworn at: one hurt line (in public chat after the typing time, or whispered back), and he is gone for the rest of the
+     * night. The night is saved with all five asked, so nothing brings him back to it; no leave line is ever said.
+     * Only for that player when it is their own visit (test mode, a scene) or a tester's whisper. v: the visit the public
+     * line was said in (null: a whisper).
+     */
+    private void sulk(Player p, Visit v, boolean whisper) {
+        UUID u = p.getUniqueId();
+        long now = System.currentTimeMillis();
+        String key = Sulk.key(nowKst(), from, to);
+        boolean own = whisper ? m.test(u) : v != null && v.viewer != null;
+        Visit gone;
+        if (own) {
+            m.set(this, u, "sulk", key);
+            gone = whisper ? alone.get(u) : v;
+        } else {
+            eco.kv().set(SULK, key);
+            eco.kv().set(SULK_BY, p.getName());
+            if (!key.equals(eco.kv().get(NIGHT)) || eco.kv().getLong(ASKED, 0) < count()) {
+                eco.kv().set(NIGHT, key);
+                eco.kv().set(ASKED, count());
+            }
+            eco.getLogger().info("[비밀] 새로 온 사람: " + p.getName() + " 의 욕에 삐져 오늘 밤은 말이 없음 (" + key + " 밤 · "
+                    + (whisper ? "귓속말" : "공개 채팅") + ")");
+            gone = whisper ? visit : v;
+        }
+        if (gone != null) {   // no more questions, no more small talk, nothing half typed
+            gone.next = gone.qs.size();
+            gone.endAt = 0;
+            gone.pending.clear();
+        }
+        String line = Talk.pick(hurt, whisper ? recentWhispers : recent, ThreadLocalRandom.current());
+        if (line == null || line.isBlank()) return;
+        if (!whisper) {
+            if (gone != null) queue(gone, line, now + typing(line));
+            return;
+        }
+        remember(recentWhispers, line, 4);
+        answered.put(u, now);
         long wait = Math.max(1, typing(line) / 50);
         Bukkit.getScheduler().runTaskLater(eco, () -> {
             if (p.isOnline() && open(u) && !farewells.containsKey(u) && !impostor()) p.sendMessage(incoming(line));
@@ -829,6 +939,10 @@ public final class Newcomer extends Secret {
             return;
         }
         if (m.test(u)) {
+            if (sulking(u)) {
+                if (p.hasPermission("stsv.admin")) p.sendMessage(Text.msg("<red>새로온사람: 오늘 밤은 삐져서 오지 않아요 (/관리자 비밀 연출 새로온사람 삐짐풀기)"));
+                return;
+            }
             m.set(this, u, "seen", 1);
             arriveFor(p, true);
             return;
@@ -836,7 +950,8 @@ public final class Newcomer extends Secret {
         Visit v = visit;
         String no = m.closed(this) ? "이미 풀린 비밀이라 그는 다시 오지 않아요 (서버초기화 로 다시 열 수 있음)"
                 : v != null && v.next < v.qs.size() ? "지금 와 있는 중이에요 (질문이 끝난 뒤 다시)"
-                : impostor() ? "같은 이름의 실제 플레이어가 접속해 있어요" : null;
+                : impostor() ? "같은 이름의 실제 플레이어가 접속해 있어요"
+                : sulking(null) ? "오늘 밤은 " + eco.kv().get(SULK_BY) + " 의 욕에 삐져서 오지 않아요 (/관리자 비밀 연출 새로온사람 삐짐풀기 로 풀 수 있음)" : null;
         if (no != null) {
             eco.getLogger().info("[비밀] 새로 온 사람 시작: " + no);
             if (p.hasPermission("stsv.admin")) p.sendMessage(Text.msg("<red>새로온사람: " + no));
@@ -893,11 +1008,15 @@ public final class Newcomer extends Secret {
         Visit v = visit;
         b.append(" · ").append(key).append(" 밤 <white>").append(HM.format(Schedule.planned(night, from, to, seed))).append("</white> ")
                 .append(m.closed(this) ? "(풀려서 안 옴)" : !begun ? "예정"
-                        : asked >= count() ? (key.equals(eco.kv().get(JOINED))
+                        : asked >= count() && key.equals(eco.kv().get(SULK)) ? "삐져서 나감 (퇴장 줄 없음)"
+                : asked >= count() ? (key.equals(eco.kv().get(JOINED))
                         ? (v != null && v.around(System.currentTimeMillis()) ? "다녀감 (아직 채팅을 읽는 중)" : "다녀감")
                         : "쉼 (이름이 같은 실제 플레이어가 접속했음)")
                         : v != null ? "와 있음 " + asked + "/" + count()
                         : "끊김 " + asked + "/" + count() + " (사람이 있으면 입장 줄 없이 이어서 물음)");
+        if (sulking(null)) b.append(" · <yellow>삐짐</yellow> (").append(esc(String.valueOf(eco.kv().get(SULK_BY)))).append(" 의 욕, ")
+                .append(eco.kv().get(SULK)).append(" 밤: 질문 · 잡담 · 귓속말 답 없음)");
+        else if (sulking(u)) b.append(" · <yellow>이 사람에게만 삐짐</yellow>");
         b.append(" · 그 밤 질문 <white>").append(listed(night)).append("</white>");
         if (v != null) b.append(" · 잡담 ").append(v.reactions).append("번");
         Optional<Stones.Found> f = stones.find(id(), m.all());
@@ -918,7 +1037,7 @@ public final class Newcomer extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("입장", "질문", "잡담:ㅎㅇ", "귓속말:누구세요", "엔딩", "퇴장", "비석");
+        return List.of("입장", "질문", "잡담:ㅎㅇ", "귓속말:누구세요", "삐짐", "삐짐풀기", "엔딩", "퇴장", "비석");
     }
 
     /** "잡담:말_몇_마디" → "말 몇 마디" (the admin command takes one word: "_" for spaces). */
@@ -942,6 +1061,13 @@ public final class Newcomer extends Secret {
                     admin.sendMessage(Text.msg("<gray>/관리자 비밀 연출 새로온사람 잡담:<말> [플레이어] — 띄어쓰기는 _ (예: 잡담:sipsam_봇이야, 잡담:석탄은_산에_많아요)"));
                     return true;
                 }
+                if (insult(text)) {
+                    String line = Talk.pick(hurt, List.of(), ThreadLocalRandom.current());
+                    admin.sendMessage(Text.msg("<gray>잡담 \"<white>" + esc(text) + "</white>\" → <yellow>욕</yellow> · 질문 직후 · 그가 말한 직후라면: <white>→ 삐져서 나감</white> · 그냥 지나가는 말이면: <white>"
+                            + (Sulk.aimed(text, who, aim) ? "→ 삐져서 나감 (그를 가리킴)" : "반응 없음 (그를 가리키지 않음)") + "</white> · 그 줄: <white>" + esc(line) + "</white>"));
+                    p.sendMessage(look.chat(line));
+                    return true;
+                }
                 boolean named = Talk.mentions(text, who);
                 Reaction now = react(text, true, true), plain = react(text, named, false);
                 admin.sendMessage(Text.msg("<gray>잡담 \"<white>" + esc(text) + "</white>\" → 질문 직후라면: <white>"
@@ -956,12 +1082,33 @@ public final class Newcomer extends Secret {
             case "귓속말" -> {
                 String text = said(word, head);
                 if (text.isEmpty()) text = "안녕하세요";
+                if (insult(text)) {
+                    String line = Talk.pick(hurt, List.of(), ThreadLocalRandom.current());
+                    admin.sendMessage(Text.msg("<gray>귓속말 \"<white>" + esc(text) + "</white>\" → <yellow>욕</yellow> <white>→ 삐져서 나감</white> (어디서든, 그의 비석 앞이어도. 모두에게 그 밤은 끝)"));
+                    p.sendMessage(look.outgoing(text));
+                    p.sendMessage(incoming(line));
+                    return true;
+                }
                 StringBuilder why = new StringBuilder();
                 String line = whisperReply(text, m.getLong(this, p.getUniqueId(), "wnights", 0), why);
                 admin.sendMessage(Text.msg("<gray>귓속말 \"<white>" + esc(text) + "</white>\" → <white>" + why + "</white>"
                         + " (비석 앞이 아닐 때. 그의 비석 앞이면 엔딩, 다른 비석 앞이면 wrong-stone)"));
                 p.sendMessage(look.outgoing(text));
                 if (line != null) p.sendMessage(incoming(line));
+            }
+            case "삐짐" -> {
+                String line = Talk.pick(hurt, List.of(), ThreadLocalRandom.current());
+                p.sendMessage(look.chat(line));
+                admin.sendMessage(Text.msg("<gray>삐짐 (" + p.getName() + " 에게만, 아무것도 적지 않음): 공개 채팅에서 욕을 들으면 이 줄을 치고 (귓속말이면 귓속말 답으로), "
+                        + "그 밤에는 질문 · 잡담 · 귓속말 답이 없어요. 퇴장 줄은 뜨지 않아요"));
+            }
+            case "삐짐풀기" -> {
+                boolean was = sulking(null), own = sulking(p.getUniqueId()) && !was;
+                eco.kv().remove(SULK);
+                eco.kv().remove(SULK_BY);
+                m.remove(this, p.getUniqueId(), "sulk");
+                admin.sendMessage(Text.msg(was || own ? "<gray>삐짐을 풀었어요. 그 밤의 방문은 끝난 것으로 적혀 있으니, 다시 보려면 /관리자 비밀 시작 새로온사람 (입장 줄은 그 밤에 이미 떴다면 없이)"
+                        : "<gray>지금 삐져 있지 않아요 (기록만 지움: 다음 밤의 \"어제는 죄송했어요\" 도 없음)"));
             }
             case "엔딩" -> farewell(p, true);
             case "퇴장" -> p.sendMessage(joinLine(false));

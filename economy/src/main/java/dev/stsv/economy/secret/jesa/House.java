@@ -647,6 +647,13 @@ final class House {
         });
     }
 
+    /** What this house shows on its vessels (copies; an admin's look is judged by them). */
+    Map<Integer, ItemStack> shownFood(Shown s) {
+        Map<Integer, ItemStack> out = new TreeMap<>();
+        for (Map.Entry<Integer, ItemStack> e : s.laid.entrySet()) out.put(e.getKey(), e.getValue().clone());
+        return out;
+    }
+
     private static int find(Map<Integer, String> layout, java.util.Set<String> of, int or) {
         for (Map.Entry<Integer, String> e : new TreeMap<>(layout).entrySet()) if (of.contains(e.getValue())) return e.getKey();
         return or;

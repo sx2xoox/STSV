@@ -187,8 +187,8 @@ final class Talk {
     }
 
     static final List<Intent> CHAT = List.of(
-            with(def("rude", List.of("시발|씨발|ㅅㅂ|ㅆㅂ|병신|ㅂㅅ|븅신|꺼져|닥쳐|ㄲㅈ|ㄷㅊ|좆|존나 짜증|저리 가"), true, false, 0.7,
-                    List.of("아 넵..", "넵..", "죄송해요..", "아..")), List.of(), 0, List.of(), 0, 600),
+            // swearing at him: not small talk but a sulk (Sulk; Newcomer leaves it out of the small talk). lines: his hurt line
+            def("rude", Sulk.SWEARS, true, false, 1, Sulk.HURT),
             with(def("bot", List.of("봇|bot|가짜|npc|엔피씨|귀신|유령|매크로|인공지능|\\bai\\b|사람 맞|사람이야|사람임"), true, false, 0.7,
                     List.of("ㅋㅋㅋ 아니에요", "사람이에요 ㅠ", "ㅋㅋㅋㅋ 봇 아님", "저 사람인데요 ㅠㅠ", "아닌데 ㅋㅋ", "ㅋㅋㅋ 왜요")),
                     List.of(), 0, List.of("ㅋㅋ 그 말 예전에도 들었어요", "그런 말 진짜 오랜만에 듣네요", "ㅋㅋ 저 여기 꽤 오래 있었는데"), 0.1, 0),

@@ -1,5 +1,6 @@
 package dev.stsv.economy.secret.jesa;
 
+import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
 import dev.stsv.economy.bus.BusModule;
 import dev.stsv.economy.bus.BusStop;
@@ -17,7 +18,10 @@ import org.bukkit.Sound;
 import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.Container;
+import org.bukkit.block.data.Waterlogged;
 import org.bukkit.command.CommandSender;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Interaction;
 import org.bukkit.entity.Player;
@@ -26,15 +30,15 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryCloseEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.BlockStateMeta;
+import org.bukkit.inventory.meta.BundleMeta;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.persistence.PersistentDataType;
 
@@ -44,7 +48,6 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -56,18 +59,21 @@ import java.util.concurrent.ThreadLocalRandom;
 /**
  * 주인 없는 제사 (docs/admin/숨은_비밀/주인_없는_제사.md; contents/economy/secrets/jesa.yml). A bus driver overhears a
  * grandmother on their bus: tomorrow is her husband's rite and there is nobody to set the table (stage 1). Where she gets
- * off, a thatched shelter stands for that driver only, with a bare rite table ({@link House}; stage 2). The driver lays it
- * with food made on this server — the window ({@link Setting}) only remembers what goes where, the food never leaves the
- * bag — and bows twice before it at night. The answer is not in the game: it is how a real 제사상 is set ({@link Table}).
- * Wrong: the wrong dishes roll off, the spoon taps what is owed, the incense goes out for a while; nothing is taken.
- * Right (stage 3): the dead come to eat — and there are two of them. Both tablets were on the screen all along: the
- * grandmother was dead too, and it was her rite as well. Dawn, grass, solved; the food is taken only then.
+ * off, a thatched shelter stands for that driver only, with a rite table and its empty vessels ({@link House},
+ * {@link Vessel}; stage 2). The driver puts food made on this server on the vessels — really: one of it leaves the hand and
+ * lies on the vessel, saved at once — and bows twice before it at night. The answer is not in the game: it is how a real
+ * 제사상 is set ({@link Table}). Wrong: what is wrong rolls off and comes back to them, the spoon taps the empty vessels
+ * that are owed, the incense goes out for a while. Right (stage 3): the dead come to eat — and there are two of them. Both
+ * tablets were on the screen all along: the grandmother was dead too, and it was her rite as well. Dawn, grass, solved;
+ * what was on the table is eaten.
  * The solver keeps a family register with their own name inked in last and, for good, two old people who now and then
  * stand behind them where others can see ({@link Blessing}).
  * <p>
  * Saved (eco.kv "secret.jesa.&lt;uuid&gt;."): stage, since, heard (the stop where
- * she was overheard), house ("world x y z": the table's block), stop (where she got off), layout (what is laid:
- * {@link Table#encode}), retry (ms: no rite before it), tries, late (told that someone else was first), done.
+ * she was overheard), house ("world x y z": the table's block), stop (where she got off), plate.&lt;0..14&gt; (what lies on
+ * that vessel: the item's bytes in Base64, {@link Vessel#pack}), retry (ms: no rite before it), tries, late (told that
+ * someone else was first; what was on the table went back), done. An old "layout" (the window of an earlier version, which
+ * never took anything) is deleted on load.
  * The bus calls in through {@link BusModule.Watcher}; which passenger she is, is only remembered while the server runs.
  */
 public final class Jesa extends Secret implements BusModule.Watcher {
@@ -86,13 +92,15 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             Map.entry("lines.incense-out", "<gray>…향이 꺼져 있다."),
             Map.entry("lines.relit", "<gray>…향이 다시 피어오른다."),
             Map.entry("lines.empty", "<gray>…빈 상에는 아무도 오지 않는다."),
-            Map.entry("lines.not-in-hand", "<gray>…상에 올리기로 한 것이 손에 없다."),
-            Map.entry("lines.laid", "<gray>…상은 차렸다. 이제, 절을."),
+            Map.entry("lines.placed", ""),
+            Map.entry("lines.taken", ""),
             Map.entry("lines.bow-once", "<gray>…한 번으로는 모자라다."),
             Map.entry("lines.out", "<gray>…향이 꺼졌다."),
-            Map.entry("lines.no-more", "<gray>…그건 더 없다."),
             Map.entry("lines.not-this", "<gray>…이건 상에 올릴 수 없다."),
+            Map.entry("lines.not-now", "<gray>…지금은 상에 손대지 않는다."),
             Map.entry("lines.gone", "<gray>…상이 비어 있다. 아무도 먹지 못했다."),
+            Map.entry("lines.returned", "<gray>…상에 올렸던 것은 돌아왔다."),
+            Map.entry("mail-reason", "감나무 아래 그 집에서"),
             Map.entry("lines.meal-1", "…영감, 많이 드시우."),
             Map.entry("lines.meal-2", "…나도 한술 뜨고."),
             Map.entry("lines.meal-3", "…고맙수. 길에서 만난 사람한테 얻어먹는 제삿밥이 제일 달다더니."),
@@ -100,9 +108,6 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             Map.entry("lines.dawn", "<gray>…날이 밝았다. 감나무 아래에는 풀만 자라 있다."),
             Map.entry("tablets.father", "顯考學生府君神位"),
             Map.entry("tablets.mother", "顯妣孺人達城徐氏神位"),
-            Map.entry("gui.title", "제사상 · 병풍 쪽이 북"),
-            Map.entry("gui.screen", "<gray>병풍"),
-            Map.entry("gui.hand", "<gray>빈 젓가락"),
             Map.entry("jokbo.name", "<#e8dcc0>족보"),
             Map.entry("jokbo.title", "감골 김씨 세보"),
             Map.entry("jokbo.author", "감골 김씨 문중"));
@@ -118,6 +123,17 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     private final Map<UUID, Long> bowed = new HashMap<>();
     /** players whose house is going at dawn (it is not built again meanwhile), and those whose sky was changed */
     private final Set<UUID> concluding = new HashSet<>(), dawned = new HashSet<>();
+    /** player -> when they last touched a vessel (ms): one touch per click, however the client sends it */
+    private final Map<UUID, Long> touched = new HashMap<>();
+    /**
+     * player -> what lay on their vessels when their house was last taken away (vessel -> saved value). An admin's
+     * 초기화 takes the house away and then deletes everything saved in the same tick: whatever is gone from kv a moment
+     * later, without having gone through {@link #dropPlate}, is sent back by mail ({@link #parted}).
+     */
+    private final Map<UUID, Map<Integer, String>> parting = new HashMap<>();
+    /** house places already looked at for water this run (player -> saved house) */
+    private final Map<UUID, String> dryChecked = new HashMap<>();
+    static final String MAIL = "jesa";
     private Table.Rules rules;
     private long rulesAt;
 
@@ -156,9 +172,15 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     @Override
     protected void loaded() {
         rules = null;
+        YamlConfiguration lang = new YamlConfiguration();
+        lang.set("mail.reason." + MAIL, text("mail-reason"));
+        Lang.useExtra("STSV-Economy-secret-jesa", lang);
+        // the window of an earlier version only remembered a layout (nothing was ever taken for it): gone
+        String prefix = "secret." + id() + ".";
+        for (String k : eco.kv().all().keySet()) if (k.startsWith(prefix) && k.endsWith(".layout")) eco.kv().remove(k);
     }
 
-    org.bukkit.configuration.file.YamlConfiguration cfg() {
+    YamlConfiguration cfg() {
         return cfg;
     }
 
@@ -215,28 +237,112 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         return rules;
     }
 
-    Map<Integer, String> layout(UUID u) {
-        return Table.decode(m.get(this, u, "layout"));
+    // ------------------------------------------------------------------------------------------
+    // what lies on the vessels (kv "plate.<n>": the item itself)
+    // ------------------------------------------------------------------------------------------
+
+    /** vessel -> saved value, for every vessel that has something on it. */
+    private Map<Integer, String> saved(UUID u) {
+        Map<Integer, String> out = new TreeMap<>();
+        for (int v = 0; v < Vessel.COUNT; v++) {
+            String raw = m.get(this, u, Vessel.key(v));
+            if (raw != null) out.put(v, raw);
+        }
+        return out;
     }
 
-    private void saveLayout(UUID u, Map<Integer, String> layout) {
-        if (layout.isEmpty()) m.remove(this, u, "layout");
-        else m.set(this, u, "layout", Table.encode(layout));
+    /** A saved value as the item (one of it), or null when it does not read. */
+    private ItemStack unpack(String raw) {
+        byte[] bytes = Vessel.unpack(raw);
+        if (bytes == null) return null;
+        try {
+            ItemStack it = Items.fromBytes(bytes);
+            return it == null || it.isEmpty() ? null : it;
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 
-    private static boolean real(ItemStack it, String key) {
-        return it != null && !it.isEmpty() && !Items.trial(it) && !Setting.isGhost(it) && Items.key(it).equals(key);
+    /** vessel -> the item on it (one), for every vessel whose item reads. */
+    Map<Integer, ItemStack> plates(UUID u) {
+        Map<Integer, ItemStack> out = new TreeMap<>();
+        for (Map.Entry<Integer, String> e : saved(u).entrySet()) {
+            ItemStack it = unpack(e.getValue());
+            if (it != null) out.put(e.getKey(), it);
+            else eco.getLogger().warning("[비밀] 주인없는제사: " + u + " 의 제기 " + e.getKey() + " 에 놓인 것을 읽을 수 없음 (그대로 둠)");
+        }
+        return out;
     }
 
-    /** How many of an item they carry (their bag, not what they wear; trial things of the 길라잡이 do not count). */
-    int carried(Player p, String key) {
-        return Items.count(p.getInventory(), it -> real(it, key));
+    /** vessel -> item id ({@link Items#key}), for the judge. */
+    private static Map<Integer, String> ids(Map<Integer, ItemStack> plates) {
+        Map<Integer, String> out = new TreeMap<>();
+        for (Map.Entry<Integer, ItemStack> e : plates.entrySet()) out.put(e.getKey(), Items.key(e.getValue()));
+        return out;
     }
 
-    private Map<String, Integer> lacking(Player p, Map<Integer, String> layout) {
-        Map<String, Integer> have = new HashMap<>();
-        for (String k : Table.needs(layout).keySet()) have.put(k, carried(p, k));
-        return Table.lacking(layout, have);
+    /** Forgets a vessel's item in kv (the only way one is taken off: given back, eaten, or replaced). */
+    private void dropPlate(UUID u, int v) {
+        m.remove(this, u, Vessel.key(v));
+        Map<Integer, String> was = parting.get(u);
+        if (was != null) was.remove(v);
+    }
+
+    /** Back to them: their pockets, else the mailbox — never the ground. False when there is no mailbox to send it by. */
+    private boolean giveBack(UUID u, ItemStack it) {
+        if (eco.mail() == null) return false;
+        eco.mail().deliver(u, it, MAIL);
+        return true;
+    }
+
+    /**
+     * Takes what lies on a vessel off and gives it back. expected: the saved value it must still be (null: whatever is
+     * there). Taken off kv first, given back in the same tick; if giving fails it stays on the vessel.
+     */
+    private boolean takeOff(UUID u, int v, String expected) {
+        String raw = m.get(this, u, Vessel.key(v));
+        if (raw == null || expected != null && !expected.equals(raw)) return false;
+        ItemStack it = unpack(raw);
+        if (it == null || eco.mail() == null) return false;
+        dropPlate(u, v);
+        try {
+            giveBack(u, it);
+            return true;
+        } catch (RuntimeException e) {
+            m.set(this, u, Vessel.key(v), raw);   // still on the vessel
+            eco.getLogger().warning("[비밀] 주인없는제사: 돌려주지 못해 제기 " + v + " 에 그대로 둠 (" + u + "): " + e);
+            return false;
+        }
+    }
+
+    /** Everything on their vessels back to them (pockets, else the mailbox). How many went back. */
+    private int returnAll(UUID u) {
+        int n = 0;
+        for (int v : saved(u).keySet()) if (takeOff(u, v, null)) n++;
+        return n;
+    }
+
+    /** After a house was taken away: what vanished from kv without going through {@link #dropPlate} (an admin's 초기화). */
+    private void parted(UUID u, boolean last) {
+        Map<Integer, String> was = parting.get(u);
+        if (was == null) return;
+        for (Map.Entry<Integer, String> e : new TreeMap<>(was).entrySet()) {
+            if (m.get(this, u, Vessel.key(e.getKey())) != null) continue;
+            was.remove(e.getKey());
+            ItemStack it = unpack(e.getValue());
+            if (it == null) continue;
+            if (!giveBack(u, it)) eco.getLogger().warning("[비밀] 주인없는제사: 초기화로 지워진 제기 위의 것을 돌려줄 우편함이 없음 (" + u + "): "
+                    + Items.key(it));
+        }
+        if (last || was.isEmpty()) parting.remove(u, was);
+    }
+
+    /** Things that may not lie on a vessel: 길라잡이 trial things, a secret's own things, anything that holds other things. */
+    private boolean refused(ItemStack it) {
+        if (it == null || it.isEmpty() || Items.trial(it) || m.refuseListing(it) != null || Items.key(it).equals(JOKBO)) return true;
+        if (Tag.SHULKER_BOXES.isTagged(it.getType())) return true;
+        ItemMeta meta = it.getItemMeta();
+        return meta instanceof BundleMeta || meta instanceof BlockStateMeta b && b.hasBlockState() && b.getBlockState() instanceof Container;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -416,10 +522,67 @@ public final class Jesa extends Secret implements BusModule.Watcher {
                 }
             }
         }
-        return new Location(w, x, y + 1, z);
+        Location at = new Location(w, x, y + 1, z);
+        return Boolean.TRUE.equals(dry(at)) ? at : null;
     }
 
-    /** A spot for an admin's house: flat ground a few blocks from them, else simply four blocks ahead. */
+    private static boolean wet(Block b) {
+        return Place.wet(b.getType().name(), b.getBlockData() instanceof Waterlogged wl && wl.isWaterlogged(), b.isLiquid());
+    }
+
+    /**
+     * Whether a house whose table's block is `at` stands on dry ground: no column of its 5×5 has water (or ice, kelp,
+     * seagrass, anything waterlogged) at, just under or just over its ground. null: not all of it is loaded.
+     */
+    private static Boolean dry(Location at) {
+        World w = at.getWorld();
+        if (w == null) return null;
+        int x = at.getBlockX(), y = at.getBlockY(), z = at.getBlockZ(), r = Place.REACH;
+        for (int cx = (x - r) >> 4; cx <= (x + r) >> 4; cx++)
+            for (int cz = (z - r) >> 4; cz <= (z + r) >> 4; cz++) if (!w.isChunkLoaded(cx, cz)) return null;
+        for (int dx = -r; dx <= r; dx++)
+            for (int dz = -r; dz <= r; dz++)
+                for (int dy = -1 - Place.WET_BELOW; dy <= Place.WET_ABOVE; dy++)
+                    if (wet(w.getBlockAt(x + dx, y + dy, z + dz))) return false;
+        return true;
+    }
+
+    /**
+     * A saved house turned out to stand on water (chosen before this rule, or the water came since). One by a stop is
+     * chosen again near that stop; if there is no dry spot, the next stop they pull into will do (stage 1 again; what lies
+     * on its vessels stays saved and comes with the new house). An admin's house is kept, and logged. Whether to show a
+     * house now.
+     */
+    private boolean resited(Player p, String where) {
+        UUID u = p.getUniqueId();
+        String stopId = m.get(this, u, "stop");
+        BusStop st = null;
+        try {
+            st = stopId == null ? null : stop(Integer.parseInt(stopId));
+        } catch (NumberFormatException ignored) {
+            // an admin's house
+        }
+        if (stopId == null) {
+            eco.getLogger().warning("[비밀] 주인없는제사: " + p.getName() + " 의 집 (관리자가 세운 것) 이 물가에 있음: " + where + " — 그대로 둠");
+            return true;
+        }
+        Location again = st == null ? null : pick(p, st);
+        if (again != null) {
+            m.set(this, u, "house", Place.encode(again.getWorld().getName(), again.getBlockX(), again.getBlockY(), again.getBlockZ()));
+            eco.getLogger().info("[비밀] 주인없는제사: " + p.getName() + " 의 집이 물 위였음 (" + where + ") → 다시 고름: " + m.get(this, u, "house"));
+            return true;
+        }
+        m.remove(this, u, "house");
+        m.remove(this, u, "stop");
+        m.stage(this, u, HEARD);
+        eco.getLogger().info("[비밀] 주인없는제사: " + p.getName() + " 의 집이 물 위였음 (" + where + "), 근처에 마른 땅이 없어 다음 정류장에서 다시");
+        return false;
+    }
+
+    /**
+     * A spot for an admin's house: flat ground a few blocks from them, else simply four blocks ahead — never on water
+     * (null then: the admin is told).
+     */
     private Location beside(Player p) {
         Location me = p.getLocation();
         World w = me.getWorld();
@@ -430,7 +593,19 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         }
         Location at = me.clone().add(me.getDirection().setY(0).normalize().multiply(4));
         if (!Double.isFinite(at.getX())) at = me.clone().add(0, 0, -4);
-        return settle(new Location(w, at.getBlockX(), me.getBlockY(), at.getBlockZ()));
+        Location settled = settle(new Location(w, at.getBlockX(), me.getBlockY(), at.getBlockZ()));
+        return Boolean.TRUE.equals(dry(settled)) ? settled : null;
+    }
+
+    /** Tells the admins online (and the log) that no dry spot was found for a house beside this player. */
+    private void noDryGround(Player p, CommandSender admin) {
+        String line = "<red>[비밀] 주인없는제사: " + p.getName() + " 옆에 물이 없는 평평한 땅이 없어요 (집을 세우지 않음). 마른 땅에서 다시";
+        eco.getLogger().warning("[비밀] 주인없는제사: " + p.getName() + " 옆에 마른 땅이 없어 집을 세우지 않음");
+        if (admin != null) {
+            admin.sendMessage(Text.mm(line));
+            return;
+        }
+        for (Player o : Bukkit.getOnlinePlayers()) if (o.hasPermission("stsv.economy.admin")) o.sendMessage(Text.mm(line));
     }
 
     /** A saved place as it is now: on the ground still, or lifted onto whatever was put there since. */
@@ -505,22 +680,34 @@ public final class Jesa extends Secret implements BusModule.Watcher {
                 continue;
             }
             boolean closed = !open(u);
-            if (closed && m.get(this, u, "late") != null) {
-                if (s != null && !s.busy) house.hide(u);
+            if (closed) {   // someone else set it first: what is on their table goes back to them, said once
+                if (m.get(this, u, "late") == null) late(p);
+                else {
+                    if (s != null && !s.busy) house.hide(u);
+                    if (!saved(u).isEmpty()) returnAll(u);   // put back by an admin since: it goes back too
+                }
                 continue;
             }
             Location h = home(u);
             if (h == null) continue;
             if (s == null) {
                 if (!within(p, h, show) || !h.isChunkLoaded()) continue;
-                s = house.show(p, settle(h), false, closed ? Map.of() : layout(u));
-                house.light(s, !closed && night(u, h.getWorld()));
-                house.smoke(s, !closed && waiting(u) == 0);
+                Location at = settle(h);
+                String where = m.get(this, u, "house");
+                if (!where.equals(dryChecked.get(u))) {   // never on water: looked at once per place and run
+                    Boolean dry = dry(at);
+                    if (dry == null) continue;   // not all of it loaded yet
+                    // moved (shown from the next second, where it now is), or gone back to stage 1: not here
+                    if (!dry && (!resited(p, where) || !where.equals(m.get(this, u, "house")))) continue;
+                    dryChecked.put(u, where);
+                }
+                s = house.show(p, at, false, plates(u));
+                house.light(s, night(u, h.getWorld()));
+                house.smoke(s, waiting(u) == 0);
                 continue;
             }
             if (!within(p, s.base, show + 8)) {
                 house.hide(u);
-                closeTable(p);
                 continue;
             }
             if (s.busy) continue;
@@ -534,45 +721,54 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         }
     }
 
-    /** Someone else set it first: said once, and the house is gone for them. */
+    /** Someone else set it first: said once, everything on their table goes back to them, and the house is gone for them. */
     private void late(Player p) {
         UUID u = p.getUniqueId();
-        closeTable(p);
+        int back = returnAll(u);   // always (idempotent): nothing stays on a table nobody will eat from
         if (m.get(this, u, "late") != null) return;
         m.set(this, u, "late", 1);
         p.sendMessage(Text.msg(text("too-late")));
+        if (back > 0) p.sendMessage(Text.msg(text("lines.returned")));
         House.Shown s = house.get(u);
         if (s != null && !s.preview) house.dissolve(p, s);
     }
 
     // ------------------------------------------------------------------------------------------
-    // the table: the window
+    // the vessels: putting food on, taking it back
     // ------------------------------------------------------------------------------------------
 
     @EventHandler(priority = EventPriority.HIGH)
     public void onTouch(PlayerInteractEntityEvent e) {
         if (!(e.getRightClicked() instanceof Interaction hit) || !hit.getPersistentDataContainer().has(House.TAG)) return;
         e.setCancelled(true);
-        if (e.getHand() != EquipmentSlot.HAND) return;
+        if (e.getHand() != EquipmentSlot.HAND) return;   // the off hand's click of the same press does nothing
         Player p = e.getPlayer();
         UUID u = p.getUniqueId();
         String tag = hit.getPersistentDataContainer().get(House.TAG, PersistentDataType.STRING);
         House.Shown s = house.get(u);
-        if (tag == null || !tag.startsWith(u.toString()) || s == null || !hit.equals(s.hit) || s.busy || guide(p)) return;
-        if (!s.preview) {
-            int st = stage(u);
-            if (!on() || st != HOUSE && st != ACCEPTED) return;
-            if (!open(u)) {
-                late(p);
-                return;
-            }
-        }
-        if (!night(u, s.base.getWorld())) {
-            whisper(p, "lines.day");
-            m.haunt().sound(p, s.table(), Sound.BLOCK_WOOD_HIT, 0.3f, 0.6f);
+        int v = House.vesselOf(hit);
+        if (tag == null || !tag.startsWith(u.toString()) || s == null || v < 0 || !hit.equals(s.hits.get(v)) || guide(p)) return;
+        long now = System.currentTimeMillis();
+        Long last = touched.get(u);
+        if (last != null && now - last < 250) return;
+        touched.put(u, now);
+        if (s.busy || concluding.contains(u)) {
+            whisper(p, "lines.not-now");
             return;
         }
-        openTable(p);
+        if (s.preview) {   // an admin's look: the vessels take nothing
+            m.haunt().sound(p, house.dishAt(s, v), Sound.BLOCK_WOOD_HIT, 0.3f, 1.4f);
+            return;
+        }
+        int st = stage(u);
+        if (!on() || st != HOUSE && st != ACCEPTED) return;
+        if (!open(u)) {
+            late(p);
+            return;
+        }
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        if (hand.isEmpty()) take(p, s, v);
+        else put(p, s, v, hand);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -580,49 +776,71 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         if (e.getEntity() instanceof Interaction hit && hit.getPersistentDataContainer().has(House.TAG)) e.setCancelled(true);
     }
 
-    private void openTable(Player p) {
-        Setting g = new Setting(this, p, layout(p.getUniqueId()));
-        p.openInventory(g.getInventory());
-        m.haunt().sound(p, p.getLocation(), Sound.BLOCK_WOOD_PLACE, 0.3f, 0.7f);
+    /**
+     * Puts one of what is in the main hand on the vessel, in one tick: saved first, then taken from the hand (if that fails
+     * the save is undone). Something already on it is swapped: it comes back once the new one is down.
+     */
+    private void put(Player p, House.Shown s, int v, ItemStack hand) {
+        UUID u = p.getUniqueId();
+        if (refused(hand)) {
+            whisper(p, "lines.not-this");
+            m.haunt().sound(p, house.dishAt(s, v), Sound.BLOCK_WOOD_HIT, 0.3f, 0.6f);
+            return;
+        }
+        String key = Vessel.key(v);
+        String old = m.get(this, u, key);
+        ItemStack before = old == null ? null : unpack(old);
+        if (old != null && (before == null || eco.mail() == null)) {   // what is there can not be given back: leave it
+            whisper(p, "lines.not-now");
+            return;
+        }
+        ItemStack one = hand.asOne();
+        String packed;
+        try {
+            packed = Vessel.pack(Items.bytes(one));
+        } catch (RuntimeException ex) {
+            whisper(p, "lines.not-this");
+            return;
+        }
+        m.set(this, u, key, packed);
+        // now out of the hand: exactly one, the same thing (else the save is undone and nothing moved)
+        PlayerInventory inv = p.getInventory();
+        ItemStack now = inv.getItemInMainHand();
+        if (now.isEmpty() || !now.isSimilar(one)) {
+            if (old == null) m.remove(this, u, key);
+            else m.set(this, u, key, old);
+            return;
+        }
+        int left = now.getAmount() - 1;
+        if (left <= 0) inv.setItemInMainHand(null);
+        else {
+            ItemStack rest = now.clone();
+            rest.setAmount(left);
+            inv.setItemInMainHand(rest);
+        }
+        Map<Integer, String> was = parting.get(u);
+        if (was != null) was.remove(v);
+        if (before != null) giveBack(u, before);   // the one it replaced
+        house.food(p, plates(u));
+        Location at = house.dishAt(s, v);
+        m.haunt().sound(p, at, Vessel.kind(v) == Vessel.Kind.PLATE || Vessel.kind(v) == Vessel.Kind.DEEP ? Sound.BLOCK_WOOD_PLACE : Sound.BLOCK_DECORATED_POT_INSERT,
+                0.35f, 1.3f);
+        String line = text("lines.placed");
+        if (!line.isBlank()) whisper(p, "lines.placed");
     }
 
-    private static void closeTable(Player p) {
-        if (p != null && p.getOpenInventory().getTopInventory().getHolder(false) instanceof Setting) p.closeInventory();
-    }
-
-    /** Setting: something was laid, lifted or taken off — kept at once, and shown on the table in the world. */
-    void laid(Player p, Setting g) {
-        saveLayout(p.getUniqueId(), g.layout);
-        house.food(p, g.layout);
-    }
-
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onWindowClick(InventoryClickEvent e) {
-        if (!(e.getInventory().getHolder(false) instanceof Setting g)) return;
-        e.setCancelled(true);   // nothing ever moves in this window, or out of the bag while it is open
-        if (e.getWhoClicked() instanceof Player p && p.getUniqueId().equals(g.owner)) g.click(p, e);
-    }
-
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onWindowDrag(InventoryDragEvent e) {
-        if (e.getInventory().getHolder(false) instanceof Setting) e.setCancelled(true);
-    }
-
-    @EventHandler
-    public void onWindowClose(InventoryCloseEvent e) {
-        if (!(e.getInventory().getHolder(false) instanceof Setting g) || !(e.getPlayer() instanceof Player p)) return;
-        g.closed(p);
-        if (!g.changed || g.layout.isEmpty() || !p.isOnline()) return;
-        int st = stage(p.getUniqueId());
-        if (st == HOUSE || st == ACCEPTED) later(p, 10, () -> {
-            House.Shown s = house.get(p.getUniqueId());
-            if (s != null && !s.busy) whisper(p, "lines.laid");   // not over a rite that has already begun
-        });
-    }
-
-    @EventHandler
-    public void onJoin(PlayerJoinEvent e) {
-        Setting.sweep(e.getPlayer());
+    /** Takes what lies on the vessel back into the (empty) hand's inventory, else the mailbox. */
+    private void take(Player p, House.Shown s, int v) {
+        UUID u = p.getUniqueId();
+        if (m.get(this, u, Vessel.key(v)) == null) return;
+        if (!takeOff(u, v, null)) {
+            whisper(p, "lines.not-now");
+            return;
+        }
+        house.food(p, plates(u));
+        m.haunt().sound(p, house.dishAt(s, v), Sound.ITEM_BUNDLE_REMOVE_ONE, 0.35f, 1.1f);
+        String line = text("lines.taken");
+        if (!line.isBlank()) whisper(p, "lines.taken");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -652,17 +870,17 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             if (!Long.valueOf(now).equals(bowed.get(u))) return;
             bowed.remove(u);
             // one bow before a laid table at night: a word; anywhere else it is only someone crouching
-            if (house.get(u) == s && !s.busy && s.lit && s.smoke && !layout(u).isEmpty()) whisper(p, "lines.bow-once");
+            if (house.get(u) == s && !s.busy && s.lit && s.smoke && !saved(u).isEmpty()) whisper(p, "lines.bow-once");
         });
     }
 
-    /** Two bows before the table. */
+    /** Two bows before the table: what lies on the vessels is judged. */
     private void rite(Player p, House.Shown s) {
         UUID u = p.getUniqueId();
         boolean real = !s.preview;
         if (real) {
             int st = stage(u);
-            if (!on() || st != HOUSE && st != ACCEPTED) return;
+            if (!on() || st != HOUSE && st != ACCEPTED || concluding.contains(u)) return;
             if (!open(u)) {
                 late(p);
                 return;
@@ -676,39 +894,38 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             whisper(p, "lines.incense-out");
             return;
         }
-        Map<Integer, String> layout = layout(u);
-        if (layout.isEmpty()) {
+        Map<Integer, ItemStack> food = real ? plates(u) : house.shownFood(s);
+        if (food.isEmpty()) {
             whisper(p, "lines.empty");
             return;
         }
-        if (real && !lacking(p, layout).isEmpty()) {
-            whisper(p, "lines.not-in-hand");
-            return;
-        }
-        closeTable(p);
-        house.food(p, layout);
+        if (real) house.food(p, food);
+        Map<Integer, String> layout = ids(food);
         Table.Verdict v = Table.judge(layout, rules());
         if (real) m.set(this, u, "tries", m.getLong(this, u, "tries", 0) + 1);
         if (v.ok()) {
             if (real) m.stage(this, u, ACCEPTED);
             meal(p, s, layout, !real);
-        } else refuse(p, s, layout, v, !real);
+        } else refuse(p, s, v, !real);
     }
 
-    /** Wrong: what is wrong leaves the table (and the layout), what is owed is tapped, and the incense is out for a while. */
-    private void refuse(Player p, House.Shown s, Map<Integer, String> layout, Table.Verdict v, boolean preview) {
+    /**
+     * Wrong: what is wrong rolls off its vessel and comes back to them (as it reaches the ground: until then it is still
+     * saved on the vessel, so a quit or a reload in between leaves it there), what is owed is tapped, the incense is out.
+     */
+    private void refuse(Player p, House.Shown s, Table.Verdict v, boolean preview) {
         UUID u = p.getUniqueId();
+        Map<Integer, String> judged = preview ? Map.of() : saved(u);
         if (!preview) {
-            Map<Integer, String> left = new TreeMap<>(layout);
-            left.keySet().removeAll(v.wrong());
-            saveLayout(u, left);
             m.set(this, u, "retry", retryAt(u));
             if (stage(u) == ACCEPTED) m.stage(this, u, HOUSE);
         }
-        house.refuse(p, s, v, () -> {
+        house.refuse(p, s, v, slot -> {
+            if (!preview) takeOff(u, slot, judged.get(slot));
+        }, () -> {
             whisper(p, "lines.out");
-            house.food(p, layout(u));
-            if (preview) later(p, 60, () -> {
+            if (!preview) house.food(p, plates(u));
+            else later(p, 60, () -> {
                 if (house.get(u) == s) house.smoke(s, true);
             });
         });
@@ -783,24 +1000,25 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             late(p);
             return;
         }
-        Map<Integer, String> layout = layout(u);
-        // the food left their hands while the dead ate (or the table is no longer the one that was accepted): nothing was eaten
-        if (layout.isEmpty() || !lacking(p, layout).isEmpty() || !Table.judge(layout, rules()).ok()) {
+        Map<Integer, ItemStack> food = plates(u);
+        // the table is no longer the one that was accepted (an admin took things off meanwhile): nothing was eaten
+        if (food.isEmpty() || saved(u).size() != food.size() || !Table.judge(ids(food), rules()).ok()) {
             m.stage(this, u, HOUSE);
             m.set(this, u, "retry", retryAt(u));
             undawn(p);
             whisper(p, "lines.gone");
             return;
         }
-        // solved first, the food taken right after in the same tick: nothing is ever taken for an end that did not come
+        // solved first, what lay on the table eaten right after in the same tick: nothing goes for an end that did not come
         m.solve(this, p);
         if (stage(u) <= stages()) {
             undawn(p);
             return;
         }
-        for (Map.Entry<String, Integer> need : Table.needs(layout).entrySet()) Items.remove(p.getInventory(), it -> real(it, need.getKey()), need.getValue());
-        m.remove(this, u, "layout");
-        for (ItemStack left : p.getInventory().addItem(jokbo(p)).values()) p.getWorld().dropItem(p.getLocation(), left);
+        for (int v : food.keySet()) dropPlate(u, v);   // already out of their bag since it was put down: eaten now
+        ItemStack book = jokbo(p);
+        if (eco.mail() != null) eco.mail().deliver(u, book, MAIL);
+        else for (ItemStack left : p.getInventory().addItem(book).values()) p.getWorld().dropItem(p.getLocation(), left);
         p.sendMessage(Text.mm(text("lines.dawn")));
     }
 
@@ -843,22 +1061,25 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         cleanup(u);
         m.remove(this, u, "late");
         m.remove(this, u, "retry");
+        dryChecked.remove(u);
         if (stage <= HEARD) {
+            returnAll(u);   // no table any more: what was on it goes back
             m.remove(this, u, "house");
             m.remove(this, u, "stop");
             m.stage(this, u, Math.max(0, stage));   // 1: she is not on any bus, so the house comes at the next stop they pull into
             return;
         }
         Location at = beside(p);
+        if (at == null) {
+            noDryGround(p, null);
+            return;
+        }
         m.set(this, u, "house", Place.encode(at.getWorld().getName(), at.getBlockX(), at.getBlockY(), at.getBlockZ()));
         m.remove(this, u, "stop");   // this house is beside them, not by a stop
-        if (stage >= ACCEPTED) {   // a right table, and the food for it in their bag
-            Map<Integer, String> right = Table.sample(rules());
-            saveLayout(u, right);
-            for (Map.Entry<String, Integer> lack : lacking(p, right).entrySet())
-                Items.create(lack.getKey(), lack.getValue()).ifPresent(it -> {
-                    for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
-                });
+        if (stage >= ACCEPTED) {   // a right table: what was on it goes back, and newly made things are put on the vessels
+            returnAll(u);
+            for (Map.Entry<Integer, String> e : Table.sample(rules()).entrySet())
+                Items.create(e.getValue(), 1).ifPresent(it -> m.set(this, u, Vessel.key(e.getKey()), Vessel.pack(Items.bytes(it))));
         }
         m.stage(this, u, Math.min(ACCEPTED, stage));
     }
@@ -866,15 +1087,25 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     @Override
     public void cleanup(UUID u) {
         Player p = Bukkit.getPlayer(u);
-        closeTable(p);
         house.hide(u);
         blessing.cleanup(u);
         riding.remove(u);
         lastStop.remove(u);
         bowed.remove(u);
+        touched.remove(u);
         concluding.remove(u);
         if (p != null) undawn(p);
         else dawned.remove(u);
+        // an admin's 초기화 deletes everything saved right after this: look again in a moment (see parting)
+        Map<Integer, String> now = saved(u);
+        if (now.isEmpty() || !eco.isEnabled()) return;
+        parting.put(u, now);
+        try {
+            Bukkit.getScheduler().runTaskLater(eco, () -> parted(u, false), 2L);
+            Bukkit.getScheduler().runTaskLater(eco, () -> parted(u, true), 40L);
+        } catch (RuntimeException e) {
+            parting.remove(u);   // shutting down: nothing is deleted then, it all stays saved
+        }
     }
 
     @Override
@@ -886,10 +1117,22 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         String h = m.get(this, u, "house");
         String stop = m.get(this, u, "stop");
         if (h != null) out.add("집 " + h + (stop == null ? "" : " (" + stopName(stop) + " 정류장)") + (house.get(u) != null ? " · 보이는 중" : ""));
+        Map<Integer, String> laid = ids(plates(u));
+        if (!laid.isEmpty() || st == HOUSE || st == ACCEPTED) {
+            Table.Verdict v = Table.judge(laid, rules());
+            out.add("제기 " + laid.size() + "/" + Vessel.COUNT + (laid.isEmpty() ? "" : v.ok() ? " (맞음)" : " (틀린 것 " + v.wrong().size()
+                    + " · 빠진 자리 " + v.missing().size() + ")"));
+            for (int row = 0; row < Table.ROWS; row++) {
+                List<String> cells = new ArrayList<>();
+                for (int col = 0; col < Table.COLS; col++) {
+                    int slot = Table.slot(row, col);
+                    String id = laid.get(slot);
+                    cells.add(Vessel.side(slot) + " " + (id == null ? "-" : id.replace("economy:", "")) + (v.wrong().contains(slot) ? "✗" : ""));
+                }
+                out.add((row + 1) + "열[" + String.join(", ", cells) + "]");
+            }
+        }
         if (st == HOUSE || st == ACCEPTED) {
-            Map<Integer, String> layout = layout(u);
-            Table.Verdict v = Table.judge(layout, rules());
-            out.add("상 " + layout.size() + "가지" + (layout.isEmpty() ? "" : v.ok() ? " (맞음)" : " (틀린 것 " + v.wrong().size() + " · 빠진 것 " + v.missing().size() + ")"));
             long wait = waiting(u);
             if (wait > 0) out.add("향 꺼짐 " + (wait + 999) / 1000 + "초 남음");
             long tries = m.getLong(this, u, "tries", 0);
@@ -901,15 +1144,24 @@ public final class Jesa extends Secret implements BusModule.Watcher {
 
     @Override
     public List<String> scenes() {
-        return List.of("할머니", "집", "상", "틀림", "음복", "음덕");
+        return List.of("할머니", "집", "제기", "틀림", "음복", "음덕");
     }
 
-    /** The house an admin's scene plays at: the one they see, else a look-only one beside them. */
-    private House.Shown sceneHouse(Player p, Map<Integer, String> food) {
-        UUID u = p.getUniqueId();
-        House.Shown s = house.get(u);
-        if (s == null || s.busy) s = house.show(p, beside(p), true, food);
-        else house.food(p, food);
+    /** Newly made things for a look (nothing of anyone's): vessel -> item. */
+    private static Map<Integer, ItemStack> made(Map<Integer, String> ids) {
+        Map<Integer, ItemStack> out = new TreeMap<>();
+        for (Map.Entry<Integer, String> e : ids.entrySet()) Items.create(e.getValue(), 1).ifPresent(it -> out.put(e.getKey(), it));
+        return out;
+    }
+
+    /** A look-only house beside them for an admin's scene (its vessels take nothing); null when there is no dry ground. */
+    private House.Shown sceneHouse(Player p, CommandSender admin, Map<Integer, ItemStack> food) {
+        Location at = beside(p);
+        if (at == null) {
+            noDryGround(p, admin);
+            return null;
+        }
+        House.Shown s = house.show(p, at, true, food);
         house.light(s, true);
         house.smoke(s, true);
         return s;
@@ -924,35 +1176,38 @@ public final class Jesa extends Secret implements BusModule.Watcher {
                 List<Entity> aboard = b == null ? List.of() : b.ridersOf(p, kind());
                 say(p, aboard.isEmpty() ? null : aboard.getFirst(), ahead(p), text("lines.overhear"));
             }
-            case "집" -> {
-                House.Shown s = house.show(p, beside(p), true, layout(u));
+            case "집", "제기" -> {
+                Map<Integer, ItemStack> look = new TreeMap<>();
+                for (Map.Entry<Integer, ItemStack> e : plates(u).entrySet()) look.put(e.getKey(), e.getValue().clone());
+                House.Shown s = sceneHouse(p, admin, look);
+                if (s == null) return true;
                 house.light(s, night(u, s.base.getWorld()));
-                house.smoke(s, true);
-                say(p, null, ahead(p), text("lines.house"));
+                if (word.equals("집")) say(p, null, ahead(p), text("lines.house"));
             }
-            case "상" -> openTable(p);
             case "틀림" -> {
                 Table.Rules r = rules();
-                Map<Integer, String> wrong = new LinkedHashMap<>(Table.sample(r));
+                Map<Integer, String> wrong = new TreeMap<>(Table.sample(r));
                 String meat = wrong.remove(Table.slot(1, Table.WEST_AT)), fish = wrong.remove(Table.slot(1, Table.EAST_AT));
                 if (fish != null) wrong.put(Table.slot(1, Table.WEST_AT), fish);   // 어동육서, the wrong way round
                 if (meat != null) wrong.put(Table.slot(1, Table.EAST_AT), meat);
                 wrong.remove(Table.slot(0, Table.WEST_AT));   // no rice
                 if (!r.taboo().isEmpty()) wrong.put(Table.slot(3, Table.MID), r.taboo().iterator().next());
-                House.Shown s = sceneHouse(p, wrong);
-                house.refuse(p, s, Table.judge(wrong, r), () -> {
+                House.Shown s = sceneHouse(p, admin, made(wrong));
+                if (s == null) return true;
+                house.refuse(p, s, Table.judge(wrong, r), slot -> {}, () -> {
                     whisper(p, "lines.out");
-                    house.food(p, layout(u));
                     later(p, 60, () -> {
                         if (house.get(u) == s) house.smoke(s, true);
                     });
                 });
             }
             case "음복" -> {
-                Map<Integer, String> food = layout(u);
-                if (food.isEmpty() || !Table.judge(food, rules()).ok()) food = Table.sample(rules());
-                House.Shown s = sceneHouse(p, food);
-                meal(p, s, food, true);
+                Map<Integer, ItemStack> food = new TreeMap<>();
+                for (Map.Entry<Integer, ItemStack> e : plates(u).entrySet()) food.put(e.getKey(), e.getValue().clone());
+                if (food.isEmpty() || !Table.judge(ids(food), rules()).ok()) food = made(Table.sample(rules()));
+                House.Shown s = sceneHouse(p, admin, food);
+                if (s == null) return true;
+                meal(p, s, ids(food), true);
             }
             case "음덕" -> {
                 if (!blessing.play(p, Set.of(p))) admin.sendMessage(Text.mm("<red>뒤에 설 자리가 없어요 (평평한 곳에서 다시)"));

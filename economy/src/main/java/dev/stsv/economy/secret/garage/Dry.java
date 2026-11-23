@@ -99,19 +99,26 @@ final class Dry {
         }
     }
 
-    /** Every column ({x, z}) must be dry ground in the window; stops at the first that is not. */
+    /**
+     * Every column ({x, z}) must be dry ground in the window. Stops at the first wet one; a column with no ground is
+     * noted and the rest still looked at (so that water further on is not missed).
+     */
     static Check footprint(Probe p, List<int[]> cols, int top, int low) {
         int[] ys = new int[cols.size()];
         int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+        boolean missing = false;
         for (int i = 0; i < cols.size(); i++) {
             int y = ground(p, cols.get(i)[0], cols.get(i)[1], top, low);
-            if (y == WET) return new Check(ys, min, max, true, false);
-            if (y == NONE) return new Check(ys, min, max, false, true);
             ys[i] = y;
+            if (y == WET) return new Check(ys, min, max, true, missing);
+            if (y == NONE) {
+                missing = true;
+                continue;
+            }
             min = Math.min(min, y);
             max = Math.max(max, y);
         }
-        return new Check(ys, min, max, false, false);
+        return new Check(ys, min, max, false, missing);
     }
 
     /**

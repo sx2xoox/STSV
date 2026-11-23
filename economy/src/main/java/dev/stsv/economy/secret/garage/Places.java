@@ -27,8 +27,8 @@ import java.util.Set;
  * <p>
  * "Home" is the road's last point: a 국도 runs from the terminal (or the road it branches off) to its dock's gate, and he
  * was driving away from town. The garage stands {@code garage.back} points before that end, off the roadside; which side
- * and exactly where is fitted to the ground the first time someone comes near ({@link #fit}: the flattest of a few
- * spots), and kept too.
+ * and exactly where is fitted to the ground the first time someone comes near ({@link #fit}: the flattest spot whose
+ * every column is dry ground, {@link Dry}; never over water), and kept too.
  */
 final class Places {
 
