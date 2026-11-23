@@ -809,6 +809,7 @@ bdc38593629c52fd7335b25d46a892c826f45399 stsv/items/vehicles.yml
 c21568fde324bce21872d9cc6708ca84f3d2161a stsv/items/vehicles.yml
 cceb05413a7e89b7496bdcd45c920af489410c5a stsv/items/vehicles.yml
 d2d33ff5e7c8e51f9331652d4dae122e7cb8fdf1 stsv/items/vehicles.yml
+d36322b6019ade8858388b512408e96194a2727c stsv/items/vehicles.yml
 d77d37a41c6ac0d92a36c99de7d4deda318ed2f6 stsv/items/vehicles.yml
 db24840e87aa50f0ca07c846b02b75d0e5001b86 stsv/items/vehicles.yml
 e3c92222c2dddaea0be0725f667831b4bd391bc0 stsv/items/vehicles.yml
