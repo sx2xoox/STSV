@@ -74,8 +74,9 @@ public final class JesaSequel extends Sequel {
     private final Map<UUID, Long> remarked = new HashMap<>();
     private List<Variant> variants = List.of();
     private List<Giil.Family> families = List.of();
+    /** player -> when {@link #idle} last looked at them (ms) */
+    private final Map<UUID, Long> idled = new HashMap<>();
     private long readAt;
-    private int clock;
 
     JesaSequel(Jesa j) {
         super(j);
@@ -407,14 +408,17 @@ public final class JesaSequel extends Sequel {
     }
 
     /**
-     * Called by the secret each second for everyone online (cheap: it does something every 15th second, for the solver
-     * only): the 족보 they carry gains the lines it has earned, and anything still saved on a weekly table that is no
+     * Called by the secret each second for everyone online (cheap: it looks every 15 seconds, and only at the solver): the 족보 they carry gains the lines it has earned, and anything still saved on a weekly table that is no
      * longer theirs to touch (the sequel switched off in the files, a tester gone back into the secret) goes back to them.
      */
     void idle(Player p) {
         UUID u = p.getUniqueId();
-        if (++clock % 15 != 0 || !member(u)) return;
-        if (!table(u) && !(on() && live(u) && free(u)) && !j.saved(u, PRE).isEmpty()) giveBackAll(u, true);
+        long now = System.currentTimeMillis();
+        Long last = idled.get(u);
+        if (last != null && now - last < 15_000L) return;
+        idled.put(u, now);
+        if (!member(u)) return;
+        if (!(on() && live(u) && free(u)) && !j.saved(u, PRE).isEmpty()) giveBackAll(u, true);
         if (on() && syncBook(p)) whisper(p, "book", "<gray>…족보의 끝 장에 먹 냄새가 난다.");
     }
 
@@ -572,6 +576,7 @@ public final class JesaSequel extends Sequel {
     }
 
     private void forget(UUID u) {
+        idled.remove(u);
         riding.remove(u);
         ending.remove(u);
         dryChecked.remove(u);
