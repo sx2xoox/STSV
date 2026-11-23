@@ -155,6 +155,7 @@ final class Errand {
      * @param bumps      bumps let pass (0: not one; below 0: they do not matter)
      * @param limitTicks the stretch must be done within this (0: no limit)
      * @param lo         the speed band (blocks/s; hi 0: none): outside it for more than graceTicks in a row is the end
+     *                   (counted from the first moment inside it, or five seconds after the start)
      * @param gates      his line's lights ({@link #gates}); each is passed within radius of it, or missed
      * @param misses     lights that may be missed
      * @param stop       the stretch ends standing still in the last {@code box} blocks before its end, having gone at
@@ -172,7 +173,7 @@ final class Errand {
     /** One driven stretch as far as it has got (a tick at a time). */
     static final class Progress {
         int ticks, bumps, outBand, off, gate, missed, passed, still;
-        boolean wasBumped, reached;
+        boolean wasBumped, reached, settled;
         /** this tick: a light was passed / missed; stood still at the line without having gone fast enough */
         boolean hit, miss, tooGentle;
     }
@@ -197,6 +198,9 @@ final class Errand {
         double v = Math.abs(s.speed());
         if (r.band() && s.prog() < length) {
             boolean out = v > r.hi() || v < r.lo();
+            // (the band counts from the first moment inside it, or five seconds in: time to get up to it, or down)
+            if (!st.settled) st.settled = !out || st.ticks > 100;
+            if (!st.settled) out = false;
             st.outBand = out ? st.outBand + 1 : 0;
             if (st.outBand > r.graceTicks()) return v > r.hi() ? Verdict.FAST : Verdict.SLOW;
         }

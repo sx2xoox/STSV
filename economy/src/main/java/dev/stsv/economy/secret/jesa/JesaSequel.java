@@ -550,7 +550,7 @@ public final class JesaSequel extends Sequel {
             List<Component> pages = new ArrayList<>(bm.pages().subList(0, base));
             List<String> header = cfg().getStringList("jokbo.header");
             if (header.isEmpty()) header = List.of("<black><b>…그 뒤로 상을 받은 집:</b>");
-            for (List<String> page : Giil.pages(entries, byId, header, cfg().getInt("jokbo.per-page", 4))) pages.add(Text.mm(String.join("\n", page)));
+            for (List<String> page : Giil.pages(entries, byId, header, cfg().getInt("jokbo.per-page", 3))) pages.add(Text.mm(String.join("\n", page)));
             bm.pages(pages);
             pdc.set(BOOK_BASE, PersistentDataType.INTEGER, base);
             pdc.set(BOOK_LINES, PersistentDataType.INTEGER, entries.size());
@@ -737,7 +737,7 @@ public final class JesaSequel extends Sequel {
                 List<Giil.Entry> entries = new ArrayList<>(Giil.entries(kept(u, "jokbo", "")));
                 entries.add(new Giil.Entry(f.id(), DAY.format(ZonedDateTime.now(SecretModule.KST))));
                 List<String> header = cfg().getStringList("jokbo.header");
-                for (List<String> page : Giil.pages(entries, byId, header, cfg().getInt("jokbo.per-page", 4))) {
+                for (List<String> page : Giil.pages(entries, byId, header, cfg().getInt("jokbo.per-page", 3))) {
                     admin.sendMessage(Text.mm("<gray>── 족보의 덧붙는 장 ──"));
                     for (String l : page) admin.sendMessage(Text.mm(l.isEmpty() ? " " : l));
                 }

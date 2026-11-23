@@ -5,6 +5,7 @@ import dev.stsv.core.vehicle.VehicleModule;
 import dev.stsv.economy.EcoPlugin;
 import dev.stsv.economy.secret.Secret;
 import dev.stsv.economy.secret.SecretModule;
+import dev.stsv.economy.secret.Sequel;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
@@ -89,6 +90,8 @@ public final class Garage extends Secret {
     private final Shed shed;
     private final Places places;
     private final Drive drive;
+    /** 후속 임무 「도윤 모터스」: the solver's weekly note from under the shutter. */
+    private final GarageSequel sequel;
     /** viewer -> how their memorial was built (rebuilt when that changes) */
     private final Map<UUID, String> memorials = new HashMap<>();
     /** viewer -> the shutter held at this height (a check, the end of the drive), whatever their stage says */
@@ -108,6 +111,12 @@ public final class Garage extends Secret {
         shed = new Shed(props, cars);
         places = new Places(eco);
         drive = new Drive(this);
+        sequel = new GarageSequel(this);
+    }
+
+    @Override
+    public Sequel sequel() {
+        return sequel;
     }
 
     @Override
@@ -161,6 +170,20 @@ public final class Garage extends Secret {
 
     Places places() {
         return places;
+    }
+
+    Drive drive() {
+        return drive;
+    }
+
+    /** Whether this viewer's garage is standing there for them right now. */
+    boolean shedShowing(UUID u) {
+        return shed.showing(u);
+    }
+
+    /** Where to stand this player on their next join (they left from the wheel of a temporary car): {@link #landing}. */
+    void keepGround(UUID u, Location safe) {
+        if (safe != null && safe.getWorld() != null) m.set(this, u, "ground", safe.getWorld().getName() + " " + safe.getX() + " " + safe.getY() + " " + safe.getZ());
     }
 
     /** The core's vehicle module (null when it is off: no drive then). */
@@ -473,6 +496,7 @@ public final class Garage extends Secret {
     /** The bend or the garage moved (their road changed or went): nothing stays at the old place, no drive goes on. */
     private void placeChanged() {
         drive.endAll();
+        sequel.placeChanged();
         props.clearAll();
         memorials.clear();
         held.clear();
@@ -502,8 +526,10 @@ public final class Garage extends Secret {
             return;
         }
         // the story is over for this viewer: they finished it, or someone else did (a tester keeps their own story)
-        boolean after = st > stages() || (m.closed(this) && !m.test(u));
-        if (after && st >= CLUES && st <= stages() && m.get(this, u, "late") == null) tooLate(p);
+        // (a tester an admin let into the 후속 임무 without the secret finished sees the garage as it is afterwards, while that goes on)
+        boolean guest = st <= stages() && sequel.live(u) && sequel.may(p);
+        boolean after = st > stages() || (m.closed(this) && !m.test(u)) || guest;
+        if (after && !guest && st >= CLUES && st <= stages() && m.get(this, u, "late") == null) tooLate(p);
         demos(p, now);
         memorial(p, site, st, after);
         garage(p, st, after);
@@ -972,14 +998,19 @@ public final class Garage extends Secret {
                 case "memorial" -> clickMemorial(p);
                 case "chip" -> clickChip(p);
                 case "bench" -> clickBench(p);
+                case GarageSequel.NOTE -> sequel.clickNote(p);
+                case GarageSequel.SPOT -> sequel.clickSpot(p);
                 default -> whisper(p, "demo", "<yellow>[연출]");
             }
             return;
         }
         // his car waiting before the bend lets its own player in (the core lets nobody into a temporary vehicle by a click)
-        if (e.getHand() != EquipmentSlot.HAND || !drive.has(p.getUniqueId())) return;
+        // (and so does the car lent for the 후속 임무)
+        if (e.getHand() != EquipmentSlot.HAND) return;
         Long id = hit.getPersistentDataContainer().get(VehicleModule.PART, PersistentDataType.LONG);
-        if (id != null && !p.isSneaking() && !p.isInsideVehicle()) drive.board(p, id);
+        if (id == null || p.isSneaking() || p.isInsideVehicle()) return;
+        if (drive.has(p.getUniqueId())) drive.board(p, id);
+        else sequel.board(p, id);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
