@@ -393,16 +393,17 @@ final class House {
         return Dry.found(y) ? y : Integer.MIN_VALUE;
     }
 
-    /**
-     * Whether a house front standing here (the middle of its gate on the ground at {@code base}, facing yaw) is on dry
-     * ground, every column of it. Null when it is, else why not (in words). The land must be loaded.
-     */
-    static String dry(Location base, float yaw) {
+    /** The ground under a house front standing here (the middle of its gate on the ground at {@code base}, facing yaw), every column of it. The land must be loaded. */
+    static Dry.Check under(Location base, float yaw) {
         World w = base.getWorld();
         int y = base.getBlockY();
-        Dry.Check c = Dry.footprint(Dry.world(w), Dry.house(base.getBlockX(), base.getBlockZ(), yaw),
+        return Dry.footprint(Dry.world(w), Dry.house(base.getBlockX(), base.getBlockZ(), yaw),
                 Math.min(w.getMaxHeight() - 4, y + 8), Math.max(w.getMinHeight(), y - 8));
-        return Dry.why(c);
+    }
+
+    /** Whether a house front may be put here: null when all its ground is dry, else why not (in words). The land must be loaded. */
+    static String dry(Location base, float yaw) {
+        return Dry.why(under(base, yaw));
     }
 
     /**

@@ -404,8 +404,8 @@ final class Places {
     }
 
     /**
-     * Whether the fitted garage still stands on dry ground, every column (looked at again every ten minutes while someone
-     * is near; never loads land). When it does not (water was poured, the sea came, it was fitted before this rule, an
+     * Whether the fitted garage still stands on dry ground: no column of it wet (looked at again every ten minutes while
+     * someone is near; never loads land). When one is (water was poured, the sea came, it was fitted before this rule, an
      * admin put it on water) it is unfitted, to be fitted again: false, and whatever is shown of it must go.
      */
     boolean stillDry() {
@@ -418,7 +418,7 @@ final class Places {
         if (f == null) return true;   // not all of it loaded: another time
         verifiedFor = s.encode();
         verifiedAt = now;
-        if (f.check().ok()) return true;
+        if (!f.check().wet()) return true;   // (a column with no ground under it, as fitted before this rule, may stay: only water moves it)
         eco.getLogger().warning("[비밀] 폐차고: 저장된 차고 자리 " + coords(s, s.garage()) + " 가 마른 땅이 아님 (" + Dry.why(f.check())
                 + "). 다시 땅에 맞춤");
         site = s.fitted(s.garage(), 0, 0);

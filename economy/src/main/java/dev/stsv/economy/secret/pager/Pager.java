@@ -610,13 +610,14 @@ public final class Pager extends Secret {
     }
 
     /**
-     * Whether the house may be shown at its kept place now (the land there is loaded). Its ground must be dry, every
-     * column (else it is looked for again, and until then not shown: never over water); an admin's own place stays, with
-     * a word on the console. Built over since: looked for again (or, at most once in ten minutes, it stays).
+     * Whether the house may be shown at its kept place now (the land there is loaded). No column of its ground may be
+     * wet (else it is looked for again, and until then not shown: never over water); an admin's own place stays, with a
+     * word on the console. Built over since: looked for again (or, at most once in ten minutes, it stays).
      */
     private boolean standsHere(Player p, Location g) {
         UUID u = p.getUniqueId();
-        String wet = House.dry(g, g.getYaw());
+        Dry.Check under = House.under(g, g.getYaw());
+        String wet = under.wet() ? Dry.why(under) : null;
         if (wet != null) {
             if (kv(u, "fixed") != null) {
                 if (warnedWet.add(u)) eco.getLogger().warning("[비밀] 삐삐: 관리자가 정한 " + p.getName() + " 의 집 자리(" + kv(u, "house")
