@@ -238,6 +238,13 @@ treasure_fish_meat:
   lore: ["<gray>전설 물고기를 손질한 살 · 요리사가 참치 초밥에 씀"]
   texture: treasure_fish_meat
 
+# 북어포: 손질대에서 명태를 꼬챙이에 꿰어 말림 (2026-11 전의 '북어'와 같은 아이템 — 예전에 만든 것도 그대로 이 물건)
+dried_pollack:
+  material: paper
+  name: "<#4fc3f7>북어포"
+  lore: ["<gray>명태를 꼬챙이에 꿰어 바닷바람에 말린 포"]
+  texture: dried_pollack
+
 # ── 손질대 · 어부 (연마 진주) · 예전 손질감 (2026-11 전: 이제 만들 수 없고 상점에 팔 수만 있음) ─────────
 cod_fillet:
   material: paper
@@ -250,12 +257,6 @@ salmon_fillet:
   name: "<#4fc3f7>연어 필렛"
   lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
   texture: salmon_fillet
-
-dried_pollack:
-  material: paper
-  name: "<#4fc3f7>북어"
-  lore: ["<dark_gray>예전 물건 · 더 만들 수 없음", "<gray>상점에 팔 수 있음"]
-  texture: dried_pollack
 
 prepared_puffer:
   material: paper

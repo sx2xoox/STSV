@@ -81,6 +81,8 @@ sell:
       economy:eggplant: { base: 2, q: 3, job: farmer, floor: 0.05 }
       economy:zucchini: { base: 2.375, q: 3, job: farmer, floor: 0.05 }
       economy:muskmelon: { base: 3.25, q: 3, job: farmer, floor: 0.05 }
+      # 배: 밭에서 나지 않음. 마을버스 할머니 손님이 내리며 가끔 쥐여 주는 것 (bus.yml types.grandma.gifts)
+      economy:pear: { base: 4, q: 64 }   # 배
   fish:
     name: "수산물"
     icon: economy:mackerel
@@ -305,6 +307,7 @@ sell:
       economy:fine_fish_meat: { base: 28, q: 16 }   # 고급 생선살 (보통)
       economy:prime_fish_meat: { base: 46, q: 16 }   # 특선 생선살 (희귀)
       economy:treasure_fish_meat: { base: 216, q: 4 }   # 진귀한 생선살 (전설)
+      economy:dried_pollack: { base: 23, q: 16 }   # 북어포 (명태를 말림 · 원재료만. 2026-11 전의 북어와 같은 물건, 값도 그대로)
       economy:polished_pearl: { base: 179, q: 4 }   # 연마 진주
       economy:royal_eoran: { base: 2860, q: 1 }   # 진상 어란 (4강)
       economy:gulbi_dureum: { base: 1380, q: 1 }   # 굴비 두름 (4강)
@@ -399,7 +402,6 @@ sell:
     items:
       economy:cod_fillet: { base: 15, q: 16 }   # 생선 필렛
       economy:salmon_fillet: { base: 15, q: 16 }   # 연어 필렛
-      economy:dried_pollack: { base: 23, q: 16 }   # 북어
       economy:prepared_puffer: { base: 9, q: 32 }   # 손질한 복어
       economy:smoked_salmon: { base: 53, q: 8 }   # 훈제 연어
       economy:seabream_sashimi: { base: 45, q: 16 }   # 모둠회
