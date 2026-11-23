@@ -18,7 +18,8 @@ import java.util.TreeSet;
  * <li>row 1, 적 · 전: meat west, fish east (어동육서), a 전 between them;</li>
  * <li>row 2, 탕: a soup, not one already in row 0, no soup twice;</li>
  * <li>row 3, 포 · 나물 · 혜: dried fish west, 식혜 east (좌포우혜), 나물 between if any;</li>
- * <li>row 4, 과일: pale fruit west, red fruit east (홍동백서), rice cakes and the like between if any.</li>
+ * <li>row 4, 과일: the pale fruit (배, a pear: only the bus's 할머니 hands them out) west, red fruit east (홍동백서), rice cakes
+ * and the like between if any.</li>
  * </ol>
  * Anything taboo (chili, garlic, a fish whose name ends in 치, red beans) is wrong wherever it lies, and so is anything
  * that has no business in its row. Nothing here touches the server (unit-tested); where the vessels stand is {@link Vessel}.
@@ -74,8 +75,8 @@ final class Table {
             return new Rules(eco("rice"), eco("bogeo_jiri", "eomuktang", "pollack_stew", "doenjang_jjigae", "kalguksu"),
                     eco("cheongju", "golden_cheongju", "century_yakju", "makgeolli", "soju"), eco("bulgogi"),
                     eco("godeungeo_gui", "fish_platter", "red_seabream", "croaker", "pollack", "sunset_bream", "gulbi", "gulbi_dureum"),
-                    eco("saengseonjeon", "hobakjeon", "gamjajeon", "pajeon"), eco("dried_fish_stirfry", "dried_fish", "dried_pollack", "gulbi"),
-                    eco("sikhye"), eco("japchae", "gyeranmari"), eco("muskmelon"), set("minecraft:apple", "economy:strawberry"),
+                    eco("saengseonjeon", "hobakjeon", "gamjajeon", "pajeon"), eco("dried_pollack", "dried_fish_stirfry", "dried_fish", "gulbi"),
+                    eco("sikhye"), eco("japchae", "gyeranmari"), eco("pear"), set("minecraft:apple", "economy:strawberry"),
                     eco("injeolmi", "golden_injeolmi", "ginseng_jeonggwa", "grapes"),
                     eco("chili_pepper", "chili_seeds", "garlic", "chili_powder", "gochujang", "jang_set", "royal_jang_set", "kimchi", "kkakdugi",
                             "oi_sobagi", "oi_muchim", "sundubu_jjigae", "kimchi_jjigae", "maeuntang", "dakbokkeumtang", "gamjatang",

@@ -451,7 +451,11 @@ types:
     tip: 2.0
     market: 3
     tags: {field: 1.5, village: 1.5}
-    gifts: [{item: economy:sikhye, amount: 1}, {item: economy:injeolmi, amount: 2}, {item: economy:corn_bread, amount: 2}]
+    # 선물 넷 가운데 하나 (고르게). 배(economy:pear)를 더하면서 이 손님만의 확률을 0.35 -> 0.47 로: 식혜 · 인절미 · 옥수수빵은
+    # 예전 그대로 (기분 좋게 내린 할머니 100명에 12번꼴씩), 배도 그만큼 — 꾸준히 모는 기사가 한두 시간에 하나쯤 받음
+    gift-chance: 0.47
+    gifts: [{item: economy:sikhye, amount: 1}, {item: economy:injeolmi, amount: 2}, {item: economy:corn_bread, amount: 2},
+            {item: economy:pear, amount: 1}]
     talk:
       board: ["아이고 고마워요 기사양반", "장에 가요~", "읍내 좀 가입시더", "아이고 자리가 있네", "우리 손주 보러 가는 길이여", "기사양반 밥은 묵었나?"]
       slow: ["아이고 잠깐만, 천천히 타요~", "끙차… 다리가 영 말을 안 듣네", "기사양반 잠깐만 기다려요~", "쪼매만 기다리소~", "아이고 이 계단이 와 이리 높노", "내 금방 탄다, 금방"]

@@ -35,7 +35,7 @@ class JesaTest {
 
     static final String RICE = "economy:rice", JIRI = "economy:bogeo_jiri", EOMUK = "economy:eomuktang", CHEONGJU = "economy:cheongju",
             BULGOGI = "economy:bulgogi", GUI = "economy:godeungeo_gui", JEON = "economy:hobakjeon", BUGEO = "economy:dried_pollack",
-            SIKHYE = "economy:sikhye", MELON = "economy:muskmelon", APPLE = "minecraft:apple";
+            SIKHYE = "economy:sikhye", PEAR = "economy:pear", APPLE = "minecraft:apple";
 
     /** A right table: row, vessel (west, middle, east), id … */
     static Map<Integer, String> right() {
@@ -49,7 +49,7 @@ class JesaTest {
         t.put(Table.slot(2, MID), EOMUK);
         t.put(Table.slot(3, W), BUGEO);
         t.put(Table.slot(3, E), SIKHYE);
-        t.put(Table.slot(4, W), MELON);
+        t.put(Table.slot(4, W), PEAR);
         t.put(Table.slot(4, E), APPLE);
         return t;
     }
@@ -68,6 +68,8 @@ class JesaTest {
         assertTrue(RULES.liquor().contains(sample.get(Table.slot(0, MID))), "liquor in the cup");
         assertTrue(RULES.soup().contains(sample.get(Table.slot(0, E))), "soup in the east bowl");
         assertNotEquals(sample.get(Table.slot(0, E)), sample.get(Table.slot(2, MID)), "the 탕 is another soup");
+        assertEquals(BUGEO, sample.get(Table.slot(3, W)), "북어포 is the first 포: what an admin's sample table lays");
+        assertEquals(PEAR, sample.get(Table.slot(4, W)), "the pale fruit is a pear");
     }
 
     @Test
@@ -186,15 +188,36 @@ class JesaTest {
         assertEquals(Set.of(Table.slot(4, MID), Table.slot(3, MID), Table.slot(2, W)), Table.judge(t, RULES).wrong());
     }
 
+    /** 홍동백서's white fruit is the pear (the bus's 할머니 hands them out); a melon is no fruit of the rite: it goes like any wrong thing. */
+    @Test
+    void theMelonIsNoLongerThePaleFruit() {
+        assertEquals(Set.of(PEAR), RULES.pale());
+        Map<Integer, String> t = right();
+        t.put(Table.slot(4, W), "economy:muskmelon");
+        Table.Verdict v = Table.judge(t, RULES);
+        assertEquals(Set.of(Table.slot(4, W)), v.wrong(), "the melon rolls off");
+        assertEquals(List.of(Table.slot(4, W)), v.missing(), "and the pale fruit is still owed");
+        t = right();
+        t.put(Table.slot(4, MID), "economy:muskmelon");
+        assertEquals(Set.of(Table.slot(4, MID)), Table.judge(t, RULES).wrong(), "not between the fruit either");
+        // the file says the same as the defaults, and the pear is an item the 할머니 of the bus really gives
+        Table.Rules file = Table.Rules.read(yml().getConfigurationSection("table"));
+        assertEquals(Set.of(PEAR), file.pale());
+        assertEquals(BUGEO, file.dried().iterator().next(), "북어포 first in the file too");
+        YamlConfiguration bus = YamlConfiguration.loadConfiguration(PACK.resolve("bus.yml").toFile());
+        assertTrue(bus.getMapList("types.grandma.gifts").stream().anyMatch(g -> PEAR.equals(g.get("item"))), "the 할머니 gives pears");
+        assertTrue(bus.getMapList("types.dogwalker.gifts").isEmpty(), "the dog walker gives nothing");
+    }
+
     @Test
     void redFruitEastPaleFruitWest() {
         Map<Integer, String> t = right();
         t.put(Table.slot(4, W), APPLE);
-        t.put(Table.slot(4, E), MELON);
+        t.put(Table.slot(4, E), PEAR);
         assertEquals(Set.of(Table.slot(4, W), Table.slot(4, E)), Table.judge(t, RULES).wrong());
         t = right();
         t.put(Table.slot(4, W), "economy:strawberry");   // red on the west vessel
-        t.put(Table.slot(4, MID), MELON);
+        t.put(Table.slot(4, MID), PEAR);
         assertEquals(Set.of(Table.slot(4, W)), Table.judge(t, RULES).wrong(), "the red one goes; pale in the middle, red east is right");
         // the middle vessel is neither half: what stands on it is judged by its neighbour
         t = right();
@@ -202,13 +225,13 @@ class JesaTest {
         t.remove(Table.slot(4, E));
         assertTrue(Table.judge(t, RULES).ok(), "pale west, red in the middle");
         t = right();
-        t.put(Table.slot(4, MID), MELON);
+        t.put(Table.slot(4, MID), PEAR);
         t.remove(Table.slot(4, W));
         assertTrue(Table.judge(t, RULES).ok(), "pale in the middle, red east");
         t = right();
         t.remove(Table.slot(4, W));
         t.put(Table.slot(4, MID), APPLE);
-        t.put(Table.slot(4, E), MELON);                  // but not the wrong way round about it
+        t.put(Table.slot(4, E), PEAR);                  // but not the wrong way round about it
         assertEquals(Set.of(Table.slot(4, E)), Table.judge(t, RULES).wrong());
     }
 

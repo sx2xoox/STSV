@@ -30,7 +30,7 @@ class FishingGearContentTest {
             "rare", "economy:prime_fish_meat", "legend", "economy:treasure_fish_meat");
     static final Map<String, Integer> OPENS = Map.of("common", 0, "uncommon", 0, "rare", 1, "legend", 2);
     /** The goods the 손질대 made before the tier processing: kept as items the shop still buys (shop.yml legacy), made by nothing. */
-    static final List<String> LEGACY = List.of("economy:cod_fillet", "economy:salmon_fillet", "economy:dried_pollack", "economy:prepared_puffer",
+    static final List<String> LEGACY = List.of("economy:cod_fillet", "economy:salmon_fillet", "economy:prepared_puffer",
             "economy:smoked_salmon", "economy:seabream_sashimi", "economy:sukhoe", "economy:tuna_sashimi", "economy:fishcake", "economy:caviar",
             "economy:seafood_feast", "economy:shrimp_meat", "economy:gwamegi", "economy:gulbi", "economy:hongeo", "economy:jeotgal",
             "economy:salted_mackerel", "economy:fish_sauce", "economy:flatfish_hoe", "economy:dried_fish", "economy:saeujeot", "economy:fish_paste");

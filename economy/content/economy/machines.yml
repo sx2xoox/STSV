@@ -193,9 +193,9 @@ fish_bench:
     - { in: { "#economy:fish_legend_1": 1 }, out: economy:treasure_fish_meat, amount: 3, seconds: 540, tier: 2 }   # 진귀한 생선살 216G x 3 = 648G
     - { in: { "#economy:fish_legend_2": 1 }, out: economy:treasure_fish_meat, amount: 5, seconds: 780, tier: 2 }   # 진귀한 생선살 216G x 5 = 1080G
     - { in: { "#economy:fish_legend_3": 1 }, out: economy:treasure_fish_meat, amount: 6, seconds: 1080, tier: 2 }   # 진귀한 생선살 216G x 6 = 1296G
-    # 북어포: 명태 세 마리를 꼬챙이(막대기)에 꿰어 말림. 막대기가 있어야 이 레시피 (명태만 넣으면 위의 생선살). 생선살보다 마리당 조금 더 받지만
-    # 말리는 데 오래 걸려 1분에 버는 것은 적음 (명태 15G + 막대기 -> 23G, 1.52배 · 1분 4.7G; 생선살은 1분 8G)
-    - { in: { economy:pollack: 4, stick: 1 }, out: economy:dried_pollack, seconds: 100 }   # 북어포 23G
+    # 북어포: 명태 네 마리를 꼬챙이(막대기)에 꿰어 말림. 막대기가 있어야 이 레시피 (명태만 넣으면 위의 생선살). 생선살보다 마리당 조금 더 받지만
+    # 말리는 데 오래 걸려 1분에 버는 것은 적음 (명태 20G + 막대기 -> 31G, 1.54배 · 1분 5.5G; 생선살은 마리당 7.5G · 1분 8G)
+    - { in: { economy:pollack: 4, stick: 1 }, out: economy:dried_pollack, seconds: 120 }   # 북어포 31G
     - { in: { economy:pearl: 1 }, out: economy:polished_pearl, seconds: 180, tier: 2 }   # 연마 진주 179G
     # ── 4세대 재료(승급 재료)는 3강부터 (Lv35 승급에 필요하니 4강이 아님), 4세대 고급품은 4강에서만 (Lv35 승급 뒤) ──
     - { in: { economy:fine_fish_meat: 4 }, out: economy:fish_glue, amount: 3, seconds: 240, tier: 3 }   # 부레풀 (4세대 재료: 고급 생선살의 부레를 고아) · 거래 참고가 68G

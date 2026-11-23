@@ -307,7 +307,7 @@ sell:
       economy:fine_fish_meat: { base: 28, q: 16 }   # 고급 생선살 (보통)
       economy:prime_fish_meat: { base: 46, q: 16 }   # 특선 생선살 (희귀)
       economy:treasure_fish_meat: { base: 216, q: 4 }   # 진귀한 생선살 (전설)
-      economy:dried_pollack: { base: 23, q: 16 }   # 북어포 (명태를 말림 · 원재료만. 2026-11 전의 북어와 같은 물건, 값도 그대로)
+      economy:dried_pollack: { base: 31, q: 16 }   # 북어포 (명태를 말림 · 원재료만. 2026-11 전의 북어와 같은 물건: 그때는 23G)
       economy:polished_pearl: { base: 179, q: 4 }   # 연마 진주
       economy:royal_eoran: { base: 2860, q: 1 }   # 진상 어란 (4강)
       economy:gulbi_dureum: { base: 1380, q: 1 }   # 굴비 두름 (4강)

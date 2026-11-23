@@ -3,6 +3,8 @@ Canvas and palette materials as economy_goods.py (light from the top left, the d
 and brighter than the job goods: they belong to someone and should read at a glance in the hotbar. economy_icons.ITEMS takes these in.
 
     python3 tools/assetgen/bus_lost_icons.py [out_dir]    # writes only these icons (and a preview sheet when out_dir is given)
+
+The one gift that is an item of its own lives here too: 배 (economy:pear), what the 할머니 hands the driver.
 """
 import math
 
@@ -251,6 +253,27 @@ def key():
     c.tone([(x, y) for x, y in c.last() if (x + y) % 3 == 0], -1)
     c.dots([(3, 2), (2, 3)], "brass", 5)
     return c
+
+
+# ------------------------------------------------------------------------------------------------
+# 마을버스 선물 (bus.yml types.grandma.gifts): not a lost thing, so no lost_ prefix (economy:pear)
+# ------------------------------------------------------------------------------------------------
+
+
+def pear():
+    """배: a Korean pear, big and round (a little wider than tall, not waisted like a western pear), pale yellow-brown russet
+    skin with darker speckles, a dimple on top with a short dark stem leaning right. No leaf and no red: not an apple."""
+    c = Canvas()
+    c.ellipse(8.0, 9.3, 6.6, 5.9, "straw", 1, lo=2, hi=4, gloss=0.0, bias=-0.15)       # matt skin: no apple shine
+    c.tone([(7, 4), (8, 4)], -1)                                                          # the dimple the stem sits in
+    c.line(8, 3, 9, 1, "wood_dark", 2, z=3)                                               # the stem
+    c.put(9, 1, "wood_dark", 3, z=3)
+    speckles = ((5, 6), (10, 5), (3, 9), (7, 8), (12, 9), (5, 11), (9, 11), (11, 12), (7, 13), (12, 7), (9, 8), (4, 7), (7, 6))
+    c.tone([p for p in speckles if c.px.get(p, [None])[0] == "straw"], -1)                # russet speckles, one step darker
+    return c
+
+
+ICONS["pear"] = lambda: pear().render()
 
 
 def main(out=None):

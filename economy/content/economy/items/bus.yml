@@ -74,3 +74,14 @@ lost_key:
   name: "<#c9a26b>열쇠"
   texture: lost_key
   max-stack: 1
+
+# 마을버스 선물 (bus.yml types.grandma.gifts): 할머니 손님이 내리며 가끔 쥐여 주는 배. 밭에서 나지 않고 다른 곳에서도 안 나옴.
+# 먹을 수 있고, 상점 농산물에 싸게 팔리고, 여느 물건처럼 거래됨. 아이콘: tools/assetgen/bus_lost_icons.py (pear)
+pear:
+  material: paper
+  name: "<#8bc34a>배"
+  lore: ["<gray>마을버스 할머니가 쥐여 준 배 · 달고 시원하다"]
+  texture: pear
+  food:
+    nutrition: 3
+    saturation: 1.8
