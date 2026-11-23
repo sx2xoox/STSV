@@ -11,6 +11,7 @@ import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
+import org.bukkit.GameMode;
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -31,6 +32,7 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -717,8 +719,18 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     // the vessels: putting food on, taking it back
     // ------------------------------------------------------------------------------------------
 
+    /**
+     * The "at" half of the same click (a separate event with its own listeners): cancelled too and otherwise ignored, so
+     * one press acts once (in {@link #onTouch}) and nothing else acts on a vessel's click box.
+     */
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onTouchAt(PlayerInteractAtEntityEvent e) {
+        if (e.getRightClicked() instanceof Interaction hit && hit.getPersistentDataContainer().has(House.TAG)) e.setCancelled(true);
+    }
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onTouch(PlayerInteractEntityEvent e) {
+        if (e instanceof PlayerInteractAtEntityEvent) return;   // its own handler list; never acted on twice
         if (!(e.getRightClicked() instanceof Interaction hit) || !hit.getPersistentDataContainer().has(House.TAG)) return;
         e.setCancelled(true);
         if (e.getHand() != EquipmentSlot.HAND) return;   // the off hand's click of the same press does nothing
@@ -728,6 +740,9 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         House.Shown s = house.get(u);
         int v = House.vesselOf(hit);
         if (tag == null || !tag.startsWith(u.toString()) || s == null || v < 0 || !hit.equals(s.hits.get(v)) || guide(p)) return;
+        // only within an arm's reach of that very vessel (the client's word is not taken for it)
+        if (!hit.getWorld().equals(p.getWorld()) || !Vessel.inReach(p.getEyeLocation().distanceSquared(hit.getLocation()))) return;
+        if (p.getGameMode() == GameMode.SPECTATOR) return;
         long now = System.currentTimeMillis();
         Long last = touched.get(u);
         if (last != null && now - last < 250) return;
@@ -748,6 +763,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         }
         ItemStack hand = p.getInventory().getItemInMainHand();
         if (hand.isEmpty()) take(p, s, v);
+        else if (p.getGameMode() == GameMode.CREATIVE) whisper(p, "lines.not-this");   // a creative hand is not a real one
         else put(p, s, v, hand);
     }
 
@@ -762,7 +778,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
      */
     private void put(Player p, House.Shown s, int v, ItemStack hand) {
         UUID u = p.getUniqueId();
-        if (refused(hand)) {
+        if (refused(hand) || eco.mail() == null) {   // no mailbox: nothing could ever come back off the vessel
             whisper(p, "lines.not-this");
             m.haunt().sound(p, house.dishAt(s, v), Sound.BLOCK_WOOD_HIT, 0.3f, 0.6f);
             return;
@@ -798,7 +814,13 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             rest.setAmount(left);
             inv.setItemInMainHand(rest);
         }
-        if (before != null) giveBack(u, before);   // the one it replaced
+        if (before != null) {   // the one it replaced
+            try {
+                giveBack(u, before);
+            } catch (RuntimeException ex) {
+                eco.getLogger().severe("[비밀] 주인없는제사: 바꿔 놓은 것을 돌려주지 못함 (" + u + ", 제기 " + v + "), 복구용 값: " + old + " — " + ex);
+            }
+        }
         house.food(p, plates(u));
         Location at = house.dishAt(s, v);
         m.haunt().sound(p, at, Vessel.kind(v) == Vessel.Kind.PLATE || Vessel.kind(v) == Vessel.Kind.DEEP ? Sound.BLOCK_WOOD_PLACE : Sound.BLOCK_DECORATED_POT_INSERT,
@@ -1081,6 +1103,9 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     public void resetting(UUID u) {
         int n = returnAll(u);
         if (n > 0) eco.getLogger().info("[비밀] 주인없는제사: 초기화 전에 제기 위의 것 " + n + "개를 돌려줌 (" + u + ")");
+        // what could not be given back (unreadable, or no mailbox) is about to be deleted: its saved value, to restore by hand
+        for (Map.Entry<Integer, String> e : saved(u).entrySet())
+            eco.getLogger().severe("[비밀] 주인없는제사: 초기화로 지워지는 제기 " + e.getKey() + " 의 것을 돌려주지 못함 (" + u + "), 복구용 값 (serializeAsBytes, Base64): " + e.getValue());
     }
 
     @Override

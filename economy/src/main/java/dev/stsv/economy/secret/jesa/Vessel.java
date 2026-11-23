@@ -98,6 +98,14 @@ final class Vessel {
     // what lies on a vessel, as saved (kv "plate.<slot>")
     // ------------------------------------------------------------------------------------------
 
+    /** How far (blocks) from the eyes to a vessel's click box a hand reaches (survival reach 3 to the box, and some lag). */
+    static final double REACH = 4.5;
+
+    /** Whether a vessel this far away (squared, eyes to its click box) is within reach. */
+    static boolean inReach(double distanceSquared) {
+        return distanceSquared >= 0 && distanceSquared <= REACH * REACH;
+    }
+
     static String key(int slot) {
         return "plate." + slot;
     }

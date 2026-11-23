@@ -348,6 +348,22 @@ class JesaTest {
     }
 
     @Test
+    void aVesselIsTouchedOnlyWithinReach() {
+        // standing south of the table: every vessel is within a survival arm's reach of the eyes
+        for (int v = 0; v < Vessel.COUNT; v++) {
+            double[] at = Vessel.at(v);
+            double dx = at[0], dy = 1.62 - House.TOP, dz = Vessel.SOUTH + 0.6 - at[1];
+            assertTrue(Vessel.inReach(dx * dx + dy * dy + dz * dz), "vessel " + v);
+        }
+        assertTrue(Vessel.inReach(0));
+        assertTrue(Vessel.inReach(Vessel.REACH * Vessel.REACH));
+        assertFalse(Vessel.inReach(Vessel.REACH * Vessel.REACH + 0.01));
+        assertFalse(Vessel.inReach(36), "six blocks off: no");
+        assertFalse(Vessel.inReach(Double.NaN));
+        assertFalse(Vessel.inReach(-1));
+    }
+
+    @Test
     void neverOnWater() {
         assertTrue(Place.wet("WATER", false, true));
         assertTrue(Place.wet("LAVA", false, true));
