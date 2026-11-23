@@ -20,9 +20,9 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 /**
- * The last drive (폐차고 stage 3 → 4). His restored car — a real temporary 튜닝카 of the core's vehicle module in the true
- * paint ({@code VehicleModule#spawnTemporary}; a temporary vehicle takes a paint only, so its wheels are stock and it
- * has no glow) — waits before the bend. Its player gets in ({@link #board}); the ghost, a display-only copy in the whole
+ * The last drive (폐차고 stage 3 → 4). His restored car — a real temporary 미완의 질주 of the core's vehicle module in the
+ * whole true look ({@link CarLook#spawnReal}: paint, wheels and underglow from core 0.123.0, the paint only before it)
+ * — waits before the bend. Its player gets in ({@link #board}); the ghost, a display-only copy in the whole
  * true look ({@link CarLook}) that only they see, pulls up beside them and drives the road's points home at a human pace
  * ({@link Roadway#cruise}, {@link Roadway#adapt}). The rules are checked every tick: stay in his car, do not crash, stay
  * beside him. At the bend he died on his car skids out for a second and comes back. At the garage he rolls in, his
@@ -144,7 +144,7 @@ final class Drive {
             for (int cz = (int) Math.floor(at.getZ() - 5) >> 4; cz <= (int) Math.floor(at.getZ() + 5) >> 4; cz++)
                 if (!w.isChunkLoaded(cx, cz) && (!load || !w.getChunkAt(cx, cz).isLoaded())) return 0;
         Combo answer = g.answer();
-        long id = vm.spawnTemporary(item, w, at.getX(), at.getY(), at.getZ(), at.getYaw(), answer == null ? null : answer.paint(), driver);
+        long id = g.cars().spawnReal(vm, item, w, at, answer, driver);
         if (id == 0) return 0;
         vm.letOutOfTemporary(id);   // it drives like an owned car (the road's bonus) and its driver may get out (which ends the night)
         r.car = id;
@@ -213,7 +213,7 @@ final class Drive {
         r.ghost = g.cars().spawn(p, GHOST, pose(r, w, r.s, -lane(), 0), g.answer(), true, 11, 2);
         if (!r.preview) g.driving(p);
         Location beside = pose(r, w, r.s, -lane(), 0);
-        p.playSound(beside, cfg().getString("drive.start-sound", "stsv:vehicle.tuner_car.engine_start"), SoundCategory.AMBIENT, 0.5f, 0.8f);
+        p.playSound(beside, cfg().getString("drive.start-sound", "stsv:vehicle.racer_coupe.engine_start"), SoundCategory.AMBIENT, 0.5f, 0.8f);
         p.spawnParticle(Particle.SOUL, beside.clone().add(0, 0.6, 0), 14, 0.9, 0.3, 0.9, 0.01);
         g.later(p, 20, () -> g.say(p, "together", "<#9fb2c8>…같이 가자. 그날 못 간 데까지."));
     }
@@ -415,7 +415,7 @@ final class Drive {
         Location l = pose(r, w, r.s, lateral, skid);
         if (r.ghost != null) {
             g.cars().move(r.ghost, l);
-            r.roll += (r.s - was) / 0.375;   // (the wheel's radius: VehicleSpec wheel-radius of the 튜닝카)
+            r.roll += (r.s - was) / 0.375;   // (the wheel's radius: VehicleSpec wheel-radius of his car)
             if (r.ticks % 2 == 0) g.cars().roll(r.ghost, r.roll);
         }
         if (r.ticks % 3 == 0) {

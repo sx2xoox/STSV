@@ -230,6 +230,27 @@
       }
     ]
   },
+  "vehicle.racer_coupe.horn": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/racer_coupe_horn"
+      }
+    ]
+  },
+  "vehicle.racer_coupe.horn_end": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/racer_coupe_horn_end"
+      }
+    ]
+  },
+  "vehicle.racer_coupe.engine": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/racer_coupe_engine"
+      }
+    ]
+  },
   "vehicle.hyper_car.horn": {
     "sounds": [
       {
@@ -535,6 +556,20 @@
     "sounds": [
       {
         "name": "stsv:vehicle/tuner_car_engine_stop"
+      }
+    ]
+  },
+  "vehicle.racer_coupe.engine_start": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/racer_coupe_engine_start"
+      }
+    ]
+  },
+  "vehicle.racer_coupe.engine_stop": {
+    "sounds": [
+      {
+        "name": "stsv:vehicle/racer_coupe_engine_stop"
       }
     ]
   },

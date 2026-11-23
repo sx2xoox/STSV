@@ -116,6 +116,11 @@ public final class SequelState {
         return state(s) == State.NONE && !week.equals(s.get("week"));
     }
 
+    /** Whether a mission that is going on belongs to an older week: it expires now (tidy up, then {@link #turn}). */
+    public static boolean expiring(Store s, String week) {
+        return state(s).live() && !week.equals(s.get("week"));
+    }
+
     /**
      * The week turned: whatever was saved for an older week's mission goes (state, step, since, its notes). Returns true when
      * that mission was still going on (offered or active): it has expired and its things must be tidied up. Costs nothing

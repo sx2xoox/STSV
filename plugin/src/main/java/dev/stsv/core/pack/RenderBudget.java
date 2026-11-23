@@ -77,6 +77,9 @@ public final class RenderBudget {
             // 비밀 임무 보상 검은 세단 · 요원 K: 후원 차와 같은 방식 (16px, 기울인 판 + 텍스처), 서버에 몇 대 없는 차
             Map.entry("stsv:agent_sedan", new Object[]{1600, "비밀 임무 보상 검은 세단 몸체"}),
             Map.entry("stsv:wheel_agent_sedan", new Object[]{130, "비밀 임무 보상 검은 세단 바퀴"}),
+            // 숨은 비밀 '폐차고의 주인' 의 차 미완의 질주: 같은 방식 (16px, 기울인 판 + 텍스처), 실내 (롤케이지 · 버킷 시트) 가 보이는 차, 서버에 몇 대 없음
+            Map.entry("stsv:racer_coupe", new Object[]{1600, "숨은 비밀 보상 미완의 질주 몸체"}),
+            Map.entry("stsv:wheel_racer", new Object[]{130, "숨은 비밀 보상 미완의 질주 바퀴"}),
             Map.entry("stsv:dragon_sword", new Object[]{450, "후원 도구 스킨 청룡언월도 (손에 하나만 드는 도구)"}),
             Map.entry("stsv:magma_sword", new Object[]{450, "후원 도구 스킨 화산 대검 (손에 하나만 드는 도구)"}),
             Map.entry("stsv:frost_sword", new Object[]{450, "후원 도구 스킨 고드름 대검 (손에 하나만 드는 도구)"}),

@@ -860,6 +860,25 @@ final class VehicleTuner {
         return new int[]{saved.size(), shops.size()};
     }
 
+    /** The look code may hand a vehicle of this item (VehicleTuning#preset: what the file does not offer it is left out). */
+    Custom preset(CustomItem item, String paint, String wheel, String underglow) {
+        return item == null ? Custom.NONE : VehicleTuning.preset(catalogue, item.key().getKey(), paint, wheel, underglow);
+    }
+
+    /**
+     * A vehicle that was just made out of a pre-tuned item (VehicleModule#bindTuned) takes that look as its paid one,
+     * before it is first shown: kept by its number like a look bought in the shop.
+     */
+    void give(long vehicle, CustomItem item, Custom look) {
+        Custom to = item == null || look == null ? Custom.NONE : catalogue.valid(item.key().getKey(), look);
+        if (vehicle <= 0 || to.chosen().isEmpty()) return;
+        saved.put(vehicle, to);
+        store.save(vehicle, to, System.currentTimeMillis()).exceptionally(err -> {
+            plugin.getLogger().warning("[튜닝] 탈것 #" + vehicle + " 의 튜닝을 저장하지 못함 (" + to.encode() + "): " + err.getMessage());
+            return null;
+        });
+    }
+
     Optional<Custom> savedLook(long vehicle) {
         return Optional.ofNullable(saved.get(vehicle));
     }

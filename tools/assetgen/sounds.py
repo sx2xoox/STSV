@@ -485,6 +485,24 @@ ENGINE_LEVEL["tuner_car"] = 0.9
 
 
 # ----------------------------------------------------------------------------------------------
+# 미완의 질주 (the hidden secret 폐차고의 주인's car, vehicles.yml racer_coupe)
+# ----------------------------------------------------------------------------------------------
+
+def racer_engine(n, t):
+    """The tuner car's profile, lighter: a small four revving freely through a straight pipe. A higher note (72 Hz at
+    pitch 1, played up to 2.0), a little less rasp and clatter than the tuner car's big empty muffler, still rough."""
+    rng = np.random.default_rng(57)
+    return combustion(n, t, rng, f0=72.0, count=14, rolloff=0.95, bandwidth=6.0, floor=0.18, warmth=3400, clatter=0.35)
+
+
+VEHICLES = VEHICLES + ("racer_coupe",)
+# a thin, slightly sour two-tone horn (an old small car's)
+HORNS["racer_coupe"] = dict(tones=(415.0, 523.0), rolloff=0.95, drive=2.6, formant=(2300.0, 850.0, 1.5), top=6800, seed=57)
+ENGINES["racer_coupe"] = racer_engine
+ENGINE_LEVEL["racer_coupe"] = 0.88
+
+
+# ----------------------------------------------------------------------------------------------
 # 후원 차량 (vehicles.yml hyper_car, grand_sedan, luxury_suv)
 # ----------------------------------------------------------------------------------------------
 

@@ -80,7 +80,9 @@ class PackPipelineTest {
             // 초밥 카니발 루프 부품 · 루프 장식 (vehicle_roofs*.py)
             "sushi_carnival_roof_r_tree",
             // 비밀 임무 보상 검은 세단 · 요원 K: LED eyes, the tail bar, the blue sill lines, the dash screen
-            "agent_sedan");
+            "agent_sedan",
+            // 미완의 질주 (숨은 비밀 '폐차고의 주인' 의 차): headlamps, tail lamps
+            "racer_coupe");
     private static final Set<String> ROTATED = Set.of("scarecrow", "test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
@@ -144,7 +146,9 @@ class PackPipelineTest {
             "combine_lamp_head", "classic_roadster_lamp_head", "retro_camper_lamp_head", "muscle_car_lamp_head", "concept_ev_lamp_head",
             "sushi_carnival_lamp_head", "agent_sedan_lamp_head",
             // 검은 세단 · 요원 K: the screen, rear window and pillars (22.5 / 45 degrees), the doors' crease; 요원의 코트: the tails
-            "agent_sedan", "agent_sedan_door_fl", "agent_sedan_door_fr", "agent_sedan_door_rl", "agent_sedan_door_rr", "agent_coat");
+            "agent_sedan", "agent_sedan_door_fl", "agent_sedan_door_fr", "agent_sedan_door_rl", "agent_sedan_door_rr", "agent_coat",
+            // 미완의 질주: the screen, hatch glass and pillars (22.5 / 45 degrees), the doors' crease, the cage's stays, its headlamp beam
+            "racer_coupe", "racer_coupe_door_l", "racer_coupe_door_r", "racer_coupe_lamp_head");
 
     @org.junit.jupiter.params.ParameterizedTest
     @org.junit.jupiter.params.provider.MethodSource("models")

@@ -60,7 +60,7 @@ _ramp("rc_red", 25, 0.185, 0.54, 0.30, 5, True)        # harnesses, the tow hook
 _ramp("rc_cage", 240, 0.010, 0.82, 0.26, 5, False)     # the roll cage's white paint
 _ramp("rc_amber", 68, 0.165, 0.74, 0.24, 4, True)      # turn signals, fog lamps
 _ramp("rc_tail", 22, 0.225, 0.48, 0.34, 5, True)       # tail lamps
-_ramp("rc_steel", 255, 0.008, 0.24, 0.18, 5, False)    # the black steel wheels
+_ramp("rc_steel", 255, 0.010, 0.36, 0.26, 5, False)    # the black steel wheels
 
 PRIMER = "rc_primer"
 LIGHT_PAINTS = ("car_white", "pearl", "corn")           # paints a white number board would not show on
@@ -518,10 +518,10 @@ def _front(m, ctx):
             if fy in (2, 6) and (y < 2.75 or y >= 6.25):
                 return tone("rc_trim", 0.0)
             if ax >= 7.5:
-                return tone("rc_metal", 0.5)
+                return tone("rc_metal", 0.34)
             if y < 3 or y >= 6:
                 return tone("rc_trim", 0.0)
-            return tone("rc_metal", 0.72) if fx % 2 == 0 else tone("rc_metal", 0.3)
+            return tone("rc_metal", 0.5) if fx % 2 == 0 else tone("rc_metal", 0.14)
         if 2.5 <= y < 6.5 and 9 <= ax < 9.5:
             return tone("rc_trim", 0.0)
         if math.hypot(ax - 12, y - 4.5) < 1.45:
@@ -968,7 +968,7 @@ def wheel_racer():
             return tone("rc_steel", 0.5)
         if rr > rc - 0.6:
             a = math.atan2(z, y)
-            return tone("rc_oxide", 0.4) if math.floor(a * 3) % 5 == 0 else tone("rc_steel", 0.85 if y > 0 else 0.55)   # the rim, rust in places
+            return tone("rc_oxide", 0.4) if math.floor(a * 3) % 9 == 0 else tone("rc_steel", 1.0 if y > 0 else 0.7)   # the rim, rust in places
         if rr < 0.7:
             return tone("rc_steel", 0.2)                                  # the bare hub
         if rr < 1.9:
@@ -981,7 +981,7 @@ def wheel_racer():
         t = (a * 8 / (2 * math.pi)) % 1.0
         if 2.2 < rr < 3.2 and abs(t - 0.5) < 0.22:
             return tone("rc_trim", 0.0)                                   # the holes
-        return tone("rc_steel", 0.7 if y > 0.5 else 0.48)
+        return tone("rc_steel", 0.8 if y > 0.5 else 0.55)
     p = Paint("rc_steel", 3, noise=0, rim=0.2, ao=0.3, decal=face)
     w2 = width / 2
     cyl(m, "hub", (0, 0), rim_d, w2, w2 + 0.25, p, axis="x")

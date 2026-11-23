@@ -144,6 +144,11 @@ public final class VehicleModule implements StsvModule, Listener {
     /** On a vehicle or 지게 item: its owner (uuid; and their name, for messages): 귀속. None = an admin-made item, not bound yet. */
     static final NamespacedKey ITEM_OWNER = NamespacedKey.fromString("stsv:vehicle_owner");
     static final NamespacedKey ITEM_OWNER_NAME = NamespacedKey.fromString("stsv:vehicle_owner_name");
+    /**
+     * On a vehicle item that is not a vehicle yet ({@link #bindTuned}): the look it comes in ({@link VehicleTuning.Custom#encode}).
+     * The vehicle made from it takes that look as its own (stsv_vehicle_tuning) the first time it is placed.
+     */
+    static final NamespacedKey ITEM_TUNED = NamespacedKey.fromString("stsv:vehicle_tuned");
     private static final NamespacedKey BUTTON = NamespacedKey.fromString("stsv:vehicle_button");
     private static final String ADMIN_OWNER = "STSV";
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -853,6 +858,31 @@ public final class VehicleModule implements StsvModule, Listener {
         stampOwner(it, owner, ownerName);
     }
 
+    /**
+     * {@link #bind} for a vehicle item that comes already tuned (a reward): besides its owner, the item carries a paint, a
+     * wheel design and an underglow of the tuning shop (each null: stock), and the vehicle it becomes the first time it is
+     * placed has that look from the start, kept like a look bought in the shop (its owner may change it there). Ids the
+     * tuning file does not offer this vehicle are ignored (the rest still applies). An item that already is a vehicle
+     * with a number keeps the look it has; anything that is not a vehicle item is left alone.
+     *
+     * @return the look that was written on the item ("paint=wine;wheel=gold;underglow=cyan"; "" when none of it applied)
+     */
+    public String bindTuned(ItemStack it, UUID owner, String ownerName, String paint, String wheel, String underglow) {
+        if (it == null || it.isEmpty() || idOf(it) > 0) return "";
+        CustomItem item = plugin.content().itemOf(it).filter(CustomItem::isVehicle).orElse(null);
+        if (item == null) return "";
+        String look = tuner.preset(item, paint, wheel, underglow).encode();
+        if (!look.isEmpty()) it.editMeta(m -> m.getPersistentDataContainer().set(ITEM_TUNED, PersistentDataType.STRING, look));
+        bind(it, owner, ownerName);
+        return look;
+    }
+
+    /** The look a not yet placed item comes in ({@link #bindTuned}); NONE without one. */
+    static VehicleTuning.Custom tunedLook(ItemStack it) {
+        if (it == null || it.isEmpty()) return VehicleTuning.Custom.NONE;
+        return VehicleTuning.Custom.decode(it.getPersistentDataContainer().get(ITEM_TUNED, PersistentDataType.STRING));
+    }
+
     /** The 지게 module tells it is there (null: it stops). */
     void jige(JigeModule j) {
         this.jige = j;
@@ -1061,6 +1091,7 @@ public final class VehicleModule implements StsvModule, Listener {
         if (id > 0 && busy.contains(id)) return;
         UUID bound = boundOwner(hand);
         String boundName = boundOwnerName(hand);
+        VehicleTuning.Custom tuned = id > 0 ? VehicleTuning.Custom.NONE : tunedLook(hand);   // a pre-tuned new item (bindTuned)
         // the item goes now (it is the vehicle); a fresh admin item in creative stays, like furniture
         ItemStack taken = hand.asOne();
         boolean consume = id > 0 || p.getGameMode() != GameMode.CREATIVE;
@@ -1095,6 +1126,7 @@ public final class VehicleModule implements StsvModule, Listener {
                 return;
             }
             parked.put(row.id(), row);
+            if (id <= 0) tuner.give(row.id(), item, tuned);   // before it is shown: it appears in the look it came in
             if (item.vehicle().train() != null) trainSaved.put(row.id(), units);
             // out of an item: whatever its bed holds starts its trip here (a load cannot skip the road in an item)
             VehicleTrip trip = VehicleTrip.start(w.getName(), st.x, st.z, System.currentTimeMillis());
@@ -3647,6 +3679,16 @@ public final class VehicleModule implements StsvModule, Listener {
      * driver seated at the wheel. Its chunk must be loaded. Returns its id (below 0), or 0 when it could not be made.
      */
     public long spawnTemporary(CustomItem item, World w, double x, double y, double z, float yaw, String paint, Player driver) {
+        return spawnTemporary(item, w, x, y, z, yaw, paint, null, null, driver);
+    }
+
+    /**
+     * {@link #spawnTemporary(CustomItem, World, double, double, double, float, String, Player)} in a whole look of the
+     * tuning shop: a paint, a wheel design and an underglow (each null: stock). Ids the tuning file does not offer this
+     * vehicle are ignored.
+     */
+    public long spawnTemporary(CustomItem item, World w, double x, double y, double z, float yaw, String paint, String wheel,
+                               String underglow, Player driver) {
         if (item == null || !item.isVehicle() || w == null || !w.isChunkLoaded((int) Math.floor(x) >> 4, (int) Math.floor(z) >> 4)) return 0;
         VehiclePhysics.State st = new VehiclePhysics.State(x, y, z, VehiclePhysics.wrap(yaw));
         st.onGround = true;
@@ -3654,7 +3696,8 @@ public final class VehicleModule implements StsvModule, Listener {
         LiveVehicle v = new LiveVehicle(id, item, driver == null ? new UUID(0, 0) : driver.getUniqueId(),
                 driver == null ? "" : driver.getName(), w, st);
         v.temporary = true;
-        if (paint != null) v.custom = VehicleTuning.Custom.NONE.with(VehicleTuning.Kind.PAINT, paint);
+        v.custom = VehicleTuning.Custom.NONE.with(VehicleTuning.Kind.PAINT, paint).with(VehicleTuning.Kind.WHEEL, wheel)
+                .with(VehicleTuning.Kind.UNDERGLOW, underglow);   // what it cannot take is dropped when it appears (VehicleTuner#adopt)
         live.put(id, v);
         spawnParts(v);
         if (driver != null && !seatTemporary(id, driver)) {

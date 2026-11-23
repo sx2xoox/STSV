@@ -73,6 +73,8 @@ def main():
     donation_cars += [importlib.import_module("models.vehicle_roofs"), importlib.import_module("models.vehicle_roofs_fun")]
     # 비밀 임무 보상 검은 세단 · 요원 K (마을버스 '수상한 선글라스 남자'): 후원 차와 같은 방식 (16px, 기울인 판)
     donation_cars += [importlib.import_module("models.vehicles_agent_sedan")]
+    # 숨은 비밀 '폐차고의 주인' 의 차 미완의 질주 (racer_coupe): 같은 방식; preview sheet: racer_coupe_preview.py
+    donation_cars += [importlib.import_module("models.vehicles_racer_coupe")]
     import furniture_icons
     import furniture_icons_retro
     import furniture_icons_farm
@@ -80,6 +82,7 @@ def main():
     for n in DONATION_VEHICLES:
         importlib.import_module(f"vehicle_icons_donation_{n}")   # registers into vehicle_icons.ICONS
     import vehicle_icons_agent_sedan                            # 검은 세단 · 요원 K: registers into vehicle_icons.ICONS
+    import vehicle_icons_racer_coupe                            # 미완의 질주: registers into vehicle_icons.ICONS
     import vehicle_icons_road
     import vehicle_icons_farm
     import vehicle_icons_misc

@@ -23,9 +23,13 @@ import java.util.UUID;
 /**
  * His car as displays only (nobody can sit in it, nothing collides): the body, the four wheels, the glow under it and
  * the lit headlamps, each an item display with the same model, place and size the core's vehicle module gives a real
- * 튜닝카 ({@code VehicleModule#spawnParts}, {@code VehicleTuner}, {@code VehicleTuning}'s model names): the body in the
+ * 미완의 질주 ({@code stsv:racer_coupe}; {@code VehicleModule#spawnParts}, {@code VehicleTuner}, {@code VehicleTuning}'s model names): the body in the
  * FIXED transform at {@code body-scale}, a wheel at each of the item's wheel places, the glow a flat model stretched to
  * the car, the lamps the body's frame twice as large. Only its viewer sees it ({@link Props}).
+ * <p>
+ * It also hands the real car its look through the core's vehicle module ({@link #spawnReal}, {@link #bind}): methods the
+ * core has from 0.123.0. On an older core they are missing, and so is the car itself: the calls fall back to what that
+ * core can do (the paint only; the old 튜닝카) with one warning, and never throw.
  */
 final class CarLook {
 
@@ -40,6 +44,12 @@ final class CarLook {
     private final Props props;
     private YamlConfiguration cfg = new YamlConfiguration();
     private boolean warned;
+    /** the core is older than 0.123.0: no racer_coupe (the 튜닝카 stands in), no full-look methods */
+    private boolean fellBack, oldCore;
+
+    /** The car of the core before 0.123.0, shown and given when the real one is not there. */
+    static final String FALLBACK_ITEM = "stsv:tuner_car";
+    static final String CORE_NEEDED = "코어 0.123.0 이상 필요";
 
     CarLook(SecretModule m, Props props) {
         this.m = m;
@@ -49,21 +59,94 @@ final class CarLook {
     void settings(YamlConfiguration cfg) {
         this.cfg = cfg;
         warned = false;
+        fellBack = false;
     }
 
-    /** The car's item id ("stsv:tuner_car"). */
+    /** The car's item id as the file names it ("stsv:racer_coupe"). */
     String itemId() {
-        return cfg.getString("car.item", "stsv:tuner_car");
+        return cfg.getString("car.item", "stsv:racer_coupe");
     }
 
-    /** The core's item (null when it is not there). */
+    /** The id of the car that is really shown and given: {@link #itemId}, or the 튜닝카 on a core without it. */
+    String shownId() {
+        CustomItem it = item();
+        return it == null ? itemId() : it.key().asString();
+    }
+
+    /**
+     * The core's item: the file's, or on a core that does not have it yet (older than 0.123.0) the 튜닝카 in its place
+     * (one warning). Null only when neither is there.
+     */
     CustomItem item() {
-        CustomItem it = m.core().content().item(itemId()).filter(CustomItem::isVehicle).orElse(null);
-        if (it == null && !warned) {
-            warned = true;
-            m.core().getLogger().warning("[비밀] 폐차고: 탈것 아이템 " + itemId() + " 이(가) 없어 차를 보여 줄 수 없음");
+        CustomItem it = vehicle(itemId());
+        if (it != null) {
+            fellBack = false;
+            return it;
         }
-        return it;
+        CustomItem old = itemId().equals(FALLBACK_ITEM) ? null : vehicle(FALLBACK_ITEM);
+        fellBack = old != null;
+        if (!warned) {
+            warned = true;
+            m.core().getLogger().warning(old != null
+                    ? "[비밀] 폐차고: 탈것 아이템 " + itemId() + " 이(가) 없음 (" + CORE_NEEDED + "): " + FALLBACK_ITEM + " 로 대신함"
+                    : "[비밀] 폐차고: 탈것 아이템 " + itemId() + " 이(가) 없어 차를 보여 줄 수 없음 (" + CORE_NEEDED + ")");
+        }
+        return old;
+    }
+
+    private CustomItem vehicle(String id) {
+        return m.core().content().item(id).filter(CustomItem::isVehicle).orElse(null);
+    }
+
+    /**
+     * The paint a look is really drawn in: the look's, or stock (null) for the one paint the stand-in 튜닝카 has no model
+     * of (purple is its own colour).
+     */
+    static String paintOn(boolean standIn, String paint) {
+        return standIn && "purple".equals(paint) ? null : paint;
+    }
+
+    private String paint(Combo look) {
+        return look == null ? null : paintOn(fellBack, look.paint());
+    }
+
+    private void oldCore(Throwable e) {
+        if (oldCore) return;
+        oldCore = true;
+        m.core().getLogger().warning("[비밀] 폐차고: " + CORE_NEEDED + " (" + e.getClass().getSimpleName()
+                + "): 차에 도색만 입히고 휠 · 언더글로우는 순정으로 둠");
+    }
+
+    /**
+     * His real car for the last drive: a temporary vehicle in the whole true look (paint, wheels, underglow). On a core
+     * before 0.123.0 (the method is not there): the paint only. Returns its id, 0 when it could not be made.
+     */
+    long spawnReal(dev.stsv.core.vehicle.VehicleModule vm, CustomItem item, org.bukkit.World w, Location at, Combo look, Player driver) {
+        String paint = paint(look), wheel = look == null ? null : look.wheel(), glow = look == null ? null : look.glow();
+        if (!oldCore) {
+            try {
+                return vm.spawnTemporary(item, w, at.getX(), at.getY(), at.getZ(), at.getYaw(), paint, wheel, glow, driver);
+            } catch (LinkageError e) {   // NoSuchMethodError: an older core
+                oldCore(e);
+            }
+        }
+        return vm.spawnTemporary(item, w, at.getX(), at.getY(), at.getZ(), at.getYaw(), paint, driver);
+    }
+
+    /**
+     * Binds the reward car to its owner, in the whole true look (it has it from the first time it is placed). On a core
+     * before 0.123.0: bound, stock.
+     */
+    void bind(dev.stsv.core.vehicle.VehicleModule vm, ItemStack it, UUID owner, String ownerName, Combo look) {
+        if (!oldCore && look != null) {
+            try {
+                vm.bindTuned(it, owner, ownerName, paint(look), look.wheel(), look.glow());
+                return;
+            } catch (LinkageError e) {
+                oldCore(e);
+            }
+        }
+        vm.bind(it, owner, ownerName);
     }
 
     private static ItemStack model(NamespacedKey key) {
@@ -77,12 +160,12 @@ final class CarLook {
     }
 
     private String bodyName(CustomItem item) {
-        return item.model() != null && item.model().kind() == ModelRef.Kind.BBMODEL ? item.model().value() : cfg.getString("car.body", "tuner_car");
+        return item.model() != null && item.model().kind() == ModelRef.Kind.BBMODEL ? item.model().value() : cfg.getString("car.body", "racer_coupe");
     }
 
     private String wheelName(VehicleSpec spec) {
         NamespacedKey k = spec.wheelModel();
-        if (k == null) return cfg.getString("car.wheel", "wheel_tuner");
+        if (k == null) return cfg.getString("car.wheel", "wheel_racer");
         return k.getKey().startsWith("model/") ? k.getKey().substring(6) : k.getKey();
     }
 
@@ -91,7 +174,7 @@ final class CarLook {
         CustomItem item = item();
         List<String> out = new ArrayList<>();
         if (item == null || look == null) return out;
-        out.add(look.paint() == null ? item.key().asString() : key(item, bodyName(item) + "_p_" + look.paint()).asString());
+        out.add(paint(look) == null ? item.key().asString() : key(item, bodyName(item) + "_p_" + paint(look)).asString());
         out.add(key(item, look.wheel() == null ? wheelName(item.vehicle()) : wheelName(item.vehicle()) + "_w_" + look.wheel()).asString());
         if (look.glow() != null) out.add(key(item, "underglow_" + look.glow()).asString());
         return out;
@@ -123,7 +206,7 @@ final class CarLook {
         Location l = shown(at);
         Display.Brightness light = bright < 0 ? null : new Display.Brightness(bright, bright);
         float scale = spec.bodyScale();
-        ItemStack bodyItem = look == null || look.paint() == null ? item.create(1) : model(key(item, bodyName(item) + "_p_" + look.paint()));
+        ItemStack bodyItem = paint(look) == null ? item.create(1) : model(key(item, bodyName(item) + "_p_" + paint(look)));
         ItemDisplay body = part(viewer, group, l, bodyItem, new Vector3f(), new Vector3f(scale, scale, scale), light, glide);
         ItemStack wheel = model(key(item, look == null || look.wheel() == null ? wheelName(spec) : wheelName(spec) + "_w_" + look.wheel()));
         List<ItemDisplay> wheels = new ArrayList<>();
@@ -145,7 +228,9 @@ final class CarLook {
 
     private ItemDisplay lamp(Player viewer, String group, Location shownAt, CustomItem item, VehicleSpec spec, int glide) {
         float s = spec.bodyScale() * LAMP_SCALE;
-        return part(viewer, group, shownAt, model(key(item, cfg.getString("car.lamp", "tuner_car_lamp_head"))), new Vector3f(),
+        // the stand-in's own lamps (the file names the real car's)
+        String lamps = fellBack ? bodyName(item) + "_lamp_head" : cfg.getString("car.lamp", "racer_coupe_lamp_head");
+        return part(viewer, group, shownAt, model(key(item, lamps)), new Vector3f(),
                 new Vector3f(s, s, s), new Display.Brightness(15, 15), glide);
     }
 

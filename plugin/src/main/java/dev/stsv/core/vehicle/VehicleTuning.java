@@ -211,6 +211,20 @@ public final class VehicleTuning {
         }
     }
 
+    /**
+     * The look a vehicle is handed by code instead of bought in the shop (a temporary vehicle's, a reward's): a paint, a
+     * wheel design and an underglow (each null: stock). What this vehicle is not offered in the catalogue (an unknown id,
+     * a kind it cannot take, a vehicle that is not in the file) is left out, so the rest still shows.
+     */
+    public static Custom preset(Catalogue catalogue, String vehicle, String paint, String wheel, String underglow) {
+        Custom c = Custom.NONE;
+        if (catalogue == null || vehicle == null) return c;
+        if (catalogue.offers(vehicle, Kind.PAINT, paint)) c = c.with(Kind.PAINT, paint);
+        if (catalogue.offers(vehicle, Kind.WHEEL, wheel)) c = c.with(Kind.WHEEL, wheel);
+        if (catalogue.offers(vehicle, Kind.UNDERGLOW, underglow)) c = c.with(Kind.UNDERGLOW, underglow);
+        return c;
+    }
+
     // ------------------------------------------------------------------------------------------
     // Model names (tools/assetgen/models/vehicle_paints.py)
     // ------------------------------------------------------------------------------------------

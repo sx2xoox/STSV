@@ -61,6 +61,22 @@ class VehicleTuningTest {
     }
 
     @Test
+    void aPresetLookKeepsOnlyWhatTheVehicleIsOffered() {
+        VehicleTuning.Option o = new VehicleTuning.Option("x", "x", 1, -1, null, 0, 1, 1);
+        Catalogue cat = new Catalogue(
+                Map.of(Kind.PAINT, Map.of("wine", o, "purple", o), Kind.WHEEL, Map.of("gold", o), Kind.UNDERGLOW, Map.of("cyan", o)),
+                Map.of("coupe", Map.of(Kind.PAINT, List.of("wine", "purple"), Kind.WHEEL, List.of("gold"), Kind.UNDERGLOW, List.of("cyan")),
+                        "van", Map.of(Kind.PAINT, List.of("wine"))));
+        assertEquals("paint=wine;wheel=gold;underglow=cyan", VehicleTuning.preset(cat, "coupe", "wine", "gold", "cyan").encode());
+        assertEquals("paint=purple", VehicleTuning.preset(cat, "coupe", "purple", null, null).encode(), "a part not given: stock");
+        assertEquals("wheel=gold", VehicleTuning.preset(cat, "coupe", "neon", "gold", "ultraviolet").encode(), "unknown ids are ignored, the rest stays");
+        assertEquals("paint=wine", VehicleTuning.preset(cat, "van", "wine", "gold", "cyan").encode(), "kinds this vehicle cannot take are left out");
+        assertEquals(Custom.NONE, VehicleTuning.preset(cat, "bike", "wine", "gold", "cyan"), "a vehicle that is not in the file");
+        assertEquals(Custom.NONE, VehicleTuning.preset(null, "coupe", "wine", "gold", "cyan"));
+        assertEquals(Custom.NONE, VehicleTuning.preset(cat, null, "wine", "gold", "cyan"));
+    }
+
+    @Test
     void modelNames() {
         assertEquals("grand_sedan_p_wine", VehicleTuning.painted("grand_sedan", "wine"));
         assertEquals("grand_sedan_p_wine_door_fl", VehicleTuning.part("grand_sedan_door_fl", "grand_sedan", "wine"));
@@ -228,6 +244,14 @@ class VehicleTuningTest {
         for (String id : List.of("sports_car", "tuner_car")) {
             assertEquals(List.of(Kind.PAINT, Kind.WHEEL, Kind.UNDERGLOW, Kind.HEADLAMP, Kind.SKID, Kind.SMOKE, Kind.FLAME, Kind.CRACKLE), c.kinds(id), id);
         }
+        // 미완의 질주 (the hidden secret's car): primer grey of its own, so every paint there is (purple too), every wheel, every glow
+        assertEquals(List.of(Kind.PAINT, Kind.WHEEL, Kind.UNDERGLOW, Kind.HEADLAMP, Kind.SKID, Kind.SMOKE, Kind.FLAME, Kind.CRACKLE), c.kinds("racer_coupe"));
+        assertEquals(c.options().get(Kind.PAINT).size(), c.offered("racer_coupe", Kind.PAINT).size(), "every paint differs from its primer");
+        assertTrue(c.offers("racer_coupe", Kind.PAINT, "purple") && !c.offers("tuner_car", Kind.PAINT, "purple"));
+        assertEquals(c.options().get(Kind.WHEEL).size(), c.offered("racer_coupe", Kind.WHEEL).size());
+        assertEquals(c.options().get(Kind.UNDERGLOW).size(), c.offered("racer_coupe", Kind.UNDERGLOW).size());
+        assertEquals("paint=purple;wheel=gold;underglow=cyan", VehicleTuning.preset(c, "racer_coupe", "purple", "gold", "cyan").encode());
+        assertEquals("wheel=gold;underglow=cyan", VehicleTuning.preset(c, "tuner_car", "purple", "gold", "cyan").encode());
         assertEquals(java.util.Arrays.stream(Kind.values()).filter(k -> k != Kind.ROOF).toList(), c.kinds("hyper_car"),
                 "the hyper car: every kind there is (but 루프 장식: it has no roof part)");
         assertTrue(c.kinds("sushi_carnival").contains(Kind.ROOF), "the 초밥 카니발's roof takes 루프 장식");

@@ -49,6 +49,16 @@ public abstract class Secret implements Listener {
     void load(YamlConfiguration y) {
         cfg = y;
         loaded();
+        Sequel q = sequel();
+        if (q != null) q.loaded();
+    }
+
+    /**
+     * Its 후속 임무 (the solver's small weekly mission after it is solved), or null when it has none. Always the same
+     * object: keep it in a field ({@code private final Sequel sequel = new MySequel(this);}).
+     */
+    public Sequel sequel() {
+        return null;
     }
 
     protected void loaded() {}

@@ -65,7 +65,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *   <li>2: the workbench ({@link Bench}): choose paint, wheels and glow (the car inside shows them), let the shutter
  *       down, and he says only how many of the three are his. All three: 3.</li>
  *   <li>3: at night, at the bend, his car waits with its lights on. Getting in is 4: the last drive ({@link Drive}).</li>
- *   <li>Home together: solved. A real 튜닝카 bound to the solver, the photo now shows two cars, a plaque at the memorial
+ *   <li>Home together: solved. A real 미완의 질주 (stsv:racer_coupe, in the true look) bound to the solver, the photo now shows two cars, a plaque at the memorial
  *       for good, the garage shut with its sign lit.</li>
  * </ul>
  * Saved (eco.kv "secret.garage.&lt;uuid&gt;."): stage, since, photo (the serial of the photo that works), chip, glow (clues
@@ -79,7 +79,8 @@ public final class Garage extends Secret {
     static final NamespacedKey PHOTO_OWNER = new NamespacedKey("economy", "garage_photo_owner"),
             PHOTO_SERIAL = new NamespacedKey("economy", "garage_photo_serial"), PHOTO_DONE = new NamespacedKey("economy", "garage_photo_done"),
             CHIP_OWNER = new NamespacedKey("economy", "garage_chip_owner");
-    static final String PHOTO = "economy:racer_photo", CHIP = "economy:paint_chip", PLAQUE = "secret.garage.plaque";
+    static final String PHOTO = "economy:racer_photo", CHIP = "economy:paint_chip", PLAQUE = "secret.garage.plaque",
+            ANSWER = "secret.garage.answer";
     private static final String MEMORIAL = "memorial", CHIP_GROUP = "chip";
     private static final int CLUES = 1, RESTORE = 2, NIGHT = 3, DRIVE = 4;
 
@@ -246,16 +247,31 @@ public final class Garage extends Secret {
         return new ArrayList<>(Bench.options(cfg, section).keySet());
     }
 
+    /** The options of a kind that were there from the secret's first version (not marked {@code added: true}). */
+    private List<String> firstIds(String section) {
+        List<String> out = ids(section);
+        out.removeIf(id -> cfg.getBoolean("options." + section + "." + id + ".added"));
+        return out;
+    }
+
     /**
-     * The look his car had on this server: garage.yml {@code answer} when it names three listed options, else worked out
-     * from the main world's id. Null when an option list is empty (the secret cannot be played then).
+     * The look his car had on this server: garage.yml {@code answer} when it names three listed options; else the one
+     * written down the first time it was worked out ({@link #ANSWER}), so that it never changes again when options are
+     * added; else worked out from the main world's id and written down. A server that already has its place (the
+     * secret was live there before options were added) works it out from the first version's options only
+     * ({@link Combo#settle}): its true car stays what it always was. Null when an option list is empty (the secret
+     * cannot be played then).
      */
     Combo answer() {
         if (answer != null) return answer;
         List<String> paints = ids("paints"), wheels = ids("wheels"), glows = ids("underglows");
         Combo fixed = new Combo(cfg.getString("answer.paint"), cfg.getString("answer.wheel"), cfg.getString("answer.underglow"));
-        if (fixed.whole() && paints.contains(fixed.paint()) && wheels.contains(fixed.wheel()) && glows.contains(fixed.glow())) answer = fixed;
-        else if (!Bukkit.getWorlds().isEmpty()) answer = Combo.answer(Bukkit.getWorlds().getFirst().getUID(), paints, wheels, glows);
+        if (Combo.listed(fixed, paints, wheels, glows)) return answer = fixed;
+        if (Bukkit.getWorlds().isEmpty()) return null;
+        String kept = eco.kv().get(ANSWER);
+        answer = Combo.settle(Combo.decode(kept), Bukkit.getWorlds().getFirst().getUID(), eco.kv().get(Places.KEY) != null,
+                paints, wheels, glows, firstIds("paints"), firstIds("wheels"), firstIds("underglows"));
+        if (answer != null && !answer.encode().equals(kept)) eco.kv().set(ANSWER, answer.encode());
         return answer;
     }
 
@@ -909,7 +925,7 @@ public final class Garage extends Secret {
             return;
         }
         // a tester's end closes nothing and can be played again and again: no real car for it (the title and the photo only)
-        if (test) p.sendMessage(Text.mm("<yellow>[테스트] 보상 튜닝카는 테스트 모드에서는 주지 않아요 <gray>(진짜로 풀었을 때 한 대, 귀속)"));
+        if (test) p.sendMessage(Text.mm("<yellow>[테스트] 보상 차 (미완의 질주) 는 테스트 모드에서는 주지 않아요 <gray>(진짜로 풀었을 때 한 대, 귀속)"));
         else giveCar(p);
         turnPhoto(p);
         if (!test) eco.kv().set(PLAQUE, p.getName());
@@ -919,15 +935,20 @@ public final class Garage extends Secret {
         for (Player o : Bukkit.getOnlinePlayers()) props.drop(o.getUniqueId(), MEMORIAL);
     }
 
-    /** A real 튜닝카, bound to them (as the bus secret's sedan is); into the mailbox when their pockets are full. Never in test mode. */
+    /**
+     * His real car (미완의 질주), bound to them (as the bus secret's sedan is) and in the true look: it has that paint, those
+     * wheels and that glow from the first time it is placed ({@link CarLook#bind}). Into the mailbox when their pockets
+     * are full. Never in test mode.
+     */
     private void giveCar(Player p) {
         UUID u = p.getUniqueId();
-        ItemStack it = Items.create(cars.itemId(), 1).orElse(null);
+        String id = cars.shownId();
+        ItemStack it = Items.create(id, 1).orElse(null);
         if (it == null) {
-            eco.getLogger().warning("[비밀] 폐차고: 보상 탈것 " + cars.itemId() + " 이(가) 없어 " + p.getName() + " 에게 주지 못함");
+            eco.getLogger().warning("[비밀] 폐차고: 보상 탈것 " + id + " 이(가) 없어 " + p.getName() + " 에게 주지 못함");
             return;
         }
-        if (vm() != null) vm().bind(it, u, p.getName());
+        if (vm() != null) cars.bind(vm(), it, u, p.getName(), answer());
         String name = Items.mmName(it);
         if (eco.mail() != null) eco.mail().deliver(u, it, "secret_garage");   // into their pockets, or the mailbox when there is no room
         else give(p, it);

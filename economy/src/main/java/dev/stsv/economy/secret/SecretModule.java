@@ -46,6 +46,10 @@ public final class SecretModule extends EcoModule {
     private java.util.Set<String> secretItems = java.util.Set.of();
     private String noListing = "";
     private long testDay = 60_000L;
+    private boolean sequelOn = true;
+    private long sequelTestWeek = 120_000L;
+    private long sequelRound = 1000L;
+    private org.bukkit.configuration.ConfigurationSection sequelCommon;
 
     public SecretModule(EcoPlugin eco) {
         super(eco);
@@ -87,6 +91,10 @@ public final class SecretModule extends EcoModule {
         }
         var common = eco.data("secrets/common.yml");
         testDay = Math.max(10, common.getLong("test-day-seconds", 60)) * 1000L;
+        sequelCommon = common.getConfigurationSection("sequel");
+        sequelOn = common.getBoolean("sequel.enabled", true);
+        sequelTestWeek = Math.max(10, common.getLong("sequel.test-week-seconds", 120)) * 1000L;
+        sequelRound = Math.max(1, common.getLong("sequel.round", 1000));
         for (Secret s : secrets.values()) {
             try {
                 s.load(eco.data("secrets/" + s.id() + ".yml"));
@@ -94,6 +102,7 @@ public final class SecretModule extends EcoModule {
                 eco.getLogger().warning("[비밀] " + s.id() + " 설정 오류: " + e);
             }
             Bukkit.getPluginManager().registerEvents(s, eco);
+            if (s.sequel() != null) Bukkit.getPluginManager().registerEvents(s.sequel(), eco);
         }
         Bukkit.getPluginManager().registerEvents(memory, eco);
         memory.start();
@@ -116,6 +125,14 @@ public final class SecretModule extends EcoModule {
                 } catch (RuntimeException e) {
                     eco.getLogger().log(java.util.logging.Level.WARNING, "[비밀] " + s.id() + " 오류", e);
                 }
+                // 후속 임무: goes on after the secret is solved (a solved secret is still switched on), for its solver only
+                Sequel q = s.sequel();
+                if (q == null) continue;
+                try {
+                    q.tick();
+                } catch (RuntimeException e) {
+                    eco.getLogger().log(java.util.logging.Level.WARNING, "[비밀] 후속 " + s.id() + " 오류", e);
+                }
             }
         });
     }
@@ -125,6 +142,10 @@ public final class SecretModule extends EcoModule {
         for (Secret s : secrets.values()) {
             HandlerList.unregisterAll(s);
             for (Player p : Bukkit.getOnlinePlayers()) s.cleanup(p.getUniqueId());
+            Sequel q = s.sequel();
+            if (q == null) continue;
+            HandlerList.unregisterAll(q);
+            for (Player p : Bukkit.getOnlinePlayers()) q.quiet(p.getUniqueId());
         }
         if (memory != null) {
             memory.save();
@@ -135,7 +156,10 @@ public final class SecretModule extends EcoModule {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        for (Secret s : secrets.values()) s.cleanup(e.getPlayer().getUniqueId());
+        for (Secret s : secrets.values()) {
+            s.cleanup(e.getPlayer().getUniqueId());
+            if (s.sequel() != null) s.sequel().quiet(e.getPlayer().getUniqueId());
+        }
         haunt.clear(e.getPlayer().getUniqueId());
     }
 
@@ -206,9 +230,10 @@ public final class SecretModule extends EcoModule {
         return getLong(s, u, "since", 0);
     }
 
-    /** Forgets everything saved for this player in this secret. */
+    /** Forgets everything saved for this player in this secret (its 후속 임무 too: the keys share the prefix). */
     public void reset(Secret s, UUID u) {
         s.cleanup(u);
+        if (s.sequel() != null) s.sequel().stop(u);   // a going mission gives back what it holds before its notes are deleted
         try {
             s.resetting(u);
         } catch (RuntimeException e) {
@@ -237,6 +262,27 @@ public final class SecretModule extends EcoModule {
         String sw = eco.kv().get("secret." + s.id() + ".switch");
         if (sw != null) return sw.equals("on");
         return s.cfg.getBoolean("enabled", true);
+    }
+
+    // ---- 후속 임무 (Sequel): common.yml "sequel"
+
+    boolean sequelOn() {
+        return sequelOn;
+    }
+
+    /** A tester's "week" (ms). */
+    long sequelTestWeek() {
+        return sequelTestWeek;
+    }
+
+    /** Reward money is rounded down to this (a secret's sequel.reward.round wins). */
+    long sequelRound() {
+        return sequelRound;
+    }
+
+    /** A common line (common.yml sequel.&lt;key&gt;) with a Java default. */
+    String sequelLine(String key, String def) {
+        return sequelCommon == null ? def : sequelCommon.getString(key, def);
     }
 
     public boolean closed(Secret s) {
@@ -363,7 +409,8 @@ public final class SecretModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     public static final String USAGE = "목록 | 켜기·끄기 <비밀> | 시작 <비밀> [플레이어] | 단계 <비밀> <플레이어> <n> | 연출 <비밀> <장면> [플레이어] | "
-            + "상태 <플레이어> | 초기화 <비밀> <플레이어> | 서버초기화 <비밀> | 테스트 [켜기|끄기] [플레이어] | 비석 <세우기|지우기|다시> | 소문 <비밀> [플레이어]";
+            + "상태 <플레이어> | 초기화 <비밀> <플레이어> | 서버초기화 <비밀> | 테스트 [켜기|끄기] [플레이어] | 비석 <세우기|지우기|다시> | 소문 <비밀> [플레이어] | "
+            + "후속 <비밀> <시작|상태|초기화|연출 <장면>> [플레이어]";
 
     public void admin(CommandSender s, String[] a) {
         String sub = a.length == 0 ? "목록" : a[0];
@@ -373,7 +420,7 @@ public final class SecretModule extends EcoModule {
                 for (Secret x : secrets.values()) {
                     String who = solver(x).map(u -> Optional.ofNullable(Bukkit.getOfflinePlayer(u).getName()).orElse(u.toString())).orElse("-");
                     s.sendMessage(Text.msg(" <white>" + x.name() + " <dark_gray>(" + x.id() + ") " + (enabled(x) ? "<green>켜짐" : "<red>꺼짐")
-                            + " <gray>· 푼 사람 <white>" + who + " <gray>· 진행 중(접속) <white>" + active(x).size()));
+                            + " <gray>· 푼 사람 <white>" + who + " <gray>· 진행 중(접속) <white>" + active(x).size() + sequelBrief(x)));
                 }
                 var bus = eco.bus() == null ? null : eco.bus().secretAgent();
                 if (bus != null) {
@@ -396,7 +443,10 @@ public final class SecretModule extends EcoModule {
                 }
                 withSecret(s, a, 1, x -> {
                 eco.kv().set("secret." + x.id() + ".switch", sub.equals("켜기") ? "on" : "off");
-                if (sub.equals("끄기")) for (Player p : Bukkit.getOnlinePlayers()) x.cleanup(p.getUniqueId());
+                if (sub.equals("끄기")) for (Player p : Bukkit.getOnlinePlayers()) {
+                    x.cleanup(p.getUniqueId());
+                    if (x.sequel() != null) x.sequel().quiet(p.getUniqueId());
+                }
                 s.sendMessage(Text.msg("<green>" + x.name() + ": " + (sub.equals("켜기") ? "켰어요" : "껐어요 (진행 기록은 그대로, 다시 켜면 이어서)")));
                 });
             }
@@ -467,6 +517,8 @@ public final class SecretModule extends EcoModule {
                 });
             });
             case "서버초기화" -> withSecret(s, a, 1, x -> {
+                // nobody is the solver any more: their 후속 임무 stops (what it holds goes back; the count stays)
+                if (x.sequel() != null) solver(x).ifPresent(old -> x.sequel().stop(old));
                 eco.kv().remove("secret." + x.id() + ".first");
                 eco.kv().remove("secret." + x.id() + ".first-at");
                 monument.build();
@@ -508,14 +560,89 @@ public final class SecretModule extends EcoModule {
                             + "초, 확률 100%, 시간 조건 없음, 풀어도 서버에 안 닫힘)" : "꺼짐")));
                 });
             }
+            case "후속" -> sequelAdmin(s, a);
             default -> s.sendMessage(Text.msg("<red>/관리자 비밀 " + USAGE));
         }
     }
 
+    /** 목록: " · 후속 <이름> <이번 주 상태>" for a secret that has one (the solver's state this week). */
+    private String sequelBrief(Secret x) {
+        Sequel q = x.sequel();
+        if (q == null) return "";
+        String state = !q.on() ? "<red>꺼짐" : solver(x).map(u -> "<white>" + SequelState.shown(q.store(u), q.week(u)).word()
+                + " <gray>(" + q.count(u) + "번 완료)").orElse("<dark_gray>푼 사람 없음");
+        return " <gray>· 후속 <white>" + q.id() + " " + state;
+    }
+
+    private static final String SEQUEL_USAGE = "/관리자 비밀 후속 <비밀> <시작|상태|초기화|연출 <장면>> [플레이어]";
+
+    /** /관리자 비밀 후속 <비밀> <시작|상태|초기화|연출 <장면>> [플레이어] (no player = the admin, or for 상태 · 초기화 the solver). */
+    private void sequelAdmin(CommandSender s, String[] a) {
+        if (a.length < 2) {
+            s.sendMessage(Text.msg("<red>" + SEQUEL_USAGE));
+            List<String> have = secrets.values().stream().filter(x -> x.sequel() != null).map(x -> x.name().replace(" ", "") + " (" + x.sequel().id() + ")").toList();
+            s.sendMessage(Text.msg("<gray>후속 임무가 있는 비밀: <white>" + (have.isEmpty() ? "아직 없음" : String.join("<gray>, <white>", have))));
+            return;
+        }
+        withSecret(s, a, 1, x -> {
+            Sequel q = x.sequel();
+            if (q == null) {
+                s.sendMessage(Text.msg("<red>" + x.name() + " 에는 후속 임무가 없어요"));
+                return;
+            }
+            String what = a.length > 2 ? a[2] : "상태";
+            switch (what) {
+                case "시작" -> online(s, a.length > 3 ? a[3] : null, p -> {
+                    String no = q.begin(p);
+                    if (no != null) s.sendMessage(Text.msg("<red>" + x.name() + " 후속: " + no));
+                    else s.sendMessage(Text.msg("<green>" + p.getName() + ": " + x.name() + " 후속 「" + q.id() + "」 시작"
+                            + (test(p.getUniqueId()) ? " <yellow>(테스트: 한 주 = " + sequelTestWeek / 1000 + "초, 돈은 안 줌)" : "")));
+                });
+                case "상태" -> sequelTarget(s, x, a.length > 3 ? a[3] : null, (u, name) ->
+                        s.sendMessage(Text.msg("<gold>" + x.name() + " 후속 <gray>" + name + (q.on() ? "" : " <red>(꺼짐)") + " <gray>· " + q.describe(u))));
+                case "초기화" -> sequelTarget(s, x, a.length > 3 ? a[3] : null, (u, name) -> {
+                    q.reset(u);
+                    s.sendMessage(Text.msg("<green>" + name + ": " + x.name() + " 후속 기록을 지웠어요 (이번 주에 다시 받을 수 있음, 완료 횟수도 0)"));
+                });
+                case "연출" -> {
+                    if (a.length < 4) {
+                        s.sendMessage(Text.msg("<gray>" + x.name() + " 후속 장면: <white>" + String.join(", ", q.scenes())));
+                        return;
+                    }
+                    online(s, a.length > 4 ? a[4] : null, p -> {
+                        if (!q.scene(s, p, a[3])) s.sendMessage(Text.msg("<red>없는 장면. 있는 것: " + String.join(", ", q.scenes())));
+                    });
+                }
+                default -> s.sendMessage(Text.msg("<red>" + SEQUEL_USAGE));
+            }
+        });
+    }
+
+    /** The named player (online or not); without a name the secret's solver, else the admin. */
+    private void sequelTarget(CommandSender s, Secret x, String name, java.util.function.BiConsumer<UUID, String> then) {
+        if (name == null) {
+            Optional<UUID> u = solver(x).or(() -> s instanceof Player me ? Optional.of(me.getUniqueId()) : Optional.empty());
+            if (u.isEmpty()) s.sendMessage(Text.msg("<red>푼 사람이 없어요. 플레이어 이름을 쓰세요"));
+            else then.accept(u.get(), Optional.ofNullable(Bukkit.getOfflinePlayer(u.get()).getName()).orElse(u.get().toString()));
+            return;
+        }
+        findPlayer(s, name, found -> {
+            if (found.isEmpty()) s.sendMessage(Text.msg("<red>없는 플레이어"));
+            else then.accept(found.get(), name);
+        });
+    }
+
     public List<String> adminComplete(CommandSender s, String[] a) {
         List<String> names = secrets.values().stream().map(Secret::name).map(n -> n.replace(" ", "")).toList();
-        if (a.length == 1) return List.of("목록", "켜기", "끄기", "시작", "단계", "연출", "상태", "초기화", "서버초기화", "테스트", "비석", "소문");
+        if (a.length == 1) return List.of("목록", "켜기", "끄기", "시작", "단계", "연출", "상태", "초기화", "서버초기화", "테스트", "비석", "소문", "후속");
         String sub = a[0];
+        if (sub.equals("후속")) {
+            if (a.length == 2) return secrets.values().stream().filter(x -> x.sequel() != null).map(x -> x.name().replace(" ", "")).toList();
+            if (a.length == 3) return List.of("시작", "상태", "초기화", "연출");
+            boolean scene = a[2].equals("연출");
+            if (a.length == 4) return scene ? find(a[1]).map(Secret::sequel).map(Sequel::scenes).orElse(List.of()) : Players.complete(s, a[3]);
+            return a.length == 5 && scene ? Players.complete(s, a[4]) : List.of();
+        }
         if (a.length == 2) return switch (sub) {
             case "상태" -> Players.complete(s, a[1]);
             case "테스트" -> java.util.stream.Stream.concat(java.util.stream.Stream.of("켜기", "끄기"), Players.complete(s, a[1]).stream()).toList();

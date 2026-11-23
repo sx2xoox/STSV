@@ -26,7 +26,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 class GarageTest {
 
     static final Path PACK = Path.of(System.getProperty("stsv.content")).resolve("economy");
-    static final List<String> PAINTS = List.of("white", "pearl", "silver", "black", "red", "wine", "orange", "yellow", "green", "blue", "navy", "pink"),
+    static final List<String> PAINTS = List.of("white", "pearl", "silver", "black", "red", "wine", "orange", "yellow", "green", "blue", "navy", "purple", "pink"),
+            // the paints of the secret's first version (the 튜닝카 had no purple model): what a server that was already live keeps drawing from
+            FIRST_PAINTS = List.of("white", "pearl", "silver", "black", "red", "wine", "orange", "yellow", "green", "blue", "navy", "pink"),
             WHEELS = List.of("five", "split", "turbine", "black", "gold", "white", "disc"),
             GLOWS = List.of("cyan", "blue", "purple", "pink", "red", "orange", "green", "white");
 
@@ -129,6 +131,45 @@ class GarageTest {
         assertEquals(1, Combo.notebook("wine/gold/cyan=2;broken;red/-/cyan=1;red/gold/cyan=9").size(), "broken lines are left out");
     }
 
+    @Test
+    void addingAnOptionDoesNotChangeALiveServersCar() {
+        for (int i = 0; i < 400; i++) {
+            UUID world = new UUID(0x1234_5678L * i + 17, 0x9e37_79b9L * i - 5);
+            Combo before = Combo.answer(world, FIRST_PAINTS, WHEELS, GLOWS);
+            // a server where the secret was already live: the same car as before purple was added, and from then on the one written down
+            Combo live = Combo.settle(Combo.NONE, world, true, PAINTS, WHEELS, GLOWS, FIRST_PAINTS, WHEELS, GLOWS);
+            assertEquals(before, live, "server " + i);
+            assertEquals(live, Combo.settle(live, world, false, PAINTS, WHEELS, GLOWS, FIRST_PAINTS, WHEELS, GLOWS), "what was written down wins");
+            // a new server draws from everything
+            assertEquals(Combo.answer(world, PAINTS, WHEELS, GLOWS), Combo.settle(null, world, false, PAINTS, WHEELS, GLOWS, FIRST_PAINTS, WHEELS, GLOWS));
+        }
+        UUID world = UUID.fromString("0f5a1c9e-3b7d-4e21-9a44-6c2d8e1f7b30");
+        // what was written down is dropped only when it is no longer an option
+        Combo gone = new Combo("teal", "gold", "cyan");
+        assertEquals(Combo.answer(world, PAINTS, WHEELS, GLOWS), Combo.settle(gone, world, false, PAINTS, WHEELS, GLOWS, FIRST_PAINTS, WHEELS, GLOWS));
+        assertEquals(new Combo("purple", "gold", "cyan"), Combo.settle(new Combo("purple", "gold", "cyan"), world, true, PAINTS, WHEELS, GLOWS, FIRST_PAINTS, WHEELS, GLOWS));
+        assertEquals(Combo.answer(world, PAINTS, WHEELS, GLOWS), Combo.settle(null, world, true, PAINTS, WHEELS, GLOWS, List.of(), List.of(), List.of()),
+                "no first lists: the whole lists");
+        assertTrue(Combo.listed(new Combo("purple", "gold", "cyan"), PAINTS, WHEELS, GLOWS));
+        assertFalse(Combo.listed(new Combo("purple", "gold", "cyan"), FIRST_PAINTS, WHEELS, GLOWS));
+        assertFalse(Combo.listed(new Combo("wine", null, "cyan"), PAINTS, WHEELS, GLOWS));
+        assertFalse(Combo.listed(null, PAINTS, WHEELS, GLOWS));
+        // purple can be the true car on a new server
+        boolean purple = false;
+        for (int i = 0; i < 400 && !purple; i++) purple = "purple".equals(Combo.answer(new UUID(i * 31L + 7, i * 977L), PAINTS, WHEELS, GLOWS).paint());
+        assertTrue(purple);
+    }
+
+    @Test
+    void theStandInCarHasNoPurpleModel() {
+        // on a core before 0.123.0 the 튜닝카 stands in: purple is its own colour, so it is shown stock for it
+        assertNull(CarLook.paintOn(true, "purple"));
+        assertEquals("wine", CarLook.paintOn(true, "wine"));
+        assertEquals("purple", CarLook.paintOn(false, "purple"));
+        assertNull(CarLook.paintOn(false, null));
+        assertEquals("stsv:tuner_car", CarLook.FALLBACK_ITEM);
+    }
+
     // ------------------------------------------------------------------------------------------
     // garage.yml
     // ------------------------------------------------------------------------------------------
@@ -145,6 +186,17 @@ class GarageTest {
         for (String section : List.of("paints", "wheels"))
             for (Bench.Option o : Bench.options(y, section).values()) assertFalse(o.clue().contains(o.name()), section + " " + o.id() + " names itself");
         assertEquals(0x46e6ff, Bench.options(y, "underglows").get("cyan").color());
+        // his own car, never the 튜닝카 again; purple is new (marked, so a live server's true car stays what it was)
+        assertEquals("stsv:racer_coupe", y.getString("car.item"));
+        assertEquals("racer_coupe", y.getString("car.body"));
+        assertEquals("wheel_racer", y.getString("car.wheel"));
+        assertEquals("racer_coupe_lamp_head", y.getString("car.lamp"));
+        assertFalse(Files.readString(PACK.resolve("secrets/garage.yml")).replaceAll("(?m)^\\s*#.*$", "").contains("tuner_car.engine"), "its own engine sound");
+        List<String> first = new ArrayList<>();
+        for (String id : PAINTS) if (!y.getBoolean("options.paints." + id + ".added")) first.add(id);
+        assertEquals(FIRST_PAINTS, first, "only purple was added after the first version");
+        for (String id : WHEELS) assertFalse(y.getBoolean("options.wheels." + id + ".added"), id);
+        for (String id : GLOWS) assertFalse(y.getBoolean("options.underglows." + id + ".added"), id);
         assertEquals("화이트 · 터빈 · 시안", Bench.words(y, new Combo("white", "turbine", "cyan")));
         assertEquals("economy:last_drive", y.getString("rewards.title"));
         assertEquals(0, y.getLong("rewards.money"));

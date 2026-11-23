@@ -71,6 +71,27 @@ record Combo(String paint, String wheel, String glow) {
                 glows.get(index(seed, 0x46e6ffL, glows.size())));
     }
 
+    /** All three chosen, each one of the listed options. */
+    static boolean listed(Combo c, List<String> paints, List<String> wheels, List<String> glows) {
+        return c != null && c.whole() && paints.contains(c.paint()) && wheels.contains(c.wheel()) && glows.contains(c.glow());
+    }
+
+    /**
+     * The server's true look, settled for good: the one written down before (kept) while its options are still listed;
+     * else {@link #answer} — on a server where the secret was already live (it has its place) from the options of the
+     * secret's first version (first*), so that options added since do not change a car players are already guessing; on
+     * a new server from all of them. (When a first list is empty the whole list is used.)
+     */
+    static Combo settle(Combo kept, UUID world, boolean live, List<String> paints, List<String> wheels, List<String> glows,
+                        List<String> firstPaints, List<String> firstWheels, List<String> firstGlows) {
+        if (listed(kept, paints, wheels, glows)) return kept;
+        if (live) {
+            return answer(world, firstPaints.isEmpty() ? paints : firstPaints, firstWheels.isEmpty() ? wheels : firstWheels,
+                    firstGlows.isEmpty() ? glows : firstGlows);
+        }
+        return answer(world, paints, wheels, glows);
+    }
+
     /** splitmix64 of the seed and a salt, as a place in a list (written out so it never changes with the JDK). */
     private static int index(long seed, long salt, int size) {
         long z = seed + salt * 0x9E3779B97F4A7C15L;
