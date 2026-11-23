@@ -505,11 +505,16 @@ final class House {
             later(s, t + 9, () -> glide(d, new Vector3f(toEdge + side * 0.12f, -TOP - up + 0.02f, 0), flat(0).rotateY((float) (side * Math.PI * 1.5)), scale, 6));
             later(s, t + 15, () -> {
                 m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOL_FALL, 0.7f, 0.6f);
+                if (s.food.get(slot) == d) {   // off its vessel now (drawn there again by the caller if it could not be given back)
+                    s.food.remove(slot);
+                    s.laid.remove(slot);
+                }
                 fell.accept(slot);
             });
             later(s, t + 70, () -> {
-                if (s.food.get(slot) == d) dropFood(s, slot);
-                else if (d.isValid()) d.remove();
+                s.own.remove(d);
+                s.warm.remove(d);
+                if (d.isValid()) d.remove();
             });
             t += 9;
         }

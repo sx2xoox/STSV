@@ -66,7 +66,8 @@ import java.util.regex.Pattern;
 public final class Newcomer extends Secret {
 
     static final String K = "secret.newcomer.", SEEN = K + "seen", NIGHT = K + "night", ASKED = K + "asked", JOINED = K + "joined",
-            SULK = K + "sulk", SULK_BY = K + "sulkby";
+            SULK = K + "sulk", SULK_BY = K + "sulkby",
+            TIRED_NIGHT = K + "tired", TIRED_LINE = K + "tiredline";
     static final String DEFAULT_NAME = "sipsam_", DEFAULT_ACROSTIC = "내비석어디";
     static final List<String> ENDING = List.of(
             "…찾았네요.",
@@ -79,6 +80,10 @@ public final class Newcomer extends Secret {
     /** How he puts a slip right ({word}: the word as it should have been). */
     static final List<String> FIXES = List.of("*{word}", "*{word}", "{word}*", "아 오타", "오타 ㅋㅋ", "*{word} 오타..");
     static final List<String> TIME_WORDS = List.of("이 새벽에", "이 밤에", "이 시간에");
+    /** His one tired line when the small-talk time after the fifth question ends (no "?": he does not leave, he only goes quiet). */
+    static final List<String> TIRED = List.of("아 졸리다 ㅠ", "오늘은 여기까지 해야겠다 피곤하네요", "눈이 감기네요 ㅋㅋ",
+            "저 잠깐 쉬어야겠어요 너무 피곤해요", "하암.. 오늘 수고하셨어요", "졸려서 손가락이 안움직여요ㅋㅋ", "아 벌써 시간이 이렇게 됐네",
+            "오늘 많이 배웠어요 감사합니다 ㅎㅎ", "피곤하다.. 내일 또 물어볼게요", "하품 계속 나와요 ㅋㅋ", "다들 좋은 밤 되세요");
     private static final DateTimeFormatter HM = DateTimeFormatter.ofPattern("HH:mm");
     /** A visit left alone this long (ms; the secret was off) is over. */
     private static final long STALE = 120_000L;
@@ -105,7 +110,7 @@ public final class Newcomer extends Secret {
     private List<Talk.Intent> chat = Talk.CHAT, whisperTalk = Talk.WHISPER, talk = smallTalk(Talk.CHAT);
     /** swearing at him (rude's patterns, the allow list, what aims a line at him), his hurt lines, his sheepish word */
     private List<Pattern> swears = Sulk.patterns(Sulk.SWEARS), allow = Sulk.patterns(Sulk.ALLOW), aim = Sulk.patterns(Sulk.AIM);
-    private List<String> hurt = Sulk.HURT, sorry = Sulk.SORRY;
+    private List<String> hurt = Sulk.HURT, sorry = Sulk.SORRY, tired = TIRED;
     private int from = 22, to = 2;
     private long seed = 13;
 
@@ -172,6 +177,12 @@ public final class Newcomer extends Secret {
             else problems.add("sulk.sorry: \"" + x + "\" — \"?\" 를 쓰지 않아요 (빼고 읽음)");
         }
         sorry = List.copyOf(so);
+        List<String> ti = new ArrayList<>();
+        for (String x : cfg.isList("chat.tired") ? Talk.clean(cfg.getStringList("chat.tired")) : TIRED) {
+            if (Talk.small(x)) ti.add(x);
+            else problems.add("chat.tired: \"" + x + "\" — \"?\" 를 쓰지 않아요 (빼고 읽음)");
+        }
+        tired = List.copyOf(ti);
         List<String> f = new ArrayList<>();
         for (String s : cfg.isList("typo.fix") ? Talk.clean(cfg.getStringList("typo.fix")) : FIXES) {
             if (Talk.small(s)) f.add(s);
@@ -379,6 +390,8 @@ public final class Newcomer extends Secret {
         final Deque<Pending> pending = new ArrayDeque<>();
         /** small talk: how much, when last and to whom, which question was thanked for, quiet until */
         int reactions, thanked = -1;
+        /** his tired line was dealt with (said, or not to be said) */
+        boolean tired;
         long lastReactAt, hushUntil;
         UUID lastBy;
 
@@ -408,15 +421,39 @@ public final class Newcomer extends Secret {
     /** Goes on with a visit; false when it is over (or cannot go on now). */
     private boolean step(Visit v, long now) {
         while (!v.pending.isEmpty() && now >= v.pending.peekFirst().at()) say(v, v.pending.removeFirst().words());
-        if (v.next >= v.qs.size()) return v.around(now);
+        if (v.next >= v.qs.size()) {
+            if (!v.tired && v.endAt > 0 && now >= v.endAt && v.pending.isEmpty()) tired(v, now);
+            return v.around(now);
+        }
         if (now < v.nextAt || !v.pending.isEmpty()) return true;
         // nobody to ask: what is left waits in kv, and he goes on when someone is here (the same night only; no second join line)
         if (v.viewer == null && Bukkit.getOnlinePlayers().size() < Math.max(1, cfg.getInt("visit.min-online", 1))) return false;
         ask(v, now);
         if (v.night != null && v.night.equals(eco.kv().get(NIGHT))) eco.kv().set(ASKED, v.next);
-        if (v.next >= v.qs.size()) v.endAt = now + (v.quick ? seconds("chat.test-linger-seconds", 120) : seconds("chat.linger-seconds", 600));
+        if (v.next >= v.qs.size()) v.endAt = now + (v.quick ? seconds("chat.test-linger-seconds", 120) : seconds("chat.linger-seconds", 1800));
         else v.nextAt = now + gap(v, false) + typing(v.qs.get(v.next).text());
         return true;
+    }
+
+    /**
+     * The small-talk time after the fifth question is over: one tired line in public, his last of the night (nothing is
+     * answered after it, and no leave line follows). Not on a sulky night, not with no real player online, once a night
+     * (kv tired = the night; tiredline = the line, not said again the next night).
+     */
+    private void tired(Visit v, long now) {
+        v.tired = true;
+        if (tired.isEmpty() || sulking(v.viewer)) return;
+        if (v.viewer != null ? Bukkit.getPlayer(v.viewer) == null : Bukkit.getOnlinePlayers().isEmpty()) return;
+        if (v.night != null && v.night.equals(eco.kv().get(TIRED_NIGHT))) return;
+        List<String> avoid = new ArrayList<>(recent);
+        String last = eco.kv().get(TIRED_LINE);
+        if (last != null) avoid.add(last);
+        String line = Talk.pick(tired, avoid, ThreadLocalRandom.current());
+        if (v.night != null) {
+            eco.kv().set(TIRED_NIGHT, v.night);
+            eco.kv().set(TIRED_LINE, line);
+        }
+        v.pending.addLast(new Pending(line, now + typing(line)));
     }
 
     /** One question, now and then with a slip in it that he puts right a moment later. */
@@ -644,7 +681,7 @@ public final class Newcomer extends Secret {
         if (v == null || !v.around(now) || (v.viewer != null && !v.viewer.equals(by))) return;
         Player p = Bukkit.getPlayer(by);
         if (p == null || inGuide(p) || impostor()) return;
-        if (sulking(v.viewer)) return;   // gone for the night
+        if (v.tired || sulking(v.viewer)) return;   // his last line of the night was said (or is being typed), or gone for the night
         if (insult(text) && (Sulk.aimed(text, who, aim) || v.saidAt > 0 && now - v.saidAt <= seconds("sulk.window-seconds", 40))) {
             sulk(p, v, false);
             return;
@@ -1037,7 +1074,7 @@ public final class Newcomer extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("입장", "질문", "잡담:ㅎㅇ", "귓속말:누구세요", "삐짐", "삐짐풀기", "엔딩", "퇴장", "비석");
+        return List.of("입장", "질문", "잡담:ㅎㅇ", "귓속말:누구세요", "삐짐", "삐짐풀기", "피곤", "엔딩", "퇴장", "비석");
     }
 
     /** "잡담:말_몇_마디" → "말 몇 마디" (the admin command takes one word: "_" for spaces). */
@@ -1101,6 +1138,13 @@ public final class Newcomer extends Secret {
                 p.sendMessage(look.chat(line));
                 admin.sendMessage(Text.msg("<gray>삐짐 (" + p.getName() + " 에게만, 아무것도 적지 않음): 공개 채팅에서 욕을 들으면 이 줄을 치고 (귓속말이면 귓속말 답으로), "
                         + "그 밤에는 질문 · 잡담 · 귓속말 답이 없어요. 퇴장 줄은 뜨지 않아요"));
+            }
+            case "피곤" -> {
+                String line = Talk.pick(tired, List.of(), ThreadLocalRandom.current());
+                CommandSender to = admin instanceof Player ? admin : p;
+                to.sendMessage(look.chat(line));
+                admin.sendMessage(Text.msg("<gray>피곤 (" + to.getName() + " 에게만, 아무것도 적지 않음): 다섯 번째 질문 뒤 잡담 시간("
+                        + cfg.getInt("chat.linger-seconds", 1800) / 60 + "분)이 끝날 때 공개 채팅에 한 번. 그 뒤로는 말이 없고 퇴장 줄도 없어요"));
             }
             case "삐짐풀기" -> {
                 boolean was = sulking(null), own = sulking(p.getUniqueId()) && !was;

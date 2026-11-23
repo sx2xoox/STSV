@@ -117,8 +117,8 @@ class JesaTest {
         t.remove(Table.slot(1, W));
         t.put(Table.slot(1, W), GUI);
         t.remove(Table.slot(1, E));
-        assertEquals(Set.of(Table.slot(1, W)), Table.judge(t, RULES).wrong());
-        assertTrue(Table.judge(t, loose).wrong().isEmpty());
+        assertEquals(Set.of(Table.slot(1, W)), Table.judge(t, RULES).wrong(), "the fish goes, the 전 may stay");
+        assertEquals(Set.of(Table.slot(1, MID)), Table.judge(t, loose).wrong(), "by order alone the fish may stay; the 전 east of it may not");
         // the middle belongs to neither side: meat in the middle with the fish east of it is still meat west of fish
         t = right();
         t.remove(Table.slot(1, W));
@@ -195,7 +195,7 @@ class JesaTest {
         t = right();
         t.put(Table.slot(4, W), "economy:strawberry");   // red on the west vessel
         t.put(Table.slot(4, MID), MELON);
-        assertEquals(Set.of(Table.slot(4, W), Table.slot(4, MID)), Table.judge(t, RULES).wrong(), "and the pale one east of a red one");
+        assertEquals(Set.of(Table.slot(4, W)), Table.judge(t, RULES).wrong(), "the red one goes; pale in the middle, red east is right");
         // the middle vessel is neither half: what stands on it is judged by its neighbour
         t = right();
         t.put(Table.slot(4, MID), APPLE);

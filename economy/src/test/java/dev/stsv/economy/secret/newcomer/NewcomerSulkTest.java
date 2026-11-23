@@ -81,6 +81,26 @@ class NewcomerSulkTest {
     }
 
     @Test
+    void hisTiredLineIsNoQuestionAndNoGoodbye() {
+        assertTrue(Newcomer.TIRED.size() >= 8);
+        for (String l : Newcomer.TIRED) {
+            assertFalse(l.contains("?"), l);
+            assertTrue(Talk.small(l), l);
+            assertFalse(l.contains("!") || l.contains("당신"), l);
+            assertFalse(l.contains("나갈") || l.contains("나가") || l.contains("갈게"), "he never leaves: " + l);
+            assertFalse(NewcomerTalkTest.GIVES_AWAY.matcher(l).find(), l);
+            assertFalse(insult(l), l);
+            assertEquals(l.strip(), l);
+        }
+        YamlConfiguration y = NewcomerTest.yml();
+        assertEquals(Newcomer.TIRED, y.getStringList("chat.tired"));
+        for (String l : y.getStringList("chat.tired")) assertFalse(l.contains("?"), l);
+        assertEquals(1800, y.getInt("chat.linger-seconds"));
+        assertEquals(120, y.getInt("chat.test-linger-seconds"));
+        assertEquals(List.of(20, 2), y.getIntegerList("visit.hours"));
+    }
+
+    @Test
     void theFileSaysWhatTheCodeSays() {
         YamlConfiguration y = NewcomerTest.yml();
         assertEquals(Sulk.ALLOW, y.getStringList("sulk.allow"));
