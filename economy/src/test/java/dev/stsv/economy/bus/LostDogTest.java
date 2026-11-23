@@ -214,7 +214,7 @@ class LostDogTest {
         java.util.regex.Matcher k = java.util.regex.Pattern.compile("\"(bus\\.[a-z-]+)\"").matcher(src);
         int n = 0;
         while (k.find()) {
-            if (k.group(1).startsWith("bus.dog.")) continue;   // eco.kv keys
+            if (k.group(1).equals("bus.yml")) continue;   // the file, not a message
             assertTrue(m.isString(k.group(1)), k.group(1));
             n++;
         }
