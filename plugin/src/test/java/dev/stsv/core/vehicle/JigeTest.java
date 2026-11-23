@@ -197,6 +197,12 @@ class JigeTest {
         assertEquals(4, s.stages().size(), "the empty frame and three loads");
         assertEquals("stsv:model/jige", s.stages().getFirst().asString(), "the empty frame is the item's own model");
         assertEquals(0, s.stage(0), "empty: the bare frame");
+        // 적재 무게: the fuller of the slots and the weight over its payload
+        assertEquals(3, s.stage(2, s.payload()), "two heavy bundles fill its payload: full under the mat");
+        assertEquals(2, s.stage(2, s.payload() / 2), "half its payload");
+        assertEquals(1, s.stage(2, 0), "nothing weighs (the core alone): by the slots");
+        assertEquals(3, s.stage(54, 1), "light things in every slot: full");
+        assertEquals(0, s.stage(0, s.payload()), "empty: the bare frame");
         assertEquals(1, s.stage(1), "a few bundles");
         assertEquals(1, s.stage(18));
         assertEquals(2, s.stage(19));

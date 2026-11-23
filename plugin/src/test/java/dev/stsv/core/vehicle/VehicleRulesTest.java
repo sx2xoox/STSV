@@ -177,4 +177,43 @@ class VehicleRulesTest {
         assertEquals(0, CargoStages.stage(10, slots, 0), "no stage models: nothing shown");
         assertEquals(0, CargoStages.stage(10, 0, 4));
     }
+
+    @Test
+    void theLoadShownFollowsTheWeightToo() {
+        int slots = 450;
+        double payload = 900;   // the 1-ton truck
+        // a few slots of heavy finished goods fill the payload: it looks full, not empty
+        assertEquals(1, CargoStages.stage(5, slots, 4), "by its slots alone it looked nearly empty");
+        assertEquals(4, CargoStages.stage(5, slots, 900, payload, 4), "full by weight: the full, tarped load");
+        assertEquals(4, CargoStages.stage(5, slots, 950, payload, 4), "over its payload (a smaller payload in the file): still full");
+        assertEquals(1, CargoStages.stage(5, slots, 225, payload, 4), "a quarter of the payload");
+        assertEquals(2, CargoStages.stage(5, slots, 226, payload, 4), "over a quarter");
+        assertEquals(2, CargoStages.stage(5, slots, 450, payload, 4), "half");
+        assertEquals(3, CargoStages.stage(5, slots, 675, payload, 4));
+        assertEquals(4, CargoStages.stage(5, slots, 676, payload, 4), "over three quarters");
+        // the fuller of the two: light, bulky things still fill it by their slots
+        assertEquals(4, CargoStages.stage(450, slots, 450.0 / 64, payload, 4), "every slot holds one light thing");
+        assertEquals(3, CargoStages.stage(300, slots, 100, payload, 4), "the slots are fuller than the weight");
+        assertEquals(3, CargoStages.stage(100, slots, 600, payload, 4), "the weight is fuller than the slots");
+        // nothing weighed, or nothing to weigh it against: exactly as by the slots
+        for (int used : new int[] {0, 1, 112, 113, 225, 226, 338, 450, 900}) {
+            int bySlots = CargoStages.stage(used, slots, 4);
+            assertEquals(bySlots, CargoStages.stage(used, slots, 0, payload, 4), used + " slots, no weights (the core alone)");
+            assertEquals(bySlots, CargoStages.stage(used, slots, 5000, 0, 4), used + " slots, no payload");
+            assertEquals(bySlots, CargoStages.stage(used, slots, 5000, -1, 4));
+            assertEquals(bySlots, CargoStages.stage(used, slots, 5000, Double.POSITIVE_INFINITY, 4), "an unlimited payload");
+            assertEquals(bySlots, CargoStages.stage(used, slots, 5000, Double.NaN, 4));
+            assertEquals(bySlots, CargoStages.stage(used, slots, Double.NaN, payload, 4));
+        }
+        assertEquals(0, CargoStages.stage(0, slots, 900, payload, 4), "an empty bed shows nothing whatever is weighed");
+        assertEquals(0, CargoStages.stage(5, slots, 900, payload, 0), "no stage models: nothing shown");
+        assertEquals(0, CargoStages.stage(5, 0, 900, payload, 4));
+        // the share itself: the larger of slots used / slots and weight / payload, 0..1
+        assertEquals(1.0, CargoStages.fraction(5, slots, 900, payload), 1e-9);
+        assertEquals(0.5, CargoStages.fraction(5, slots, 450, payload), 1e-9);
+        assertEquals(0.5, CargoStages.fraction(225, slots, 90, payload), 1e-9);
+        assertEquals(1.0, CargoStages.fraction(999, slots, 9999, payload), 1e-9, "never over 1");
+        assertEquals(5.0 / slots, CargoStages.fraction(5, slots, 900, 0), 1e-9, "no payload: the slots");
+        assertEquals(0.0, CargoStages.fraction(0, slots, 900, payload), 1e-9);
+    }
 }

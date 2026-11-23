@@ -449,4 +449,24 @@ class TrainPhysicsTest {
         for (int i = 0; i < 360; i++) storage[i] = "x";
         assertEquals(t.trailers().get(0).cargo().stages().getLast(), t.stage(storage, 1), "full: the last stage");
     }
+
+    @Test
+    void aTrailerShowsItsLoadByItsWeightToo() {
+        TrainSpec t = train(1.6).train();
+        List<org.bukkit.NamespacedKey> stages = t.trailers().get(1).cargo().stages();
+        Object[] storage = new Object[t.slots()];
+        int first = t.firstPage(2) * VehicleSpec.Cargo.PAGE;
+        storage[first] = "machine";   // one heavy thing in the second trailer's bed
+        double payload = 1000, part = t.unitPayload(2, payload);
+        assertEquals(payload * t.trailers().get(1).cargo().slots() / t.slots(), part, 1e-9, "its part of the train's payload: by its slots");
+        assertEquals(stages.getFirst(), t.stage(storage, 2), "by its slots: the first stage");
+        assertEquals(stages.getLast(), t.stage(storage, 2, i -> part, payload), "its part of the payload is full: the last stage");
+        assertEquals(stages.get(1), t.stage(storage, 2, i -> part / 2, payload), "half of it");
+        assertEquals(part, t.weight(storage, 2, i -> part), 1e-9, "only its own filled slots are weighed");
+        assertEquals(0, t.weight(storage, 1, i -> part), 1e-9);
+        assertNull(t.stage(storage, 1, i -> part, payload), "the other trailer is empty: no load");
+        assertEquals(stages.getFirst(), t.stage(storage, 2, i -> part, 0), "no payload: by its slots");
+        assertEquals(stages.getFirst(), t.stage(storage, 2, null, payload), "nothing weighs: by its slots");
+        assertEquals(stages.getFirst(), t.stage(storage, 2, i -> 0, payload));
+    }
 }

@@ -29,7 +29,7 @@
 #                  idle-volume 서 있을 때 크기 (0 = 조용), idle-pitch 서 있을 때 음높이, top-pitch 최고 속도 때 음높이 (0.5 ~ 2),
 #                  segment-ticks 소리 조각 하나의 길이 (틱, 음높이 1 기준. sounds.py 의 ENGINE_PERIOD 와 같아야 함)
 #   lights         경광등 (운전 중 Ctrl = 사이렌 켜기·끄기): dark 꺼진 모델, flash 모델들 (번갈아 보임), at 위치
-#   cargo          짐칸 (보관함): slots 칸 수 (9 의 배수, 한 쪽 45칸: 450 = 10쪽, 최대 810), stages 짐 모델 (차는 정도: 1~25% / ~50% / ~75% / 그 이상),
+#   cargo          짐칸 (보관함): slots 칸 수 (9 의 배수, 한 쪽 45칸: 450 = 10쪽, 최대 810), stages 짐 모델 (차는 정도: 1~25% / ~50% / ~75% / 그 이상. 찬 칸 ÷ 칸 수 와 짐 무게 ÷ payload 가운데 큰 쪽),
 #                  at 짐 모델 위치, behind = 이 앞 위치보다 뒤를 웅크리고 우클릭하면 짐칸이 열림
 
 police_car:

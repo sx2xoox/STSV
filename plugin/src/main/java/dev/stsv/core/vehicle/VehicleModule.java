@@ -301,6 +301,8 @@ public final class VehicleModule implements StsvModule, Listener {
             removeParts(v, false);
             v.train = v.spec.train() == null ? null
                     : new TrainView(v.spec.train(), TrainPhysics.restore(v.st, v.spec.train(), v.train == null ? null : v.train.units));
+            weighed(v);
+            v.stage = stageOf(v);
             tools.attach(v);
             spawnParts(v);
         }
