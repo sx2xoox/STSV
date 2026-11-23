@@ -193,7 +193,7 @@ class ContentTest {
         YamlConfiguration shopYaml = yaml("shop.yml");
         List<String> tabbed = shop.sell().keySet().stream().filter(id -> !shopYaml.contains("sell.legacy.items." + id)).toList();
         assertEquals(tabbed, inCategories, "each sold item in one category");
-        assertEquals(22, shop.sell().size() - tabbed.size(), "the 22 old 손질대 goods");
+        assertEquals(21, shop.sell().size() - tabbed.size(), "the 21 old 손질대 goods (북어포 is made again: it has its tab)");
         // 치장: the core's 치장 뽑기 instead of goods; no cosmetic is sold directly any more
         assertTrue(shop.buyCategories().stream().anyMatch(c -> c.id().equals("cosmetics") && c.gacha() && c.goods().isEmpty()));
         assertTrue(shop.goods().stream().noneMatch(g -> g.kind().equals("cosmetic")), "cosmetics come from the gacha");
@@ -270,19 +270,19 @@ class ContentTest {
         if (!titles.contains("master_angler")) problems.add("title master_angler");
         assertEquals(3, fish.species().values().stream().filter(x -> x.item().startsWith("minecraft:")).count(), "cod, salmon, pufferfish");
 
-        // the shape: 6 jobs, 6 finds, 8 special materials, 139 job machine goods + 9 press goods (the 손질대's 4 tier items and its
-        // 연마 진주 among them), 22 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
+        // the shape: 6 jobs, 6 finds, 8 special materials, 140 job machine goods + 9 press goods (the 손질대's 4 tier items, its
+        // 연마 진주 and its 북어포 among them), 21 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 148 + 12 + 7 + 22 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12 + 18, ours.size(),
-                "6 finds + 8 specials + 148 goods + 12 4세대 goods + 7 4세대 materials + 22 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지)");
+        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12 + 1 + 18, ours.size(),
+                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지)");
         assertEquals(7, machines.size());
-        assertEquals(148 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
+        assertEquals(149 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
         Set<String> oldGoods = new HashSet<>();
         for (String k : legacy.getConfigurationSection("sell.legacy.items").getKeys(false)) oldGoods.add(JobSpec.norm(k));
         assertTrue(legacy.getBoolean("sell.legacy.legacy"), "the old goods have no tab");
-        assertEquals(22, oldGoods.size());
+        assertEquals(21, oldGoods.size());
         // every special material is an item of ours, and the shop does not buy it (players trade it)
         for (String sp : jobs.specials().keySet()) {
             if (!exists(sp, ours)) problems.add("special item: " + sp);

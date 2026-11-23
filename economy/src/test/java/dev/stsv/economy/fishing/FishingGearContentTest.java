@@ -74,6 +74,12 @@ class FishingGearContentTest {
                 assertEquals(Map.of("economy:pearl", 1), r.inputs(), "연마 진주 stays as it was");
                 continue;
             }
+            if (r.output().equals("economy:dried_pollack")) {
+                // 북어포: the one catch dried whole. The stick is what tells its lane from the 생선살 one (명태 alone is #fish_common)
+                assertEquals(Map.of("economy:pollack", 4, "minecraft:stick", 1), r.inputs(), "북어포: four 명태 on a skewer");
+                assertEquals(0, r.tier(), "any 손질대 dries");
+                continue;
+            }
             assertEquals(1, r.inputs().size(), r.output() + ": one fish group");
             String g = r.inputs().keySet().iterator().next();
             assertTrue(rarity.containsKey(g), r.output() + " takes a fish group: " + g);
