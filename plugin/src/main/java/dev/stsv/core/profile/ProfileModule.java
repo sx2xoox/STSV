@@ -71,6 +71,7 @@ public final class ProfileModule implements StsvModule, Listener {
     private final Map<UUID, ProfileStore.Titles> online = new ConcurrentHashMap<>();
     private final Map<UUID, Long> playtimeMark = new ConcurrentHashMap<>();
     private BukkitTask ticker;
+    private SystemChat systemChat;
 
     @Override
     public String id() {
@@ -84,6 +85,8 @@ public final class ProfileModule implements StsvModule, Listener {
         store.init();
         loadTitles();
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        systemChat = new SystemChat(plugin);
+        Bukkit.getPluginManager().registerEvents(systemChat, plugin);
         for (Player p : Bukkit.getOnlinePlayers()) joined(p);
         // playtime and batched writes once a minute
         ticker = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
@@ -104,6 +107,7 @@ public final class ProfileModule implements StsvModule, Listener {
         for (Player p : Bukkit.getOnlinePlayers()) countPlaytime(p);
         store.flush().join();
         HandlerList.unregisterAll(this);
+        if (systemChat != null) HandlerList.unregisterAll(systemChat);
     }
 
     public ProfileStore store() {
@@ -262,20 +266,20 @@ public final class ProfileModule implements StsvModule, Listener {
         // a title banner (admins' test feature) is the title and the name in one
         Component banner = plugin.banners() == null ? null : plugin.banners().chatName(e.getPlayer());
         if (banner != null) {
-            e.renderer((source, name, message, viewer) -> chatLine(format, null, banner.hoverEvent(name.hoverEvent()).clickEvent(name.clickEvent()), message));
+            e.renderer((source, name, message, viewer) -> ChatLook.line(format, null, banner.hoverEvent(name.hoverEvent()).clickEvent(name.clickEvent()), message));
             return;
         }
-        e.renderer((source, name, message, viewer) -> chatLine(format, title, name, message));
+        e.renderer((source, name, message, viewer) -> ChatLook.line(format, title, name, message));
     }
 
     /** The vanilla "&lt;name&gt; message" without the angle brackets: "{name} » {message}" by default (config profiles.chat-format). */
-    static final String DEFAULT_CHAT_FORMAT = "{title}{name} <gray>»</gray> {message}";
+    public static final String DEFAULT_CHAT_FORMAT = "{title}{name} <gray>»</gray> {message}";
 
     /**
      * One chat line from the format: {title} (with a space after it, or nothing when no title is worn), {name} (the
      * player's display name, i.e. the nickname with its hover), {message}. Anything else in the format is MiniMessage.
      */
-    static Component chatLine(String format, Component title, Component name, Component message) {
+    public static Component chatLine(String format, Component title, Component name, Component message) {
         String f = format == null || format.isBlank() ? DEFAULT_CHAT_FORMAT : format;
         boolean hasTitleTag = f.contains("{title}");
         Component out = Component.empty();

@@ -342,6 +342,10 @@ profiles:
   # 채팅 한 줄 모양. {title} 칭호(없으면 빈칸), {name} 닉네임, {message} 내용. 나머지는 MiniMessage
   # 바닐라처럼 <이름> 으로 쓰려면: "{title}<{name}> {message}"
   chat-format: "{title}{name} <gray>»</gray> {message}"
+  # 채팅과 귓속말(/msg, /tell, /w)을 서명된 플레이어 채팅 대신 서버 메시지로 보냄 (모양은 그대로).
+  # 서버가 만든 줄과 진짜 플레이어 줄이 클라이언트에서 똑같이 보이고, 대신 이 서버에서는 모장 채팅 신고가 되지 않음.
+  # false 로 끄면 예전처럼 서명된 채팅
+  system-chat: true
   title-in-tab: true
   # /프로필 에 보여줄 통계 (순서대로)
   shown-stats: [playtime, mob_kills, player_kills, deaths, blocks_broken, blocks_placed]
