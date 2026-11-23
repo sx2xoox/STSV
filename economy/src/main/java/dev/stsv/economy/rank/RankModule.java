@@ -146,7 +146,7 @@ public final class RankModule extends EcoModule implements WeeklyListener {
     @EventHandler
     public void onSpend(dev.stsv.core.economy.BalanceChangeEvent e) {
         if (e.kind() != dev.stsv.core.economy.EconomyStore.Kind.SINK || e.delta() >= 0) return;
-        if (!spendingAddsBack(e.reason(), eco.getConfig().getBoolean("rank.spending-counts", false),
+        if (!spendingAddsBack(e.reason(), eco.getConfig().getBoolean("rank.spending-counts"),
                 eco.getConfig().getStringList("rank.spending-kept"))) return;
         Long moved = base.shift(e.player(), e.delta());   // delta < 0: the start goes down by what was spent
         if (moved != null) db.execute(db.upsert("eco_week_base", List.of("week", "player"), List.of("base")), week, e.player().toString(), moved);
