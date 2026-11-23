@@ -209,7 +209,7 @@ public final class DongbangSequel extends Sequel {
                 "<dark_gray>청산인이 직접 전달할 것 (문 앞에서 들고 우클릭)");
         List<String> lore = new ArrayList<>();
         for (String l : template) {
-            String out = fill(l, "tag", clue.get("tag"));
+            String out = fill(Dongbang.term(l), "tag", clue.get("tag"));
             out = out == null ? null : fill(out, "initials", clue.get("initials"));
             out = out == null ? null : fill(out, "where", clue.get("where"));
             out = out == null ? null : fill(out, "memo", f == null ? null : f.getString("memo"));

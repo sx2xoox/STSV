@@ -144,6 +144,11 @@ class EyelessFishTest {
         java.util.UUID b = java.util.UUID.fromString("00000000-0000-0000-0000-00000000000b");
         assertEquals(b, EyelessFish.earliest(Map.of(a, 500L, b, 100L)));
         assertEquals(a, EyelessFish.earliest(Map.of(a, 100L, b, 100L)), "a tie goes to the smaller id");
+        // the solver is never their own "first fisher": the next-earliest, or nobody (the yml fallback name)
+        assertEquals(a, EyelessFish.earliest(Map.of(a, 500L, b, 100L), b));
+        assertEquals(b, EyelessFish.earliest(Map.of(a, 500L, b, 100L), a));
+        assertNull(EyelessFish.earliest(Map.of(b, 100L), b));
+        assertEquals(b, EyelessFish.earliest(Map.of(a, 500L, b, 100L), null));
     }
 
     @Test

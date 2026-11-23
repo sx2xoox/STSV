@@ -194,6 +194,16 @@ class DesignerPartsTest {
         assertEquals(Parts.ANY, y.getString("parts.heart.machine"));
         assertEquals(4, y.getList("memo.pages").size(), "one note per part");
         assertEquals(List.of("고마워.", "이제 내가 돌게."), y.getStringList("memo.final").subList(0, 2));
+        assertTrue(String.join(" ", y.getStringList("memo.final")).contains("'설계자 —' 뒤의 빈자리"), "the dash is paid off");
+        // why "thirteenth": told once, on the first note; and the three places his hand reaches, so the third note can
+        // leave its machine unsaid (the one of the three not used yet)
+        List<String> first = (List<String>) (List<?>) y.getList("memo.pages").get(0);
+        assertTrue(String.join(" ", first).contains("열세 번째에는 내가 들어갔다"));
+        String third = String.join(" ", (List<String>) (List<?>) y.getList("memo.pages").get(2));
+        assertTrue(third.contains("나머지 하나 남은") && !third.contains("돌을 깎아"), third);
+        assertTrue(String.join(" ", first).contains("셋뿐") && first.contains("돌을 깎아 빛을 모으는 곳."), "the third machine is named only in the list");
+        for (Object note : y.getList("memo.pages"))
+            for (List<String> page : Parts.bookPages((List<String>) note)) assertTrue(page.size() <= 9, "a book page holds 14 short lines: " + page);
         // the heart's note says plainly what goes in the output slot
         String heart = String.join(" ", (List<String>) (List<?>) y.getList("memo.pages").get(3));
         assertTrue(heart.contains("살아 있는 사람") && heart.contains("결과 칸") && heart.contains("네 이름"), heart);

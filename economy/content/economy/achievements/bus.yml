@@ -1,0 +1,14 @@
+# 업적 (/업적) 분류 "마을버스". 형식 설명: plugin 의 AchievementSpec.java 맨 위 (다른 분류 파일과 같음)
+#   bus_dog_found: 강아지 할아버지에게 바둑이를 찾아 준 횟수 (bus.yml events.lost-dog, 하루 per-day 번까지 셈)
+
+category: { name: "마을버스", icon: minecraft:minecart, order: 34 }
+achievements:
+  dog_found_10:
+    name: "바둑아 어디 가"
+    description: "달아난 바둑이를 찾아 할아버지에게 10번 돌려주기"
+    tier: normal
+    icon: minecraft:bone
+    stat: bus_dog_found
+    goal: 10
+    unit: "번"
+    rewards: { gold: 10000 }

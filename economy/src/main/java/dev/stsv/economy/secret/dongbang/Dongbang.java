@@ -53,7 +53,7 @@ import java.util.UUID;
  * its ship went down during a shareholders' meeting held on board, and the twelve shareholders are "missing". One share
  * is left, and the meeting has waited ever since for its thirteenth member.
  * <ol>
- *     <li>보유: rarely (offer.chance a day), for one minute while they are on, a grey "동방해운 (거래정지)" sits at the
+ *     <li>보유: rarely (offer.chance a day), for offer.minutes (4) minutes while they are on, a grey "동방해운 (거래정지)" sits at the
  *     bottom of a player's /주식 list (a ghost news line in chat says so). They buy its one share; its price then follows
  *     them only (up while online, down while away, swinging by water).</li>
  *     <li>교신: after ~30 minutes of play holding it, a soaked 주주총회 소집 통지서 comes to the mailbox: the 본사 address is
@@ -79,7 +79,7 @@ public final class Dongbang extends Secret {
     private final Map<UUID, Long> memorialPreview = new HashMap<>();
     /** Admin 연출 목록: the row shows regardless of the minute, until then (ms). */
     private final Map<UUID, Long> forced = new HashMap<>();
-    /** The day's one minute is up for them until then (ms). */
+    /** The day's few minutes are up for them until then (ms). */
     private final Map<UUID, Long> offerUntil = new HashMap<>();
     /** Online minutes today toward the day's offer minute: day key → minutes (only for players whose day it is). */
     private final Map<UUID, Map.Entry<String, Integer>> offerClock = new HashMap<>();
@@ -171,11 +171,22 @@ public final class Dongbang extends Secret {
     }
 
     String line(String path) {
-        return cfg.getString(path, "");
+        return term(cfg.getString(path, ""));
     }
 
     List<String> lines(String path) {
-        return cfg.getStringList(path);
+        List<String> out = new ArrayList<>();
+        for (String l : cfg.getStringList(path)) out.add(term(l));
+        return out;
+    }
+
+    /** "{term}" in a line = the meeting's count ("제{term}기"): the years it has not ended, this year − 1987. */
+    static String term(String line) {
+        return term(line, ZonedDateTime.now(SecretModule.KST).getYear());
+    }
+
+    static String term(String line, int year) {
+        return line == null || !line.contains("{term}") ? line : line.replace("{term}", String.valueOf(Math.max(1, year - 1987)));
     }
 
     long buyPrice() {
@@ -733,7 +744,7 @@ public final class Dongbang extends Secret {
     // /주식: the row and the window
     // ------------------------------------------------------------------------------------------
 
-    /** Is the row up for them now: their one minute today (when the day's roll came up), a preview, or test mode. */
+    /** Is the row up for them now: their few minutes today (when the day's roll came up), a preview, or test mode. */
     private boolean offerNow(UUID u, long now) {
         return m.test(u) || forced.getOrDefault(u, 0L) > now || offerUntil.getOrDefault(u, 0L) > now;
     }
@@ -772,7 +783,7 @@ public final class Dongbang extends Secret {
         m.set(this, u, "offer-day", day);
         m.remove(this, u, "offer-min");
         offerClock.remove(u);
-        offerUntil.put(u, now + Math.max(1, cfg.getLong("offer.minutes", 1)) * 60_000L);
+        offerUntil.put(u, now + Math.max(1, cfg.getLong("offer.minutes", 4)) * 60_000L);
         cue(p);
     }
 

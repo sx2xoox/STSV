@@ -71,6 +71,8 @@ public final class BusModule extends EcoModule {
     private BusNavigator navigator;
     /** 분실물 (LostItems: their items, owners waiting at the stops, the phone ringing) */
     private LostItems lostItems;
+    /** 바둑아 어디 가 (LostDog: the 강아지 할아버지's dog ran off at a stop) */
+    private LostDog lostDog;
     private final Map<Integer, BusStop> stops = new LinkedHashMap<>();
     private int nextId = 1;
     private StopBuilder builder;
@@ -314,8 +316,11 @@ public final class BusModule extends EcoModule {
         preview = new PassengerPreview(this, eco);
         navigator = new BusNavigator(this, eco, core);
         lostItems = new LostItems(this, eco, core);
+        lostDog = new LostDog(this, eco, core);
         every(10L, navigator::tick);
+        every(2L, lostDog::tick);
         Bukkit.getPluginManager().registerEvents(secret, eco);
+        Bukkit.getPluginManager().registerEvents(lostDog, eco);
         every(1L, this::tick);
         every(20L, this::second);
         every(spec.queue().idleEvery(), this::idle);
@@ -327,6 +332,7 @@ public final class BusModule extends EcoModule {
     public void reload() {
         load();
         if (secret != null) secret.load();
+        if (lostDog != null) lostDog.load();
         rebuildNets();
     }
 
@@ -336,6 +342,10 @@ public final class BusModule extends EcoModule {
         if (preview != null) preview.stop();
         if (navigator != null) navigator.stop();
         if (lostItems != null) lostItems.stop();
+        if (lostDog != null) {
+            lostDog.stop();
+            org.bukkit.event.HandlerList.unregisterAll(lostDog);
+        }
         if (secret != null) {
             secret.stop();
             org.bukkit.event.HandlerList.unregisterAll(secret);
@@ -868,8 +878,9 @@ public final class BusModule extends EcoModule {
             run.itemKey = d.itemKey();
             run.rented = rentedId(d.id());
             // 공정 운행: what the bus really drove (its riders' fares) and this driver with it (their counted stops)
-            gates.computeIfAbsent(p.getUniqueId(), k -> new ServiceGate())
-                    .drove(run.meter.move(d.world().getName(), d.x(), d.z(), ticks, spec.fair().maxSpeed()));
+            double drove = run.meter.move(d.world().getName(), d.x(), d.z(), ticks, spec.fair().maxSpeed());
+            gates.computeIfAbsent(p.getUniqueId(), k -> new ServiceGate()).drove(drove);
+            lostDog.drove(p.getUniqueId(), drove);
             feel(p, run, d);
             if (ticks % 5 == 0) atStops(p, run, d, vm);
             secret.drive(p, run, d);
@@ -879,6 +890,7 @@ public final class BusModule extends EcoModule {
             Map.Entry<Long, Run> e = it.next();
             Run r = e.getValue();
             if (ticks - r.seen < 60) continue;
+            if (lostDog.holds(r, ticks - r.seen)) continue;   // the driver is out fetching 바둑이: everyone waits a while
             int n = 0;
             for (Rider x : r.riders) {
                 vm.unseatGuest(e.getKey(), x.m);
@@ -1004,6 +1016,7 @@ public final class BusModule extends EcoModule {
             HudModule.flash(p, Lang.mm("bus.arrive", "stop", here.name()), 2000);
             arrived(p, run, here);
             secret.arrived(p, run, d, here);
+            lostDog.arrived(p, run, here);
             forWatchers(x -> x.stopped(p, here));
             // a wandering passenger (술 취한 아저씨) may get off here instead
             for (Rider r : run.riders) {
@@ -1213,7 +1226,9 @@ public final class BusModule extends EcoModule {
         r.face = w.face;
         r.transfer = w.transfer;
         run.riders.add(r);
-        if (w.type.x().seats() > 1) seatDog(d, vm, r);
+        // 바둑아 어디 가: now and then the 강아지 할아버지 boards alone (his dog ran off at a stop of this line)
+        boolean dogLost = w.type.x().seats() > 1 && lostDog.boarding(p, run, r, w, here, line);
+        if (w.type.x().seats() > 1 && !dogLost) seatDog(d.id(), r);
         secret.boarded(p, run);
         BusStop to = stops.get(dest);
         String destName = to == null ? "?" : to.name();
@@ -2427,12 +2442,13 @@ public final class BusModule extends EcoModule {
     }
 
     /** 강아지 할아버지: his dog (a baby wolf, not saved) in the seat beside him; none when no seat is left. */
-    private void seatDog(VehicleModule.Driven d, VehicleModule vm, Rider r) {
-        if (!"wolf".equals(r.type.x().pet()) || !r.m.isValid()) return;
-        List<Integer> free = vm.freeSeats(d.id());
+    void seatDog(long bus, Rider r) {
+        VehicleModule vm = core.vehicles();
+        if (vm == null || r.dog != null || !"wolf".equals(r.type.x().pet()) || !r.m.isValid()) return;
+        List<Integer> free = vm.freeSeats(bus);
         if (free.isEmpty()) return;
         org.bukkit.entity.Wolf dog = spawnDog(r.m.getLocation());
-        if (!vm.seatGuest(d.id(), free.getFirst(), dog)) {
+        if (!vm.seatGuest(bus, free.getFirst(), dog)) {
             dog.remove();
             return;
         }
@@ -2440,7 +2456,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** The dog off the bus with its master ("멍!" and a bark when they got off at a stop), then gone. */
-    private void dropDog(long bus, Rider r, boolean bark) {
+    void dropDog(long bus, Rider r, boolean bark) {
         Entity dog = r.dog;
         if (dog == null) return;
         r.dog = null;
@@ -2628,6 +2644,20 @@ public final class BusModule extends EcoModule {
     /** /관리자 버스 손님 <종류|전체> [상황]: a passenger kind shown for a few seconds (PassengerPreview). */
     public void previewAdmin(org.bukkit.command.CommandSender s, String[] args) {
         preview.admin(s, args);
+    }
+
+    /** /관리자 버스 바둑이 [플레이어] | 상태 [플레이어] | 끝 [플레이어] (LostDog) */
+    public void dogAdmin(org.bukkit.command.CommandSender s, String[] args) {
+        lostDog.admin(s, args);
+    }
+
+    public List<String> dogComplete(String[] args) {
+        return lostDog.complete(args);
+    }
+
+    /** 바둑아 어디 가: one line of a driver's state (for /관리자 버스 비밀 상태 too). */
+    String dogState(UUID u) {
+        return lostDog.state(u);
     }
 
     public List<String> previewComplete(String[] args) {
@@ -2833,7 +2863,9 @@ public final class BusModule extends EcoModule {
     private void talk(Run run, Mannequin m, BusSpec.Type type, String situation, boolean force) {
         if (m == null || !m.isValid()) return;
         if (!force && run != null && ticks - run.talkAt < spec.extra().talkCooldown()) return;
-        List<String> lines = spec.lines(type, situation);
+        // 바둑아 어디 가: the 강아지 할아버지 without his dog laments instead (his usual lines all speak to the dog)
+        String lament = lostDog == null ? null : lostDog.lamentFor(m);
+        List<String> lines = lament != null ? List.of(lament) : spec.lines(type, situation);
         if (lines == null) return;
         if (run != null) run.talkAt = ticks;
         String line = lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
@@ -2854,8 +2886,14 @@ public final class BusModule extends EcoModule {
 
     /** A speech bubble over this entity (riding it), gone after `life` ticks. */
     org.bukkit.entity.TextDisplay bubble(Entity m, String text, long life) {
+        return bubble(m, text, life, null);
+    }
+
+    /** A speech bubble; with `only`, one that only this player sees (over something only they see). */
+    org.bukkit.entity.TextDisplay bubble(Entity m, String text, long life, Player only) {
         org.bukkit.entity.TextDisplay d = m.getWorld().spawn(m.getLocation().add(0, 2.3, 0), org.bukkit.entity.TextDisplay.class, t -> {
             t.setPersistent(false);
+            if (only != null) t.setVisibleByDefault(false);
             t.text(dev.stsv.core.util.Text.mm("<black>" + net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(text)));
             t.setBillboard(org.bukkit.entity.Display.Billboard.CENTER);
             t.setBackgroundColor(org.bukkit.Color.fromARGB(230, 255, 255, 255));
@@ -2864,6 +2902,7 @@ public final class BusModule extends EcoModule {
                     new org.joml.Vector3f(0.7f, 0.7f, 0.7f), new org.joml.AxisAngle4f()));
             t.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
         });
+        if (only != null) only.showEntity(eco, d);
         if (!m.addPassenger(d)) d.teleport(m.getLocation().add(0, 2.3, 0));
         Bukkit.getScheduler().runTaskLater(eco, d::remove, life);
         return d;
@@ -3491,6 +3530,8 @@ public final class BusModule extends EcoModule {
         p.sendMessage(Lang.mm("bus.list-head", "n", n, "seats", d.seats() - 1, "today", String.format("%,d", earned),
                 "line", line == null ? Lang.raw("bus.no-line") : line.name()));
         secret.listLine(p);   // the 선글라스 남자's coordinate, while his final runs
+        Component dogRow = lostDog.row(p);   // 바둑아 어디 가: where the dog ran off, where the grandfather waits
+        if (dogRow != null) p.sendMessage(dogRow);
         if (n == 0) {
             forWatchers(x -> x.riderRows(p, 0).forEach(p::sendMessage));
             p.sendMessage(Lang.mm("bus.list-empty"));

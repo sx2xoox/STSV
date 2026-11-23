@@ -272,6 +272,12 @@ public final class Designer extends Secret {
         m.stage(this, u, 1);
         m.set(this, u, "marked", m.today(u));
         m.set(this, u, "read", 0);
+        // the hook is not silent: one breath and the rustle of the first note, for them alone (nothing is announced)
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (!p.isOnline() || !on()) return;
+            sound(p, p.getLocation(), "breath");
+            m.haunt().whisper(p, text("unread-whisper"));
+        }, 20L);
     }
 
     @Override

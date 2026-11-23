@@ -623,7 +623,7 @@ public final class EyelessFish extends Secret {
         tags.remove(u);
         dread.splash(p, at);
         dread.dry(u);
-        String first = firstFisher();
+        String first = firstFisher(u);
         if (!m.test(u)) eco.kv().set(FIRST_KEY, first);
         surfaces(p, at, first);
         double end = 0;
@@ -652,9 +652,11 @@ public final class EyelessFish extends Secret {
 
     /**
      * The first fisher: whoever has the earliest catch in the fishing records (the codex's catch log), else
-     * final.first-fisher. Once given back to the water it is kept ({@link #FIRST_KEY}), so a records reset does not change it.
+     * final.first-fisher. Never {@code self} (the one giving their name now): "that was not my name" must not be followed
+     * by their own, so the next-earliest fisher is taken instead. Once given back to the water it is kept
+     * ({@link #FIRST_KEY}), so a records reset does not change it.
      */
-    String firstFisher() {
+    String firstFisher(UUID self) {
         String kept = eco.kv().get(FIRST_KEY);
         if (kept != null && !kept.isBlank()) return kept;
         UUID u = null;
@@ -667,7 +669,7 @@ public final class EyelessFish extends Secret {
                     for (FishStore.Entry en : store.of(x).values()) if (en.first > 0) f = Math.min(f, en.first);
                     if (f != Long.MAX_VALUE) firsts.put(x, f);
                 }
-                u = earliest(firsts);
+                u = earliest(firsts, self);
             }
         } catch (RuntimeException ex) {
             eco.getLogger().warning("[비밀] 눈 없는 물고기: 낚시 기록을 읽지 못함 " + ex);
@@ -678,9 +680,15 @@ public final class EyelessFish extends Secret {
 
     /** Who caught first (player -> their first catch's time); ties go to the smaller id. Null if nobody. */
     static UUID earliest(Map<UUID, Long> firsts) {
+        return earliest(firsts, null);
+    }
+
+    /** {@link #earliest(Map)} among everyone but {@code except} (the solver themself); null if nobody else ever fished. */
+    static UUID earliest(Map<UUID, Long> firsts, UUID except) {
         UUID best = null;
         long at = Long.MAX_VALUE;
         for (Map.Entry<UUID, Long> e : firsts.entrySet()) {
+            if (e.getKey().equals(except)) continue;
             long t = e.getValue();
             if (t < at || t == at && best != null && e.getKey().compareTo(best) < 0) {
                 best = e.getKey();
@@ -854,7 +862,7 @@ public final class EyelessFish extends Secret {
         eco.getLogger().info("[비밀] 눈 없는 물고기: " + (p == null ? u : p.getName()) + " 이(가) 물고기를 버림 (영영 실패)");
     }
 
-    /** The tag kept too long (or carried away): it dries; "…다음엔 네 차례야."; no more today. */
+    /** The tag kept too long (or carried away): it dries; "…기다릴게. 네 이름은 아니까."; no more today. */
     private void dryOut(Player p, boolean scene) {
         UUID u = p.getUniqueId();
         Tag t = tags.remove(u);
@@ -1053,7 +1061,7 @@ public final class EyelessFish extends Secret {
                     admin.sendMessage(Text.msg("<red>10칸 안에 물이 없어요"));
                     return true;
                 }
-                String first = firstFisher();
+                String first = firstFisher(p.getUniqueId());
                 dread.splash(p, at);
                 surfaces(p, at, first);
                 for (Object[] l : timed("final.given"))

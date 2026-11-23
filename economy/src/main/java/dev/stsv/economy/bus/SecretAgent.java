@@ -366,6 +366,11 @@ public final class SecretAgent implements Listener {
         eco.kv().set(key(u, "notes"), formatNotes(e));
     }
 
+    /** Whether he rides with (or has a job running for) this driver. */
+    boolean onJob(UUID u) {
+        return jobs.containsKey(u);
+    }
+
     boolean agent(UUID u) {
         return eco.kv().has(key(u, "agent"));
     }
@@ -1544,6 +1549,7 @@ public final class SecretAgent implements Listener {
                             + eco.kv().getLong("bus.ghost." + u, 0) + "</white> · 진행 중 <white>" + (j == null ? "없음" : j.mission == FINAL ? "최종 (단계 " + j.phase + ")" : "미션 " + j.mission)
                             + "</white> · 기다리는 곳 <white>" + (ws == null ? "없음" : ws.name()) + "</white> · 최초의 요원 <white>"
                             + (u.toString().equals(eco.kv().get("bus.secret.first", "")) ? "예" : "아니오")));
+                    s.sendMessage(Text.msg(bus.dogState(u)));
                 });
             }
             default -> s.sendMessage(Text.msg("<red>/관리자 버스 비밀 소환|쪽지|최종|좌표|초기화|상태"));
