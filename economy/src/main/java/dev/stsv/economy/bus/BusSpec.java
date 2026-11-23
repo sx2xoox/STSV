@@ -10,7 +10,7 @@ import java.util.Set;
 
 /** bus.yml: fares, moods, stops and passenger types of the 마을버스 (README "마을버스"). Pure (unit-tested). */
 public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, Map<String, Type> types, Extra extra, Rental rental,
-                      Queue queue, Patience patience, Board board, BusEvents events) {
+                      Queue queue, Patience patience, Board board, BusEvents events, ServiceGate.Rules fair) {
 
     /**
      * How waiting passengers stand and pass the time: `gap` blocks apart in their line, they notice a bus within `notice`
@@ -234,7 +234,11 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
             if (!cr.alt().isEmpty() && !types.containsKey(cr.alt())) problems.add("events: 없는 손님 종류 " + cr.alt());
         }
         for (BusEvents.Kind k : events.special().kinds().values()) if (!types.containsKey(k.type())) problems.add("events.special: 없는 손님 종류 " + k.type());
-        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board, events);
+        ConfigurationSection fr = section(c, "fair");
+        ServiceGate.Rules d = ServiceGate.Rules.DEFAULT;
+        ServiceGate.Rules fair = new ServiceGate.Rules(fr.getDouble("min-drive", d.minDrive()), fr.getDouble("road-share", d.roadShare()),
+                fr.getDouble("max-speed", d.maxSpeed()), fr.getDouble("min-ride", d.minRide()));
+        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board, events, fair);
     }
 
     private static Map<String, List<String>> talk(ConfigurationSection t) {

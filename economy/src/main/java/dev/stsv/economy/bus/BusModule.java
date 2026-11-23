@@ -194,6 +194,9 @@ public final class BusModule extends EcoModule {
         boolean sick;
         /** the 선글라스 남자 (SecretAgent: he gets off by his own rules, pays nothing as a fare) */
         boolean secret;
+        /** 공정 운행: what the bus had driven when they got on (Run.meter); their stop was changed on the way (passed, turned round) */
+        double odoAt;
+        boolean rerouted;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -230,8 +233,10 @@ public final class BusModule extends EcoModule {
         boolean special;
         /** at the stop it stands at: someone got on or off, something was left behind; the first passenger was greeted */
         boolean served, lostHere, greeted;
-        /** the last stop it scored a festival point at (the same stop twice in a row counts once) */
-        int pointStop = -1;
+        /** 공정 운행: how far it was really driven (fares: a ride it did not drive pays nothing) */
+        final ServiceGate.Odometer meter = new ServiceGate.Odometer();
+        /** the last stop it stopped at (a smooth stop cheers the riders once: not pulling out of a bay and in again) */
+        int smoothStop = -1;
         /** 노선 완주: the stops of its line it stopped at in order this run */
         final BusEvents.CourseRun course = new BusEvents.CourseRun();
     }
@@ -277,8 +282,10 @@ public final class BusModule extends EcoModule {
     /** stop id -> when a 특급 손님 came to wait there */
     private final Map<Integer, Long> specialSince = new HashMap<>();
     private int nextTeam = 1;
-    /** 안전 운행 연속: driver -> {stops served in a row, the last of them} (in memory) */
+    /** 안전 운행 연속: driver -> {stops served in a row} (in memory) */
     private final Map<UUID, int[]> streaks = new HashMap<>();
+    /** 공정 운행: driver -> the last stop that counted for them and how far they drove a bus since (in memory; ServiceGate) */
+    private final Map<UUID, ServiceGate> gates = new HashMap<>();
     /** 외딴 정류장 구조: stop id -> when a bus last took someone there (in memory: from the server's start); the stop marked */
     private final Map<Integer, Long> lastServed = new HashMap<>();
     private Integer rescueStop;
@@ -860,6 +867,9 @@ public final class BusModule extends EcoModule {
             run.seats = d.seats() - 1;
             run.itemKey = d.itemKey();
             run.rented = rentedId(d.id());
+            // 공정 운행: what the bus really drove (its riders' fares) and this driver with it (their counted stops)
+            gates.computeIfAbsent(p.getUniqueId(), k -> new ServiceGate())
+                    .drove(run.meter.move(d.world().getName(), d.x(), d.z(), ticks, spec.fair().maxSpeed()));
             feel(p, run, d);
             if (ticks % 5 == 0) atStops(p, run, d, vm);
             secret.drive(p, run, d);
@@ -979,7 +989,9 @@ public final class BusModule extends EcoModule {
             run.busy = 10;
             run.rang.remove(here.id());
             d.world().playSound(d.location(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1.6f);   // 삑 (교통카드)
-            boolean smooth = ticks - run.joltAt > 60;
+            // a smooth stop cheers the riders once a stop (not out of the bay and in again, over and over)
+            boolean smooth = ticks - run.joltAt > 60 && run.smoothStop != here.id();
+            run.smoothStop = here.id();
             if (smooth && !run.riders.isEmpty()) {
                 Rider baby = null;
                 for (Rider r : run.riders) if (r.type.x().babySmile() != 0 && baby == null) baby = r;
@@ -1017,8 +1029,10 @@ public final class BusModule extends EcoModule {
             it.remove();
             vm.unseatGuest(d.id(), r.m);
             dropDog(d.id(), r, true);
-            boolean atDest = r.dest == here.id();
-            double road = atDest ? r.road : rode(n, line, r.from, here.id(), r.road);
+            // 공정 운행: paid for what the bus really drove them; `atDest`: where they asked to go (or as far), not a stop
+            // they were moved to by a bus that turned round
+            double road = paidRoad(run, r, n, line, here);
+            boolean rode = road > 0, atDest = r.dest == here.id() && rode && (!r.rerouted || road + 1e-6 >= r.road);
             // a 특급 손님: its bonus, or (failed) its fare × fail-fare
             long special = 0;
             String why = null;
@@ -1029,14 +1043,15 @@ public final class BusModule extends EcoModule {
                         ? Lang.raw("bus.special-why-mood", "mood", (int) Math.round(r.mood)) : r.special.limit(ot) > 0 && secs > r.special.limit(ot)
                         ? Lang.raw("bus.special-why-late") : Lang.raw("bus.special-why-hits", "n", r.hits);
             }
-            boolean onTime = pay(p, run, r, here, road, r.special != null && special <= 0 ? r.special.failFare() : 1);
-            served(p, run, here, false);
+            boolean onTime = rode && pay(p, run, r, here, road, r.special != null && special <= 0 ? r.special.failFare() : 1);
+            if (rode) served(p, run, here, false);
+            else noRide(p, r, here);
             if (r.special != null) specialOff(p, run, r, here, special, why);
             if (r.team != 0) teamOff(p, run, r, here, atDest, onTime);
-            maybeLose(p, run, r, here);
+            if (rode) maybeLose(p, run, r, here);
             if (atDest) alightTraits(p, run, r);
             walkOff(r.m, here, d.world().hasStorm());
-            maybeTransfer(n, line, here, r);
+            if (rode) maybeTransfer(n, line, here, r);
             run.busy = (int) (cfg.boardTicks() * r.type.slow());
             return;
         }
@@ -1194,6 +1209,7 @@ public final class BusModule extends EcoModule {
         double mood = Math.min(100, spec.patience().mood(start, waited) + lostItems.cheer(here.id(), w.since));   // saw a lost thing come back
         double road = line.between(line.at(here.id()), line.at(dest));
         Rider r = new Rider(w.m, w.type, here.id(), dest, road, mood);
+        r.odoAt = run.meter.total();
         r.face = w.face;
         r.transfer = w.transfer;
         run.riders.add(r);
@@ -1274,6 +1290,26 @@ public final class BusModule extends EcoModule {
         if (line != null && line.has(from) && line.has(here)) return line.between(line.at(from), line.at(here));
         double r = n == null ? Double.POSITIVE_INFINITY : n.road(from, here);
         return Double.isFinite(r) ? r : planned;
+    }
+
+    /**
+     * 공정 운행: the blocks a passenger getting off here pays for (0: no ride, no fare). Nothing where they got on; where their
+     * stop was changed on the way (passed, the bus turned round) no more than they really rode; and no more than the bus
+     * really drove with them aboard (ServiceGate).
+     */
+    private double paidRoad(Run run, Rider r, Net n, BusLine line, BusStop here) {
+        if (r.from == here.id()) return 0;
+        boolean atDest = r.dest == here.id();
+        double rode = atDest && !r.rerouted ? r.road : rode(n, line, r.from, here.id(), r.road);
+        return ServiceGate.paidRoad(ServiceGate.rodeRoad(r.road, rode, atDest, r.rerouted), run.meter.total() - r.odoAt, spec.fair());
+    }
+
+    /** A passenger got off without a ride (where they got on, or the bus did not drive them): no fare; an ordinary one waits again. */
+    private void noRide(Player p, Rider r, BusStop here) {
+        p.sendMessage(Lang.mm("bus.no-ride", "type", typeTag(r.type)));
+        if (r.from == here.id() && r.team == 0 && r.special == null && !r.transfer) {
+            waiting.merge(here.id(), 1.0, (a, b) -> Math.max(a, Math.min(here.size(), a + b)));
+        }
     }
 
     /** Pulling out of a stop: "다음 정류장은 …" to the driver (and the riders' bell is reset for it). */
@@ -1754,6 +1790,7 @@ public final class BusModule extends EcoModule {
                     r.sleepThrough = false;
                     Integer next = line.next(idx, run.dir);
                     r.dest = next == null ? -1 : next;
+                    r.rerouted = true;   // paid as far as they really rode (a bus that turned round: not the ride they asked for)
                     HudModule.flash(p, Lang.mm("bus.missed", "type", typeTag(r.type)), 2500);
                 }
             }
@@ -1943,8 +1980,9 @@ public final class BusModule extends EcoModule {
     }
 
     /**
-     * Someone got on or off at a stop (boarded: got on). Once a stop visit: a festival point and 안전 운행 연속 (the same stop
-     * twice in a row counts once); someone getting on also marks the stop served (외딴 정류장 구조 pays when it was marked).
+     * Someone got on or off at a stop (boarded: got on). Once a stop visit that counts (공정 운행, ServiceGate: another stop
+     * than the last counted one, really driven to): a festival point and 안전 운행 연속; someone getting on also marks the
+     * stop served (외딴 정류장 구조 pays when it was marked).
      */
     private void served(Player p, Run run, BusStop here, boolean boarded) {
         long now = System.currentTimeMillis();
@@ -1962,15 +2000,18 @@ public final class BusModule extends EcoModule {
         }
         if (run.served) return;
         run.served = true;
-        if (run.pointStop != here.id()) festPoint(p, "stop");
-        run.pointStop = here.id();
+        // 공정 운행: the visit counts (a festival point, a 산길 정류장, 안전 운행 연속) only at another stop than the last counted
+        // one, after the driver really drove a bus there from it (not one stop over and over, not without driving)
+        ServiceGate gate = gates.computeIfAbsent(p.getUniqueId(), u -> new ServiceGate());
+        Net net = nets.get(here.world());
+        double road = net == null || gate.last() < 0 ? Double.NaN : net.road(gate.last(), here.id());
+        if (!gate.visit(here.id(), road, spec.fair())) return;
+        festPoint(p, "stop");
         dev.stsv.economy.road.RoadCharacter on = roadAt(here);
         if (dev.stsv.economy.road.RoadRewards.mountain(on)) mountainStop(p);
         BusEvents.Streak st = spec.events().streak();
         if (!st.enabled()) return;
-        int[] k = streaks.computeIfAbsent(p.getUniqueId(), u -> new int[]{0, -1});
-        if (k[1] == here.id()) return;
-        k[1] = here.id();
+        int[] k = streaks.computeIfAbsent(p.getUniqueId(), u -> new int[]{0});
         k[0]++;
         long bonus = Math.round(st.bonus(k[0]) * dev.stsv.economy.road.RoadRewards.streak(on));   // a hard road's stop: ×2
         if (bonus <= 0) return;
@@ -2607,9 +2648,10 @@ public final class BusModule extends EcoModule {
             it.remove();
             if (vm != null) vm.unseatGuest(run.id, r.m);
             dropDog(run.id, r, false);
-            boolean atDest = r.dest == here.id();
-            double road = atDest ? r.road : rode(n, line, r.from, here.id(), r.road);
-            pay(p, run, r, here, road, r.special != null && !atDest ? r.special.failFare() : 1);
+            double road = paidRoad(run, r, n, line, here);
+            boolean atDest = r.dest == here.id() && road > 0 && (!r.rerouted || road + 1e-6 >= r.road);
+            if (road > 0) pay(p, run, r, here, road, r.special != null && !atDest ? r.special.failFare() : 1);
+            else noRide(p, r, here);
             if (r.special != null) specialOff(p, run, r, here, 0, Lang.raw("bus.special-why-place"));
             if (r.team != 0) teamOff(p, run, r, here, atDest, false);
             Mannequin m = r.m;
