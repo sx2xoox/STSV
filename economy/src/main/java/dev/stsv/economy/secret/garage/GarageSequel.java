@@ -448,7 +448,7 @@ public final class GarageSequel extends Sequel {
         boolean seated = d != null && d.id() == id;
         Location safe = settle && seated && p.isOnline() && !p.isDead() ? roadside(u, d.world().getName(), d.x(), d.z()) : null;
         vm.removeTemporary(id);
-        if (safe == null) return;
+        if (safe == null || !eco.isEnabled()) return;   // (nothing can be scheduled while the plugin stops: the core has stepped them out beside it)
         Bukkit.getScheduler().runTaskLater(eco, () -> {   // after the core has stepped them out beside the car
             if (p.isOnline() && !p.isDead() && !p.isInsideVehicle() && p.getWorld().equals(safe.getWorld())
                     && p.getLocation().distanceSquared(safe) < 48 * 48 && Drive.standable(safe)) {
@@ -1115,7 +1115,9 @@ public final class GarageSequel extends Sequel {
         courses.remove(u);
         spots.remove(u);
         afoot.remove(u);
-        dropCar(u);
+        Player p = Bukkit.getPlayer(u);
+        if (p != null) takeCar(p, true);   // (a quit: where they stand next time was kept in onQuit)
+        else dropCar(u);
         g.props().drop(u, NOTE);
         g.props().drop(u, SPOT);
         lower(u);
