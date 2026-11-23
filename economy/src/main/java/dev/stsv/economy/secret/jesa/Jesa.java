@@ -32,7 +32,6 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
-import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -776,14 +775,11 @@ public final class Jesa extends Secret implements BusModule.Watcher {
      * The "at" half of the same click (a separate event with its own listeners): cancelled too and otherwise ignored, so
      * one press acts once (in {@link #onTouch}) and nothing else acts on a vessel's click box.
      */
-    @EventHandler(priority = EventPriority.HIGH)
-    public void onTouchAt(PlayerInteractAtEntityEvent e) {
-        if (e.getRightClicked() instanceof Interaction hit && hit.getPersistentDataContainer().has(House.TAG)) e.setCancelled(true);
-    }
-
+    // (Paper 26.3 sends ONE interact packet: it fires PlayerInteractAtEntityEvent first and, only when that one is NOT
+    // cancelled, goes on to PlayerInteractEntityEvent. Cancelling the "at" event here would swallow every click on a
+    // vessel: the handler below is the one place the click is taken and cancelled.)
     @EventHandler(priority = EventPriority.HIGH)
     public void onTouch(PlayerInteractEntityEvent e) {
-        if (e instanceof PlayerInteractAtEntityEvent) return;   // its own handler list; never acted on twice
         if (!(e.getRightClicked() instanceof Interaction hit) || !hit.getPersistentDataContainer().has(House.TAG)) return;
         e.setCancelled(true);
         if (e.getHand() != EquipmentSlot.HAND) return;   // the off hand's click of the same press does nothing
