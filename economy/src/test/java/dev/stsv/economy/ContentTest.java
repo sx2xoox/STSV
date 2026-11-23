@@ -355,6 +355,18 @@ class ContentTest {
         }
         for (String id : ours) if (id.startsWith("economy:lost_") && !makeable.contains(id) && !yaml("items/secrets.yml").contains(id.substring(8))) problems.add("a lost item no kind leaves: " + id);
         for (String title : lost.titles().keySet()) if (!titles.contains(title.substring(title.indexOf(':') + 1))) problems.add("lost title: " + title);
+        // 버스 선물: what a passenger hands the driver (bus.yml types.*.gifts) is an item that exists; 배 comes from nowhere else,
+        // and only the 할머니 gives it (the dog walker gives nothing)
+        YamlConfiguration busYaml = yaml("bus.yml");
+        for (String type : busYaml.getConfigurationSection("types").getKeys(false)) {
+            for (Map<?, ?> g : busYaml.getMapList("types." + type + ".gifts")) {
+                String id = JobSpec.norm(String.valueOf(g.get("item")));
+                if (!exists(id, ours)) problems.add("bus gift of " + type + ": " + id);
+                if (id.equals("economy:pear") && !type.equals("grandma")) problems.add("only the 할머니 gives pears, not " + type);
+                makeable.add(id);
+            }
+        }
+        if (!makeable.contains("economy:pear")) problems.add("no passenger gives economy:pear");
         // 숨은 비밀 (items/secrets.yml): only the secrets' own code gives them (by id, in secret/), the shop never trades them
         String secretCode;
         try (var files = java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java/dev/stsv/economy/secret"))) {

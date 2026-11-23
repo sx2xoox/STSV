@@ -19,6 +19,8 @@ final class Rumors {
     private final SecretModule m;
     private long next;
     private String last = "";
+    /** player -> when they last got a rumor (ms; this run only): nobody hears one more often than rumors.per-player-minutes */
+    private final java.util.Map<java.util.UUID, Long> heard = new java.util.HashMap<>();
 
     Rumors(SecretModule m) {
         this.m = m;
@@ -41,8 +43,10 @@ final class Rumors {
         schedule();
         ConfigurationSection c = cfg();
         if (c == null || !c.getBoolean("enabled", true)) return;
-        List<Player> online = new ArrayList<>(Bukkit.getOnlinePlayers());
-        if (online.isEmpty()) return;
+        long now = System.currentTimeMillis();
+        List<Player> online = due(new ArrayList<>(Bukkit.getOnlinePlayers()), heard, now, c.getLong("per-player-minutes", 120) * 60_000L,
+                Player::getUniqueId);
+        if (online.isEmpty()) return;   // nobody on, or everyone heard one too recently: this turn passes
         List<String> open = new ArrayList<>();
         ConfigurationSection lines = c.getConfigurationSection("lines");
         if (lines == null) return;
@@ -64,6 +68,18 @@ final class Rumors {
         String fmt = c.getString("format", "<dark_gray><i>…{line}");
         p.sendMessage(Text.mm(fmt.replace("{line}", say.get(r.nextInt(say.size())))));
         last = id;
+        heard.put(p.getUniqueId(), now);
+        heard.values().removeIf(at -> now - at > 24 * 3_600_000L);
+    }
+
+    /** Those who may hear a rumor now: everyone who has not heard one within {@code gap} ms. */
+    static <T> List<T> due(List<T> all, java.util.Map<java.util.UUID, Long> heard, long now, long gap, java.util.function.Function<T, java.util.UUID> id) {
+        List<T> out = new ArrayList<>();
+        for (T t : all) {
+            Long at = heard.get(id.apply(t));
+            if (at == null || now - at >= gap) out.add(t);
+        }
+        return out;
     }
 
     /**
