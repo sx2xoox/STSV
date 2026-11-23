@@ -1075,7 +1075,7 @@ public final class Garage extends Secret {
 
     @Override
     public List<String> scenes() {
-        return List.of("추모", "차고", "정답", "복원", "유령", "주행", "위치다시");
+        return List.of("추모", "차고", "정답", "복원", "유령", "주행", "위치다시", "커브여기", "차고여기");
     }
 
     @Override
@@ -1120,6 +1120,19 @@ public final class Garage extends Secret {
                     admin.sendMessage(Text.mm("<red>" + why));
                     return true;
                 }
+            }
+            case "커브여기", "차고여기" -> {
+                String why = word.equals("커브여기") ? places.setBend(p.getLocation()) : places.setGarage(p.getLocation());
+                if (why != null) {
+                    admin.sendMessage(Text.mm("<red>[폐차고] " + why));
+                    return true;
+                }
+                placeChanged();
+                Places.Site s = places.site();
+                admin.sendMessage(Text.mm("<green>[폐차고] 옮김: 커브 " + s.world() + " " + Places.coords(s, s.bend()) + " · 차고 " + Places.coords(s, s.garage())
+                        + (s.fitted() ? " <gray>(" + (s.side() > 0 ? "길 오른쪽" : "길 왼쪽") + ", 바닥 y " + s.floor() + ")" : " <gray>(차고는 길 끝: 누가 가까이 가면 땅에 맞춤. 직접 정하려면 차고여기)")
+                        + " <gray>· 길이 바뀌지 않는 한 그대로 남아요. 진행 중이던 드라이브는 끝남"));
+                return true;
             }
             case "위치다시" -> {
                 places.refresh(true);

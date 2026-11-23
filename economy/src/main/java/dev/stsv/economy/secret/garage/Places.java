@@ -314,6 +314,80 @@ final class Places {
         return site;
     }
 
+    /**
+     * Admin (연출 폐차고 커브여기): the bend at the road point nearest this spot, on whichever built road of its world is
+     * nearest. The garage stays where it was when it is on the same road and still far enough on; else it goes back to
+     * that road's end (fitted to the ground when someone comes near). Returns null when done, else why not.
+     */
+    String setBend(Location at) {
+        RoadModule roads = eco.roads();
+        if (roads == null || at.getWorld() == null) return "국도 모듈이 꺼져 있어요";
+        int window = Math.max(8, cfg.getInt("places.window", 30));
+        int lead = Math.max(10, cfg.getInt("drive.lead", 30)) + 30;
+        int back = Math.max(8, cfg.getInt("garage.back", 24));
+        RoadNetwork.Road best = null;
+        int bestAt = -1;
+        double bestD = Double.MAX_VALUE;
+        for (RoadNetwork.Road r : roads.builtRoads(at.getWorld().getName())) {
+            if (!usable(r)) continue;
+            int i = (int) Math.round(Roadway.project(r.points(), at.getX(), at.getZ(), 0, r.points().size() - 1));
+            double[] q = r.points().get(i);
+            double d = Math.hypot(q[0] - at.getX(), q[1] - at.getZ());
+            if (d < bestD) {
+                bestD = d;
+                best = r;
+                bestAt = i;
+            }
+        }
+        if (best == null || bestD > 24) return "가까운 국도가 없어요 (길 가운데에서 24칸 안에 서 주세요)";
+        int n = best.points().size();
+        if (bestAt < lead) return "길의 시작에 너무 가까워요 (차가 커브 " + (lead - 30) + "칸 앞에서 기다려야 해서, 시작에서 " + lead + "칸 넘게 들어간 곳이어야 해요)";
+        if (bestAt > n - 1 - 6 - 21) return "길의 끝에 너무 가까워요 (커브 뒤로 차고까지 30칸 넘게 남아야 해요)";
+        Site road = new Site(at.getWorld().getName(), best.dock(), best.points(), best.halves(), best.character() == RoadCharacter.HARD, 0, 1, 0, 0, 0, 0);
+        double t = Roadway.turn(road.pts(), bestAt, window / 2);
+        Site old = site;
+        boolean same = old != null && old.world().equals(road.world()) && String.valueOf(old.dock()).equals(String.valueOf(road.dock()))
+                && old.signature().equals(road.signature());
+        boolean keepGarage = same && old.garage() > bestAt + 20;
+        int garage = keepGarage ? old.garage() : Math.max(bestAt + 21, n - 1 - back);
+        Site s = copy(road, bestAt, t > 0 ? -1 : 1, Math.abs(t), garage, keepGarage ? old.side() : 0, keepGarage ? old.floor() : 0);
+        return keep(s);
+    }
+
+    /**
+     * Admin (연출 폐차고 차고여기): the garage at the road point nearest this spot, on the side of the road this spot is
+     * on, its floor fitted to the ground there. Only on the bend's road, after the bend. Null when done, else why not.
+     */
+    String setGarage(Location at) {
+        Site s = site;
+        if (s == null) return "커브가 아직 없어요 (" + why + ")";
+        if (at.getWorld() == null || !at.getWorld().getName().equals(s.world())) return "커브가 있는 월드(" + s.world() + ")에서 해 주세요";
+        int n = s.pts().size();
+        int i = (int) Math.round(Roadway.project(s.pts(), at.getX(), at.getZ(), 0, n - 1));
+        double[] q = s.pts().get(i);
+        if (Math.hypot(q[0] - at.getX(), q[1] - at.getZ()) > 40) return "커브가 있는 그 국도 옆(길 가운데에서 40칸 안)에 서 주세요";
+        if (i <= s.bend() + 20) return "커브보다 길 끝 쪽으로 20칸 넘게 지난 곳이어야 해요 (유령이 커브에서 차고까지 달림)";
+        if (i > n - 1 - 6) return "길의 맨 끝에 너무 가까워요 (끝에서 6칸 넘게 안쪽)";
+        double[] t = Roadway.tangent(s.pts(), i, 4);
+        double lateral = (at.getX() - q[0]) * -t[1] + (at.getZ() - q[1]) * t[0];
+        int side = lateral >= 0 ? 1 : -1;
+        double[] front = Roadway.beside(s.pts(), i, side * cfg.getDouble("garage.side", 8), 4);
+        int y = ground(at.getWorld(), front[0], front[1], Roadway.surfaceY(s.halves(), i), 6, 8);
+        int floor = y == UNKNOWN || y == NONE ? at.getBlockY() : y;
+        return keep(s.fitted(i, side, floor));
+    }
+
+    private String keep(Site s) {
+        site = s;
+        loaded = true;
+        checkedAt = System.currentTimeMillis();
+        misses = 0;
+        why = "";
+        eco.kv().set(KEY, s.encode());
+        eco.getLogger().info("[비밀] 폐차고: 관리자가 자리를 옮김 — 커브 " + s.world() + " " + coords(s, s.bend()) + ", 차고 " + coords(s, s.garage()));
+        return null;
+    }
+
     /** The garage's frame: the middle of its front on the floor, facing the road. Null before it is fitted. */
     Location garage() {
         Site s = site;
