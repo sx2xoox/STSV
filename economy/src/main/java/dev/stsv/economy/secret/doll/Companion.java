@@ -39,6 +39,10 @@ final class Companion {
     private Player lookAt;
     private long lookUntil;
     private int t;
+    /** The step ({@link #t}) at which it began to bow (the 후속 임무: a small nod toward someone), far in the past when not. */
+    private int bowFrom = -1000;
+    /** How many steps (two ticks each) a bow takes: down and up again. */
+    private static final int BOW_STEPS = 24;
 
     Companion(Doll d) {
         this.d = d;
@@ -90,6 +94,41 @@ final class Companion {
         previewUntil = System.currentTimeMillis() + seconds * 1000L;
         remove();
         spawn(p);
+    }
+
+    /** Whether it sits on this player's shoulder right now. */
+    boolean on(UUID u) {
+        return showing() && u.equals(on);
+    }
+
+    /**
+     * Keeps it on this player's shoulder a little longer without making it again when it is already there (the 후속 임무
+     * of a tester who is not its owner).
+     */
+    void hold(Player p, int seconds) {
+        preview = p.getUniqueId();
+        previewUntil = System.currentTimeMillis() + seconds * 1000L;
+        if (on(p.getUniqueId()) && e.getWorld().equals(p.getWorld())) return;
+        remove();
+        spawn(p);
+    }
+
+    /** Turns its head to this player and holds the look for so long (the 후속 임무: the one it wanted to see). */
+    void look(Player at, long ms) {
+        if (!showing() || at == null) return;
+        lookAt = at;
+        lookUntil = System.currentTimeMillis() + ms;
+    }
+
+    /** A small bow: its head tilts forward and comes up again (about 2.4 seconds), toward whoever it is looking at. */
+    void bow() {
+        if (showing()) bowFrom = t;
+    }
+
+    /** How far forward (degrees) it leans this many steps into a bow of `steps` steps at most `max` deep: 0 outside it. */
+    static float bowPitch(int into, int steps, float max) {
+        if (into < 0 || into >= steps || steps <= 0) return 0;
+        return (float) (max * Math.sin(Math.PI * into / steps));
     }
 
     private void spawn(Player p) {
@@ -152,6 +191,8 @@ final class Companion {
                 at.setYaw(face.getYaw() + (d.cfg().getBoolean("companion.flip", false) ? 180 : 0));
             }
         }
+        float bow = bowPitch(t - bowFrom, BOW_STEPS, (float) d.cfg().getDouble("sequel.bow-degrees", 32));
+        if (bow != 0) at.setPitch(d.cfg().getBoolean("companion.flip", false) ? -bow : bow);
         e.teleport(at);
     }
 
@@ -163,6 +204,7 @@ final class Companion {
         e = null;
         on = null;
         lookAt = null;
+        bowFrom = -1000;
     }
 
     /** The player left or the secret stops. */

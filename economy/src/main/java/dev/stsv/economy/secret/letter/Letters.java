@@ -62,6 +62,7 @@ public final class Letters extends Secret {
     private final Omens omens;
     private final Finale finale;
     private final Shadow shadow;
+    private final dev.stsv.economy.secret.Sequel sequel = new LetterSequel(this);
     /** when the waiting letter may come (ms) this session */
     private final Map<UUID, Long> due = new ConcurrentHashMap<>();
     /** seconds stood on the ritual's spot */
@@ -97,6 +98,12 @@ public final class Letters extends Secret {
     @Override
     public int stages() {
         return 5;
+    }
+
+    /** 어제의 편지: the solver's weekly letter from the one that follows them ({@link LetterSequel}). */
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
     }
 
     YamlConfiguration cfg() {

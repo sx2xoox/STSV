@@ -89,6 +89,7 @@ public final class Doll extends Secret {
 
     private final Random rnd = new Random();
     private final Companion companion = new Companion(this);
+    private final DollSequel sequel = new DollSequel(this);
     private Chain chain;
     /** First owners being asked the last question: until when (ms). Read on the chat thread. */
     private final Map<UUID, Long> asking = new ConcurrentHashMap<>();
@@ -130,6 +131,30 @@ public final class Doll extends Secret {
 
     org.bukkit.plugin.Plugin plugin() {
         return eco;
+    }
+
+    /** 후속 임무 「인형의 심부름」 ({@link DollSequel}). */
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
+    }
+
+    Companion companion() {
+        return companion;
+    }
+
+    /**
+     * The 후속 임무: everyone else online the doll could want to see (not a spectator, not inside the 체험관), with their
+     * facts. "Friend" is counted from this player's own record, distance from where they stand.
+     */
+    List<Riddles.Fact> others(Player ref) {
+        List<Riddles.Fact> out = new ArrayList<>();
+        List<String> friends = m.memory() == null ? List.of() : m.memory().friends(ref.getUniqueId());
+        for (Player o : Bukkit.getOnlinePlayers()) {
+            if (o == ref || o.getGameMode() == org.bukkit.GameMode.SPECTATOR || (eco.guide() != null && eco.guide().inGuide(o))) continue;
+            out.add(fact(o, ref, friends));
+        }
+        return out;
     }
 
     YamlConfiguration cfg() {

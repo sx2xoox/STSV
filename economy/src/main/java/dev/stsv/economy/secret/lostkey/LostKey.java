@@ -9,6 +9,7 @@ import dev.stsv.economy.bus.BusStop;
 import dev.stsv.economy.secret.Memory;
 import dev.stsv.economy.secret.Secret;
 import dev.stsv.economy.secret.SecretModule;
+import dev.stsv.economy.secret.Sequel;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.inventory.Book;
 import net.kyori.adventure.text.Component;
@@ -81,6 +82,8 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     static final String FIRST_BACK = "secret.lostkey.first-back.";
     private static final int HOME = 6;
 
+    /** 후속 임무 「주인 찾기」 */
+    private final LostKeySequel sequel = new LostKeySequel(this);
     private final Locker locker;
     private final Charm charm;
     private BusModule watched;
@@ -111,6 +114,11 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     @Override
     public String name() {
         return "분실물센터";
+    }
+
+    @Override
+    public Sequel sequel() {
+        return sequel;
     }
 
     /** 1..5: looking for the stop the n-th clue points at; 6: the locker at home. */
@@ -241,7 +249,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     // the network as the clues see it
     // ------------------------------------------------------------------------------------------
 
-    private List<Clues.Stop> net() {
+    List<Clues.Stop> net() {
         BusModule b = bus();
         if (b == null) return List.of();
         Map<String, List<BusLine>> lines = new HashMap<>();
@@ -261,7 +269,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         return new Clues.Stop(s.id(), s.name(), b.stopTags(s), first, last);
     }
 
-    private BusStop stop(int id) {
+    BusStop stop(int id) {
         BusModule b = bus();
         if (b == null) return null;
         for (BusStop s : b.stops()) if (s.id() == id) return s;
@@ -287,7 +295,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         }
     }
 
-    private List<String> tagOrder() {
+    List<String> tagOrder() {
         ConfigurationSection t = cfg.getConfigurationSection("tags");
         return t == null ? List.of("sea", "mountain", "forest", "field", "village", "port") : new ArrayList<>(t.getKeys(false));
     }
@@ -423,7 +431,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         else refreshKeys(p);
     }
 
-    private BusStop nearestStop(Location at) {
+    BusStop nearestStop(Location at) {
         BusModule b = bus();
         if (b == null) return null;
         BusStop best = null;
@@ -465,6 +473,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     /** BusModule: their bus pulled into a stop's bay. */
     @Override
     public void stopped(Player p, BusStop here) {
+        sequel.stopped(p, here);   // 후속 임무 「주인 찾기」 (only for the one who solved it)
         UUID u = p.getUniqueId();
         int st = stage(u);
         if (!on() || !open(u) || st < 1 || st > 5 || !hasKey(p)) return;
@@ -508,7 +517,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
      * Whispers only this player hears, one every 2.5 s: as dark bubbles over the given speakers, else over the passengers
      * waiting at the stop, else floating at the stop itself; each also as a dim chat line (to read again).
      */
-    private void speak(Player p, List<Entity> speakers, BusStop here, List<String> lines, long delay) {
+    void speak(Player p, List<Entity> speakers, BusStop here, List<String> lines, long delay) {
         for (int i = 0; i < lines.size(); i++) {
             String line = lines.get(i);
             int n = i;
@@ -846,7 +855,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         if (st >= 1 && st <= HOME) later(p, 40, () -> refreshKeys(p));
     }
 
-    private void later(Player p, long ticks, Runnable r) {
+    void later(Player p, long ticks, Runnable r) {
         Bukkit.getScheduler().runTaskLater(eco, () -> {
             if (p.isOnline()) r.run();
         }, ticks);

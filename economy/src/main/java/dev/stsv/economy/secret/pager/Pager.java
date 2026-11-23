@@ -103,6 +103,8 @@ public final class Pager extends Secret {
     private final Device device = new Device(this);
     private final House house;
     private final Paging paging = new Paging(this);
+    /** 후속 임무 「호출」: after the end, a number from the grown daughter about once a week ({@link PagerSequel}). */
+    private final PagerSequel sequel = new PagerSequel(this);
     private final Map<UUID, Beep> beeps = new HashMap<>();
     /** player -> since when the pager has not been on them */
     private final Map<UUID, Long> without = new HashMap<>();
@@ -168,6 +170,20 @@ public final class Pager extends Secret {
 
     YamlConfiguration cfg() {
         return cfg;
+    }
+
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
+    }
+
+    Device device() {
+        return device;
+    }
+
+    /** The live pager paged a name that is nobody online: hers, while one of her calls is open ({@link PagerSequel#paged}). */
+    boolean herPage(Player p, String name, String digits) {
+        return sequel.paged(p, name, digits);
     }
 
     org.bukkit.plugin.Plugin plugin() {

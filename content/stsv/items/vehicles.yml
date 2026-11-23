@@ -916,7 +916,7 @@ racer_coupe:
     # 튜닝카보다 가볍게: 더 빨리 가속하고 더 잘 서고 더 민첩하게 돎. 미끄러짐은 튜닝카와 로드스터 사이
     drift: { angle: 36, min-speed: 5, build: 120, recover: 140, turn: 1.6, drag: 1.3 }
     reverse-speed: 4
-    acceleration: 7.5
+    acceleration: 6.8
     brake: 14
     coast: 2.5
     turn-rate: 88

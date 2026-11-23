@@ -7,6 +7,7 @@ import dev.stsv.economy.guide.GuideSpec;
 import dev.stsv.economy.secret.Memory;
 import dev.stsv.economy.secret.Secret;
 import dev.stsv.economy.secret.SecretModule;
+import dev.stsv.economy.secret.Sequel;
 import dev.stsv.economy.util.Items;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -124,8 +125,16 @@ public final class Usher extends Secret {
     private BukkitTask task;
     private long ticks;
 
+    /** 후속 임무 「윤해담의 부탁」 */
+    private final UsherSequel sequel = new UsherSequel(this);
+
     public Usher(SecretModule m) {
         super(m);
+    }
+
+    @Override
+    public Sequel sequel() {
+        return sequel;
     }
 
     @Override
@@ -154,6 +163,10 @@ public final class Usher extends Secret {
     // settings and words
     // ------------------------------------------------------------------------------------------
 
+    int cfgInt(String key, int def) {
+        return cfg.getInt(key, def);
+    }
+
     private String line(String key, String def) {
         return cfg.getString("lines." + key, def);
     }
@@ -168,7 +181,7 @@ public final class Usher extends Secret {
         return s == null || s.isBlank() ? eco.getConfig().getString("guide.npc-skin") : s;
     }
 
-    private Pictures pictures() {
+    Pictures pictures() {
         if (pictures == null) {
             String w = cfg.getString("worker-skin", "");
             if (w == null || w.isBlank()) w = eco.getConfig().getString("guide.passenger-skin");
@@ -190,7 +203,7 @@ public final class Usher extends Secret {
         return order;
     }
 
-    private World guideWorld() {
+    World guideWorld() {
         GuideModule g = eco.guide();
         return g == null ? null : g.guideWorld();
     }
@@ -205,14 +218,14 @@ public final class Usher extends Secret {
     }
 
     /** The 안내원 speaking to them (a chat line only they see) with a soft sound from where it stands. */
-    private void speak(Player p, String line, Location from) {
+    void speak(Player p, String line, Location from) {
         p.sendMessage(Text.mm(cfg.getString("speaker", "<gold>길라잡이 안내원") + " <dark_gray>»</dark_gray> <white>" + line));
         Location at = from == null ? p.getLocation() : from;
         if (at.getWorld() == p.getWorld()) p.playSound(at, Sound.BLOCK_NOTE_BLOCK_HAT, SoundCategory.AMBIENT, 0.35f, 0.6f);
     }
 
     /** Its own name (usher.yml name), and "이에요"/"예요" fitted to it: {name}, {이에요}. */
-    private String named(String l) {
+    String named(String l) {
         String n = cfg.getString("name", "윤해담");
         return l.replace("{name}", esc(n)).replace("{이에요}", UsherPlan.copula(n));
     }
@@ -503,6 +516,11 @@ public final class Usher extends Secret {
 
     /** Into the 체험관 (a blink of black), at the plaza. */
     private void enter(Player p, boolean first) {
+        enter(p, first ? line("arrive", "<gray>체험관이… 조금 조용하다. 아무도 없다.") : line("arrive-again", "<gray>…다시 체험관이다."));
+    }
+
+    /** The same way in, with the line they read on arriving (the 후속 임무 comes in through here too: {@link UsherSequel}). */
+    void enter(Player p, String arrive) {
         GuideModule g = eco.guide();
         World w = guideWorld();
         if (g == null || w == null) {
@@ -522,8 +540,7 @@ public final class Usher extends Secret {
                 q.sendMessage(Text.mm(line("busy", "<dark_gray>안내원이 당신 너머 어딘가를 본다. (지금은 체험관에 들어갈 수 없어요)")));
                 return;
             }
-            m.haunt().whisper(q, first ? line("arrive", "<gray>체험관이… 조금 조용하다. 아무도 없다.")
-                    : line("arrive-again", "<gray>…다시 체험관이다."));
+            m.haunt().whisper(q, arrive);
         }, 20L);
     }
 
@@ -534,6 +551,7 @@ public final class Usher extends Secret {
     @Override
     public void tick() {
         ticks++;
+        sequel.beat();   // the 후속 임무's one picture (the framework does not tick someone inside the 체험관)
         if (task == null || task.isCancelled()) task = Bukkit.getScheduler().runTaskTimer(eco, this::frame, 2L, 2L);
         World gw = guideWorld();
         boolean roomWanted = false;

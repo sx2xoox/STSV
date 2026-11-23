@@ -41,13 +41,22 @@ class SportFeelTest {
         assertEquals(2, car.seats().size(), "two seats");
         assertNull(car.cargo(), "no bed, no boot");
         assertNull(car.train());
+        // 미완의 질주 (the hidden secret's car): a little faster and quicker than the 튜닝카, never past the roadster
+        YamlConfiguration vy = YamlConfiguration.loadConfiguration(PACK.resolve("items/vehicles.yml").toFile());
+        VehicleSpec racer = VehicleSpec.parse(vy.getConfigurationSection("racer_coupe.vehicle"), "stsv", m -> true),
+                tuner = VehicleSpec.parse(vy.getConfigurationSection("tuner_car.vehicle"), "stsv", m -> true);
+        assertTrue(racer.extras().overCap() && racer.speed() > tuner.speed() && racer.speed() < car.speed(), "racer_coupe speed " + racer.speed());
+        assertTrue(racer.acceleration() > tuner.acceleration() && racer.acceleration() < car.acceleration(), "racer_coupe acceleration");
+        assertEquals(2, racer.seats().size());
+        assertNull(racer.cargo());
         // every other driven vehicle stays under the server's cap
         for (String file : List.of("vehicles.yml", "vehicles_road.yml", "vehicles_farm.yml", "vehicles_misc.yml")) {
             YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("items/" + file).toFile());
             for (String id : y.getKeys(false)) {
                 ConfigurationSection s = y.getConfigurationSection(id + ".vehicle");
                 if (s == null || id.equals("sports_car") || id.equals("tuner_car") || id.equals("hyper_car") || id.equals("phantom_gt")
-                        || id.equals("classic_roadster") || id.equals("muscle_car") || id.equals("concept_ev")) continue;   // the fast cars (쇼케이스 팬텀 GT, 후원 차 3대 too)
+                        || id.equals("classic_roadster") || id.equals("muscle_car") || id.equals("concept_ev")
+                        || id.equals("racer_coupe")) continue;   // the fast cars (쇼케이스 팬텀 GT, 후원 차 3대, 숨은 비밀의 미완의 질주 too)
                 VehicleSpec v = VehicleSpec.parse(s, "stsv", m -> true);
                 assertFalse(v.extras().overCap(), id);
                 assertTrue(v.acceleration() < car.acceleration(), id + " gets going slower than the sports car");

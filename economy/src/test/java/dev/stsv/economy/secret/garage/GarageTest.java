@@ -191,7 +191,7 @@ class GarageTest {
         assertEquals("racer_coupe", y.getString("car.body"));
         assertEquals("wheel_racer", y.getString("car.wheel"));
         assertEquals("racer_coupe_lamp_head", y.getString("car.lamp"));
-        assertFalse(Files.readString(PACK.resolve("secrets/garage.yml")).replaceAll("(?m)^\\s*#.*$", "").contains("tuner_car.engine"), "its own engine sound");
+        assertEquals("stsv:vehicle.racer_coupe.engine_start", y.getString("drive.start-sound"), "its own engine");
         List<String> first = new ArrayList<>();
         for (String id : PAINTS) if (!y.getBoolean("options.paints." + id + ".added")) first.add(id);
         assertEquals(FIRST_PAINTS, first, "only purple was added after the first version");

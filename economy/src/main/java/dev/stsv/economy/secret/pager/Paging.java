@@ -94,6 +94,14 @@ final class Paging {
             return;
         }
         Player to = Players.online(page.name());
+        if ((to == null || !p.canSee(to)) && s.herPage(p, page.name(), page.digits())) {
+            // the follow-up: no such player, but the daughter is waiting on one of her calls — it reaches her (and nobody else)
+            typing.remove(u);
+            last.put(u, System.currentTimeMillis());
+            p.sendMessage(Text.mm(s.text("page.lines.sent", "<dark_gray>…{digits}. 보냈다.").replace("{digits}", page.digits())));
+            s.sound(p, p.getLocation(), s.text("beep.sound", "block.note_block.bit"), 0.4f, 1.9f);
+            return;
+        }
         if (to == null || !p.canSee(to)) {   // (someone hidden from them is not there, as far as they can tell)
             say(p, "nobody", "<dark_gray>…신호가 가지 않는다. 그런 사람은 지금 없다.");
             say(p, "retry", "<gray>(방금 친 말은 채팅에 나가지 않았어요. 다시 치거나, 그만두려면 취소)");
