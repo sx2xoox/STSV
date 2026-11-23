@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -70,6 +71,8 @@ final class House {
     private final Pager s;
     private final EcoPlugin eco;
     private final Map<UUID, Shown> shown = new HashMap<>();
+    /** anchor and seed -> when the rings already loaded were all looked at in vain (the next, further ring was not loaded) */
+    private final Map<String, Long> searched = new HashMap<>();
 
     House(Pager s, EcoPlugin eco) {
         this.s = s;
@@ -381,17 +384,25 @@ final class House {
         return true;
     }
 
-    /** The top of the ground in a column near a height (full, solid blocks only: not a slab, a fence, leaves), or MIN_VALUE. */
+    /**
+     * The top of the dry ground in a column near a height ({@link Dry}: a full, solid, dry block with three open blocks
+     * over it, no water, lava or ice on the way down), or MIN_VALUE.
+     */
     static int ground(World w, int x, int z, int around) {
-        int top = Math.min(w.getMaxHeight() - 2, around + 8), low = Math.max(w.getMinHeight(), around - 8);
-        for (int y = top; y >= low; y--) {
-            Block b = w.getBlockAt(x, y, z);
-            Material t = b.getType();
-            if (!t.isSolid() || !t.isOccluding() || Tag.LEAVES.isTagged(t) || Tag.LOGS.isTagged(t)) continue;
-            Block up = b.getRelative(0, 1, 0);
-            return up.isPassable() && !up.isLiquid() ? y + 1 : Integer.MIN_VALUE;
-        }
-        return Integer.MIN_VALUE;
+        int y = Dry.ground(Dry.world(w), x, z, Math.min(w.getMaxHeight() - 4, around + 8), Math.max(w.getMinHeight(), around - 8));
+        return Dry.found(y) ? y : Integer.MIN_VALUE;
+    }
+
+    /**
+     * Whether a house front standing here (the middle of its gate on the ground at {@code base}, facing yaw) is on dry
+     * ground, every column of it. Null when it is, else why not (in words). The land must be loaded.
+     */
+    static String dry(Location base, float yaw) {
+        World w = base.getWorld();
+        int y = base.getBlockY();
+        Dry.Check c = Dry.footprint(Dry.world(w), Dry.house(base.getBlockX(), base.getBlockZ(), yaw),
+                Math.min(w.getMaxHeight() - 4, y + 8), Math.max(w.getMinHeight(), y - 8));
+        return Dry.why(c);
     }
 
     /**
@@ -446,31 +457,58 @@ final class House {
         return gy;
     }
 
+    /** {@link #locate}'s answer when all the land around was looked at and none of it is dry. */
+    static final Location NOWHERE = new Location(null, 0, 0, 0);
+
     /**
-     * A place for the house near an anchor (a stop's shelter; (nx, nz) points away from the road): 10 to 24 blocks from
-     * it on its own side, on free level ground, its gate facing back towards the road. The same search order for the
-     * same seed. Null when the land around is not loaded yet (ask again when they are nearer).
+     * A place for the house near an anchor (a stop's shelter; (nx, nz) points away from the road), its gate facing back
+     * towards the road, its whole front on dry ground ({@link Dry}), level, no road, nobody's land. Looked for further
+     * and further: 10 to 24 blocks behind the stop, then up to 42 behind it and 30 to either hand; {@code around} (the
+     * spawn, which has no road) also on the other three sides, up to 48 out. Level ground first at each reach, then a
+     * block up or down. The same search order for the same seed. Null when the land to look at next is not loaded yet
+     * (ask again when they are nearer); {@link #NOWHERE} when all of it was looked at and nowhere is dry.
      */
-    Location locate(World w, double ax, int ay, double az, double nx, double nz, long seed) {
-        if (!loaded(w, ax, az, 34)) return null;
-        float yaw = quarter(-nx, -nz);
-        List<int[]> spots = new ArrayList<>();
-        for (int out = 10; out <= 22; out += 2)
-            for (int along = -12; along <= 12; along += 3) {
-                double d = Math.hypot(out, along);
-                if (d < 10 || d > 24) continue;
-                spots.add(new int[] {(int) Math.floor(ax + nx * out - nz * along), (int) Math.floor(az + nz * out + nx * along)});
+    Location locate(World w, double ax, int ay, double az, double nx, double nz, long seed, boolean around) {
+        List<double[]> dirs = new ArrayList<>();
+        dirs.add(new double[] {nx, nz});
+        int[][] reach = around ? new int[][] {{24, 12}, {42, 30}, {48, 48}} : new int[][] {{24, 12}, {42, 30}};
+        Set<String> tried = new HashSet<>();
+        String key = w.getName() + " " + Math.round(ax) + " " + Math.round(az) + " " + seed;
+        Long nearFailed = searched.get(key);
+        int from = nearFailed != null && System.currentTimeMillis() - nearFailed < 120_000L ? 1 : 0;   // (the near ring was all looked at: not again yet)
+        for (int stage = 0; stage < reach.length; stage++) {
+            if (stage == 2) {
+                dirs.add(new double[] {-nx, -nz});
+                dirs.add(new double[] {-nz, nx});
+                dirs.add(new double[] {nz, -nx});
             }
-        Collections.shuffle(spots, new Random(seed));
-        for (boolean strict : new boolean[] {true, false}) {
-            for (int[] c : spots) {
-                int gy = fits(w, c[0], c[1], ay, yaw, strict);
-                if (gy != Integer.MIN_VALUE) return new Location(w, c[0] + 0.5, gy, c[1] + 0.5, yaw, 0);
+            int far = reach[stage][0], wide = reach[stage][1];
+            if (!loaded(w, ax, az, Math.max(far, wide) + 10)) {
+                if (stage > 0) searched.put(key, System.currentTimeMillis());
+                return null;
+            }
+            boolean skip = stage < from;
+            for (int k = 0; k < dirs.size(); k++) {
+                double[] d = dirs.get(k);
+                float yaw = quarter(-d[0], -d[1]);
+                List<int[]> spots = new ArrayList<>();
+                for (int out = 10; out <= (stage == 0 ? 22 : far); out += stage == 0 ? 2 : 3)
+                    for (int along = -wide; along <= wide; along += 3) {
+                        double dist = Math.hypot(out, along);
+                        if (dist < 10 || dist > far + 0.5) continue;
+                        int x = (int) Math.floor(ax + d[0] * out - d[1] * along), z = (int) Math.floor(az + d[1] * out + d[0] * along);
+                        if (tried.add(x + " " + z + " " + yaw) && !skip) spots.add(new int[] {x, z});
+                    }
+                Collections.shuffle(spots, new Random(seed + stage * 31L + k));
+                for (boolean strict : new boolean[] {true, false}) {
+                    for (int[] c : spots) {
+                        int gy = fits(w, c[0], c[1], ay, yaw, strict);
+                        if (gy != Integer.MIN_VALUE) return new Location(w, c[0] + 0.5, gy, c[1] + 0.5, yaw, 0);
+                    }
+                }
             }
         }
-        // nowhere level: straight behind the stop, on whatever ground there is
-        int x = (int) Math.floor(ax + nx * 12), z = (int) Math.floor(az + nz * 12);
-        int gy = ground(w, x, z, ay);
-        return new Location(w, x + 0.5, gy == Integer.MIN_VALUE ? ay : gy, z + 0.5, yaw, 0);
+        searched.remove(key);
+        return NOWHERE;   // never on whatever there is: it stands somewhere else
     }
 }

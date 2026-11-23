@@ -2,7 +2,6 @@ package dev.stsv.economy.secret.jesa;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -11,30 +10,30 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
- * The rite table of 주인 없는 제사 as pure data: 5 rows of 9 places (row 0 nearest the folding screen, which stands on the
- * north; column 0 is the west end, column 8 the east end — the one who bows stands on the south, so east is their right
- * hand), what lies where ("economy:rice" …), and the judging by the real rules of a 제사상:
+ * The rite table of 주인 없는 제사 as pure data: 5 rows of 3 vessels (row 0 nearest the folding screen, which stands on
+ * the north; column 0 is the west vessel, 1 the middle, 2 the east — the one who bows stands on the south, so west is their
+ * left hand and east their right), what lies on each ("economy:rice" …), and the judging by the real rules of a 제사상:
  * <ol>
- * <li>row 0, 메 · 갱 · 잔: rice west, soup east (반서갱동), liquor anywhere;</li>
+ * <li>row 0, 메 · 잔 · 갱: rice west, soup east (반서갱동), the liquor in the cup between them (the middle vessel is the cup);</li>
  * <li>row 1, 적 · 전: meat west, fish east (어동육서), a 전 between them;</li>
  * <li>row 2, 탕: a soup, not one already in row 0, no soup twice;</li>
  * <li>row 3, 포 · 나물 · 혜: dried fish west, 식혜 east (좌포우혜), 나물 between if any;</li>
  * <li>row 4, 과일: pale fruit west, red fruit east (홍동백서), rice cakes and the like between if any.</li>
  * </ol>
  * Anything taboo (chili, garlic, a fish whose name ends in 치, red beans) is wrong wherever it lies, and so is anything
- * that has no business in its row. Nothing here touches the server (unit-tested).
+ * that has no business in its row. Nothing here touches the server (unit-tested); where the vessels stand is {@link Vessel}.
  */
 final class Table {
 
-    static final int COLS = 9, ROWS = 5, SLOTS = COLS * ROWS;
+    static final int COLS = 3, ROWS = 5, SLOTS = COLS * ROWS;
     /**
-     * The middle column. With {@link Rules#halves} a west thing lies in 0..4 and an east thing in 4..8: the middle place
-     * belongs to neither half, so whichever stands on it is judged by its neighbour alone (rice on 4 with the soup on 5 is
-     * rice west of soup; a table gives no reason when a dish rolls off, so a right pair one place off-centre must not).
+     * The middle vessel. With {@link Rules#halves} a west thing never lies on the east vessel nor an east thing on the west
+     * one; the middle belongs to neither side, so whatever stands on it is judged by its neighbour alone (meat in the middle
+     * with the fish east of it is still meat west of fish). Row 0's middle is the cup: only liquor goes there.
      */
-    static final int MID = 4;
-    /** Where a missing dish is pointed at: the west side, the middle, the east side of its row. */
-    static final int WEST_AT = 2, EAST_AT = 6;
+    static final int MID = 1;
+    /** Where a missing dish is pointed at: the west vessel, the middle, the east vessel of its row. */
+    static final int WEST_AT = 0, EAST_AT = 2;
 
     private Table() {}
 
@@ -149,26 +148,33 @@ final class Table {
             if (r.taboo.contains(e.getValue())) wrong.add(s);
             else rows.get(row(s)).put(col(s), e.getValue());
         }
-        sides(0, rows.get(0), r.rice, r.soup, Set.of(), r.liquor, false, true, r.halves, wrong, missing);
-        sides(1, rows.get(1), r.meat, r.fish, r.jeon, Set.of(), true, false, r.halves, wrong, missing);
+        sides(0, rows.get(0), r.rice, r.soup, r.liquor, true, true, r.halves, wrong, missing);
+        sides(1, rows.get(1), r.meat, r.fish, r.jeon, true, false, r.halves, wrong, missing);
         soups(rows.get(0), rows.get(2), r, wrong, missing);
-        sides(3, rows.get(3), r.dried, r.sikhye, r.namul, Set.of(), false, false, r.halves, wrong, missing);
-        sides(4, rows.get(4), r.pale, r.red, r.cake, Set.of(), false, false, r.halves, wrong, missing);
+        sides(3, rows.get(3), r.dried, r.sikhye, r.namul, false, false, r.halves, wrong, missing);
+        sides(4, rows.get(4), r.pale, r.red, r.cake, false, false, r.halves, wrong, missing);
         return new Verdict(wrong, missing);
     }
 
     /**
-     * A row with a west kind and an east kind (both owed), things that go between them (owed when needBetween) and things
-     * that may lie anywhere in it (owed when needFree).
+     * A row with a west kind and an east kind (both owed) and things that go between them (owed when needBetween). cup: the
+     * middle vessel takes only the between kind, and the between kind goes nowhere else (row 0: the liquor in its cup).
      */
-    private static void sides(int row, Map<Integer, String> cells, Set<String> west, Set<String> east, Set<String> between, Set<String> free,
-                              boolean needBetween, boolean needFree, boolean halves, Set<Integer> wrong, List<Integer> missing) {
+    private static void sides(int row, Map<Integer, String> cells, Set<String> west, Set<String> east, Set<String> between,
+                              boolean needBetween, boolean cup, boolean halves, Set<Integer> wrong, List<Integer> missing) {
         List<Integer> w = new ArrayList<>(), e = new ArrayList<>(), b = new ArrayList<>();
-        boolean anyWest = false, anyEast = false, anyBetween = false, anyFree = false;
+        boolean anyWest = false, anyEast = false, anyBetween = false;
         for (Map.Entry<Integer, String> c : cells.entrySet()) {
             int col = c.getKey();
             String k = c.getValue();
-            boolean isW = west.contains(k), isE = east.contains(k);
+            boolean isW = west.contains(k), isE = east.contains(k), isB = between.contains(k);
+            if (cup && (col == MID) != isB) {   // something else in the cup, or the liquor out of it
+                if (isW) anyWest = true;
+                else if (isE) anyEast = true;
+                else if (isB) anyBetween = true;
+                wrong.add(slot(row, col));
+                continue;
+            }
             if (isW && isE) {   // named on both sides: at home on either
                 anyWest = anyEast = true;
             } else if (isW) {
@@ -179,11 +185,9 @@ final class Table {
                 anyEast = true;
                 if (halves && col < MID) wrong.add(slot(row, col));
                 else e.add(col);
-            } else if (free.contains(k)) {
-                anyFree = true;
-            } else if (between.contains(k)) {
+            } else if (isB) {
                 anyBetween = true;
-                b.add(col);
+                if (!cup) b.add(col);
             } else wrong.add(slot(row, col));   // no business in this row
         }
         // the order itself: nothing of the west east of something of the east
@@ -196,7 +200,7 @@ final class Table {
         for (int col : e) if (!wrong.contains(slot(row, col))) hi = Math.min(hi, col);
         for (int col : b) if (col <= lo || col >= hi) wrong.add(slot(row, col));
         if (!anyWest) missing.add(slot(row, WEST_AT));
-        if (needBetween && !anyBetween || needFree && !anyFree) missing.add(slot(row, MID));
+        if (needBetween && !anyBetween) missing.add(slot(row, MID));
         if (!anyEast) missing.add(slot(row, EAST_AT));
     }
 
@@ -247,75 +251,5 @@ final class Table {
     private static String first(Set<String> of, String not) {
         for (String s : of) if (!s.equals(not)) return s;
         return of.isEmpty() ? null : of.iterator().next();
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // the remembered layout
-    // ------------------------------------------------------------------------------------------
-
-    /** "2=economy:rice;4=economy:cheongju": place -> item id, in place order. */
-    static String encode(Map<Integer, String> layout) {
-        StringBuilder b = new StringBuilder();
-        for (Map.Entry<Integer, String> e : new TreeMap<>(layout).entrySet()) {
-            if (e.getKey() < 0 || e.getKey() >= SLOTS || e.getValue() == null || e.getValue().isBlank()) continue;
-            if (!b.isEmpty()) b.append(';');
-            b.append(e.getKey()).append('=').append(e.getValue());
-        }
-        return b.toString();
-    }
-
-    /** The inverse of {@link #encode}; whatever does not read is left out. */
-    static Map<Integer, String> decode(String saved) {
-        Map<Integer, String> out = new TreeMap<>();
-        if (saved == null || saved.isBlank()) return out;
-        for (String part : saved.split(";")) {
-            int eq = part.indexOf('=');
-            if (eq <= 0 || eq == part.length() - 1) continue;
-            try {
-                int slot = Integer.parseInt(part.substring(0, eq).trim());
-                if (slot >= 0 && slot < SLOTS) out.put(slot, part.substring(eq + 1).trim());
-            } catch (NumberFormatException ignored) {
-                // a broken entry: that place is simply empty
-            }
-        }
-        return out;
-    }
-
-    /** How many of each item a layout takes. */
-    static Map<String, Integer> needs(Map<Integer, String> layout) {
-        Map<String, Integer> out = new LinkedHashMap<>();
-        for (String k : layout.values()) out.merge(k, 1, Integer::sum);
-        return out;
-    }
-
-    /** What a layout takes that is not there (have: item id -> how many they carry); empty = everything is in hand. */
-    static Map<String, Integer> lacking(Map<Integer, String> layout, Map<String, Integer> have) {
-        Map<String, Integer> out = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> e : needs(layout).entrySet()) {
-            int short_ = e.getValue() - have.getOrDefault(e.getKey(), 0);
-            if (short_ > 0) out.put(e.getKey(), short_);
-        }
-        return out;
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // where a place is on the table in the world
-    // ------------------------------------------------------------------------------------------
-
-    /** Between two dishes of a row, and between two rows (blocks). */
-    static final double STEP_X = 0.27, STEP_Z = 0.235, FIRST_Z = -0.40;
-
-    /**
-     * A place's spot from the table's middle: {east (+x), south (+z)} in blocks. Column 0 is the west end and row 0 the
-     * north end (by the screen), so the table reads in the world as it does in the window.
-     */
-    static double[] at(int slot) {
-        return new double[]{(col(slot) - MID) * STEP_X, FIRST_Z + row(slot) * STEP_Z};
-    }
-
-    /** Which way a dish at this place rolls off the table: -1 over the west edge, +1 over the east edge. */
-    static int rollTo(int slot) {
-        int c = col(slot);
-        return c < MID ? -1 : c > MID ? 1 : row(slot) % 2 == 0 ? -1 : 1;
     }
 }

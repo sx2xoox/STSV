@@ -119,6 +119,10 @@ public final class Pager extends Secret {
     private final Map<UUID, Long> settling = new HashMap<>();
     /** player -> when their house was last looked for again because its place was built over */
     private final Map<UUID, Long> repicked = new HashMap<>();
+    /** player -> when no dry ground was found anywhere around the spawn (looked for again ten minutes later) */
+    private final Map<UUID, Long> noDry = new HashMap<>();
+    /** players whose admin-placed house stands on ground that is not dry (said once on the console) */
+    private final Set<UUID> warnedWet = new HashSet<>();
     private long beats;
     private double chance = 0.00005;
     private int maxY;
@@ -371,10 +375,12 @@ public final class Pager extends Secret {
     /** Forgets how far they were (not that they are too late, nor the day it last beeped). */
     private void forget(UUID u) {
         kvRemove(u, "found", "stop", "stop-name", "tape", "anchor", "house", "fixed", "msgs", "clock", "ph", "at", "deadline", "left", "until",
-                "idx", "dark", "refused", "force", "ending");
+                "idx", "dark", "refused", "force", "ending", "skip", "nodry");
         gates.remove(u);
         nextRush.remove(u);
         repicked.remove(u);
+        noDry.remove(u);
+        warnedWet.remove(u);
     }
 
     @Override
@@ -420,11 +426,15 @@ public final class Pager extends Secret {
 
     /**
      * Chooses this player's stop (always the same one for them: among those far enough from where the pager lay) and
-     * writes the tape. No stops at all: the main world's spawn, "마을 어귀". The house's own spot is found when they come near.
+     * writes the tape. Stops with no dry ground around them (looked at once, "skip") are passed over: the next one is
+     * chosen the same way among the rest. No stops at all (or none left): the main world's spawn, "마을 어귀". The house's
+     * own spot is found when they come near.
      */
     private void decide(Player p, Location found) {
         UUID u = p.getUniqueId();
-        List<BusStop> all = stops(), far = new ArrayList<>();
+        Set<String> skip = skipped(u);
+        List<BusStop> all = new ArrayList<>(), far = new ArrayList<>();
+        for (BusStop s : stops()) if (!skip.contains(String.valueOf(s.id()))) all.add(s);
         double min = cfg.getDouble("house.min-from-found", 200);
         for (BusStop s : all)
             if (found == null || !s.world().equals(found.getWorld().getName()) || Math.hypot(s.x() - found.getX(), s.z() - found.getZ()) >= min) far.add(s);
@@ -446,6 +456,14 @@ public final class Pager extends Secret {
         }
         kvRemove(u, "house");
         gates.remove(u);
+    }
+
+    /** The stops passed over for this player: no dry ground anywhere around them. */
+    private Set<String> skipped(UUID u) {
+        String v = kv(u, "skip");
+        Set<String> out = new HashSet<>();
+        if (v != null) for (String x : v.split(",")) if (!x.isBlank()) out.add(x.trim());
+        return out;
     }
 
     private Location found(UUID u) {
@@ -498,7 +516,7 @@ public final class Pager extends Secret {
             if (!again && stop != null && !stop.equals("-")) {
                 BusStop s = stops().stream().filter(x -> String.valueOf(x.id()).equals(stop)).findFirst().orElse(null);
                 Location a = place(anchor);
-                again = s == null || !tape(s).equals(kv(u, "tape")) || Math.hypot(behind(s)[0] - a.getX(), behind(s)[1] - a.getZ()) > 8;
+                again = s == null || skipped(u).contains(stop) || !tape(s).equals(kv(u, "tape")) || Math.hypot(behind(s)[0] - a.getX(), behind(s)[1] - a.getZ()) > 8;
             }
             if (again) {
                 decide(p, found(u));
@@ -517,14 +535,35 @@ public final class Pager extends Secret {
         } catch (NumberFormatException e) {
             return;
         }
-        Location at = house.locate(a.getWorld(), a.getX(), a.getBlockY(), a.getZ(), nx, nz, u.getMostSignificantBits() ^ u.getLeastSignificantBits());
-        if (at != null) setGate(u, at, false);
+        boolean spawn = stop == null || stop.equals("-");
+        Long dryAt = noDry.get(u);
+        if (spawn && dryAt != null && System.currentTimeMillis() - dryAt < 600_000L) return;   // nothing dry there ten minutes ago
+        Location at = house.locate(a.getWorld(), a.getX(), a.getBlockY(), a.getZ(), nx, nz, u.getMostSignificantBits() ^ u.getLeastSignificantBits(), spawn);
+        if (at == null) return;
+        if (at != House.NOWHERE) {
+            setGate(u, at, false);
+            noDry.remove(u);
+            kvRemove(u, "nodry");
+            return;
+        }
+        // nowhere dry around it: never on the water. Another stop (the tape is written again), at last the spawn
+        if (!spawn) {
+            String skip = kv(u, "skip");
+            kvSet(u, "skip", skip == null || skip.isBlank() ? stop : skip + "," + stop);
+            eco.getLogger().info("[비밀] 삐삐: " + p.getName() + " 의 정류장 " + kv(u, "stop-name") + " 뒤에 마른 땅이 없어 다른 정류장으로 정함");
+            decide(p, found(u));
+            device.refresh(p, null);
+            return;
+        }
+        noDry.put(u, System.currentTimeMillis());
+        if (kv(u, "nodry") == null) eco.getLogger().warning("[비밀] 삐삐: " + p.getName() + " 의 집을 세울 마른 땅이 스폰 둘레(48칸)에도 없음. 10분마다 다시 찾음 (`연출 삐삐 집` 으로 직접 세울 수 있음)");
+        kvSet(u, "nodry", 1);
     }
 
     /**
-     * Their house's place was built over since it was chosen (the gate, the basket or the mailbox is inside a block): it
-     * is looked for again, at most once in ten minutes (if nowhere is better, it stands where it stood). True when the
-     * house is not to be shown at the old place now.
+     * Their house's place was built over since it was chosen (the gate, the basket or the mailbox is inside a block), or
+     * its ground is no longer dry: it is looked for again, at most once in ten minutes (if nowhere is better, it stands
+     * where it stood). True when the house is not to be shown at the old place now.
      */
     private boolean repick(Player p, Location old) {
         UUID u = p.getUniqueId();
@@ -561,14 +600,33 @@ public final class Pager extends Secret {
             Location at = house.where(u);
             boolean moved = at == null || !at.getWorld().equals(g.getWorld()) || at.distanceSquared(g) > 0.01;
             if (house.preview(u) || moved) {
-                if (ready(p, g, show)) house.show(p, g, g.getYaw(), light(u, st), false);
+                if (ready(p, g, show) && standsHere(p, g)) house.show(p, g, g.getYaw(), light(u, st), false);
                 else stray(p);
             } else if (!within(p, g, show + 8)) house.hide(u);
             else house.light(u, light(u, st));
-        } else if (ready(p, g, show)) {
-            if (House.blocked(g, g.getYaw()) && repick(p, g)) return;   // built over: it stands somewhere else from the next beat
+        } else if (ready(p, g, show) && standsHere(p, g)) {
             house.show(p, g, g.getYaw(), light(u, st), false);
         }
+    }
+
+    /**
+     * Whether the house may be shown at its kept place now (the land there is loaded). Its ground must be dry, every
+     * column (else it is looked for again, and until then not shown: never over water); an admin's own place stays, with
+     * a word on the console. Built over since: looked for again (or, at most once in ten minutes, it stays).
+     */
+    private boolean standsHere(Player p, Location g) {
+        UUID u = p.getUniqueId();
+        String wet = House.dry(g, g.getYaw());
+        if (wet != null) {
+            if (kv(u, "fixed") != null) {
+                if (warnedWet.add(u)) eco.getLogger().warning("[비밀] 삐삐: 관리자가 정한 " + p.getName() + " 의 집 자리(" + kv(u, "house")
+                        + ")가 마른 땅이 아님: " + wet + ". 그대로 둠 (`연출 삐삐 집` 으로 옮길 것)");
+                return true;
+            }
+            repick(p, g);
+            return false;
+        }
+        return !(House.blocked(g, g.getYaw()) && repick(p, g));   // built over: it stands somewhere else from the next beat
     }
 
     /** Near enough to see the house, and the land it stands on is loaded (showing it loads nothing). */
@@ -1181,6 +1239,8 @@ public final class Pager extends Secret {
         testers.remove(u);
         settling.remove(u);
         repicked.remove(u);
+        noDry.remove(u);
+        warnedWet.remove(u);
         beeps.remove(u);
         house.hide(u);
         without.remove(u);
@@ -1269,8 +1329,11 @@ public final class Pager extends Secret {
         String stop = kv(u, "stop-name"), tape = kv(u, "tape");
         out.add("정류장 " + (stop == null ? "(없음: 스폰)" : stop) + (tape == null ? "" : " “" + tape + "”"));
         String h = kv(u, "house"), a = kv(u, "anchor");
-        out.add(h != null ? "집 " + h + (house.showing(u) ? " (보이는 중)" : "") : "집 미정 (정류장 뒤 " + (a == null ? "?" : a.split(" ").length > 3 ? a.split(" ")[1] + " " + a.split(" ")[3] : a)
-                + " 근처에 오면 정해짐)");
+        out.add(h != null ? "집 " + h + (house.showing(u) ? " (보이는 중)" : "") + (kv(u, "fixed") != null ? " (관리자가 정함)" : "")
+                : kv(u, "nodry") != null ? "집 미정: 스폰 둘레에도 집을 세울 마른 땅이 없음 (10분마다 다시 찾음)"
+                : "집 미정 (정류장 뒤 " + (a == null ? "?" : a.split(" ").length > 3 ? a.split(" ")[1] + " " + a.split(" ")[3] : a) + " 근처에 오면 정해짐)");
+        Set<String> skip = skipped(u);
+        if (!skip.isEmpty()) out.add("마른 땅이 없어 건너뛴 정류장 " + skip.size() + "곳");
         if (st >= 2 && st <= 5) {
             String ph = ph(u);
             long at = at(u);
@@ -1309,6 +1372,12 @@ public final class Pager extends Secret {
         Location at = l.clone().add(d.multiply(6));
         int gy = House.ground(at.getWorld(), at.getBlockX(), at.getBlockZ(), l.getBlockY());
         return new Location(at.getWorld(), at.getBlockX() + 0.5, gy == Integer.MIN_VALUE ? l.getBlockY() : gy, at.getBlockZ() + 0.5, yaw, 0);
+    }
+
+    /** Why a house front cannot stand at {@link #ahead} (null: it can): its ground must be loaded and dry, every column. */
+    private static String unfit(Location at) {
+        if (!House.loaded(at.getWorld(), at.getX(), at.getZ(), 6)) return "그 자리 땅이 아직 불러와지지 않았어요";
+        return House.dry(at, at.getYaw());
     }
 
     /** A message as a look only: on the screen of the pager they carry (not saved), the beep, the shaking. */
@@ -1359,9 +1428,17 @@ public final class Pager extends Secret {
             }
             case "집" -> {
                 Location at = ahead(p);
+                String bad = unfit(at);
+                if (bad != null) {
+                    admin.sendMessage(Text.mm("<red>[삐삐] 여기에는 집을 세울 수 없어요: " + bad + " <gray>(보는 쪽 6칸 앞이 집 대문 자리)"));
+                    return true;
+                }
                 int st = stage(u);
                 if (st >= 1 && st <= LAST) {   // their own house, moved here for good
                     setGate(u, at.clone().subtract(0.5, 0, 0.5), true);
+                    warnedWet.remove(u);
+                    noDry.remove(u);
+                    kvRemove(u, "nodry");
                     house.hide(u);
                     note = " (이 사람의 집을 여기로 옮김)";
                 } else {
@@ -1387,6 +1464,11 @@ public final class Pager extends Secret {
                 if (house.ending(u)) return true;
                 if (!house.showing(u)) {
                     Location at = ahead(p);
+                    String bad = unfit(at);
+                    if (bad != null) {
+                        admin.sendMessage(Text.mm("<red>[삐삐] 여기에는 집을 세울 수 없어요: " + bad + " <gray>(보는 쪽 6칸 앞이 집 대문 자리)"));
+                        return true;
+                    }
                     house.show(p, at, at.getYaw(), House.Light.DARK, true);
                 }
                 house.ending(p, text("lines.dad", "<#e8dcc0>…아빠?"), () -> {
