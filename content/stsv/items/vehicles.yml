@@ -887,3 +887,57 @@ agent_sedan:
     horn: { sound: stsv:vehicle.agent_sedan.horn, release: stsv:vehicle.agent_sedan.horn_end, volume: 1.2,
             vanilla: block.note_block.bit, pitch: 0.7, times: 1 }
     engine: { sound: stsv:vehicle.agent_sedan.engine, volume: 0.34, idle-volume: 0.12, idle-pitch: 0.6, top-pitch: 1.5, segment-ticks: 10 }
+
+# 숨은 비밀 보상 · 미완의 질주: 숨은 비밀 '폐차고의 주인' (economy secret/garage) 의 죽은 스트리트 레이서 한도윤의 차.
+# 어느 상점 · 후원 상점 · 뽑기 · 레시피에도 없음: 그 비밀이 차고 안에 보여 주고, 마지막 드라이브에서 한 번 몰게 하고, 끝까지 같이
+# 달린 한 사람에게 그날의 모습 (도색 · 휠 · 언더글로우) 그대로 한 대를 귀속해서 줌 (VehicleModule.bindTuned). 그 밖에는 관리자 지급뿐.
+# 1990년대 한국 스트리트 레이서풍의 낮은 2도어 해치백 쿠페 (실제 차의 디자인이 아님): 볼트로 단 오버펜더, 큰 리어 윙, 프런트 립,
+# 굵은 머플러, 안에 롤케이지와 버킷 시트, 문에 레이스 번호 07, 룸미러에 매달린 부적, 대시보드 위의 작은 사진, 트렁크의 공구함.
+# 순정 색은 닳은 프라이머 회색 (도색을 기다리던 차: 튜닝샵의 모든 도색이 순정과 다름), 순정 휠은 검은 철 휠.
+# 가볍고 빠른 스포츠카: 튜닝카보다 조금 빠르고 가속이 좋음. 16px/블록 (BModel scale 2, body-scale 2). 모델: tools/assetgen/models/vehicles_racer_coupe.py
+racer_coupe:
+  material: paper
+  name: "<gradient:#c9c4b8:#9fb2c8>미완의 질주</gradient>"
+  lore:
+    - "<gold>숨은 이야기의 차</gold> <gray>· 2인승 해치백 쿠페 · 하나뿐인 차"
+    - "<white>13.5블록/초 <gray>· 가볍고 빠름 · 머플러 팝콘 · 짐칸 없음"
+    - "<#9fb2c8>한도윤의 차. 끝내지 못한 길을 같이 달려 준 사람에게."
+    - "<dark_gray>W·S·A·D 운전 · 웅크리기: 내리기"
+    - "<dark_gray>스페이스: 경적 · Ctrl+A·D: 드리프트"
+    - "<yellow>우클릭: 세우기 · 타기"
+    - "<yellow>웅크리고 우클릭: 회수"
+  model: racer_coupe
+  icon: racer_coupe_icon
+  max-stack: 1
+  vehicle:
+    body-scale: 2
+    speed: 13.5
+    over-cap: true
+    # 튜닝카보다 가볍게: 더 빨리 가속하고 더 잘 서고 더 민첩하게 돎. 미끄러짐은 튜닝카와 로드스터 사이
+    drift: { angle: 36, min-speed: 5, build: 120, recover: 140, turn: 1.6, drag: 1.3 }
+    reverse-speed: 4
+    acceleration: 7.5
+    brake: 14
+    coast: 2.5
+    turn-rate: 88
+    turn-speed: 4
+    step-height: 1.0
+    size: [4.5, 2.1, 1.5]
+    click-height: 1.0
+    wheel: wheel_racer
+    wheel-radius: 0.375
+    wheels:
+      - { at: [-0.859375, 0.375, 1.375], steer: true }
+      - { at: [0.859375, 0.375, 1.375], steer: true }
+      - { at: [-0.859375, 0.375, -1.4375] }
+      - { at: [0.859375, 0.375, -1.4375] }
+    seats:
+      - { at: [-0.36, 0.16, -0.375] }
+      - { at: [0.36, 0.16, -0.375] }
+    movers:
+      # 문 둘: 앞 모서리가 경첩, 바깥으로 열림
+      - { model: racer_coupe_door_l, hinge: [-0.9375, 0.55, 0.8125], axis: [0, 1, 0], turn: -62, when: door, seats: [0], ticks: 9 }
+      - { model: racer_coupe_door_r, hinge: [0.9375, 0.55, 0.8125], axis: [0, 1, 0], turn: 62, when: door, seats: [1], ticks: 9 }
+    horn: { sound: stsv:vehicle.racer_coupe.horn, release: stsv:vehicle.racer_coupe.horn_end, volume: 1.5,
+            vanilla: block.note_block.didgeridoo, pitch: 1.4, times: 1 }
+    engine: { sound: stsv:vehicle.racer_coupe.engine, volume: 0.6, idle-volume: 0.26, idle-pitch: 0.6, top-pitch: 2.0, segment-ticks: 10 }

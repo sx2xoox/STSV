@@ -26,6 +26,7 @@ from models import vehicles_farm as F
 from models import vehicles_premium as P
 from models import karts as KARTS
 from models import vehicles_donation_sushi_carnival as SC
+from models import vehicles_racer_coupe as RC
 
 # paint id -> the ramp it is drawn in (ids, names and prices: content/stsv/vehicle_tuning.yml)
 PAINTS = {"white": "car_white", "pearl": "pearl", "silver": "steel", "black": "iron", "red": "tomato", "wine": "wine",
@@ -63,6 +64,8 @@ BODIES = {
     "grand_sedan": ("pearl", _args(P.grand_kit)),
     "luxury_suv": ("leaf_dark", _args(P.suv_kit)),
     "sushi_carnival": ("sc_pearl", _args(SC.carnival_kit)),
+    # 미완의 질주 (숨은 비밀의 차): its own colour is primer grey, so every paint is offered (purple too)
+    "racer_coupe": (RC.PRIMER, _args(RC.coupe_kit)),
     "cargo_bicycle": ("blacksteel", _remap(R.ALL["cargo_bicycle"], "blacksteel")),
     "delivery_scooter": ("vermilion", _remap(R.ALL["delivery_scooter"], "vermilion")),
     "atv": ("fox", _remap(R.ALL["atv"], "fox")),
@@ -106,7 +109,7 @@ WHEELS = {
     "disc": dict(cap="blade", plain=True),                        # a plain polished disc
 }
 # stock wheel model -> (diameter, width, the rim's diameter): the size every design of it is drawn at
-WHEEL_SIZES = {"wheel_sport": (12, 5, 9), "wheel_tuner": (12, 5, 10), "wheel_hyper": (12, 5, 10), "wheel_grand": (16, 5, 13),
+WHEEL_SIZES = {"wheel_sport": (12, 5, 9), "wheel_tuner": (12, 5, 10), "wheel_racer": (12, 5, 10), "wheel_hyper": (12, 5, 10), "wheel_grand": (16, 5, 13),
                "wheel_suv": (26, 10, 13)}
 
 
@@ -125,7 +128,7 @@ def _all():
         for paint in paints_of(body):
             # the names are known without drawing: the body, and a kit's parts as the stock kit names them
             base = f"{body}_p_{paint}"
-            names = [base] + [base + n[len(body):] for n in {**V.ALL, **SC.ALL} if n.startswith(body + "_") and n[len(body) + 1:] in PARTS.get(body, ())]
+            names = [base] + [base + n[len(body):] for n in {**V.ALL, **SC.ALL, **RC.ALL} if n.startswith(body + "_") and n[len(body) + 1:] in PARTS.get(body, ())]
             for n in names:
                 out[n] = _one(body, paint, n)
     for stock in WHEEL_SIZES:
@@ -143,7 +146,7 @@ def _all():
 # (the sedan's mascot is bright metal in every paint: the stock one is shown)
 PARTS = {"hyper_car": ("door_l", "door_r", "wing"), "grand_sedan": ("door_fl", "door_fr", "door_rl", "door_rr"),
          "luxury_suv": ("door_fl", "door_fr", "door_rl", "door_rr"),
-         "sushi_carnival": SC.PARTS}
+         "sushi_carnival": SC.PARTS, "racer_coupe": RC.PARTS}
 
 # ------------------------------------------------------------------------------------------------
 # Lights: the headlamps in another colour, and a glow on the ground under the car
@@ -154,7 +157,7 @@ LAMP_COLOURS = {"ice": ((236, 250, 255), (150, 215, 255)), "gold": ((255, 244, 1
                 "violet": ((244, 226, 255), (186, 120, 255)), "green": ((226, 255, 226), (110, 240, 130)),
                 "red": ((255, 226, 220), (255, 90, 80))}
 # the cars whose headlamps can be changed (the event and the premium cars)
-LAMP_BODIES = ("sports_car", "tuner_car", "hyper_car", "grand_sedan", "luxury_suv")
+LAMP_BODIES = ("sports_car", "tuner_car", "hyper_car", "grand_sedan", "luxury_suv", "racer_coupe")
 
 
 def headlamps(body, colour):

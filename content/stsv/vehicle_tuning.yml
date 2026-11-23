@@ -146,6 +146,9 @@ vehicles:
   sushi_carnival: { paints: all, roofs: all, underglows: all, plates: all }
   # 비밀 임무 보상 (검은 세단 · 요원 K): 검정이 정체성이라 도색은 없음. 파란 언더글로우를 달아 줄 수 있게 언더글로우 · 번호판만
   agent_sedan: { underglows: all, plates: all }
+  # 숨은 비밀 보상 (미완의 질주 · 한도윤의 차): 순정이 프라이머 회색이라 도색 13색 전부 (퍼플 포함), 휠 · 언더글로우 · 전조등 · 스포츠카의 것 전부.
+  # 숨은 비밀 '폐차고의 주인' 의 정답 (도색 · 휠 · 언더글로우) 이 여기 옵션 id 를 씀: economy secrets/garage.yml options 와 같게 둘 것
+  racer_coupe: { paints: all, wheels: all, underglows: all, headlamps: all, skids: all, smokes: all, flames: all, crackles: all }
   # 서킷 카트 (레이스 동안만 있는 탈것: 튜닝샵에는 오지 않음). 대기실에서 고르는 색 = 이 도색 (circuit/karts.yml colours)
   kart_storm:   { paints: [orange, yellow, green, blue, purple, pink, white, black] }
   kart_bubble:  { paints: [red, orange, yellow, green, purple, pink, white, black] }

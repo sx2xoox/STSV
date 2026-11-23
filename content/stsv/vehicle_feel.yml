@@ -244,6 +244,20 @@ vehicles:
     engine-stop: { sound: stsv:vehicle.agent_sedan.engine_stop, volume: 0.32 }
     idle-shake: 0.003
     bounce: 1.1
+  racer_coupe:              # 미완의 질주 (숨은 비밀 '폐차고의 주인' 의 차): 가벼운 4기통에 직관 머플러, 거칠게 떨고 팝콘을 튀김
+    power: engine
+    lights: { head: racer_coupe_lamp_head, tail: racer_coupe_lamp_tail, brake: racer_coupe_lamp_brake }
+    engine-start: { sound: stsv:vehicle.racer_coupe.engine_start, volume: 0.8, ticks: 22 }
+    engine-stop: { sound: stsv:vehicle.racer_coupe.engine_stop, volume: 0.6 }
+    idle-shake: 0.012
+    bounce: 0.45
+    sport:
+      fov: 0.3
+      exhaust: [[0.53125, 0.225, -2.5]]
+      backfire: { sound: stsv:vehicle.tuner_car.popcorn, volume: 1.0, min-speed: 5, pops: 5, gap: [2, 5] }
+      launch-smoke: true
+      skid: { sound: stsv:vehicle.sports_car.skid, volume: 0.75 }
+      mark: rubber
   light_truck:
     power: engine
     lights: { head: light_truck_lamp_head, tail: light_truck_lamp_tail, brake: light_truck_lamp_brake, reverse: light_truck_lamp_reverse }

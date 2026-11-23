@@ -137,6 +137,10 @@ LAMPS = {
     "agent_sedan": dict(scale=2.0, head=lens(9.5, 15.25, 11.5, 13.0, -42.4),
                         tail=lens(11.5, 15.25, 12.5, 15.0, 42.4) + lens(-11.5, 11.5, 13.25, 14.25, 42.3, False, False),
                         body=("vehicles_agent_sedan", "agent_sedan")),
+    # vehicles_racer_coupe.py racer_coupe (숨은 비밀 '폐차고의 주인'): slim rectangular headlamps on the nose's corners
+    # (the amber turn signal at their outer end stays unlit), a wide red lamp each side of the tail's garnish
+    "racer_coupe": dict(scale=2.0, head=lens(8.5, 12.75, 9.0, 11.25, -35.4), tail=lens(8.75, 14.25, 9.5, 12.5, 37.4),
+                        body=("vehicles_racer_coupe", "racer_coupe")),
 }
 
 # colours (palette ramps, ART_STYLE: lamps glow)
