@@ -85,6 +85,8 @@ final class House {
         private int beat;
         private long dimUntil;
         boolean lit, smoke, lean, bend, busy;
+        /** one tablet alone on the screen (it stands in the middle) */
+        boolean single;
 
         Shown(UUID owner, Location base, boolean preview) {
             this.owner = owner;
@@ -174,6 +176,14 @@ final class House {
      * each vessel. Whatever they were shown before goes first.
      */
     Shown show(Player p, Location base, boolean preview, Map<Integer, ItemStack> food) {
+        return show(p, base, preview, food, new String[] {jesa.text("tablets.father"), jesa.text("tablets.mother")});
+    }
+
+    /**
+     * The same house with other tablets on its screen (the weekly house of the 후속 임무: another family's, and one alone
+     * when only one is honoured). written: one or two texts, west first.
+     */
+    Shown show(Player p, Location base, boolean preview, Map<Integer, ItemStack> food, String[] written) {
         hide(p.getUniqueId());
         Location b = base.getBlock().getLocation();
         Shown s = new Shown(p.getUniqueId(), b, preview);
@@ -197,10 +207,11 @@ final class House {
         // the folding screen behind it, on the north: four leaves in a zigzag
         for (int i = 0; i < 4; i++)
             s.warm.add(block(p, s, Material.WHITE_TERRACOTTA, turned(0.5 + (i - 1.5) * 0.8, 0, -0.6, 0.82, 1.9, 0.05, i % 2 == 0 ? 14 : -14, 0)));
-        // two paper tablets on it: the husband's on the west, and one more
-        String[] written = {jesa.text("tablets.father"), jesa.text("tablets.mother")};
-        for (int i = 0; i < 2; i++) {
-            double x = 0.5 + (i == 0 ? -0.13 : 0.13);
+        // two paper tablets on it: the husband's on the west, and one more (one alone stands in the middle)
+        int tablets = Math.max(1, Math.min(2, written.length));
+        s.single = tablets == 1;
+        for (int i = 0; i < tablets; i++) {
+            double x = tabletX(s, i);
             s.slips[i] = block(p, s, Material.CALCITE, turned(x, 1.12, -0.46, 0.13, 0.6, 0.02, 0, 0));
             s.warm.add(s.slips[i]);
             Location at = s.at(x, 1.15, -0.44);
@@ -253,6 +264,11 @@ final class House {
         food(p, food);
         s.pulse = Bukkit.getScheduler().runTaskTimer(eco, () -> pulse(s), 5L, 5L);
         return s;
+    }
+
+    /** Where a tablet hangs on the screen (x from the table's block): two side by side, one alone in the middle. */
+    private static double tabletX(Shown s, int i) {
+        return s.single ? 0.5 : 0.5 + (i == 0 ? -0.13 : 0.13);
     }
 
     /** The vessel's own place on its click box, or -1 when it is not one of these. */
@@ -625,7 +641,7 @@ final class House {
             int tilt = k == 4 ? 0 : k % 2 == 0 ? 7 : -6;
             later(s, 590 + k * 7L, () -> {
                 for (int i = 0; i < 2; i++) {
-                    double x = 0.5 + (i == 0 ? -0.13 : 0.13);
+                    double x = tabletX(s, i);
                     BlockDisplay slip = s.slips[i];
                     if (slip != null && slip.isValid()) {
                         slip.setInterpolationDelay(0);
@@ -647,6 +663,82 @@ final class House {
         later(s, 640, () -> voice.say(3, s.at(0.5, 1.9, -0.3)));
         later(s, 720, () -> voice.say(4, s.at(0.5, 1.9, -0.3)));
         later(s, 780, () -> {
+            s.busy = false;
+            then.run();
+        });
+    }
+
+    /**
+     * The weekly house's meal (the 후속 임무), about 15 seconds: the door, the flames lean, the spoon stands itself in the
+     * rice, the cup goes down, a spoon is heard (two, not quite together, when both tablets stand), the dishes empty, the
+     * tablets stir. voice: called once, with a spot over the table, for the family's line. `then` runs at the end.
+     */
+    void supper(Player p, Shown s, Map<Integer, String> layout, Table.Rules rules, java.util.function.Consumer<Location> voice, Runnable then) {
+        s.busy = true;
+        m.haunt().sound(p, s.at(0.5, 1.2, -7), Sound.BLOCK_WOODEN_DOOR_OPEN, 0.3f, 0.55f);
+        later(s, 8, () -> {
+            s.lean = true;
+            for (int i = 0; i < 2; i++) {
+                BlockDisplay c = s.candles[i];
+                if (c == null || !c.isValid()) continue;
+                c.setInterpolationDelay(0);
+                c.setInterpolationDuration(20);
+                c.setTransformation(candleAt(i, 9));
+            }
+            m.haunt().sound(p, s.table(), Sound.BLOCK_WOOL_STEP, 0.3f, 0.5f);
+        });
+        later(s, 24, () -> s.bend = true);
+        int rice = find(layout, rules.rice(), Table.slot(0, Table.WEST_AT));
+        int cup = find(layout, rules.liquor(), Table.slot(0, Table.MID));
+        later(s, 40, () -> glide(s.spoon, spoonTo(s, rice, 0.16f), flat(35), 0.3f, 10));
+        later(s, 52, () -> {
+            glide(s.spoon, spoonTo(s, rice, 0.08f), new Quaternionf().rotateY((float) Math.PI).rotateZ((float) Math.toRadians(160)), 0.3f, 6);
+            m.haunt().sound(p, dishAt(s, rice), Sound.BLOCK_AMETHYST_BLOCK_HIT, 0.5f, 1.5f);
+        });
+        later(s, 76, () -> {
+            ItemDisplay d = s.food.get(cup);
+            if (d != null) glide(d, new Vector3f(0, Vessel.food(Vessel.kind(cup)) * 0.34f, 0), lying(cup), Vessel.food(Vessel.kind(cup)) * 0.68f, 30);
+            m.haunt().sound(p, dishAt(s, cup), Sound.ENTITY_GENERIC_DRINK, 0.18f, 0.7f);
+        });
+        Location his = s.at(s.single ? 0.5 : 0.0, TOP, 0.3), hers = s.at(1.0, TOP, 0.3);
+        for (int i = 0; i < 5; i++) {
+            later(s, 90 + i * 30L, () -> m.haunt().sound(p, his, Sound.BLOCK_AMETHYST_BLOCK_HIT, 0.4f, 1.45f));
+            if (!s.single) later(s, 102 + i * 30L + (i % 3), () -> m.haunt().sound(p, hers, Sound.BLOCK_AMETHYST_BLOCK_HIT, 0.3f, 1.75f));
+        }
+        later(s, 110, () -> voice.accept(s.at(0.5, TOP + 0.9, 0.3)));
+        List<Integer> order = new ArrayList<>(new TreeMap<>(s.food).keySet());
+        long step = order.isEmpty() ? 0 : Math.clamp(110L / order.size(), 4, 14);
+        for (int i = 0; i < order.size(); i++) {
+            int slot = order.get(i);
+            boolean chew = i % 2 == 0;
+            later(s, 120 + i * step, () -> {
+                ItemDisplay d = s.food.get(slot);
+                if (d == null || !d.isValid()) return;
+                glide(d, new Vector3f(0, -0.01f, 0), lying(slot), 0.01f, 12);
+                if (chew) m.haunt().sound(p, d.getLocation(), Sound.ENTITY_GENERIC_EAT, 0.1f, 0.75f);
+            });
+            later(s, 120 + i * step + 14, () -> dropFood(s, slot));
+        }
+        for (int k = 0; k < 4; k++) {
+            int tilt = k == 3 ? 0 : k % 2 == 0 ? 7 : -6;
+            later(s, 256 + k * 7L, () -> {
+                for (int i = 0; i < 2; i++) {
+                    BlockDisplay slip = s.slips[i];
+                    if (slip == null || !slip.isValid()) continue;
+                    slip.setInterpolationDelay(0);
+                    slip.setInterpolationDuration(7);
+                    slip.setTransformation(turned(tabletX(s, i), 1.12, -0.46, 0.13, 0.6, 0.02, 0, i == 0 ? tilt : -tilt));
+                    TextDisplay name = s.names[i];
+                    if (name == null || !name.isValid()) continue;
+                    name.setInterpolationDelay(0);
+                    name.setInterpolationDuration(7);
+                    name.setTransformation(new Transformation(new Vector3f(), new Quaternionf().rotateZ((float) Math.toRadians(i == 0 ? tilt : -tilt)),
+                            new Vector3f(0.2f, 0.2f, 0.2f), new Quaternionf()));
+                }
+            });
+        }
+        later(s, 256, () -> m.haunt().sound(p, s.at(0.5, 1.4, -0.4), Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 0.75f));
+        later(s, 300, () -> {
             s.busy = false;
             then.run();
         });

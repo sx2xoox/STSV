@@ -95,8 +95,16 @@ public final class Dongbang extends Secret {
     private long lastMinute;
     private int ticks;
 
+    private final dev.stsv.economy.secret.Sequel sequel = new DongbangSequel(this);
+
     public Dongbang(SecretModule m) {
         super(m);
+    }
+
+    /** 청산인의 업무: the solver's weekly statement to deliver ({@link DongbangSequel}). */
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
     }
 
     @Override

@@ -116,6 +116,8 @@ public final class Jesa extends Secret implements BusModule.Watcher {
 
     private final House house;
     private final Blessing blessing;
+    /** 후속 임무 「기일」: the solver's weekly house (its own saved keys; it never stands while this secret's own house does). */
+    private final JesaSequel sequel = new JesaSequel(this);
     private BusModule watched;
     /** driver -> the passenger they overheard (while she rides their bus) */
     private final Map<UUID, UUID> riding = new HashMap<>();
@@ -180,6 +182,28 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         return cfg;
     }
 
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
+    }
+
+    House house() {
+        return house;
+    }
+
+    /** The stop their bus pulled into last (while the server runs), or null. */
+    Integer lastStop(UUID u) {
+        return lastStop.get(u);
+    }
+
+    /**
+     * Which table is theirs to touch now, as the prefix of its saved keys: "" = this secret's own ("plate.3"),
+     * {@link JesaSequel#PRE} = the weekly house's ("sequel.x.plate.3"). The two houses never stand at once for one player.
+     */
+    private String pre(UUID u) {
+        return sequel.table(u) ? JesaSequel.PRE : "";
+    }
+
     org.bukkit.plugin.Plugin plugin() {
         return eco;
     }
@@ -208,7 +232,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         return eco.guide() != null && eco.guide().inGuide(p);
     }
 
-    private void later(Player p, long ticks, Runnable r) {
+    void later(Player p, long ticks, Runnable r) {
         Bukkit.getScheduler().runTaskLater(eco, () -> {
             if (p.isOnline()) r.run();
         }, Math.max(1, ticks));
@@ -237,18 +261,23 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     // what lies on the vessels (kv "plate.<n>": the item itself)
     // ------------------------------------------------------------------------------------------
 
-    /** vessel -> saved value, for every vessel that has something on it. */
+    /** vessel -> saved value, for every vessel of this secret's own table that has something on it. */
     private Map<Integer, String> saved(UUID u) {
+        return saved(u, "");
+    }
+
+    /** The same for the table whose keys begin with pre ("" = this secret's own, {@link JesaSequel#PRE} = the weekly house's). */
+    Map<Integer, String> saved(UUID u, String pre) {
         Map<Integer, String> out = new TreeMap<>();
         for (int v = 0; v < Vessel.COUNT; v++) {
-            String raw = m.get(this, u, Vessel.key(v));
+            String raw = m.get(this, u, pre + Vessel.key(v));
             if (raw != null) out.put(v, raw);
         }
         return out;
     }
 
     /** A saved value as the item (one of it), or null when it does not read. */
-    private ItemStack unpack(String raw) {
+    ItemStack unpack(String raw) {
         byte[] bytes = Vessel.unpack(raw);
         if (bytes == null) return null;
         try {
@@ -261,8 +290,12 @@ public final class Jesa extends Secret implements BusModule.Watcher {
 
     /** vessel -> the item on it (one), for every vessel whose item reads. */
     Map<Integer, ItemStack> plates(UUID u) {
+        return plates(u, "");
+    }
+
+    Map<Integer, ItemStack> plates(UUID u, String pre) {
         Map<Integer, ItemStack> out = new TreeMap<>();
-        for (Map.Entry<Integer, String> e : saved(u).entrySet()) {
+        for (Map.Entry<Integer, String> e : saved(u, pre).entrySet()) {
             ItemStack it = unpack(e.getValue());
             if (it != null) out.put(e.getKey(), it);
             else eco.getLogger().warning("[비밀] 주인없는제사: " + u + " 의 제기 " + e.getKey() + " 에 놓인 것을 읽을 수 없음 (그대로 둠)");
@@ -271,7 +304,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     }
 
     /** vessel -> item id ({@link Items#key}), for the judge. */
-    private static Map<Integer, String> ids(Map<Integer, ItemStack> plates) {
+    static Map<Integer, String> ids(Map<Integer, ItemStack> plates) {
         Map<Integer, String> out = new TreeMap<>();
         for (Map.Entry<Integer, ItemStack> e : plates.entrySet()) out.put(e.getKey(), Items.key(e.getValue()));
         return out;
@@ -279,7 +312,11 @@ public final class Jesa extends Secret implements BusModule.Watcher {
 
     /** Forgets a vessel's item in kv (the only way one is taken off: given back, eaten, or replaced). */
     private void dropPlate(UUID u, int v) {
-        m.remove(this, u, Vessel.key(v));
+        dropPlate(u, "", v);
+    }
+
+    void dropPlate(UUID u, String pre, int v) {
+        m.remove(this, u, pre + Vessel.key(v));
     }
 
     /** Back to them: their pockets, else the mailbox — never the ground. False when there is no mailbox to send it by. */
@@ -294,16 +331,21 @@ public final class Jesa extends Secret implements BusModule.Watcher {
      * there). Taken off kv first, given back in the same tick; if giving fails it stays on the vessel.
      */
     private boolean takeOff(UUID u, int v, String expected) {
-        String raw = m.get(this, u, Vessel.key(v));
+        return takeOff(u, "", v, expected);
+    }
+
+    /** {@link #takeOff(UUID, int, String)} for the table whose keys begin with pre. */
+    boolean takeOff(UUID u, String pre, int v, String expected) {
+        String raw = m.get(this, u, pre + Vessel.key(v));
         if (raw == null || expected != null && !expected.equals(raw)) return false;
         ItemStack it = unpack(raw);
         if (it == null || eco.mail() == null) return false;
-        dropPlate(u, v);
+        dropPlate(u, pre, v);
         try {
             giveBack(u, it);
             return true;
         } catch (RuntimeException e) {
-            m.set(this, u, Vessel.key(v), raw);   // still on the vessel
+            m.set(this, u, pre + Vessel.key(v), raw);   // still on the vessel
             eco.getLogger().warning("[비밀] 주인없는제사: 돌려주지 못해 제기 " + v + " 에 그대로 둠 (" + u + "): " + e);
             return false;
         }
@@ -311,8 +353,13 @@ public final class Jesa extends Secret implements BusModule.Watcher {
 
     /** Everything on their vessels back to them (pockets, else the mailbox). How many went back. */
     private int returnAll(UUID u) {
+        return returnAll(u, "");
+    }
+
+    /** {@link #returnAll(UUID)} for the table whose keys begin with pre. */
+    int returnAll(UUID u, String pre) {
         int n = 0;
-        for (int v : saved(u).keySet()) if (takeOff(u, v, null)) n++;
+        for (int v : saved(u, pre).keySet()) if (takeOff(u, pre, v, null)) n++;
         return n;
     }
 
@@ -338,9 +385,10 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         UUID u = p.getUniqueId();
         lastStop.put(u, here.id());
         if (!on() || guide(p)) return;
+        sequel.stopped(p, here);   // the 후속 임무 begins (and finds its house) at a stop too
         int st = stage(u);
         if (st == 0) {
-            if (!open(u)) return;
+            if (!open(u) || sequel.live(u)) return;   // (a tester's weekly house: this secret does not begin under it)
             BusModule b = bus();
             List<Entity> aboard = b == null ? List.of() : b.ridersOf(p, kind());
             if (aboard.isEmpty()) return;
@@ -365,13 +413,13 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         later(p, 30, () -> say(p, grandma, ahead(p), text("lines.overhear")));
     }
 
-    private static Location ahead(Player p) {
+    static Location ahead(Player p) {
         Location l = p.getLocation();
         return l.clone().add(l.getDirection().setY(0).multiply(2.5)).add(0, 1.9, 0);
     }
 
     /** A line only they hear: a dark bubble over the speaker (else at a spot) and a dim chat line to read again. */
-    private void say(Player p, Entity over, Location at, String line) {
+    void say(Player p, Entity over, Location at, String line) {
         boolean rides = over != null && over.isValid();
         Location where = rides ? over.getLocation().add(0, 2.3, 0) : at;
         if (where.getWorld() != p.getWorld()) where = ahead(p);
@@ -399,14 +447,14 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     // stage 1 -> 2: she gets off, and there is a house
     // ------------------------------------------------------------------------------------------
 
-    private BusStop stop(int id) {
+    BusStop stop(int id) {
         BusModule b = bus();
         if (b == null) return null;
         for (BusStop s : b.stops()) if (s.id() == id) return s;
         return null;
     }
 
-    private String stopName(String id) {
+    String stopName(String id) {
         try {
             BusStop s = id == null ? null : stop(Integer.parseInt(id));
             return s == null ? "?" : s.name();
@@ -461,7 +509,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     }
 
     /** A free, flat spot of natural ground near a stop, off the road and off anyone's land; the same one for this player. */
-    private Location pick(Player p, BusStop here) {
+    Location pick(Player p, BusStop here) {
         World w = Bukkit.getWorld(here.world());
         if (w == null) return null;
         Set<Material> ground = ground();
@@ -513,7 +561,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
      * Whether a house whose table's block is `at` stands on dry ground: no column of its 5×5 has water (or ice, kelp,
      * seagrass, anything waterlogged) at, just under or just over its ground. null: not all of it is loaded.
      */
-    private static Boolean dry(Location at) {
+    static Boolean dry(Location at) {
         World w = at.getWorld();
         if (w == null) return null;
         int x = at.getBlockX(), y = at.getBlockY(), z = at.getBlockZ(), r = Place.REACH;
@@ -562,7 +610,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
      * A spot for an admin's house: flat ground a few blocks from them, else simply four blocks ahead — never on water
      * (null then: the admin is told).
      */
-    private Location beside(Player p) {
+    Location beside(Player p) {
         Location me = p.getLocation();
         World w = me.getWorld();
         Set<Material> ground = ground();
@@ -577,7 +625,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     }
 
     /** Tells the admins online (and the log) that no dry spot was found for a house beside this player. */
-    private void noDryGround(Player p, CommandSender admin) {
+    void noDryGround(Player p, CommandSender admin) {
         String line = "<red>[비밀] 주인없는제사: " + p.getName() + " 옆에 물이 없는 평평한 땅이 없어요 (집을 세우지 않음). 마른 땅에서 다시";
         eco.getLogger().warning("[비밀] 주인없는제사: " + p.getName() + " 옆에 마른 땅이 없어 집을 세우지 않음");
         if (admin != null) {
@@ -588,7 +636,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     }
 
     /** A saved place as it is now: on the ground still, or lifted onto whatever was put there since. */
-    private static Location settle(Location at) {
+    static Location settle(Location at) {
         Block b = at.getBlock();
         if (b.isPassable() && !b.getRelative(0, -1, 0).isPassable()) return at;
         for (int dy : new int[] {-1, 1, -2, 2, -3, 3}) {
@@ -611,7 +659,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     // the house, each second
     // ------------------------------------------------------------------------------------------
 
-    private boolean night(UUID u, World w) {
+    boolean night(UUID u, World w) {
         if (m.test(u) || !cfg.getBoolean("night.required", true)) return true;
         List<Integer> r = cfg.getIntegerList("night.time");
         return Place.within(w.getTime(), r.isEmpty() ? 13000 : r.getFirst(), r.size() < 2 ? 23000 : r.get(1));
@@ -622,7 +670,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         return Math.max(0, m.getLong(this, u, "retry", 0) - System.currentTimeMillis());
     }
 
-    private static boolean within(Player p, Location at, double r) {
+    static boolean within(Player p, Location at, double r) {
         return at.getWorld() != null && at.getWorld().equals(p.getWorld()) && at.distanceSquared(p.getLocation()) <= r * r;
     }
 
@@ -642,6 +690,11 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             if (s != null && !s.valid()) {   // its chunk went away under it
                 house.hide(u);
                 s = null;
+            }
+            sequel.idle(p);
+            if (sequel.table(u)) {   // the weekly house of the 후속 임무: shown, lit and taken away by the sequel itself
+                if (st > stages() && (first.isPresent() && first.get().equals(u) || m.test(u))) blessing.tick(p);
+                continue;
             }
             if (st > stages()) {
                 if (s != null && !s.busy && (!s.preview || !within(p, s.base, show + 8))) house.hide(u);
@@ -755,11 +808,15 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             m.haunt().sound(p, house.dishAt(s, v), Sound.BLOCK_WOOD_HIT, 0.3f, 1.4f);
             return;
         }
-        int st = stage(u);
-        if (!on() || st != HOUSE && st != ACCEPTED) return;
-        if (!open(u)) {
-            late(p);
-            return;
+        if (sequel.table(u)) {   // the weekly house: the same vessels, the same hands, its own saved keys
+            if (!sequel.may(p)) return;
+        } else {
+            int st = stage(u);
+            if (!on() || st != HOUSE && st != ACCEPTED) return;
+            if (!open(u)) {
+                late(p);
+                return;
+            }
         }
         ItemStack hand = p.getInventory().getItemInMainHand();
         if (hand.isEmpty()) take(p, s, v);
@@ -783,7 +840,8 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             m.haunt().sound(p, house.dishAt(s, v), Sound.BLOCK_WOOD_HIT, 0.3f, 0.6f);
             return;
         }
-        String key = Vessel.key(v);
+        String pre = pre(u);
+        String key = pre + Vessel.key(v);
         String old = m.get(this, u, key);
         ItemStack before = old == null ? null : unpack(old);
         if (old != null && (before == null || eco.mail() == null)) {   // what is there can not be given back: leave it
@@ -821,7 +879,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
                 eco.getLogger().severe("[비밀] 주인없는제사: 바꿔 놓은 것을 돌려주지 못함 (" + u + ", 제기 " + v + "), 복구용 값: " + old + " — " + ex);
             }
         }
-        house.food(p, plates(u));
+        house.food(p, plates(u, pre));
         Location at = house.dishAt(s, v);
         m.haunt().sound(p, at, Vessel.kind(v) == Vessel.Kind.PLATE || Vessel.kind(v) == Vessel.Kind.DEEP ? Sound.BLOCK_WOOD_PLACE : Sound.BLOCK_DECORATED_POT_INSERT,
                 0.35f, 1.3f);
@@ -832,12 +890,13 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     /** Takes what lies on the vessel back into the (empty) hand's inventory, else the mailbox. */
     private void take(Player p, House.Shown s, int v) {
         UUID u = p.getUniqueId();
-        if (m.get(this, u, Vessel.key(v)) == null) return;
-        if (!takeOff(u, v, null)) {
+        String pre = pre(u);
+        if (m.get(this, u, pre + Vessel.key(v)) == null) return;
+        if (!takeOff(u, pre, v, null)) {
             whisper(p, "lines.not-now");
             return;
         }
-        house.food(p, plates(u));
+        house.food(p, plates(u, pre));
         m.haunt().sound(p, house.dishAt(s, v), Sound.ITEM_BUNDLE_REMOVE_ONE, 0.35f, 1.1f);
         String line = text("lines.taken");
         if (!line.isBlank()) whisper(p, "lines.taken");
@@ -870,7 +929,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             if (!Long.valueOf(now).equals(bowed.get(u))) return;
             bowed.remove(u);
             // one bow before a laid table at night: a word; anywhere else it is only someone crouching
-            if (house.get(u) == s && !s.busy && s.lit && s.smoke && !saved(u).isEmpty()) whisper(p, "lines.bow-once");
+            if (house.get(u) == s && !s.busy && s.lit && s.smoke && !saved(u, pre(u)).isEmpty()) whisper(p, "lines.bow-once");
         });
     }
 
@@ -878,6 +937,10 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     private void rite(Player p, House.Shown s) {
         UUID u = p.getUniqueId();
         boolean real = !s.preview;
+        if (real && sequel.table(u)) {   // the weekly house: judged by that family's own table
+            sequel.rite(p, s);
+            return;
+        }
         if (real) {
             int st = stage(u);
             if (!on() || st != HOUSE && st != ACCEPTED || concluding.contains(u)) return;
@@ -1101,7 +1164,8 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     /** An admin's 초기화: everything still on their vessels goes back to them first (pockets, else the mailbox). */
     @Override
     public void resetting(UUID u) {
-        int n = returnAll(u);
+        // (the weekly house's vessels were emptied by the sequel's own stop just before; once more costs nothing)
+        int n = returnAll(u) + returnAll(u, JesaSequel.PRE);
         if (n > 0) eco.getLogger().info("[비밀] 주인없는제사: 초기화 전에 제기 위의 것 " + n + "개를 돌려줌 (" + u + ")");
         // what could not be given back (unreadable, or no mailbox) is about to be deleted: its saved value, to restore by hand
         for (Map.Entry<Integer, String> e : saved(u).entrySet())
@@ -1148,7 +1212,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
     }
 
     /** Newly made things for a look (nothing of anyone's): vessel -> item. */
-    private static Map<Integer, ItemStack> made(Map<Integer, String> ids) {
+    static Map<Integer, ItemStack> made(Map<Integer, String> ids) {
         Map<Integer, ItemStack> out = new TreeMap<>();
         for (Map.Entry<Integer, String> e : ids.entrySet()) Items.create(e.getValue(), 1).ifPresent(it -> out.put(e.getKey(), it));
         return out;

@@ -298,6 +298,78 @@ public final class Newcomer extends Secret {
     }
 
     // ------------------------------------------------------------------------------------------
+    // the follow-up 「다음 사람」 (NextSequel): what its visitors borrow from him
+    // ------------------------------------------------------------------------------------------
+
+    private final NextSequel sequel = new NextSequel(this);
+
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
+    }
+
+    /** How someone of another name looks on screen (the same builders as his). */
+    Look lookFor(String name) {
+        return new Look(name, () -> m.core().getConfig().getString("profiles.chat-format"));
+    }
+
+    /** His small talk (all but rude), said by someone of another name. */
+    List<Talk.Intent> smallTalkFor(String name) {
+        return talk.stream().map(i -> i.named(name)).toList();
+    }
+
+    /** His whisper answers for someone of another name (without the stone: that was his alone). */
+    List<Talk.Intent> whisperTalkFor(String name) {
+        return whisperTalk.stream().filter(i -> !i.id.equals("stone")).map(i -> i.named(name)).toList();
+    }
+
+    List<Pattern> aim() {
+        return aim;
+    }
+
+    List<String> hurtLines() {
+        return hurt;
+    }
+
+    List<String> tiredLines() {
+        return tired;
+    }
+
+    List<String> fixLines() {
+        return fixes;
+    }
+
+    List<String> whisperLabels() {
+        return labels;
+    }
+
+    long typingMillis(String line) {
+        return typing(line);
+    }
+
+    /** The visiting window's hours [from, to). */
+    int[] window() {
+        return new int[]{from, to};
+    }
+
+    /**
+     * Whether a name is somebody's: his own, an online player's account name or nickname; with {@code ever}, also the
+     * name of an account that has ever joined and anyone's nickname (online or not). A visitor never takes such a name,
+     * and says nothing while a real player of their name is online.
+     */
+    boolean somebody(String name, boolean ever) {
+        if (name == null || name.equalsIgnoreCase(who)) return true;
+        try {
+            if (Bukkit.getPlayerExact(name) != null) return true;
+            Optional<UUID> nick = Names.byNickname(name);
+            if (nick.isPresent() && (ever || Bukkit.getPlayer(nick.get()) != null)) return true;
+            return ever && Bukkit.getOfflinePlayerIfCached(name) != null;
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
     // the lines (how they look: Look)
     // ------------------------------------------------------------------------------------------
 

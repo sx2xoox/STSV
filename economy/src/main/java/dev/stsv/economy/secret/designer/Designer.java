@@ -94,6 +94,7 @@ public final class Designer extends Secret {
     private final Map<UUID, Long> hinted = new ConcurrentHashMap<>();
     private final Thirteenth thirteenth;
     private final Mover mover;
+    private final DesignerSequel sequel = new DesignerSequel(this);
 
     public Designer(SecretModule m) {
         super(m);
@@ -114,6 +115,17 @@ public final class Designer extends Secret {
     @Override
     public int stages() {
         return 4;
+    }
+
+    /** 설계도 의뢰: the heir's weekly order from the 13th machine ({@link DesignerSequel}). */
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
+    }
+
+    /** Where the 13th machine stands (its block), or null. */
+    Location machine13() {
+        return thirteenth.origin();
     }
 
     YamlConfiguration cfg() {
@@ -154,7 +166,7 @@ public final class Designer extends Secret {
     }
 
     /** The same, only for one player. */
-    private void sound(Player p, Location at, String key) {
+    void sound(Player p, Location at, String key) {
         String s = cfg.getString("sounds." + key + ".sound");
         if (s == null) return;
         p.playSound(at, s, SoundCategory.AMBIENT, (float) cfg.getDouble("sounds." + key + ".volume", 0.5),
@@ -434,7 +446,7 @@ public final class Designer extends Secret {
     }
 
     /** Something this player made (their own maker tag, not one he signed). */
-    private static boolean ownWork(ItemStack it, UUID u) {
+    static boolean ownWork(ItemStack it, UUID u) {
         if (it == null || it.isEmpty() || !it.hasItemMeta()) return false;
         PersistentDataContainer pdc = it.getItemMeta().getPersistentDataContainer();
         return u.toString().equals(pdc.get(MachineModule.MAKER, PersistentDataType.STRING)) && !pdc.has(MARK);
@@ -742,6 +754,7 @@ public final class Designer extends Secret {
             mover.start(p);
             return;
         }
+        if (pdc.has(Thirteenth.TAG) && sequel.touched(p)) return;   // 설계도 의뢰: the heir feeds it, or reads the blueprint
         List<String> lines = cfg.getStringList("touch");
         if (!lines.isEmpty()) m.haunt().whisper(p, lines.get(ThreadLocalRandom.current().nextInt(lines.size())));
         sound(p, x.getLocation().add(0, 1, 0), "breath");

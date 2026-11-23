@@ -68,6 +68,7 @@ public final class Scarecrow extends Secret {
     private final Companion companion;
     private final Marks marks;
     private Riddles riddles = new Riddles(List.of());
+    private final ScarecrowSequel sequel = new ScarecrowSequel(this);
 
     public Scarecrow(SecretModule m) {
         super(m);
@@ -105,6 +106,12 @@ public final class Scarecrow extends Secret {
 
     YamlConfiguration cfg() {
         return cfg;
+    }
+
+    /** 후속 임무 「밭의 부탁」 ({@link ScarecrowSequel}). */
+    @Override
+    public dev.stsv.economy.secret.Sequel sequel() {
+        return sequel;
     }
 
     Props props() {
@@ -282,6 +289,7 @@ public final class Scarecrow extends Secret {
         }
         companion.tick();
         marks.tick();
+        sequel.grow();   // the 후속 임무's gift of the week (it goes on after the mission is done, whoever is online)
     }
 
     /** Once a night, the first time they are near a scarecrow of theirs: the (very small) chance. */

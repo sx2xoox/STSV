@@ -8,6 +8,7 @@ import dev.stsv.economy.fishing.FishSpec;
 import dev.stsv.economy.fishing.FishStore;
 import dev.stsv.economy.secret.Secret;
 import dev.stsv.economy.secret.SecretModule;
+import dev.stsv.economy.secret.Sequel;
 import dev.stsv.economy.util.Items;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
@@ -119,6 +120,22 @@ public final class EyelessFish extends Secret {
     private final Drowned drowned;
     private final Dread dread;
     private final long born = System.currentTimeMillis();
+
+    /** 후속 임무 「물이 부르는 날」 */
+    private final FishSequel sequel = new FishSequel(this);
+
+    @Override
+    public Sequel sequel() {
+        return sequel;
+    }
+
+    Drowned drowned() {
+        return drowned;
+    }
+
+    Dread dread() {
+        return dread;
+    }
 
     public EyelessFish(SecretModule m) {
         super(m);
