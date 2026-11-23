@@ -851,7 +851,6 @@ types:
     color: "#ff9ecb"
     weight: 3
     tip: 1.5
-    hours: [8, 21]
     chatter: 8
     chatter-mood: -1
     mood-floor: 80
@@ -914,7 +913,6 @@ types:
     name: 강아지 데려온 할아버지
     color: "#d9b38c"
     weight: 2
-    hours: [6, 19]
     fare: 1.5
     seats: 2
     pet: wolf
