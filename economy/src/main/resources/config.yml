@@ -30,6 +30,11 @@ rank:
   # 목록에 없는 전설 치장(새로 추가된 것)도 목록 뒤에 붙여서 돌림
   weekly-legendary: [stsv:crown, stsv:angel_wings, stsv:demon_wings, stsv:halo, stsv:haetae, stsv:gumiho, stsv:phoenix]
   weekly-legendary-fallback-gold: 100000
+  # 주간 순위의 "번 돈": 서버에 쓴 돈(상점에서 산 것, 치장·칭호, 강화, 업그레이드 같은 지출)은 점수에서 빼지 않음.
+  # true 로 바꾸면 예전처럼 쓴 만큼 점수가 줄어듦
+  spending-counts: false
+  # 그래도 점수에서 빠지는 지출(세금 · 수수료, 그리고 순자산에 이미 들어 있는 땅 구매). 비워 두면 아래 기본값
+  spending-kept: [shop_income_tax, land_tax, transfer_fee, market_fee, auction_fee, buy_order_fee, stock_fee, auction_deposit_lost, land_buy]
 
 docks:
   # 하역장 (README "하역장", "출발 터미널"): 출발 터미널에서 화물 검사를 받아 봉인한 완제품만, 정한 하역장에서 삼

@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 순위. The weekly ranking is what each player earned this week: their net worth now minus their net
  * worth when the week started (Monday 05:00, or when they first joined that week), not counting money other players
- * handed them. On Monday the week is settled: the top 5 are announced and the winner gets a 기념비 건립권.
+ * handed them and not counting what they spent at the server (taxes and fees still count). On Monday the week is settled: the top 5 are announced and the winner gets a 기념비 건립권.
  * <p>
  * Net worth ({@link #worth}) = cash + money held in auction bids, listing deposits and 구매 주문 + money spent on land + the
  * 금고 of the land they own + their shares at today's price + their cheques nobody cashed yet: moving money into any
@@ -135,6 +135,32 @@ public final class RankModule extends EcoModule implements WeeklyListener {
     @EventHandler
     public void onTransfer(dev.stsv.core.economy.BalanceChangeEvent e) {
         if (e.kind() == dev.stsv.core.economy.EconomyStore.Kind.TRANSFER) received(e.player(), e.delta());
+    }
+
+    /**
+     * Money spent at the server (a shop purchase, a service, an upgrade: a SINK) does not lower this week's earnings: the
+     * starting point moves down with it, so the ranking counts what was earned, not what was kept. Taxes and fees (and
+     * land bought, which net worth already holds) still count: config rank.spending-kept lists those reasons.
+     * Turn off with rank.spending-counts: true (the old way: spending lowers the score).
+     */
+    @EventHandler
+    public void onSpend(dev.stsv.core.economy.BalanceChangeEvent e) {
+        if (e.kind() != dev.stsv.core.economy.EconomyStore.Kind.SINK || e.delta() >= 0) return;
+        if (!spendingAddsBack(e.reason(), eco.getConfig().getBoolean("rank.spending-counts", false),
+                eco.getConfig().getStringList("rank.spending-kept"))) return;
+        Long moved = base.shift(e.player(), e.delta());   // delta < 0: the start goes down by what was spent
+        if (moved != null) db.execute(db.upsert("eco_week_base", List.of("week", "player"), List.of("base")), week, e.player().toString(), moved);
+    }
+
+    /** Reasons whose spending still lowers the weekly score when rank.spending-kept is not set: taxes, fees, land. */
+    static final List<String> KEPT = List.of("shop_income_tax", "land_tax", "transfer_fee", "market_fee", "auction_fee",
+            "buy_order_fee", "stock_fee", "auction_deposit_lost", "land_buy");
+
+    /** Whether money spent for this reason is given back to this week's score. */
+    static boolean spendingAddsBack(String reason, boolean spendingCounts, List<String> kept) {
+        if (spendingCounts) return false;
+        List<String> k = kept == null || kept.isEmpty() ? KEPT : kept;
+        return reason == null || !k.contains(reason);
     }
 
     /** A cheque cashed by someone else than its writer: the writer's cheque became the casher's money. */
