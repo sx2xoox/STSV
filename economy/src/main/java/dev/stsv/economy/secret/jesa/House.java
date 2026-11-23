@@ -77,6 +77,8 @@ final class House {
         final Map<Integer, Interaction> hits = new HashMap<>();
         /** vessel -> its lid (the porcelain bowls of row 0) */
         private final Map<Integer, BlockDisplay> lids = new HashMap<>();
+        /** the bowls whose lid is set down beside them (something lies in the bowl) */
+        private final java.util.Set<Integer> open = new HashSet<>();
         private final Map<Integer, ItemDisplay> food = new HashMap<>();
         private final Map<Integer, ItemStack> laid = new TreeMap<>();
         private final List<BukkitTask> tasks = new ArrayList<>();
@@ -261,7 +263,7 @@ final class House {
             s.own.add(hit);
             s.hits.put(v, hit);
         }
-        food(p, food);
+        food(p, food, false);   // a bowl that has something in it: its lid is beside it already, nothing plays
         s.pulse = Bukkit.getScheduler().runTaskTimer(eco, () -> pulse(s), 5L, 5L);
         return s;
     }
@@ -380,19 +382,30 @@ final class House {
         return Vessel.kind(slot) == Vessel.Kind.CUP ? new Vector3f(0, Vessel.food(Vessel.Kind.CUP) / 2, 0) : new Vector3f();
     }
 
-    /** Shows what lies on each vessel (vessel -> the item); vessels whose item changed are redrawn, lids follow. */
+    /**
+     * Shows what lies on each vessel (vessel -> the item). Only a vessel whose item is not what it shows already
+     * ({@link Vessel#changed}) is touched: its dish is drawn anew and, on a lidded bowl, its lid is set down beside it
+     * (something in the bowl) or back on it (empty). Every other vessel, dish and lid is left exactly as it is.
+     */
     void food(Player p, Map<Integer, ItemStack> food) {
+        food(p, food, true);
+    }
+
+    /** moving: lids glide to their place (false while the house is being built: they simply are where they belong). */
+    private void food(Player p, Map<Integer, ItemStack> food, boolean moving) {
         Shown s = shown.get(p.getUniqueId());
         if (s == null || s.busy) return;
-        for (Integer slot : new ArrayList<>(s.food.keySet())) {
-            ItemStack now = food.get(slot), was = s.laid.get(slot);
-            if (now != null && was != null && now.isSimilar(was)) continue;
-            dropFood(s, slot);
-        }
+        Map<Integer, ItemStack> want = new TreeMap<>();
         for (Map.Entry<Integer, ItemStack> e : food.entrySet()) {
             int slot = e.getKey();
-            if (slot < 0 || slot >= Vessel.COUNT || e.getValue() == null || e.getValue().isEmpty() || s.food.containsKey(slot)) continue;
-            ItemStack one = e.getValue().asOne();
+            if (slot < 0 || slot >= Vessel.COUNT || e.getValue() == null || e.getValue().isEmpty()) continue;
+            want.put(slot, e.getValue());
+        }
+        for (int slot : Vessel.changed(s.laid, want, ItemStack::isSimilar)) {
+            dropFood(s, slot);
+            ItemStack now = want.get(slot);
+            if (now == null) continue;
+            ItemStack one = now.asOne();
             ItemDisplay d = item(p, s, dishAt(s, slot), one, lying(slot), Vessel.food(Vessel.kind(slot)));
             Transformation t = d.getTransformation();
             d.setTransformation(new Transformation(lift(slot), t.getLeftRotation(), t.getScale(), t.getRightRotation()));
@@ -401,14 +414,20 @@ final class House {
             s.laid.put(slot, one);
             s.warm.add(d);
         }
+        // a lid moves only when its own bowl went from empty to full or back. (Never "set again where it is": sending a
+        // display's interpolation start once more makes the client play its last glide over again.)
         for (Map.Entry<Integer, BlockDisplay> l : s.lids.entrySet()) {
             int slot = l.getKey();
-            double[] at = Vessel.at(slot);
             boolean open = s.food.containsKey(slot);
             BlockDisplay lid = l.getValue();
-            if (!lid.isValid()) continue;
-            lid.setInterpolationDelay(0);
-            lid.setInterpolationDuration(4);
+            if (open == s.open.contains(slot) || !lid.isValid()) continue;
+            if (open) s.open.add(slot);
+            else s.open.remove(slot);
+            double[] at = Vessel.at(slot);
+            if (moving) {
+                lid.setInterpolationDelay(0);
+                lid.setInterpolationDuration(4);
+            }
             lid.setTransformation(open ? lidOff(0.5 + at[0], 0.5 + at[1], Vessel.rollTo(slot)) : lidOn(0.5 + at[0], 0.5 + at[1]));
         }
     }

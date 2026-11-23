@@ -505,4 +505,31 @@ class JesaTest {
         assertTrue(Table.judge(t, noJeon).ok(), "no 전 named at all (the weekly no-fish house): nothing is owed between");
         assertEquals(List.of(Table.slot(1, MID)), Table.judge(t, RULES).missing(), "the secret's own table still owes its 전");
     }
+
+    @Test
+    void onlyTheVesselThatChangedIsRedrawn() {
+        java.util.Map<Integer, String> was = new java.util.TreeMap<>(java.util.Map.of(0, "rice", 2, "soup", 7, "pear"));
+        java.util.function.BiPredicate<String, String> same = String::equals;
+        assertEquals(java.util.Set.of(), Vessel.changed(was, new java.util.TreeMap<>(was), same), "nothing changed: nothing is touched");
+        // one put on another vessel: that vessel only (the lidded bowls 0 and 2 stay as they are)
+        java.util.Map<Integer, String> put = new java.util.TreeMap<>(was);
+        put.put(4, "fish");
+        assertEquals(java.util.Set.of(4), Vessel.changed(was, put, same));
+        // taken back
+        java.util.Map<Integer, String> taken = new java.util.TreeMap<>(was);
+        taken.remove(2);
+        assertEquals(java.util.Set.of(2), Vessel.changed(was, taken, same));
+        // swapped for something else
+        java.util.Map<Integer, String> swapped = new java.util.TreeMap<>(was);
+        swapped.put(7, "apple");
+        assertEquals(java.util.Set.of(7), Vessel.changed(was, swapped, same));
+        // several at once, in order; a house just built shows all that lies there
+        assertEquals(java.util.List.of(0, 2, 7), java.util.List.copyOf(Vessel.changed(java.util.Map.of(), was, same)));
+        assertEquals(java.util.List.of(0, 2, 7), java.util.List.copyOf(Vessel.changed(was, java.util.Map.of(), same)));
+        // nothing equals nothing
+        java.util.Map<Integer, String> nulls = new java.util.HashMap<>();
+        nulls.put(3, null);
+        assertEquals(java.util.Set.of(), Vessel.changed(nulls, java.util.Map.of(), same));
+        assertEquals(java.util.Set.of(), Vessel.changed(java.util.Map.of(), nulls, same));
+    }
 }

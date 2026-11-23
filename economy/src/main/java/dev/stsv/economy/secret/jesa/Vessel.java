@@ -88,6 +88,23 @@ final class Vessel {
         return Math.abs(side) < 0.1 ? 0 : side < 0 ? -1 : 1;
     }
 
+    /**
+     * The vessels whose content differs between what the table shows (was) and what it should show (now), in order: one
+     * that gained something, lost it, or holds something else (same: whether two things are the same thing). Only these
+     * are redrawn, and only their lids move; a vessel not named here is left exactly as it is. Nothing (a missing or null
+     * entry) equals nothing.
+     */
+    static <T> java.util.SortedSet<Integer> changed(java.util.Map<Integer, T> was, java.util.Map<Integer, T> now,
+                                                    java.util.function.BiPredicate<T, T> same) {
+        java.util.SortedSet<Integer> slots = new java.util.TreeSet<>(was.keySet());
+        slots.addAll(now.keySet());
+        slots.removeIf(slot -> {
+            T a = was.get(slot), b = now.get(slot);
+            return a == null ? b == null : b != null && same.test(a, b);
+        });
+        return slots;
+    }
+
     /** "서" · "가운데" · "동" (admin lines). */
     static String side(int slot) {
         int c = Table.col(slot);
