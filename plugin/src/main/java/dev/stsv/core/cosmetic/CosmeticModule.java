@@ -759,8 +759,21 @@ public final class CosmeticModule implements StsvModule, Listener {
 
     @EventHandler public void onJoin(PlayerJoinEvent e) { migrate(e.getPlayer()); upgrade(e.getPlayer()); restoreIfStuck(e.getPlayer()); makeVisible(e.getPlayer()); refreshLater(e.getPlayer()); }
     /** A respawned player is a new entity on their own client: the models riding the old one are made anew. */
-    @EventHandler public void onRespawn(PlayerRespawnEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
-    @EventHandler public void onWorld(PlayerChangedWorldEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); }
+    @EventHandler public void onRespawn(PlayerRespawnEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); reshowOwnSoon(e.getPlayer()); }
+    @EventHandler public void onWorld(PlayerChangedWorldEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); refreshLater(e.getPlayer()); reshowOwnSoon(e.getPlayer()); }
+
+    /**
+     * After a moment that can leave the player's own view out of step with their client (respawn, another world, the
+     * wardrobe or a shop preview: game mode switches, camera, teleport), their own worn models are shown to them
+     * afresh, lifting entities and copies included, once the models are back on (README "어긋났을 때 다시 맞추기").
+     * Twice: the models come back over the next few ticks.
+     */
+    private void reshowOwnSoon(Player p) {
+        if (packets == null) return;
+        for (long delay : new long[]{15, 50}) Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (p.isOnline() && !inWardrobe(p)) reshowOwn(p);
+        }, delay);
+    }
     @EventHandler public void onDeath(org.bukkit.event.entity.PlayerDeathEvent e) { attachments.remove(e.getPlayer()); pets.remove(e.getPlayer()); }
 
     // ------------------------------------------------------------------------------------------
@@ -1677,6 +1690,7 @@ public final class CosmeticModule implements StsvModule, Listener {
         p.getPersistentDataContainer().remove(keyReturn);
         if (sound) p.playSound(s.origin, Sound.BLOCK_WOODEN_DOOR_CLOSE, 0.8f, 1.2f);
         for (long delay : new long[]{1, 10, 40}) Bukkit.getScheduler().runTaskLater(plugin, () -> refresh(p), delay);
+        reshowOwnSoon(p);
         Map<CosmeticSlot, CustomItem> worn = worn(p);
         if (!worn.isEmpty()) {
             p.sendMessage(Lang.msg("wardrobe.left", "cosmetic", names(worn.values())));
