@@ -16,10 +16,12 @@ import java.util.TreeSet;
  * people.yml: the 인물 도감 (README "인물 도감"). One person = one bus passenger kind (bus.yml types: its name, colour, skins,
  * where and when it comes), and here the intros that open as you meet them (`milestones` meetings: 1, 10, 50), the people
  * never listed (`never`: the secret ones; a kind of weight 0 never is either), the completion titles and the stamps of
- * where you met them (`places`: bus for now). Pure (unit-tested).
+ * where you met them (`places`: bus for now). Two separate collections: the 일반 인물 (normal look) and the 별난 인물 (the
+ * shiny look, README "별난 손님"): each has its own entries (met count, first met, intro progress, places); a shiny entry's
+ * intro is its own line (`people.<id>.shiny`) then the normal intro. Pure (unit-tested).
  */
 public record PeopleSpec(List<Integer> milestones, Set<String> never, String titleAll, String titleShiny, Map<String, String> places,
-                         Map<String, List<String>> intros, Map<String, String> hints) {
+                         Map<String, List<String>> intros, Map<String, String> hints, Map<String, String> shinyIntros) {
 
     /** 만난 곳: the 마을버스 (a passenger carried to where they were going). */
     public static final String PLACE_BUS = "bus";
@@ -34,7 +36,7 @@ public record PeopleSpec(List<Integer> milestones, Set<String> never, String tit
         if (pl != null) for (String k : pl.getKeys(false)) places.put(k, pl.getString(k, k));
         if (!places.containsKey(PLACE_BUS)) places.put(PLACE_BUS, "버스");
         Map<String, List<String>> intros = new LinkedHashMap<>();
-        Map<String, String> hints = new LinkedHashMap<>();
+        Map<String, String> hints = new LinkedHashMap<>(), shiny = new LinkedHashMap<>();
         ConfigurationSection pp = c.getConfigurationSection("people");
         if (pp != null) for (String id : pp.getKeys(false)) {
             ConfigurationSection p = pp.getConfigurationSection(id);
@@ -42,11 +44,14 @@ public record PeopleSpec(List<Integer> milestones, Set<String> never, String tit
             List<String> in = p.getStringList("intro");
             if (in.size() != ms.size()) problems.add("people." + id + ".intro: 소개 글은 " + ms.size() + "줄 (milestones 마다 한 줄)");
             intros.put(id, List.copyOf(in));
+            String sh = p.getString("shiny");
+            if (sh == null || sh.isBlank()) problems.add("people." + id + ".shiny: 별난 인물 소개 한 줄이 없음");
+            else shiny.put(id, sh);
             String h = p.getString("hint");
             if (h != null && !h.isBlank()) hints.put(id, h);
         }
         return new PeopleSpec(List.copyOf(ms), Set.copyOf(c.getStringList("never")), c.getString("titles.all", "economy:people_all"),
-                c.getString("titles.shiny", "economy:people_shiny_all"), places, intros, hints);
+                c.getString("titles.shiny", "economy:people_shiny_all"), places, intros, hints, shiny);
     }
 
     /** Problems against the bus's kinds: an intro for every person, none for a kind that does not exist. */
@@ -70,11 +75,28 @@ public record PeopleSpec(List<Integer> milestones, Set<String> never, String tit
         return t != null && t.weight() > 0 && !never.contains(t.id());
     }
 
-    /** How many intro lines are open after this many meetings. */
+    /** How many intro lines are open after this many meetings (일반 인물). */
     public int introsOpen(int met) {
         int n = 0;
         for (int m : milestones) if (met >= m) n++;
         return n;
+    }
+
+    /** How many intro lines are open: a 별난 인물 opens its own line at the first meeting, then the normal ones as usual. */
+    public int introsOpen(int met, boolean shiny) {
+        if (!shiny) return introsOpen(met);
+        return met >= 1 ? 1 + introsOpen(met) : 0;
+    }
+
+    /** A person's intro lines in a collection: 별난 = its own line, then the normal intro. */
+    public List<String> intro(String id, boolean shiny) {
+        List<String> normal = intros.getOrDefault(id, List.of());
+        String own = shinyIntros.get(id);
+        if (!shiny || own == null) return normal;
+        List<String> out = new ArrayList<>(normal.size() + 1);
+        out.add(own);
+        out.addAll(normal);
+        return out;
     }
 
     /** The meetings at which the next intro line opens, or -1 when all are open. */
@@ -122,35 +144,31 @@ public record PeopleSpec(List<Integer> milestones, Set<String> never, String tit
     // One player's record of one person
     // ------------------------------------------------------------------------------------------
 
-    /** What a meeting changed: the first meeting, the first shiny one, an intro line that opened (its index, else -1). */
-    public record Meet(boolean first, boolean firstShiny, int opened, boolean newPlace) {}
+    /** What a meeting changed: the first meeting (registered), an intro line that opened (its index, else -1), a new place. */
+    public record Meet(boolean first, int opened, boolean newPlace) {}
 
-    /** A player and one person: meetings, the first one (millis, 0: never), registered normal and shiny (millis, 0: no), places. */
+    /**
+     * A player and one person in one collection (일반 or 별난: two separate entries): meetings, the first one (millis, 0:
+     * never), the places.
+     */
     public static final class Entry {
         public int met;
-        public long first, normal, shiny;
+        public long first;
         public final Set<String> places = new LinkedHashSet<>();
 
         public boolean registered() {
-            return normal > 0 || shiny > 0;
+            return met > 0;
         }
 
-        /** One more meeting (shiny or not) at this place, now. */
-        public Meet meet(PeopleSpec spec, long now, boolean isShiny, String place) {
+        /** One more meeting at this place, now; `shiny`: this is a 별난 인물 entry (its intro has one line more). */
+        public Meet meet(PeopleSpec spec, long now, boolean shiny, String place) {
             boolean firstMeet = met == 0;
-            int before = spec.introsOpen(met);
+            int before = spec.introsOpen(met, shiny);
             met++;
             if (first == 0) first = now;
-            boolean firstShiny = false;
-            if (isShiny) {
-                if (shiny == 0) {
-                    shiny = now;
-                    firstShiny = true;
-                }
-            } else if (normal == 0) normal = now;
             boolean newPlace = place != null && places.add(place);
-            int after = spec.introsOpen(met);
-            return new Meet(firstMeet, firstShiny, after > before ? after - 1 : -1, newPlace);
+            int after = spec.introsOpen(met, shiny);
+            return new Meet(firstMeet, after > before ? after - 1 : -1, newPlace);
         }
 
         /** The places as saved ("bus,restaurant"). */
@@ -165,23 +183,47 @@ public record PeopleSpec(List<Integer> milestones, Set<String> never, String tit
         }
     }
 
-    /** Whether every listed person is registered (normal: any look; `shinyOnly`: their shiny look). */
-    public static boolean complete(List<String> people, Map<String, Entry> mine, boolean shinyOnly) {
+    /** Whether every listed person is registered in this collection (일반 or 별난: `mine` is that collection's entries). */
+    public static boolean complete(List<String> people, Map<String, Entry> mine) {
         if (people.isEmpty()) return false;
         for (String id : people) {
             Entry e = mine.get(id);
-            if (e == null || (shinyOnly ? e.shiny == 0 : e.normal == 0)) return false;
+            if (e == null || !e.registered()) return false;
         }
         return true;
     }
 
-    /** How many listed people are registered (normal look, or shiny look). */
-    public static int count(List<String> people, Map<String, Entry> mine, boolean shiny) {
+    /** How many listed people are registered in this collection. */
+    public static int count(List<String> people, Map<String, Entry> mine) {
         int n = 0;
         for (String id : people) {
             Entry e = mine.get(id);
-            if (e != null && (shiny ? e.shiny > 0 : e.normal > 0)) n++;
+            if (e != null && e.registered()) n++;
         }
         return n;
+    }
+
+    /**
+     * The DB steps that split the old one-row-per-person store (eco_people with normal_at / shiny_at) into the two
+     * collections, run once (stsv_schema eco_people version 2, one transaction), and safe to run again:
+     * <ul>
+     *   <li>every registered shiny (shiny_at &gt; 0) becomes a 별난 인물 row in eco_people_shiny: first met = shiny_at, places
+     *       copied, met = all the meetings if the normal look was never registered (then every meeting was shiny), else 1
+     *       (the old count did not tell them apart: at least the one);</li>
+     *   <li>the 일반 인물 row keeps the rest: one meeting fewer when both were registered, first met = normal_at; a person
+     *       registered only shiny has no 일반 entry any more (the row goes);</li>
+     *   <li>shiny_at is cleared, so nothing is moved twice.</li>
+     * </ul>
+     */
+    public static List<String> splitShinyMigration() {
+        return List.of(
+                "CREATE TABLE IF NOT EXISTS eco_people_shiny (player CHAR(36) NOT NULL, person VARCHAR(64) NOT NULL, met INT NOT NULL, "
+                        + "first_at BIGINT NOT NULL, places VARCHAR(255) NOT NULL, PRIMARY KEY (player, person))",
+                "INSERT INTO eco_people_shiny (player, person, met, first_at, places) "
+                        + "SELECT p.player, p.person, CASE WHEN p.normal_at = 0 THEN p.met ELSE 1 END, p.shiny_at, p.places FROM eco_people p "
+                        + "WHERE p.shiny_at > 0 AND NOT EXISTS (SELECT 1 FROM eco_people_shiny s WHERE s.player = p.player AND s.person = p.person)",
+                "UPDATE eco_people SET met = met - 1 WHERE shiny_at > 0 AND normal_at > 0 AND met > 1",
+                "DELETE FROM eco_people WHERE shiny_at > 0 AND normal_at = 0",
+                "UPDATE eco_people SET first_at = normal_at, shiny_at = 0 WHERE shiny_at > 0");
     }
 }

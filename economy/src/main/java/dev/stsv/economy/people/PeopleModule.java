@@ -34,24 +34,27 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 인물 도감 (README "인물 도감"; people.yml): one entry a person (a bus passenger kind), per player how often they met them
- * (carried to where they were going), when first, their normal and 별난 looks registered, and the places met (stamps).
- * Unmet people are a "???" silhouette with a hint of where to meet them; intro lines open at people.yml milestones.
- * Completing every normal look or every shiny look gives a title (the shiny one is told to the server). Kept in memory,
- * written to eco_people in batches (every 30 seconds and on stop).
+ * 인물 도감 (README "인물 도감"; people.yml): two separate collections, 일반 인물 and 별난 인물 (the shiny look), one entry a
+ * person (a bus passenger kind) in each: per player how often they met them (carried to where they were going), when first,
+ * and the places met (stamps). A shiny meeting counts only for the 별난 entry. Unmet people are a "???" silhouette with a
+ * hint of where to meet them; intro lines open at people.yml milestones. Completing a collection gives its title (the
+ * 별난 one is told to the server). Kept in memory, written in batches (every 30 seconds and on stop) to eco_people (일반)
+ * and eco_people_shiny (별난; the old shiny flags were split into it once: {@link PeopleSpec#splitShinyMigration()}).
  */
 public final class PeopleModule extends EcoModule {
 
     static final String MENU = "economy:people";
     /** /도감 (the item codex) and back */
-    static final String TO_ITEMS = "people:items", TOGGLE = "people:shiny";
+    static final String TO_ITEMS = "people:items", TOGGLE = "people:shiny";   // TOGGLE: the 일반 / 별난 tab switch
     private static final String UNKNOWN_SKIN = "economy:entity/people/unknown";
 
     private Db db;
     private PeopleSpec spec;
-    /** player -> person -> their record */
+    /** player -> person -> their 일반 인물 entry */
     private final Map<UUID, Map<String, PeopleSpec.Entry>> data = new ConcurrentHashMap<>();
-    /** "player|person" changed since the last write */
+    /** player -> person -> their 별난 인물 entry (a separate collection) */
+    private final Map<UUID, Map<String, PeopleSpec.Entry>> shinyData = new ConcurrentHashMap<>();
+    /** "player|person|n" (일반) or "player|person|s" (별난) changed since the last write */
     private final Set<String> dirty = ConcurrentHashMap.newKeySet();
 
     public PeopleModule(EcoPlugin eco) {
@@ -69,14 +72,18 @@ public final class PeopleModule extends EcoModule {
         db.migrate("eco_people", List.of(List.of(
                 "CREATE TABLE IF NOT EXISTS eco_people (player CHAR(36) NOT NULL, person VARCHAR(64) NOT NULL, met INT NOT NULL, "
                         + "first_at BIGINT NOT NULL, normal_at BIGINT NOT NULL, shiny_at BIGINT NOT NULL, places VARCHAR(255) NOT NULL, "
-                        + "PRIMARY KEY (player, person))")));
+                        + "PRIMARY KEY (player, person))"),
+                // 2: 일반 and 별난 become separate entries (the shiny flag of a row becomes its own row in eco_people_shiny)
+                PeopleSpec.splitShinyMigration()));
         load();
         readData();
         every(600L, this::flush);
         eco.onReset(() -> {
             data.clear();
+            shinyData.clear();
             dirty.clear();
             db.execute("DELETE FROM eco_people");
+            db.execute("DELETE FROM eco_people_shiny");
         });
     }
 
@@ -100,35 +107,45 @@ public final class PeopleModule extends EcoModule {
 
     private void readData() {
         data.clear();
-        for (Object[] r : db.sync(c -> Db.query(c, "SELECT player, person, met, first_at, normal_at, shiny_at, places FROM eco_people",
-                rs -> new Object[]{rs.getString(1), rs.getString(2), rs.getInt(3), rs.getLong(4), rs.getLong(5), rs.getLong(6), rs.getString(7)}))) {
+        shinyData.clear();
+        read("eco_people", data);
+        read("eco_people_shiny", shinyData);
+    }
+
+    private void read(String table, Map<UUID, Map<String, PeopleSpec.Entry>> into) {
+        for (Object[] r : db.sync(c -> Db.query(c, "SELECT player, person, met, first_at, places FROM " + table,
+                rs -> new Object[]{rs.getString(1), rs.getString(2), rs.getInt(3), rs.getLong(4), rs.getString(5)}))) {
             PeopleSpec.Entry e = new PeopleSpec.Entry();
             e.met = (Integer) r[2];
             e.first = (Long) r[3];
-            e.normal = (Long) r[4];
-            e.shiny = (Long) r[5];
-            e.places.addAll(PeopleSpec.Entry.places((String) r[6]));
-            data.computeIfAbsent(UUID.fromString((String) r[0]), k -> new ConcurrentHashMap<>()).put((String) r[1], e);
+            e.places.addAll(PeopleSpec.Entry.places((String) r[4]));
+            if (e.met > 0) into.computeIfAbsent(UUID.fromString((String) r[0]), k -> new ConcurrentHashMap<>()).put((String) r[1], e);
         }
     }
 
     /** Writes every changed record (one batch on the database thread). */
     private void flush() {
         if (dirty.isEmpty()) return;
-        List<Object[]> rows = new ArrayList<>();
+        List<Object[]> rows = new ArrayList<>(), shinyRows = new ArrayList<>();
         for (String k : List.copyOf(dirty)) {
             dirty.remove(k);
-            int bar = k.indexOf('|');
-            UUID u = UUID.fromString(k.substring(0, bar));
-            String person = k.substring(bar + 1);
-            PeopleSpec.Entry e = data.getOrDefault(u, Map.of()).get(person);
+            String[] parts = k.split("\\|", 3);
+            UUID u = UUID.fromString(parts[0]);
+            String person = parts[1];
+            boolean shiny = parts.length > 2 && parts[2].equals("s");
+            PeopleSpec.Entry e = (shiny ? shinyData : data).getOrDefault(u, Map.of()).get(person);
             if (e == null) continue;
             String places = e.placesText();
-            rows.add(new Object[]{u.toString(), person, e.met, e.first, e.normal, e.shiny, places.length() > 255 ? places.substring(0, 255) : places});
+            if (places.length() > 255) places = places.substring(0, 255);
+            // eco_people keeps its old columns: normal_at = first met, shiny_at unused (0)
+            if (shiny) shinyRows.add(new Object[]{u.toString(), person, e.met, e.first, places});
+            else rows.add(new Object[]{u.toString(), person, e.met, e.first, e.first, 0L, places});
         }
         String sql = db.upsert("eco_people", List.of("player", "person"), List.of("met", "first_at", "normal_at", "shiny_at", "places"));
+        String shinySql = db.upsert("eco_people_shiny", List.of("player", "person"), List.of("met", "first_at", "places"));
         db.async(c -> {
             for (Object[] r : rows) Db.update(c, sql, r);
+            for (Object[] r : shinyRows) Db.update(c, shinySql, r);
             return null;
         });
     }
@@ -147,8 +164,14 @@ public final class PeopleModule extends EcoModule {
         return bus == null ? List.of() : spec.people(bus);
     }
 
+    /** A player's 일반 인물 entries. */
     public Map<String, PeopleSpec.Entry> of(UUID player) {
         return data.getOrDefault(player, Map.of());
+    }
+
+    /** A player's entries in one collection (별난 인물 if `shiny`). */
+    public Map<String, PeopleSpec.Entry> of(UUID player, boolean shiny) {
+        return (shiny ? shinyData : data).getOrDefault(player, Map.of());
     }
 
     // ------------------------------------------------------------------------------------------
@@ -156,8 +179,9 @@ public final class PeopleModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     /**
-     * The driver carried this person (a bus kind) where they were going: one more meeting at `place`; the first meeting, a
-     * first shiny one, an intro line opening and the completions are told to them.
+     * The driver carried this person (a bus kind) where they were going: one more meeting at `place` in the 일반 인물 entry,
+     * or, when the passenger was 별난, in the 별난 인물 entry only (separate collections). The first meeting, an intro line
+     * opening, a new place and a completed collection are told to them.
      */
     public void met(Player p, String person, boolean shiny, String place) {
         BusSpec bus = busSpec();
@@ -165,25 +189,23 @@ public final class PeopleModule extends EcoModule {
         if (t == null || !spec.listed(t)) return;
         if (eco.guide() != null && eco.guide().active(p)) return;   // 길라잡이: the trial bus registers nothing
         UUID u = p.getUniqueId();
-        Map<String, PeopleSpec.Entry> mine = data.computeIfAbsent(u, k -> new ConcurrentHashMap<>());
+        Map<String, PeopleSpec.Entry> mine = (shiny ? shinyData : data).computeIfAbsent(u, k -> new ConcurrentHashMap<>());
         PeopleSpec.Entry e = mine.computeIfAbsent(person, k -> new PeopleSpec.Entry());
-        boolean hadNormal = e.normal > 0;
         PeopleSpec.Meet m = e.meet(spec, System.currentTimeMillis(), shiny, place);
-        dirty.add(u + "|" + person);
-        // missions (README "미션"): passengers carried where they were going, and new people in the codex
+        dirty.add(u + "|" + person + (shiny ? "|s" : "|n"));
+        // missions (README "미션"): passengers carried where they were going, and new people (일반 인물) in the codex
         core.profiles().add(u, "people_met", 1);
-        if (m.first()) core.profiles().add(u, "people_new", 1);
+        if (m.first() && !shiny) core.profiles().add(u, "people_new", 1);
         List<String> all = people();
-        String name = nameOf(t);
-        if (m.firstShiny()) {
+        String name = shiny ? Lang.raw("people.name-shiny", "name", nameOf(t)) : nameOf(t);
+        if (m.first() && shiny) {
             p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 1f, 1.2f);
             p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.6f, 1.6f);
-            p.sendMessage(Lang.mm("people.new-shiny", "name", name, "have", PeopleSpec.count(all, mine, true), "all", all.size()));
-            HudModule.flash(p, Lang.mm("people.new-shiny-flash", "name", name), 3500);
-        } else if (!hadNormal && e.normal > 0) {
+            p.sendMessage(Lang.mm("people.new-shiny", "name", nameOf(t), "have", PeopleSpec.count(all, mine), "all", all.size()));
+            HudModule.flash(p, Lang.mm("people.new-shiny-flash", "name", nameOf(t)), 3500);
+        } else if (m.first()) {
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.4f);
-            p.sendMessage(Lang.mm(m.first() ? "people.new" : "people.new-normal", "name", name,
-                    "have", PeopleSpec.count(all, mine, false), "all", all.size()));
+            p.sendMessage(Lang.mm("people.new", "name", name, "have", PeopleSpec.count(all, mine), "all", all.size()));
         }
         if (m.opened() >= 0 && !m.first()) {
             p.sendMessage(Lang.mm("people.intro-open", "name", name, "met", e.met));
@@ -191,14 +213,15 @@ public final class PeopleModule extends EcoModule {
         if (m.newPlace() && !m.first()) {
             p.sendMessage(Lang.mm("people.new-place", "name", name, "place", spec.places().getOrDefault(place, place)));
         }
-        if (!hadNormal && e.normal > 0 && PeopleSpec.complete(all, mine, false)) {
-            core.profiles().grantTitle(u, spec.titleAll());
-            p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.0f);
-            p.sendMessage(Lang.mm("people.all-done", "n", all.size()));
-        }
-        if (m.firstShiny() && PeopleSpec.complete(all, mine, true)) {
-            core.profiles().grantTitle(u, spec.titleShiny());
-            Bukkit.broadcast(Lang.msg("people.shiny-all-done", "player", Names.mini(p)));
+        if (m.first() && PeopleSpec.complete(all, mine)) {
+            if (shiny) {
+                core.profiles().grantTitle(u, spec.titleShiny());
+                Bukkit.broadcast(Lang.msg("people.shiny-all-done", "player", Names.mini(p)));
+            } else {
+                core.profiles().grantTitle(u, spec.titleAll());
+                p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.8f, 1.0f);
+                p.sendMessage(Lang.mm("people.all-done", "n", all.size()));
+            }
         }
     }
 
@@ -214,8 +237,9 @@ public final class PeopleModule extends EcoModule {
         open(p, false);
     }
 
-    private void open(Player p, boolean shinyLook) {
-        core.menus().open(p, MENU, new PeopleMenu(shinyLook));
+    /** Opens the 인물 도감 on a tab: 일반 인물, or 별난 인물. */
+    private void open(Player p, boolean shiny) {
+        core.menus().open(p, MENU, new PeopleMenu(shiny));
     }
 
     /** A head wearing this skin (a bus.yml skin key, " slim" allowed). */
@@ -233,34 +257,44 @@ public final class PeopleModule extends EcoModule {
     }
 
     private final class PeopleMenu implements MenuHandler {
-        /** show the 별난 look of those registered shiny */
-        private boolean shinyLook;
+        /** the 별난 인물 tab (else 일반 인물) */
+        private final boolean shiny;
 
-        PeopleMenu(boolean shinyLook) {
-            this.shinyLook = shinyLook;
+        PeopleMenu(boolean shiny) {
+            this.shiny = shiny;
         }
 
         @Override
         public Map<String, String> placeholders(MenuView v) {
             List<String> all = people();
-            Map<String, PeopleSpec.Entry> mine = of(v.player().getUniqueId());
+            UUID u = v.player().getUniqueId();
             Map<String, String> m = new HashMap<>();
-            m.put("have", String.valueOf(PeopleSpec.count(all, mine, false)));
+            int normal = PeopleSpec.count(all, of(u, false)), shinyHave = PeopleSpec.count(all, of(u, true));
+            m.put("have", String.valueOf(normal));
             m.put("all", String.valueOf(all.size()));
-            m.put("shiny", String.valueOf(PeopleSpec.count(all, mine, true)));
+            m.put("shiny", String.valueOf(shinyHave));
+            m.put("tab", Lang.raw(shiny ? "people.tab-shiny" : "people.tab-normal"));
+            m.put("tab_have", String.valueOf(shiny ? shinyHave : normal));
             return m;
         }
 
         @Override
         public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
             if (base == null) return null;
-            if (b.action().equals(TOGGLE) && shinyLook) base.editMeta(m -> m.setEnchantmentGlintOverride(true));
+            List<String> all = people();
+            UUID u = v.player().getUniqueId();
+            int normal = PeopleSpec.count(all, of(u, false)), shinyHave = PeopleSpec.count(all, of(u, true));
+            if (b.action().equals(TOGGLE)) {   // the tab switch: shows both counts, names the other tab
+                base.editMeta(m -> {
+                    m.itemName(Lang.item(shiny ? "people.switch-to-normal" : "people.switch-to-shiny", "have", shiny ? normal : shinyHave, "all", all.size()));
+                    m.lore(Lang.items("people.switch-lore", "normal", normal, "shiny", shinyHave, "all", all.size(),
+                            "now", Lang.raw(shiny ? "people.tab-shiny" : "people.tab-normal")));
+                    if (shiny) m.setEnchantmentGlintOverride(true);
+                });
+            }
             if (b.key() == 'I') {
-                List<String> all = people();
-                Map<String, PeopleSpec.Entry> mine = of(v.player().getUniqueId());
                 List<Component> lore = new ArrayList<>();
-                lore.add(Lang.item("people.info-count", "have", PeopleSpec.count(all, mine, false), "shiny", PeopleSpec.count(all, mine, true),
-                        "all", all.size()));
+                lore.add(Lang.item("people.info-count", "have", normal, "shiny", shinyHave, "all", all.size()));
                 lore.add(Component.empty());
                 lore.addAll(Lang.items("people.info-lore"));
                 base.editMeta(m -> m.lore(lore));
@@ -273,39 +307,42 @@ public final class PeopleModule extends EcoModule {
             Player p = v.player();
             BusSpec bus = busSpec();
             if (bus == null) return List.of();
-            Map<String, PeopleSpec.Entry> mine = of(p.getUniqueId());
+            Map<String, PeopleSpec.Entry> mine = of(p.getUniqueId(), shiny), other = of(p.getUniqueId(), !shiny);
             SimpleDateFormat day = new SimpleDateFormat("yyyy-MM-dd");
             List<ItemStack> out = new ArrayList<>();
             for (String id : people()) {
                 BusSpec.Type t = bus.types().get(id);
                 PeopleSpec.Entry e = mine.get(id);
                 boolean known = e != null && e.registered();
-                boolean showShiny = known && e.shiny > 0 && (shinyLook || e.normal == 0);
-                String skin = !known ? UNKNOWN_SKIN : showShiny ? bus.shiny().skin(t) : t.skins().isEmpty() ? null : t.skins().getFirst();
+                String skin = !known ? UNKNOWN_SKIN : shiny ? bus.shiny().skin(t) : t.skins().isEmpty() ? null : t.skins().getFirst();
                 ItemStack it = head(skin);
                 List<Component> lore = new ArrayList<>();
                 if (known) {
                     lore.add(Lang.item("people.lore-met", "met", e.met, "date", day.format(new Date(e.first))));
-                    lore.add(Lang.item("people.lore-looks", "normal", Lang.raw(e.normal > 0 ? "people.seen" : "people.unseen"),
-                            "shiny", Lang.raw(e.shiny > 0 ? "people.seen-shiny" : "people.unseen")));
+                    PeopleSpec.Entry o = other.get(id);
+                    boolean otherKnown = o != null && o.registered();
+                    // the other collection's entry, just a mark (it is its own entry there)
+                    lore.add(Lang.item(shiny ? "people.lore-other-normal" : "people.lore-other-shiny",
+                            "mark", Lang.raw(otherKnown ? (shiny ? "people.seen" : "people.seen-shiny") : "people.unseen")));
                     List<String> stamps = new ArrayList<>();
                     for (String pl : e.places) stamps.add(Lang.raw("people.stamp", "place", spec.places().getOrDefault(pl, pl)));
                     lore.add(Lang.item("people.lore-places", "stamps", String.join(" ", stamps)));
                     lore.add(Component.empty());
-                    List<String> intro = spec.intros().getOrDefault(id, List.of());
-                    int open = Math.min(intro.size(), spec.introsOpen(e.met));
-                    for (int i = 0; i < open; i++) lore.add(Lang.item("people.lore-intro", "line", intro.get(i)));
+                    List<String> intro = spec.intro(id, shiny);
+                    int open = Math.min(intro.size(), spec.introsOpen(e.met, shiny));
+                    for (int i = 0; i < open; i++) lore.add(Lang.item(shiny && i == 0 ? "people.lore-intro-shiny" : "people.lore-intro", "line", intro.get(i)));
                     int next = spec.nextMilestone(e.met);
                     if (open < intro.size() && next > 0) lore.add(Lang.item("people.lore-intro-locked", "n", next, "left", next - e.met));
                 } else {
-                    lore.add(Lang.item("people.lore-unknown"));
+                    lore.add(Lang.item(shiny ? "people.lore-unknown-shiny" : "people.lore-unknown"));
                     lore.add(Lang.item("people.lore-hint", "hint", hint(bus, t)));
-                    lore.add(Lang.item("people.lore-how"));
+                    lore.add(Lang.item(shiny ? "people.lore-how-shiny" : "people.lore-how"));
                 }
                 // 주민의 부탁 (README "주민의 부탁"): 친밀도, and the 명인 의뢰's regulars
                 if (eco.requests() != null) lore.addAll(eco.requests().peopleLines(p.getUniqueId(), id));
-                boolean glint = known && showShiny;
-                String name = known ? (e.shiny > 0 ? Lang.raw("people.name-shiny", "name", nameOf(t)) : nameOf(t)) : Lang.raw("people.unknown-name");
+                String name = known ? (shiny ? Lang.raw("people.name-shiny", "name", nameOf(t)) : nameOf(t))
+                        : Lang.raw(shiny ? "people.unknown-name-shiny" : "people.unknown-name");
+                boolean glint = known && shiny;
                 it.editMeta(meta -> {
                     meta.itemName(Text.item(name));
                     meta.lore(lore);
@@ -321,10 +358,9 @@ public final class PeopleModule extends EcoModule {
             Player p = v.player();
             if (action.equals(TO_ITEMS)) {
                 Bukkit.getScheduler().runTask(eco, () -> eco.codex().open(p));
-            } else if (action.equals(TOGGLE)) {
-                shinyLook = !shinyLook;
-                p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.6f, shinyLook ? 1.6f : 1.0f);
-                v.refresh();
+            } else if (action.equals(TOGGLE)) {   // the other tab (its own title and count)
+                p.playSound(p.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.6f, shiny ? 1.0f : 1.6f);
+                Bukkit.getScheduler().runTask(eco, () -> open(p, !shiny));
             }
         }
     }
@@ -347,10 +383,9 @@ public final class PeopleModule extends EcoModule {
         return String.join(Lang.raw("people.hint-and"), parts);
     }
 
-    /** For tests and the admin: how many distinct people a player registered (normal, shiny). */
+    /** For the item codex's button and the admin: how many people a player registered in each collection (일반, 별난, all). */
     public int[] counts(UUID player) {
         List<String> all = people();
-        Map<String, PeopleSpec.Entry> mine = of(player);
-        return new int[]{PeopleSpec.count(all, mine, false), PeopleSpec.count(all, mine, true), all.size()};
+        return new int[]{PeopleSpec.count(all, of(player, false)), PeopleSpec.count(all, of(player, true)), all.size()};
     }
 }
