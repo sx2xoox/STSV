@@ -92,6 +92,10 @@ angler_special:
   name: "<#7fd8ff>[때를 아는 자]"
   description: "도감: 시간·날씨 물고기를 모두 잡음"
   category: codex
+angler_school:
+  name: "<#7fd8ff>[선단의 어부]"
+  description: "도감: 어선 물고기를 모두 잡음"
+  category: codex
 master_angler:
   name: "<gradient:#7fd8ff:#ffd36a><b>[강태공]</b></gradient>"
   description: "도감: 물고기를 모두 잡음"

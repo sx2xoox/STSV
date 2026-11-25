@@ -257,9 +257,10 @@ class ContentTest {
         for (var c : requests.community()) if (!exists(c.item(), ours)) problems.add("community: " + c.item());
         assertTrue(problems.isEmpty(), String.join("\n", problems));
 
-        // fishing: 98 fish (92 our own items, 3 vanilla, 3 kept from the old finds), each group's title exists
+        // fishing: 104 fish (98 our own items, 3 vanilla, 3 kept from the old finds; 6 of ours the boats' 떼물고기), each group's title exists
         dev.stsv.economy.fishing.FishSpec fish = dev.stsv.economy.fishing.FishSpec.parse(yaml("fish.yml"), problems);
-        assertEquals(98, fish.species().size());
+        assertEquals(104, fish.species().size());
+        assertEquals(6, fish.species().values().stream().filter(dev.stsv.economy.fishing.FishSpec.Species::boatOnly).count(), "6 떼물고기");
         YamlConfiguration titles = yaml("titles/titles.yml");
         for (var s : fish.species().values()) {
             if (!exists(s.item(), ours)) problems.add("fish item: " + s.item());
@@ -272,10 +273,10 @@ class ContentTest {
 
         // the shape: 6 jobs, 6 finds, 8 special materials, 140 job machine goods + 9 press goods (the 손질대's 4 tier items, its
         // 연마 진주 and its 북어포 among them), 21 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
-        // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 92 fish
+        // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 98 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 92 + 4 + 1 + 12 + 1 + 18, ours.size(),
-                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 92 fish + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지)");
+        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 98 + 4 + 1 + 12 + 1 + 18, ours.size(),
+                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 98 fish (6 떼물고기) + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지)");
         assertEquals(7, machines.size());
         assertEquals(149 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");

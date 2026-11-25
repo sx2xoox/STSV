@@ -725,6 +725,26 @@ fishing:
   pen-feed-full: "<gray>사료가 가득 찼습니다. <dark_gray>(사료 {feed})"
   pen-took: "<aqua>가두리에서 <white>{fish} {count}마리</white> 꺼냄 <dark_gray>(남은 {left} · 사료 {feed})"
 
+# 어군 조업 (fish.yml schools): 바다의 물고기 떼, 배의 어군 탐지기, 항구 어황판
+school:
+  gone: "<aqua>{fish} 떼<gray>가 흩어졌어요."
+  detect-none: "<dark_aqua>어군 탐지기 <gray>· {range}칸 안에 떼 없음"
+  detect-direction: "<dark_aqua>어군 탐지기 <white><b>{arrow}</b> <gray>떼가 있어요"
+  detect-distance: "<dark_aqua>어군 탐지기 <white><b>{arrow}</b> {distance}칸"
+  detect-full: "<dark_aqua>어군 탐지기 <white><b>{arrow}</b> {distance}칸 <dark_gray>· <aqua>{fish} 떼 <dark_gray>· <gray>{size} ({left}마리)"
+  detect-on: "<green><b>떼 위!</b> <gray>천천히 가거나 서면 그물이 내려가요 <dark_gray>· <aqua>{fish} 떼 <gray>{size} ({left}마리)"
+  board-title: "<aqua><b>{name} 어황판</b>"
+  board-line: "<white>{way} {sea} <dark_gray>· <aqua>{fish} 떼 <dark_gray>· <gray>{size}"
+  board-empty: "<gray>지금은 떼 소식이 없어요"
+  admin-player: "<red>게임 안에서 쓰는 명령이에요."
+  admin-no-fish: "<red>떼물고기가 아니에요: {fish}"
+  admin-not-water: "<red>여기는 떼가 생길 수 있는 넓은 물 위가 아니에요 (물 위, 둘레 8칸이 모두 물, 다른 떼와 떨어져서)."
+  admin-made: "<green>{sea}에 {fish} 떼를 만들었어요 <gray>({left}마리)"
+  admin-cleared: "<yellow>떼 {count}개를 지웠어요."
+  admin-boards: "<green>항구 어황판 {count}개를 다시 세웠어요."
+  admin-line: "<white>#{id} <aqua>{fish} 떼 <gray>{world} {x}, {z} · {sea} · {left}/{full}마리 · {seconds}초 남음"
+  admin-none: "<gray>지금 떼가 없어요."
+
 # 낚시대회 (매시 정각 10분, /낚시대회). {title} = 종목 이름(지정 어종 · 고등어), {goal} = 이기는 법
 tournament:
   kind:

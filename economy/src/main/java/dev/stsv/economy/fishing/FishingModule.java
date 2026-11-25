@@ -115,12 +115,18 @@ public final class FishingModule extends EcoModule {
     }
 
     /**
-     * What a boat's net brings up (the core asks, every net.seconds on average, while the net is down): one fish of that
-     * water ({@link #netCatch}). Nothing else: the crates of catch a net hauled in 3.66.0 (원양 조업, sold at a harbour's
+     * What a boat's net brings up (the core asks, every net.seconds on average, while the net is down): inside a fish school
+     * (어군 조업, {@link SchoolModule#haul}) a stack of the school's 떼물고기, elsewhere one fish of that water ({@link #netCatch}).
+     * Nothing else: the crates of catch a net hauled in 3.66.0 (원양 조업, sold at a harbour's
      * fish auction) were more than a fishing boat needs, and are no longer hauled; the ones still in a hold sell as before.
      */
     private ItemStack netHaul(Player p, Block water, dev.stsv.core.vehicle.NetHaul.Boat boat) {
-        return netCatch(p, water);
+        SchoolModule schools = eco.schools();
+        ItemStack school = schools == null ? null : schools.haul(p, water, boat);   // 어군 조업: in a school, its fish
+        if (school != null) return school;
+        ItemStack one = netCatch(p, water);
+        if (one != null && schools != null) schools.hauled(p);
+        return one;
     }
 
     /** The boat a crate of catch was hauled by, or 0 (not a crate, or one that was handed out). */

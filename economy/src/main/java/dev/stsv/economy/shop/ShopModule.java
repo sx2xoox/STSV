@@ -447,12 +447,13 @@ public final class ShopModule extends EcoModule implements DailyListener {
     // 긴급 납품: a merchant orders a lot of one thing; the earlier you deliver, the more each one pays
     // ------------------------------------------------------------------------------------------
 
-    /** Rare and legend fish: a lucky catch each (and they do not stack), never asked for by the dozen. */
+    /** Rare and legend fish: a lucky catch each, never asked for by the dozen; nor a 떼물고기 (only a boat in a school brings it up). */
     private boolean luckyFish(String id) {
         var fishing = eco.fishing();
         if (fishing == null || fishing.spec() == null) return false;
         for (var sp : fishing.spec().species().values()) {
             if (!ShopCatalog.norm(sp.item()).equals(id)) continue;
+            if (sp.boatOnly()) return true;
             FishSpec.Rarity r = fishing.spec().rarities().get(sp.rarity());
             if (r != null && r.index() >= 2) return true;
         }

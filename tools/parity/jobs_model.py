@@ -350,9 +350,10 @@ def pen_day(W_, lv, hours, fisher=True):
 
 
 def pen_species(W_, n):
-    """The n species a fisher farms: the dearest commons and uncommons (no fish of a moment), each pen a different one."""
+    """The n species a fisher farms: the dearest commons and uncommons (no fish of a moment, no 떼물고기: TrapModule takes none in a
+    pen), each pen a different one."""
     ps = [(W_.base.get("economy:" + k if "item" not in s else M.norm(s["item"]), 0), "economy:" + k if "item" not in s else M.norm(s["item"]))
-          for k, s in W_.fish["species"].items() if s["rarity"] in ("common", "uncommon") and not s.get("when")]
+          for k, s in W_.fish["species"].items() if s["rarity"] in ("common", "uncommon") and not s.get("when") and s["habitat"] != "school"]
     ps.sort(reverse=True)
     return [i for _, i in ps[:n]]
 

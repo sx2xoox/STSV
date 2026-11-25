@@ -19,27 +19,27 @@ groups:
   # 1.2배 이상, 가장 싼 것을 넣어도 1.76배 이하). 새 물고기는 등급·값에 맞는 묶음에 넣을 것 (RulesTest 가 확인)
   fish_common_small:
     name: "흔한 물고기 · 3G"
-    items: [economy:loach, economy:pale_chub, economy:smelt]
+    items: [economy:loach, economy:pale_chub, economy:smelt, economy:anchovy]
   fish_common:
     name: "흔한 물고기 · 5~6G"
     items: [cod, economy:cave_shrimp, economy:cavefish, economy:crucian_carp, economy:damselfish, economy:goby, economy:guppy,
             economy:herring, economy:horse_mackerel, economy:mackerel, economy:paradise_fish, economy:pollack, economy:sandfish,
-            economy:sardine, economy:saury, salmon, economy:clownfish, economy:neon_tetra, pufferfish, tropical_fish]
+            economy:sardine, economy:saury, salmon, economy:clownfish, economy:neon_tetra, pufferfish, tropical_fish, economy:squid]
   fish_uncommon_low:
     name: "보통 물고기 · 9~11G"
-    items: [economy:bitterling, economy:sand_lance, economy:greenling, economy:tilapia]
+    items: [economy:bitterling, economy:sand_lance, economy:greenling, economy:tilapia, economy:spanish_mackerel]
   fish_uncommon:
     name: "보통 물고기 · 12~17G"
     items: [economy:atka_mackerel, economy:black_rockfish, economy:butterflyfish, economy:dace, economy:filefish,
             economy:moss_minnow, economy:mullet, economy:mudskipper, economy:rockfish, economy:swamp_eel, economy:tang,
-            economy:carp, economy:cave_crayfish, economy:sweetfish, economy:catfish]
+            economy:carp, economy:cave_crayfish, economy:sweetfish, economy:catfish, economy:flying_fish]
   fish_uncommon_high:
     name: "보통 물고기 · 18~23G"
     items: [economy:angelfish, economy:flatfish, economy:lenok, economy:pike_conger, economy:lionfish, economy:snakehead,
-            economy:monkfish, economy:skate, economy:spore_goby]
+            economy:monkfish, economy:skate, economy:spore_goby, economy:skipjack]
   fish_rare_1:
     name: "희귀 물고기 · 42~45G"
-    items: [economy:bagrid_catfish, economy:kkeokji]
+    items: [economy:bagrid_catfish, economy:kkeokji, economy:school_tuna]
   fish_rare_2:
     name: "희귀 물고기 · 53~60G"
     items: [economy:hairtail, economy:masu_salmon, economy:red_seabream, economy:trout, economy:yellowtail]

@@ -1,6 +1,6 @@
 {
  "about": "Parity model (tools/parity: pm2.py + trade2.py, mk_parity.py writes this file) on this content: net G a day per job, level and hours (casual 1h 1 machine, regular 3h 2 machines, hardcore 6h 4 machines); hours = [3h/1h, 6h/3h before the sales tax, the same after it]; trade = one player a job, gatherer goods at p x base; exceptions = curated cells allowed outside 15% (up to 35%), each with its reason. BalanceTest R17 / R18 recompute it from the content and check it.",
- "content_sha1": "def40501f3a7a90a80fc8a9447e42004d2ec77b6",
+ "content_sha1": "ec85e813b96fd620296956333c2a022c9c771025",
  "net": {
   "casual|1": {
    "miner": 6923,

@@ -551,3 +551,39 @@ moon_goldfish:
   name: "<#ffaa00>달 금붕어"
   lore: ["<gray>시간·날씨 · 전설"]
   texture: moon_goldfish
+
+anchovy:
+  material: paper
+  name: "<#ffffff>멸치"
+  lore: ["<gray>어선 · 흔함"]
+  texture: anchovy
+
+squid:
+  material: paper
+  name: "<#ffffff>오징어"
+  lore: ["<gray>어선 · 흔함"]
+  texture: squid
+
+spanish_mackerel:
+  material: paper
+  name: "<#55ff55>삼치"
+  lore: ["<gray>어선 · 보통"]
+  texture: spanish_mackerel
+
+flying_fish:
+  material: paper
+  name: "<#55ff55>날치"
+  lore: ["<gray>어선 · 보통"]
+  texture: flying_fish
+
+skipjack:
+  material: paper
+  name: "<#55ff55>가다랑어"
+  lore: ["<gray>어선 · 보통"]
+  texture: skipjack
+
+school_tuna:
+  material: paper
+  name: "<#5aa8ff>참치"
+  lore: ["<gray>어선 · 희귀"]
+  texture: school_tuna

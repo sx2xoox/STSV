@@ -184,6 +184,12 @@ sell:
       economy:moonlight_ray: { base: 720, q: 2, job: fisher }   # 달빛 가오리
       economy:thunder_catfish: { base: 780, q: 2, job: fisher }   # 천둥 메기
       economy:moon_goldfish: { base: 750, q: 2, job: fisher }   # 달 금붕어
+      economy:anchovy: { base: 3, q: 64, job: fisher }   # 멸치
+      economy:squid: { base: 6, q: 32, job: fisher }   # 오징어
+      economy:spanish_mackerel: { base: 11, q: 32, job: fisher }   # 삼치
+      economy:flying_fish: { base: 14, q: 32, job: fisher }   # 날치
+      economy:skipjack: { base: 20, q: 16, job: fisher }   # 가다랑어
+      economy:school_tuna: { base: 45, q: 16, job: fisher }   # 참치
       # ── 낚시 끝
       # 어부 발견품
       economy:red_seabream: { base: 60, q: 8, job: fisher }   # 참돔

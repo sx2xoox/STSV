@@ -280,7 +280,8 @@ public final class TrapModule extends EcoModule {
         if (hand == null || hand.isEmpty() || Items.sized(hand)) return null;
         String key = Items.key(hand);
         for (FishSpec.Species s : fish().species().values()) {
-            if (s.item().equals(key) && TrapSpec.penFish(fish().rarities().get(s.rarity()))) return s;
+            // a 떼물고기 is a boat's (a school's) only: never bred in a pen
+            if (s.item().equals(key) && !s.boatOnly() && TrapSpec.penFish(fish().rarities().get(s.rarity()))) return s;
         }
         return null;
     }

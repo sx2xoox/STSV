@@ -179,20 +179,21 @@ public final class TournamentRules {
         return out;
     }
 
-    /** The 지정 어종 candidates: common and uncommon fish (rarity index 0, 1) that bite at this moment somewhere. */
+    /** The 지정 어종 candidates: common and uncommon fish (rarity index 0, 1) that bite at this moment somewhere (a rod's: no 떼물고기). */
     public static List<FishSpec.Species> speciesNow(FishSpec spec, FishSpec.Moment m) {
         List<FishSpec.Species> out = new ArrayList<>();
         for (FishSpec.Species x : spec.species().values()) {
+            if (x.boatOnly()) continue;
             FishSpec.Rarity r = spec.rarities().get(x.rarity());
             if (r != null && r.index() <= 1 && m.is(x.when())) out.add(x);
         }
         return out;
     }
 
-    /** The 서식지 candidates: the codex groups that are waters (not the time-and-weather group), less the skipped ones. */
+    /** The 서식지 candidates: the codex groups that are waters (not the time-and-weather group nor the 떼물고기'), less the skipped ones. */
     public static List<String> habitats(FishSpec spec, Settings s) {
         List<String> out = new ArrayList<>();
-        for (String g : spec.groups().keySet()) if (!g.equals("special") && !s.skipHabitats().contains(g)) out.add(g);
+        for (String g : spec.groups().keySet()) if (!g.equals("special") && !g.equals(FishSpec.SCHOOL) && !s.skipHabitats().contains(g)) out.add(g);
         return out;
     }
 

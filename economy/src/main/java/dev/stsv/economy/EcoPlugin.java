@@ -75,6 +75,7 @@ public final class EcoPlugin extends JavaPlugin {
     private FishingModule fishing;
     private dev.stsv.economy.fishing.TrapModule traps;
     private dev.stsv.economy.fishing.TournamentModule tournament;
+    private dev.stsv.economy.fishing.SchoolModule schools;
     private dev.stsv.economy.codex.CodexModule codex;
     private dev.stsv.economy.accessory.AccessoryModule accessories;
     private TradeRules rules;
@@ -132,6 +133,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(accessories = new dev.stsv.economy.accessory.AccessoryModule(this));
         add(new dev.stsv.economy.skin.SkinBoxModule(this));
         add(docks = new dev.stsv.economy.dock.DockModule(this));   // after the shop, machines and land: it reads them
+        add(schools = new dev.stsv.economy.fishing.SchoolModule(this));   // after fishing and the docks: the fish, the harbours
         add(roads = new dev.stsv.economy.road.RoadModule(this));
         add(bus = new dev.stsv.economy.bus.BusModule(this));   // after the roads: its stops stand on them
         add(people = new dev.stsv.economy.people.PeopleModule(this));   // after the bus: its people are the bus's passengers
@@ -244,6 +246,7 @@ public final class EcoPlugin extends JavaPlugin {
     public dev.stsv.economy.accessory.AccessoryModule accessories() { return accessories; }
     public dev.stsv.economy.fishing.TrapModule traps() { return traps; }
     public dev.stsv.economy.fishing.TournamentModule tournament() { return tournament; }
+    public dev.stsv.economy.fishing.SchoolModule schools() { return schools; }
     public dev.stsv.economy.codex.CodexModule codex() { return codex; }
     /** 인물 도감 (/도감 인물) */
     public dev.stsv.economy.people.PeopleModule people() { return people; }

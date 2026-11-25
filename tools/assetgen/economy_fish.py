@@ -1,12 +1,13 @@
 """
-Fishing (economy server): the 98 fish, their 16x16 icons, the fish icon font and the content files
+Fishing (economy server): the 104 fish (98 for the rod, 6 떼물고기 only a boat's net brings up from a school), their 16x16 icons, the fish icon font and the content files
 made from this one table.
 
     FISH: id -> (name, habitat, rarity 0..3, min cm, max cm, base price, shape, main colour, second colour, extra)
 
 shape: f fish, l long (eels, catfish, needle fish), p flat or round (flatfish, rays, sunfish, turtles),
 c crab / shrimp, q octopus / squid / jellyfish. extra: a few marks (stripes, spots, bill, whisker, lure,
-glow, shark, when=night|dawn|dusk|rain|thunder|fullmoon). habitat "fresh" / "salt" = any water of that kind.
+glow, shark, when=night|dawn|dusk|rain|thunder|fullmoon). habitat "fresh" / "salt" = any water of that kind; "school" = a
+떼물고기 (no water of its own: the rod never catches it, only a boat's net in a 어군, fish.yml schools).
 
 Writes: icons (ICONS, into economy_icons), economy/content/economy/fish.yml, items/fish.yml, the fish part
 of shop.yml (between markers), the codex titles and the fish icon font (economy:fishicon) used in the
@@ -42,6 +43,7 @@ HABITATS = {  # id: (name, codex title id, title text)
     "cave": ("동굴 지하수", "angler_cave", "[심연의 낚시꾼]"),
     "mushroom": ("버섯 섬", "angler_mushroom", "[포자의 낚시꾼]"),
     "special": ("시간·날씨", "angler_special", "[때를 아는 자]"),
+    "school": ("어선", "angler_school", "[선단의 어부]"),
 }
 
 FISH = {
@@ -155,16 +157,23 @@ FISH = {
     "moonlight_ray": ("달빛 가오리", "salt", 3, 80, 200, 720, "p", "#5a6ab0", "#e0e8ff", "when=night ray glow"),
     "thunder_catfish": ("천둥 메기", "fresh", 3, 100, 250, 780, "l", "#4a4a60", "#f0e04a", "when=thunder whisker"),
     "moon_goldfish": ("달 금붕어", "fresh", 3, 15, 40, 750, "f", "#f8e0a0", "#ffffff", "when=fullmoon glow"),
+    # 떼물고기 (2026-11 어군 조업): 배의 그물이 어군에서만 올림, 낚싯대로는 안 잡힘. 항구에서 멀수록 비싼 것 (fish.yml schools.bands)
+    "anchovy": ("멸치", "school", 0, 5, 15, 3, "f", "#6f8ea8", "#e6eef4", "stripe1"),
+    "squid": ("오징어", "school", 0, 20, 40, 6, "q", "#c89a7a", "#f2dccb", "squid"),
+    "spanish_mackerel": ("삼치", "school", 1, 50, 100, 11, "f", "#4a6a8a", "#d8e2ea", "spots"),
+    "flying_fish": ("날치", "school", 1, 20, 35, 14, "f", "#2f5a8a", "#e0e8f0", "sail"),
+    "skipjack": ("가다랑어", "school", 1, 40, 80, 20, "f", "#2a3448", "#c8d0da", "stripes"),
+    "school_tuna": ("참치", "school", 2, 80, 180, 45, "f", "#26365a", "#d0d8e2", "stripe1"),
 }
 COLOUR_GROUPS = {  # 낚시대회 색깔 종목 (fish.yml colors / color): the main colour of each fish's picture
 
  "red": "red_seabream octopus giant_squid black_rockfish clownfish lionfish snow_crab king_crab taimen guppy discus petal_carp mushroom_puffer sunset_bream salmon",
  "yellow": "filefish pufferfish butterflyfish dragon_carp arowana golden_crucian moon_goldfish carp bagrid_catfish mandarin_fish yellowfin_tuna",
- "blue": "mackerel sardine saury yellowtail bluefin_tuna marlin damselfish tang sailfish herring neon_tetra moonlight_ray glow_jellyfish crystal_trout whale_shark",
- "silver": "horse_mackerel hairtail sunfish sand_lance pale_chub smelt mullet barramundi sweetfish cavefish cave_shrimp cave_crayfish angelfish piranha sturgeon greenland_shark bitterling char pollack tilapia",
- "brown": "flatfish greenling cod monkfish skate croaker sandfish atka_mackerel crucian_carp lenok dace loach swamp_eel goby spore_goby mycelium_ray",
+ "blue": "mackerel sardine saury yellowtail bluefin_tuna marlin damselfish tang sailfish herring neon_tetra moonlight_ray glow_jellyfish crystal_trout whale_shark spanish_mackerel flying_fish school_tuna",
+ "silver": "horse_mackerel hairtail sunfish sand_lance pale_chub smelt mullet barramundi sweetfish cavefish cave_shrimp cave_crayfish angelfish piranha sturgeon greenland_shark bitterling char pollack tilapia anchovy",
+ "brown": "flatfish greenling cod monkfish skate croaker sandfish atka_mackerel crucian_carp lenok dace loach swamp_eel goby spore_goby mycelium_ray squid",
  "green": "mahi_mahi kkeokji masu_salmon trout paradise_fish softshell_turtle eel mud_crab moss_minnow rainbow_trout",
- "dark": "rockfish lantern_angler catfish snakehead giant_snakehead abyssfish arapaima thunder_catfish mudskipper king_mudskipper pike_conger",
+ "dark": "rockfish lantern_angler catfish snakehead giant_snakehead abyssfish arapaima thunder_catfish mudskipper king_mudskipper pike_conger skipjack",
 }
 COLOUR = {f: g for g, s in COLOUR_GROUPS.items() for f in s.split()}
 COLOUR_NAMES = {"red": "붉은", "yellow": "노란", "blue": "푸른", "silver": "은빛", "brown": "갈색", "green": "초록", "dark": "검은"}
@@ -438,12 +447,9 @@ TRAP_LINES = [
 
 # fish.yml net (원양 조업: NetSpec in the plugin): written as they are
 NET_LINES = [
-    "# 원양 조업 (README \"원양 조업\"): 배의 그물(코어 작업기 kind net)은 물고기 낱마리가 아니라 \"어획 상자\"를 어창에 올림.",
-    "# 어획 상자는 항구 하역장의 위판에서만 팔림 (그 배가 잡은 상자만, 그 배의 어창에서: 손으로 들고 가거나 다른 배에 실으면 안 삼).",
-    "# 바다는 가장 가까운 항구 하역장에서의 거리로 나뉨: 멀수록 상자가 비쌈. 배마다 그물이 제 성능을 내는 바다가 있어서",
-    "# (통통배 = 연안, 연안 어선 = 근해, 트롤 어선 = 원양) 그보다 멀리 나가도 제 바다의 상자가 올라옴.",
-    "# 그물을 얼마나 자주 걷는지는 코어 content/stsv/vehicle_tools.yml 의 net.seconds (통통배 45 · 연안 어선 30 · 트롤 어선 18초).",
-    "# 그 월드에 항구 하역장이 없거나 boats 에 없는 배의 그물은 예전처럼 흔함·보통 물고기를 한 마리씩 올림.",
+    "# 어획 상자 (3.66.0 의 원양 조업): 3.67.0 부터 그물은 상자가 아니라 물고기 낱마리를 올립니다 (코어 content/stsv/vehicle_tools.yml 의 net).",
+    "# 아래는 이미 어창에 들어 있는 상자를 항구 하역장에서 팔 수 있게 남겨 둔 값입니다 (그 상자를 올린 배의 어창에서만, 웅크리고 어창 우클릭).",
+    "# 새 상자는 더 나오지 않으니, 상자가 다 팔린 뒤에는 이 묶음을 지워도 됩니다.",
     "net:",
     "  zones:               # from: 가장 가까운 항구에서 이만큼(블록) 떨어진 곳부터 · value: 위판 값 (G, 상자 하나) · weight: 어창에서의 무게",
     "    coast: { name: \"연안\", from: 0, item: economy:catch_coast, value: 50, weight: 10 }",
@@ -457,6 +463,48 @@ NET_LINES = [
     "  crew-max: 5          # 여기까지만 셈",
 ]
 
+
+# fish.yml schools (어군 조업: SchoolSpec / SchoolModule in the plugin): written as they are
+SCHOOL_LINES = [
+    "# 어군 조업 (README \"어군 조업\"): 바다 위에 물고기 떼(어군)가 생기고, 그물(배의 고물)이 떼 안(radius 칸)에서 내려가 있으면",
+    "# 그물이 걷힐 때마다 그 떼의 떼물고기(아래 habitat: school, 낚싯대로는 안 잡힘)를 한 번에 여러 마리 어창에 올림. 떼는 남은 양이 줄다가",
+    "# 다 잡으면 흩어지고 다른 곳에 새로 생김. 떼 밖에서는 예전 그물(그 물의 흔함·보통 한 마리)대로. 그물을 걷는 때(평균 net.seconds)와",
+    "# 한 자리 몫(net.spot, 48칸 안)은 코어 content/stsv/vehicle_tools.yml 그대로. 떼는 저장되지 않음 (재시작하면 새로 생김).",
+    "schools:",
+    "  enabled: true",
+    "  max-per-world: 8          # 한 월드에 동시에 있는 떼의 최대",
+    "  spawn-every: 30           # 이만큼(초)마다 한 월드에 떼 하나를 만들어 봄 (최대보다 적을 때)",
+    "  lifetime: 1500            # 떼가 남아 있는 시간 (초). 지나면 저절로 흩어짐",
+    "  radius: 8                 # 떼의 반지름 (칸): 그물이 이 안에 있으면 떼에서 잡힘",
+    "  spawn-distance: [48, 144] # 배에 탄 사람에게서 이만큼 떨어진 곳에 생김 (불러와 있는 청크에서만: 청크를 불러오지 않음)",
+    "  harbour-distance: [64, 400]   # 또는 사람이 있는 항구 하역장에서 이만큼",
+    "  apart: 64                 # 다른 떼, 10분 안에 다 잡혀 흩어진 떼와 이만큼은 떨어져 생김 (그 자리는 그물의 한 자리 몫이 다 찼음)",
+    "  biomes: [ocean]           # 떼가 생기는 바이옴 (이름에 이 글자가 들어가는 것: ocean = 모든 바다). 큰 강도 넣으려면 river",
+    "  see-day: 64               # 떼(물이 끓고 물고기가 튀고 갈매기가 돎)가 보이는 거리 (낮, 칸)",
+    "  see-night: 32             # 밤",
+    "  xp-value: 50              # 그물로 떼에서 잡은 값(기준가 G) 이만큼마다 어부 경험치 = 통발 물고기 한 마리 (jobs.yml fisher xp trap)",
+    "  sizes: { small: \"작은 떼\", medium: \"보통 떼\", big: \"큰 떼\" }",
+    "  size-cuts: [2000, 4000]   # 떼에 남은 값(기준가 × 마릿수, G)이 이만큼 아래면 작은 떼 · 보통 떼, 그 위는 큰 떼",
+    "  board-range: 2000         # 항구 어황판이 알려 주는 떼 (그 항구에서 이만큼 안)",
+    "  board-lines: 6            # 어황판에 적는 떼 수 (가까운 것부터)",
+    "  compass: [\"북쪽\", \"북동쪽\", \"동쪽\", \"남동쪽\", \"남쪽\", \"남서쪽\", \"서쪽\", \"북서쪽\"]",
+    "  # 가장 가까운 항구 하역장에서의 거리로 나뉜 바다 (from 칸부터): 멀수록 큰 떼(value: 새 떼에 든 값, 기준가 G), 비싼 떼물고기",
+    "  # (fish: 뽑힐 비율), 그물 한 번에 더 (bonus: 배의 haul × bonus). 그 월드에 항구가 없으면 첫 바다",
+    "  bands:",
+    "    near: { name: \"앞바다\", from: 0, bonus: 1.0, value: [1000, 2000], fish: { anchovy: 6, squid: 3, spanish_mackerel: 1 } }",
+    "    mid: { name: \"먼바다\", from: 400, bonus: 1.2, value: [2500, 4500], fish: { squid: 3, spanish_mackerel: 3, flying_fish: 3, skipjack: 1 } }",
+    "    far: { name: \"원양\", from: 1200, bonus: 1.4, value: [4000, 7000], fish: { flying_fish: 2, skipjack: 5, school_tuna: 3 } }",
+    "  # 배마다 (코어 탈것 아이템 id). detect: 어군 탐지기 거리 (0 = 없음, 눈으로만) · show: direction 방향만 · distance 방향과 거리 ·",
+    "  # full 방향 · 거리 · 떼 크기 · 어종 (떼 위에서는 모두 남은 양까지) · haul: 그물 한 번에 떼에서 올리는 값 (기준가 G, × 바다의 bonus,",
+    "  # 그 떼물고기 값으로 마릿수를 셈, 한 번에 64마리까지). 수입 셈은 README \"어군 조업\": 쉬지 않고 떼를 찾아 털면 기준가로",
+    "  # 통통배 시간당 약 1.6만 G (어부 Lv20 낚싯대 한 시간과 같음) · 연안 어선 약 4만 · 트롤 어선 약 7.8만",
+    "  boats:",
+    "    stsv:raft: { detect: 0, haul: 60 }",
+    "    stsv:rowboat: { detect: 0, haul: 100 }",
+    "    stsv:fishing_boat: { detect: 150, show: direction, haul: 200 }",
+    "    stsv:coastal_boat: { detect: 300, show: distance, haul: 270 }",
+    "    stsv:trawler: { detect: 500, show: full, haul: 300 }",
+]
 
 def write_content(pack: Path, icons):
     rar_ids = [r[0] for r in RARITY]
@@ -472,7 +520,7 @@ def write_content(pack: Path, icons):
            "pearl-river: 0.15      # 강(차가운 강·얼어붙은 강 포함)에서 희귀가 걸렸을 때 진주(민물 진주)가 나올 확률. 늪·정글·동굴 물은 없음",
            "# 입질까지 기다리는 시간은 바닐라 그대로 (5~30초, 미끼(Lure) 한 단계마다 5초 덜, 그다음 물고기가 찌까지 1~4초).",
            "# 어부는 jobs.yml 어부 bite 만큼 기다리는 시간이 줄어듦.",
-           ""] + TRAP_LINES + [""] + NET_LINES + [
+           ""] + TRAP_LINES + [""] + NET_LINES + [""] + SCHOOL_LINES + [
            "",
            "rarities:"]
     for (rid, name, colour) in RARITY:
@@ -483,7 +531,8 @@ def write_content(pack: Path, icons):
     out += ["", "# 도감 묶음: 다 잡으면 칭호", "groups:"]
     for gid, (name, tid, _) in HABITATS.items():
         out.append(f'  {gid}: {{ name: "{name}", title: economy:{tid} }}')
-    out += ["", "# habitat: sea, deep, warm, cold, river, coldriver, swamp, mangrove, jungle, cave, mushroom, fresh (민물 어디나), salt (바다 어디나)",
+    out += ["", "# habitat: sea, deep, warm, cold, river, coldriver, swamp, mangrove, jungle, cave, mushroom, fresh (민물 어디나), salt (바다 어디나),",
+            "#   school (떼물고기: 배의 그물이 어군에서만 올림, 낚싯대 · 통발 · 가두리로는 안 됨)",
             "# when: night, dawn, dusk, rain, thunder, fullmoon",
             "species:"]
     for fid, (name, hab, rar, lo, hi, price, shape, c1, c2, x) in FISH.items():
@@ -524,13 +573,17 @@ def write_content(pack: Path, icons):
 
     titles = (pack / "titles" / "titles.yml").read_text(encoding="utf-8")
     marker = "# ── 도감 (economy_fish.py 가 씀)\n"
+    tail = ""
     if marker in titles:
+        rest = titles[titles.index(marker) + len(marker):]
+        nxt = rest.find("\n#")   # the next part of titles.yml (a comment line after the codex block) stays as it is
+        tail = rest[nxt + 1:] if nxt >= 0 else ""
         titles = titles[:titles.index(marker)]
     titles += marker
     for gid, (name, tid, text) in HABITATS.items():
-        titles += f'{tid}:\n  name: "<#7fd8ff>{text}"\n  description: "도감: {name} 물고기를 모두 잡음"\n'
-    titles += 'master_angler:\n  name: "<gradient:#7fd8ff:#ffd36a><b>[강태공]</b></gradient>"\n  description: "도감: 물고기를 모두 잡음"\n'
-    (pack / "titles" / "titles.yml").write_text(titles, encoding="utf-8")
+        titles += f'{tid}:\n  name: "<#7fd8ff>{text}"\n  description: "도감: {name} 물고기를 모두 잡음"\n  category: codex\n'
+    titles += 'master_angler:\n  name: "<gradient:#7fd8ff:#ffd36a><b>[강태공]</b></gradient>"\n  description: "도감: 물고기를 모두 잡음"\n  category: codex\n'
+    (pack / "titles" / "titles.yml").write_text(titles + tail, encoding="utf-8")
 
 
 def sheet(path, icons, cols=14, scale=4):

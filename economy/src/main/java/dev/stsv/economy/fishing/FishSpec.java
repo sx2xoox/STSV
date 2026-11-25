@@ -61,7 +61,18 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
         public String group() {
             return when != null ? "special" : habitat;
         }
+
+        /** A 떼물고기 (habitat {@link #SCHOOL}): only a boat's net brings it up, from a school (SchoolModule); the rod never. */
+        public boolean boatOnly() {
+            return SCHOOL.equals(habitat);
+        }
     }
+
+    /**
+     * The habitat (and codex group) of the 떼물고기: no water is it ({@link #habitat} never gives it), so neither a rod, a 통발 nor a
+     * net outside a school ever picks one; a boat's net in a school (fish.yml schools) does.
+     */
+    public static final String SCHOOL = "school";
 
     public static final List<String> SALT = List.of("sea", "deep", "warm", "cold", "mangrove", "mushroom");
 

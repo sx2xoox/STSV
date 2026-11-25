@@ -919,8 +919,8 @@ class RulesTest {
         assertEquals("cave", FishSpec.habitat("minecraft:lush_caves", false));
 
         FishSpec f = fish();
-        assertEquals(98, f.species().size());
-        assertEquals(12, f.groups().size());
+        assertEquals(104, f.species().size());
+        assertEquals(13, f.groups().size());
         FishSpec.Species cod = f.species().get("cod");
         assertEquals("minecraft:cod", cod.item());
         // every water has its common fish at any hour, so a bite never comes up empty
