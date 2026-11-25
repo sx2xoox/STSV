@@ -10,7 +10,7 @@ the model fills 30% of it, in voxels of 1/4 block):
   gamble_table_round   a cable drum on its end (wooden flanges, the last of a black cable still wound on its core,
                        the loose end hanging out) as a round table 3 blocks across, its top covered with green felt:
                        cigarette burns, a silver duct-tape X and a strip of 청테이프 over a tear, a worn chalk ring for
-                       the pot in the middle, tacks round its edge. Six seats round it, one cell each, on a ring of
+                       the pot in the middle, a padded rail and bolts round its rim (painted on). Six seats round it, one cell each, on a ring of
                        radius 2 (cells (0,-2) (2,-1) (2,1) (0,2) (-2,1) (-2,-1): a hexagon on the block grid), every one
                        facing the middle: plastic chairs front and back, paint buckets and 포장마차 stools between.
                        5 x 5 cells (the table the middle 3 x 3, the seats round it), drawn at real size and shrunk by
@@ -149,7 +149,45 @@ def plastic(ramp, step):
 
 
 def plastic_chair(m, name, ox, oz, back, paint):
-    """A stackable plastic chair (등받이 의자) round the cell centre (ox, oz), all inside x/z +-4: a dished seat with
+    """A stackable plastic chair (등받이 의자) round the cell centre (ox, oz), all inside x/z +-4, in few boxes (the
+    render budget: a round table has six seats): a dished seat with four drain holes, its rolled lip a darker band
+    round its edge, four legs with dark rubber feet, and the backrest on the `back` side ('n' = -z, 's' = +z), leaning
+    back in two steps: two uprights and three slats with the gaps between them painted dark, a rounded top rail."""
+    m.group(name)
+    x0, x1, z0, z1 = ox - 4, ox + 4, oz - 4, oz + 4
+
+    def seat(c):
+        if c.face != "up":
+            return (paint.ramp, paint.base - 1)            # the rolled lip
+        dx, dz = c.p[0] - ox, c.p[2] - oz
+        if abs(abs(dx) - 1.5) < 0.1 and abs(abs(dz) - 1.5) < 0.1:
+            return (paint.ramp, paint.base - 2)            # drain holes
+        if abs(dx) < 2.6 and abs(dz) < 2.6:
+            return (paint.ramp, paint.base - 1 if abs(dx) < 1.6 and abs(dz) < 1.6 else paint.base)   # the dish
+        return None
+    m.box("seat", (x0, 7, z0), (x1, 8, z1), paint(decal=seat))
+    feet = paint(rim=0.8, decal=lambda c: ("rubber", 2) if c.p[1] < 1 else None)
+    for (lx, lz) in ((x0 + 0.5, z0 + 0.5), (x1 - 1.5, z0 + 0.5), (x0 + 0.5, z1 - 1.5), (x1 - 1.5, z1 - 1.5)):
+        m.box("leg", (lx, 0, lz), (lx + 1, 7, lz + 1), feet)
+    sgn = -1 if back == "n" else 1
+    bz = z0 if back == "n" else z1 - 1
+    lean = 0.5 * sgn
+
+    def slats(c):
+        col = math.floor(c.p[0] - x0)
+        if c.face in ("north", "south") and 9 <= c.p[1] < 15 and col in (1, 3, 4, 6):
+            return (paint.ramp, paint.base - 2)            # the gaps between the slats and the uprights
+        if c.p[1] >= 15:
+            return (paint.ramp, paint.base + 1 if c.p[1] >= 16.5 else paint.base)   # the rounded top rail
+        return None
+    back_paint = paint(decal=slats)
+    m.box("back", (x0, 8, bz), (x1, 12, bz + 1), back_paint)
+    m.box("back", (x0, 12, bz + lean), (x1, 17.5, bz + 1 + lean), back_paint(rim=1.4))
+
+
+def plastic_chair_full(m, name, ox, oz, back, paint):
+    """The 1:1 table's chair, with room in its budget for every part (plastic_chair is the round table's, in few
+    boxes). A stackable plastic chair (등받이 의자) round the cell centre (ox, oz), all inside x/z +-4: a dished seat with
     four drain holes and a rolled lip under its front and sides, legs that splay a little towards rubber feet, and the
     backrest on the `back` side ('n' = -z, 's' = +z): two uprights, three slats with gaps, a rounded top rail,
     leaning back in two steps."""
@@ -176,9 +214,8 @@ def plastic_chair(m, name, ox, oz, back, paint):
         # upper leg tucked in under the lip, the lower one at the very corner (the splay), a darker rubber foot
         ux, uz = lx + 0.5 * sx, lz + 0.5 * sz_
         m.box("leg", (ux, 3.5, uz), (ux + 1, 6.25, uz + 1), paint(rim=0.8))
-        m.box("leg", (lx + 0.25 * sx, 0.5, lz + 0.25 * sz_), (lx + 0.25 * sx + 1, 3.5, lz + 0.25 * sz_ + 1), paint(rim=0.8))
-        m.box("foot", (lx + 0.25 * sx + 0.125, 0, lz + 0.25 * sz_ + 0.125), (lx + 0.25 * sx + 0.875, 0.5, lz + 0.25 * sz_ + 0.875),
-              flat("rubber", 2))
+        m.box("leg", (lx + 0.25 * sx, 0, lz + 0.25 * sz_), (lx + 0.25 * sx + 1, 3.5, lz + 0.25 * sz_ + 1),
+              paint(rim=0.8, decal=lambda c: ("rubber", 2) if c.p[1] < 1 else None))   # its rubber foot painted on
     sgn = -1 if back == "n" else 1
     bz = z0 if back == "n" else z1 - 1
     lean = 0.5 * sgn
@@ -195,43 +232,44 @@ def plastic_chair(m, name, ox, oz, back, paint):
 
 
 def stool(m, name, ox, oz, paint):
-    """A 포장마차 plastic stool: a round top 8 across with a hand slot through the middle and a ridge round its edge, a
-    skirt under it, four legs that splay out in two steps to the corners, a ring of stretchers low down."""
+    """A 포장마차 plastic stool: a round top 8 across with a hand slot through the middle and a ridge round its edge, the
+    skirt under it a darker band, four legs out towards the corners."""
     m.group(name)
 
     def top(c):
         dx, dz = c.p[0] - ox, c.p[2] - oz
-        if c.face == "up" and abs(dx) < 1.6 and abs(dz) < 0.6:
+        if c.face != "up":
+            return (paint.ramp, paint.base - 1) if c.p[1] < 7 else None    # the skirt
+        if abs(dx) < 1.6 and abs(dz) < 0.6:
             return (paint.ramp, paint.base - 2)          # the hand slot
-        if c.face == "up" and math.hypot(dx, dz) > 3.3:
+        if math.hypot(dx, dz) > 3.3:
             return (paint.ramp, paint.base + 1)          # the rounded edge catching the light
-        if c.face == "up" and (c.i[0] * 3 + c.i[2]) % 5 == 0:
+        if (c.i[0] * 3 + c.i[2]) % 5 == 0:
             return (paint.ramp, paint.base - 1)          # the moulded grip texture
         return None
-    cyl(m, "top", (ox, oz), 8, 7, 8, paint(decal=top))
-    ring(m, "skirt", (ox, oz), 8, 6, 6, 7, paint(rim=0.7))
+    coarse_cyl(m, "top", (ox, oz), 8, 6, 8, paint(decal=top))
     for (sx, sz) in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-        ux, uz = ox + sx * 2.5, oz + sz * 2.5
-        m.box("leg", (ux - 0.5, 3.5, uz - 0.5), (ux + 0.5, 6, uz + 0.5), paint(rim=0.8))
-        lx, lz = ox + sx * 3.25, oz + sz * 3.25
-        m.box("leg", (lx - 0.5, 0, lz - 0.5), (lx + 0.5, 3.5, lz + 0.5), paint(rim=0.8))
-    for k in (-1, 1):
-        m.box("stretcher", (ox - 2.75, 2, oz + k * 3.25 - 0.25), (ox + 2.75, 2.75, oz + k * 3.25 + 0.25), paint)
-        m.box("stretcher", (ox + k * 3.25 - 0.25, 2, oz - 2.75), (ox + k * 3.25 + 0.25, 2.75, oz + 2.75), paint)
+        lx, lz = ox + sx * 3, oz + sz * 3
+        m.box("leg", (lx - 0.5, 0, lz - 0.5), (lx + 0.5, 6, lz + 0.5), paint(rim=0.8))
 
 
 def bucket(m, name, ox, oz, label=None, drips=None, cardboard=False, seed=0):
-    """An 18 l paint pail (페인트 통) turned into a seat: white plastic 7 across with a stiffening ridge, its lid on (a
-    rim proud of the body, a raised centre), a printed label band (label = the ramp) and/or old paint run down from
-    the rim (drips = (ramp, step)), the wire bail hanging down over the front from its two ears with a black grip; or
-    a flattened cardboard box on the lid for a cushion."""
+    """An 18 l paint pail (페인트 통) turned into a seat: white plastic 6 across, its lid on (a rim proud of the body,
+    the raised centre and the stiffening ridge painted), a printed label band (label = the ramp) and/or old paint run
+    down from the rim (drips = (ramp, step)), the wire bail painted down its sides from its two ears to a black grip
+    hanging in front; or a flattened cardboard box on the lid for a cushion."""
     m.group(name)
 
     def side(c):
         if c.face in ("up", "down"):
             return None
         y = c.p[1]
-        a = math.atan2(c.p[2] - oz, c.p[0] - ox)
+        dx, dz = c.p[0] - ox, c.p[2] - oz
+        a = math.atan2(dz, dx)
+        if c.face in ("east", "west") and abs(dz) < 0.5 and 4 <= y < 7:
+            return ("car_white", 1) if y >= 5 else ("steel", 3)       # an ear and the bail down from it
+        if c.face in ("east", "west", "north") and dz < 0 and 4 <= y < 5:
+            return ("steel", 3)                            # the bail round the front
         if drips:
             k = math.floor((a + math.pi) / (2 * math.pi) * 22)
             run = 6.0 - h3(k, 0, 0, seed) * 4.5
@@ -244,33 +282,35 @@ def bucket(m, name, ox, oz, label=None, drips=None, cardboard=False, seed=0):
             if math.floor(y) == 2 and k % 12 in (2, 3):
                 return ("pepper", 2)                       # a red logo block
             return (label, 1)
-        if math.floor(y) == 6:
-            return ("car_white", 1)                        # the ridge under the lid
         if y < 1 and h3(c.i[0], c.i[1], c.i[2], seed + 9) < 0.4:
             return ("car_white", 1)                        # scuffed foot
         return None
     body = Paint("car_white", 2, "lacquer", noise=0.03, decal=side)
-    cyl(m, "pail", (ox, oz), 7, 0, 6, body)
-    cyl(m, "pail_ridge", (ox, oz), 7.5, 6, 7, body)
-    cyl(m, "lid", (ox, oz), 7.75, 7, 7.5, Paint("car_white", 1, noise=0.02, rim=1.2))
-    cyl(m, "lid_top", (ox, oz), 6, 7.5, 8, Paint("car_white", 2, noise=0.02, rim=1.2,
-                                                     decal=(lambda c: (drips[0], drips[1]) if drips and c.face == "up" and h3(c.i[0], c.i[2], 0, seed) < 0.18 else None)))
-    wire, grip = flat("steel", 3, rim=1.0), flat("rubber", 2)
-    for sx in (-1, 1):
-        m.box("ear", (ox + sx * 3.75 - 0.25, 5.75, oz - 0.5), (ox + sx * 3.75 + 0.25, 6.75, oz + 0.5), flat("car_white", 1))
-        m.box("bail", (ox + sx * 3.875 - 0.125, 3.75, oz - 0.125), (ox + sx * 3.875 + 0.125, 6, oz + 0.125), wire)
-        m.box("bail", (ox + sx * 3.875 - 0.125, 3.75, oz - 3.75), (ox + sx * 3.875 + 0.125, 4, oz - 0.125), wire)
-    m.box("bail", (ox - 3.75, 3.75, oz - 3.875), (ox + 3.75, 4, oz - 3.625), wire)
-    m.box("bail_grip", (ox - 1.5, 3.5, oz - 4), (ox + 1.5, 4.25, oz - 3.5), grip)
+    cyl(m, "pail", (ox, oz), 6, 0, 6.5, body)
+
+    def lid(c):
+        r = math.hypot(c.p[0] - ox, c.p[2] - oz)
+        if c.face != "up":
+            return ("car_white", 1) if c.p[1] < 7 else None    # the ridge under the lid
+        if drips and h3(c.i[0], c.i[2], 0, seed) < 0.18 and r < 3:
+            return (drips[0], drips[1])
+        if r < 3:
+            return ("car_white", 2)                        # the raised centre
+        if r < 3.5:
+            return ("car_white", 3)                        # its lit edge
+        return ("car_white", 1)
+    coarse_cyl(m, "lid", (ox, oz), 8, 6.5, 8, Paint("car_white", 1, noise=0.02, rim=1.2, decal=lid))
+    m.box("bail_grip", (ox - 1.5, 3.5, oz - 4), (ox + 1.5, 4.5, oz - 3), flat("rubber", 2))
     if cardboard:
         def kraft(c):
             if c.face == "up" and abs(c.p[0] - ox + 0.25) < 0.3:
                 return ("bean", 1)                         # the fold
             if c.face == "up" and 1 < c.p[2] - oz < 2.5 and -2 < c.p[0] - ox < 1 and h3(c.i[0], c.i[2], 0, 8) < 0.6:
                 return ("pepper", 1)                       # a printed arrow from its box days
+            if c.face == "east":
+                return ("bean", 1)                         # the flap folded down
             return None
-        m.box("cardboard", (ox - 3.75, 8, oz - 3.5), (ox + 3.25, 8.25, oz + 3.5), Paint("bean", 2, "paper", decal=kraft))
-        m.box("cardboard_flap", (ox + 3.25, 7.25, oz - 3.25), (ox + 3.5, 8.25, oz + 3), Paint("bean", 1, "paper"))
+        m.box("cardboard", (ox - 4, 8, oz - 3.5), (ox + 3.5, 8.5, oz + 3.5), Paint("bean", 2, "paper", decal=kraft))
 
 
 # ================================================================================================
@@ -350,21 +390,73 @@ def facing_to_centre(cell):
     return round(math.degrees(math.atan2(x, -z)), 2)
 
 
+def coarse_bands(d, step=2):
+    """bands() of a big circle in rows `step` px deep (d a whole number of steps), the half widths r less whole steps:
+    a round edge of few steps (each a box and its faces), its corners on one grid, smooth enough a few blocks across."""
+    r = d / 2
+    out = []
+    for k in range(int(round(d / step))):
+        v = -r + (k + 0.5) * step
+        hw = r - round((r - math.sqrt(max(0.0, r * r - v * v))) / step) * step
+        a, b = -r + k * step, -r + (k + 1) * step
+        hw = max(step / 2, hw)
+        if out and out[-1][2] == hw:
+            out[-1] = (out[-1][0], b, hw)
+        else:
+            out.append((a, b, hw))
+    return out
+
+
+def coarse_cyl(m, name, c, d, lo, hi, paint, step=2):
+    for (a, b, hw) in coarse_bands(d, step):
+        m.box(name, (c[0] - hw, lo, c[1] + a), (c[0] + hw, hi, c[1] + b), paint(vrim=0))
+
+
 def table_round():
+    """The cable drum, drawn for the render budget (440 faces; six of these stand in the hall at once). Shrunk by 2, its
+    faces hold 2 texels a model unit, which the pack's face reducer only culls, never merges: every box drawn here is
+    paid for. So its discs are stepped in 2 px steps (coarse_cyl), the top flange and the felt one disc, every small
+    part (the bolts, the felt's padded rail and its seam, the cable's tag) painted on, and the seats are few boxes."""
     m = BModel("gamble_table_round", floor=0, scale=2)
     cx = cz = 8
     m.group("drum")
 
+    def polar(c):
+        return math.hypot(c.p[0] - cx, c.p[2] - cz), math.atan2(c.p[2] - cz, c.p[0] - cx)
+
+    def nut(c, r0, n, off):
+        """A square nut on a washer, n round at radius r0 (the up face): ('iron'|'steel', step) or None."""
+        r, a = polar(c)
+        k = round(a / (2 * math.pi) * n - off)
+        aa = 2 * math.pi * (k + off) / n
+        nx, nz = cx + r0 * math.cos(aa), cz + r0 * math.sin(aa)
+        dx, dz = abs(c.p[0] - nx), abs(c.p[2] - nz)
+        if dx < 0.6 and dz < 0.6:
+            return ("iron", 4 if c.p[0] < nx and c.p[2] < nz else 3)
+        if dx < 1.1 and dz < 1.1:
+            return ("steel", 2)
+        return None
+
     def flange_paint(seed):
         def boards(c):
             # boards across the flange, a dark joint between them, weathered grey towards the edge, a painted
-            # yellow stencil arrow ("roll this way") on the side of the lower one
-            r = math.hypot(c.p[0] - cx, c.p[2] - cz)
+            # yellow stencil arrow ("roll this way") on the side of the lower one; the bolts through both flanges
+            r, a = polar(c)
             if c.face in SIDES:
-                a = math.atan2(c.p[2] - cz, c.p[0] - cx)
                 if seed == 1 and -0.45 < a < -0.05 and math.floor(c.p[1]) == 1:
                     return ("hazard", 1)
-                return ("wood", 0 if math.floor(c.p[1]) == (12 if seed == 2 else 1) else 1)
+                if seed == 2:
+                    y = math.floor(c.p[1])
+                    if y == 13:
+                        return ("felt", 1)                 # the felt pulled down over the edge
+                    if y == 12 and (a * 24 / (2 * math.pi)) % 2 < 0.25:
+                        return ("iron", 3)                 # the bolt heads' ends through the rim
+                    return ("wood", 0 if y == 12 else 1)
+                return ("wood", 0 if math.floor(c.p[1]) == 1 else 1)
+            if c.face == "up" and seed == 1:
+                n = nut(c, 20, 8, 0)
+                if n:
+                    return n
             if c.face == "up" or c.face == "down":
                 if math.floor(c.p[0]) % 5 == 0:
                     return ("wood_dark", 1)
@@ -372,44 +464,46 @@ def table_round():
                     return ("wood", 0)
             return None
         return Paint("wood", 1, "grain", axis="z", noise=0.06, decal=boards, seed=seed)
-    cyl(m, "flange_low", (cx, cz), 46, 0, 2, flange_paint(1))
-    cyl(m, "core", (cx, cz), 34, 2, 11, Paint("rubber", 2, noise=0.0, decal=cable_wound, rim=0.5))
-    cyl(m, "flange_top", (cx, cz), 48, 11, 13, flange_paint(2))
-    # the bolts through both flanges: square nuts on washers on the wooden rim, and on the lower flange
-    for k in range(12):
-        a = 2 * math.pi * (k + 0.5) / 12
-        x, z = cx + 22.9 * math.cos(a), cz + 22.9 * math.sin(a)
-        m.box("washer", (x - 0.75, 13, z - 0.75), (x + 0.75, 13.25, z + 0.75), flat("steel", 2))
-        m.box("nut", (x - 0.5, 13.25, z - 0.5), (x + 0.5, 13.75, z + 0.5), flat("iron", 3, rim=1.3))
-    for k in range(8):
-        a = 2 * math.pi * k / 8
-        x, z = cx + 20 * math.cos(a), cz + 20 * math.sin(a)
-        m.box("nut_low", (x - 0.5, 2, z - 0.5), (x + 0.5, 2.5, z + 0.5), flat("iron", 3, rim=1.3))
-    # the loose end of the cable: out of the winding on the east side, over the lower flange, down to the floor, a
-    # yellow tag on it, its copper showing
-    m.group("cable")
-    rub = flat("rubber", 2, rim=0.6)
-    m.box("cable_end", (25, 6, 6), (34, 7, 7), rub)
-    m.box("cable_end", (33, 1, 6), (34, 6, 7), rub)
-    m.box("cable_end", (34, 0, 6), (37.5, 1, 7), rub)
-    m.box("cable_tag", (29, 5.75, 5.75), (30, 7.25, 7.25), flat("hazard", 1, rim=1.0))
-    m.box("cable_tip", (37.5, 0.25, 6.25), (38.25, 0.75, 6.75), flat("copper", 3))
-    m.group("felt")
+    coarse_cyl(m, "flange_low", (cx, cz), 46, 0, 2, flange_paint(1))
+    coarse_cyl(m, "core", (cx, cz), 34, 2, 11, Paint("rubber", 2, noise=0.0, decal=cable_wound, rim=0.5))
+
+    # the top flange with the felt on it in one disc: wood up to y 13, the felt from there, its top the playing felt
+    # inside a padded rail (a lighter ring with a stitched seam), the wooden rim round it with its bolts
     burns = [(-9, -5, 1.4), (12.5, 4, 1.1), (3, 14, 1.3), (-15, 9, 1.0), (6.5, -15.5, 1.2), (-4, 2.5, 0.9), (15, -8, 1.0)]
     tapes = [("silver", (-13, -14), (-5, -6), 2.2), ("silver", (-13, -6), (-5, -14), 2.2),
              ("blue", (8, 9), (17, 12.5), 2.0)]
-    cyl(m, "felt", (cx, cz), 42, 13, 13.5, Paint("felt", 2, "weave", noise=0.02, rim=0.4, decal=felt_top(cx, cz, 21, burns, tapes, pot=7)))
+    felt = felt_top(cx, cz, 21, burns, tapes, pot=7)
+    top_wood = flange_paint(2)
 
-    def padded(c):
-        # the felt pulled over a padded rail round the edge: a stitched seam along its top, darker on its sides
-        r = math.hypot(c.p[0] - cx, c.p[2] - cz)
-        if c.face == "up" and abs(r - 22) < 0.5 and math.floor(math.atan2(c.p[2] - cz, c.p[0] - cx) * 24) % 2 == 0:
-            return ("felt", 3)
-        if c.face in SIDES:
-            return ("felt", 1)
+    def top(c):
+        if c.face != "up":
+            return top_wood.decal(c)
+        r, a = polar(c)
+        if r > 22.5:
+            return nut(c, 23, 12, 0.5) or ("wood", 0 if math.floor(c.p[0]) % 5 else 1)
+        if r > 20.5:
+            # the padded rail: lit on its outer half, the seam stitched along its middle
+            if abs(r - 21.5) < 0.5 and math.floor(a * 24) % 2 == 0:
+                return ("felt", 3)
+            return ("felt", 3 if r > 21.5 else 2)
+        if r > 19.5:
+            return ("felt", 0)                             # the shadow under the rail
+        return felt(c)
+    coarse_cyl(m, "flange_top", (cx, cz), 48, 11, 14, Paint("wood", 1, "grain", axis="z", noise=0.06, decal=top, seed=2))
+    # the loose end of the cable: out of the winding on the east side, over the lower flange, down to the floor, a
+    # yellow tag on it, its copper showing
+    m.group("cable")
+
+    def cable(c):
+        if 29 <= c.p[0] < 30 and c.p[1] > 5:
+            return ("hazard", 1)                           # the tag
+        if c.p[0] >= 37:
+            return ("copper", 3)                           # the bare copper
         return None
-    ring(m, "rail", (cx, cz), 46, 42, 13, 14, Paint("felt", 2, "weave", noise=0.02, rim=1.2, decal=padded))
-    ring(m, "rail_top", (cx, cz), 45, 43, 14, 14.5, Paint("felt", 2, "weave", noise=0.02, rim=1.4, decal=padded))
+    rub = Paint("rubber", 2, noise=0, rim=0.6, decal=cable)
+    m.box("cable_end", (25, 6, 6), (34, 7, 7), rub)
+    m.box("cable_end", (33, 1, 6), (34, 6, 7), rub)
+    m.box("cable_end", (34, 0, 6), (38, 1, 7), rub)
     # the seats, seat 0 in front, clockwise
     blue, red, white = plastic("signal_blue", 1), plastic("pepper", 2), plastic("car_white", 2)
     for i, (sx, sz) in enumerate(ROUND_SEATS):
@@ -475,8 +569,8 @@ def table_duel():
                                                                       [("silver", (-6, -6), (-2, -6), 1.6)])))
     for (x, z) in ((2.25, 2.25), (13.25, 2.25), (2.25, 13.25), (13.25, 13.25), (7.75, 2.25), (7.75, 13.25), (2.25, 7.75), (13.25, 7.75)):
         m.box("tack", (x, 12.25, z), (x + 0.5, 12.5, z + 0.5), flat("steel", 4))
-    plastic_chair(m, "seat0_chair", 8, -8, "n", plastic("signal_blue", 1))
-    plastic_chair(m, "seat1_chair", 8, 24, "s", plastic("pepper", 2))
+    plastic_chair_full(m, "seat0_chair", 8, -8, "n", plastic("signal_blue", 1))
+    plastic_chair_full(m, "seat1_chair", 8, 24, "s", plastic("pepper", 2))
     return gui(m)
 
 
@@ -552,21 +646,24 @@ def _mix(n, seed, bias="RBW"):
     return "".join(bias[int(h3(i, seed, 0, 77) * len(bias))] for i in range(n))
 
 
-# pile -> stacks [(gx, gz, height, colour bias)], knocked-over rows [(gx, gz, length)], loose chips [(gx, gz, colour)], on a
-# grid of GRID px (rows may sit half a step over): no two chips' boxes overlap, so no two faces share a place
+# pile -> stacks [(gx, gz, height, colour[, (dx, dz) the upper half's offset in quarter px])], fanned-out runs, chips on
+# their edge, loose chips, on a grid of GRID px (rows may sit half a step over): no two chips' boxes overlap, so no two
+# faces share a place. Render budget (300 faces, display models): a straight stack is one solid to the pack's face
+# reducer (about 12 faces, its chips' edges kept as painted), each offset part, fanned or loose chip another, so the
+# biggest piles have tall stacks rather than many loose chips, and only a few stacks are knocked off true.
 GRID = 6.5
 
 
 PILES = {
     1: ([(0, 0, 3, "R"), (1, 0, 2, "B")], [], [], [(0.5, -1, "W")]),
     2: ([(0, 0, 5, "R"), (1, 0, 3, "B"), (0.5, 1, 4, "W")], [(0.25, -1.1, 3, "R", (1.25, 0.25))], [], [(2, -1, "B")]),
-    3: ([(0, 0, 7, "R", 1), (1, 0, 5, "B"), (0.5, 1, 6, "W"), (1.5, 1, 4, "R")], [(0, -1.1, 4, "B", (1.25, 0.25))], [],
+    3: ([(0, 0, 7, "R", (1, 0)), (1, 0, 5, "B"), (0.5, 1, 6, "W", (-1, 1)), (1.5, 1, 4, "R")], [(0, -1.1, 4, "B", (1.25, 0.25))], [],
         [(2, 0, "W"), (1.5, -1, "R")]),
-    4: ([(0, 0, 10, "R", 1), (1, 0, 8, "B"), (2, 0, 9, "W", 1), (0.5, 1, 6, "R"), (1.5, 1, 7, "B"), (2.5, 1, 5, "K")],
-        [(-0.25, -1.1, 4, "W", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5))], [(-0.5, 1, "B")], [(1.15, -1, "K"), (1, 2, "R")]),
-    5: ([(0, 0, 14, "R", 1), (1, 0, 12, "B"), (2, 0, 13, "W", 1), (-0.5, 1, 9, "K"), (0.5, 1, 11, "R", 1), (1.5, 1, 10, "B"),
+    4: ([(0, 0, 10, "R", (-1, 0)), (1, 0, 8, "B"), (2, 0, 9, "W", (1, -1)), (0.5, 1, 6, "R"), (1.5, 1, 7, "B", (1, 1)), (2.5, 1, 5, "K")],
+        [(-0.25, -1.1, 5, "W", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5))], [(-0.5, 1, "B")], [(1.15, -1, "K"), (1, 2, "R")]),
+    5: ([(0, 0, 14, "R", (-1, 0)), (1, 0, 12, "B"), (2, 0, 13, "W", (1, 0)), (-0.5, 1, 9, "K"), (0.5, 1, 11, "R"), (1.5, 1, 10, "B"),
          (2.5, 1, 8, "W"), (0, 2, 6, "R"), (1, 2, 7, "K")],
-        [(-0.5, -1.1, 4, "B", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5)), (2.25, 2.2, 3, "W", (1.0, 0.75))],
+        [(-0.5, -1.1, 3, "B", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5)), (2.25, 2.2, 2, "W", (1.0, 0.75))],
         [(3, 0, "R"), (-1, 0, "W")], [(1, -1.1, "K"), (-1, 2, "B"), (3.5, 0.9, "R")]),
 }
 
@@ -579,8 +676,8 @@ def _pile_centre(n):
 
 
 def chips(n):
-    """Neat casino-chip stacks, each chip its own disc 6 across and 1 thick, sitting a hair off the one under it (a hand
-    stacked them), one colour a stack; from the third pile up a stack knocked into a fanned-out run, then chips
+    """Neat casino-chip stacks, each chip a disc 6 across and 1 thick, one colour a stack, the upper half of some tall
+    stacks sitting a hair off the lower (a hand stacked them); from the third pile up a stack knocked into a fanned-out run, then chips
     standing on their edge leaning on a stack, and loose chips. Black chips (K, gold inserts) from the fourth."""
     m = BModel(f"gamble_chips_{n}", floor=0, shift=(0, 8, 0))
     stacks, fans, edges, loose = PILES[n]
@@ -588,18 +685,16 @@ def chips(n):
     bx, bz = round((8 - gx0 * GRID) * 4) / 4, round((8 - gz0 * GRID) * 4) / 4
 
     def at(gx, gz):
-        # on the quarter pixel (the pile's middle snapped, then whole and half steps stay exact): the pack's face
-        # reducer repaints, and so merges, faces only on that grid
+        # on the quarter pixel (the pile's middle snapped, then whole and half steps stay exact): off it the pack's
+        # face reducer cannot join a stack's chips into one solid
         return round((bx + gx * GRID) * 4) / 4, round((bz + gz * GRID) * 4) / 4
     m.group("stacks")
     for i, (gx, gz, hgt, col, *step) in enumerate(stacks):
         x, z = at(gx, gz)
         for k in range(hgt):
-            # hand stacked: the upper part of a tall stack sits a hair off the lower (one step, not every chip: each
-            # step costs the faces of a new solid)
+            # hand stacked: the upper half sits a hair off the lower (one offset, not one a chip: each costs a solid)
             up = bool(step) and k >= (hgt + 1) // 2
-            jx = (round(h3(i, 1, n, 61) * 2) - 1) * 0.25 if up else 0
-            jz = (round(h3(i, 1, n, 62) * 2) - 1) * 0.25 if up else 0
+            jx, jz = (step[0][0] * 0.25, step[0][1] * 0.25) if up else (0, 0)
             cyl(m, "chip", (x + jx, z + jz), 6, k, k + 1, chip_paint(x + jx, z + jz, col))
     m.group("fans")
     for i, (gx, gz, cnt, col, (sx, sz)) in enumerate(fans):

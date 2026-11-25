@@ -161,6 +161,10 @@ def _ell(p, c, r):
     return sum(((p[i] - c[i]) / r[i]) ** 2 for i in range(3)) <= 1.0
 
 
+# the spread wing's rise, column by column outwards (pairs of columns at one height: fewer steps, fewer faces)
+WING_RISE = (10, 10, 11, 11, 13, 13, 15, 15)
+
+
 def _hen_cells(flap=False):
     """(x, y, z) cell -> label. Drawn 2x: the hen 16 long (8 px), the body x 4..12."""
     cells = {}
@@ -216,15 +220,14 @@ def _hen_cells(flap=False):
                         x = max(xs) + 1 if side > 0 else min(xs) - 1
                         cells[(x, y, z)] = "wing"
         else:
-            # spread: a fan out to the side and up from the shoulder (y 10, z 8), feathers fingering at the ends
+            # spread: a fan out to the side and up from the shoulder (y 10, z 8), in pairs of columns (WING_RISE); the
+            # primaries' fingering at the ends painted on (feathers), not cut (each gap was a box of its own)
             for k in range(0, 8):          # outwards
                 for z in range(5, 14):
-                    h = 10 + k * 0.85
-                    span = 7 - k * 0.45
+                    h = WING_RISE[k]
+                    span = 7 - (k // 2 * 2) * 0.45   # a pair of columns the same length too
                     if not (8 - 2 <= z <= 8 - 2 + span + 2):
                         continue
-                    if k >= 5 and (z % 2 == 1):
-                        continue           # fingered primaries
                     x = (12 + k) if side > 0 else (3 - k)
                     cells[(x, int(h), z)] = "wing"
                     cells[(x, int(h) + 1, z)] = "wing"
@@ -252,6 +255,8 @@ def _hen(name, flap=False):
                 return ("garlic", 1)                          # cream tips
         if lab == "wing":
             if flap:
+                if (x >= 17 or x <= -2) and z % 2 == 1:
+                    return ("feather", 0)                     # the fingered primaries: the gaps between them shaded
                 if (x % 2 == 0) == (y % 2 == 0) and abs(x - 8) >= 7:
                     return ("garlic", 1)
                 return ("feather", 2) if (z % 2) else ("feather", 1)
