@@ -156,6 +156,8 @@ class MenuActionsTest {
             Map.entry("a", "Abcdefg…"), Map.entry("b", "Abcdefg…"), Map.entry("id", "9999"),
             // the stock window: the chart glyphs take no room, then the company, price and change
             Map.entry("state", "+10"),
+            // 화투방: the most chips anyone holds in practice, the longest game and room names
+            Map.entry("chips", "1,234,567"), Map.entry("game", "주사위"), Map.entry("room", "초보방"),
             Map.entry("graph", ""), Map.entry("name", "한빛제약"), Map.entry("price", "12,345 G"), Map.entry("change", "▲ 12.3%"));
 
     @Test
