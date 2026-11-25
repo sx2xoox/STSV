@@ -274,7 +274,8 @@ def _put_mask(px, mask, ox, oy, col, shadow=None):
 # the buttons: yellow safety-sign plates
 # ------------------------------------------------------------------------------------------------
 
-BUTTON_WORDS = {"call": "콜", "die": "다이", "raise": "레이즈", "odd": "홀", "even": "짝", "ready": "준비", "leave": "일어나기"}
+BUTTON_WORDS = {"die": "다이", "check": "체크", "ping": "삥", "call": "콜", "ddadang": "따당", "half": "하프",
+                "odd": "홀", "even": "짝", "ready": "준비", "leave": "일어나기"}
 
 
 def _hazard(px, x0, y0, x1, y1, period=8, phase=0):

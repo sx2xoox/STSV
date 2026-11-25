@@ -318,12 +318,11 @@ class HallTest {
         for (int n = 1; n <= Controls.MOST; n++) {
             List<TableArt.Slot> slots = TableArt.pad(n, TableArt.ROUND_REACH);
             assertEquals(n, slots.size());
-            assertEquals(n <= TableArt.BUTTONS_A_ROW ? 1 : 2, slots.stream().map(TableArt.Slot::out).distinct().count(), n + " buttons: rows");
+            assertEquals(1, slots.stream().map(TableArt.Slot::scale).distinct().count(), "one row, one size");
             for (int k = 0; k < round.size(); k++) {
-                double dist = Math.hypot(round.get(k)[0] - rc[0], round.get(k)[1] - rc[1]);
                 List<TableArt.Spot> spots = new ArrayList<>();
                 for (TableArt.Slot sl : slots) {
-                    TableArt.Spot s = TableArt.along(rc, round.get(k), TableArt.ROUND_REACH.button() + sl.out() / dist, sl.side(), true);
+                    TableArt.Spot s = TableArt.along(rc, round.get(k), TableArt.ROUND_REACH.button(), sl.side(), true);
                     spots.add(s);
                     assertTrue(Math.hypot(s.x() - rc[0], s.z() - rc[1]) <= 1.55, "on the round top (r 1.5): seat " + k + " n " + n);
                     int nearest = -1;
@@ -339,7 +338,7 @@ class HallTest {
                 }
                 for (int i = 0; i < spots.size(); i++) for (int j = i + 1; j < spots.size(); j++) {
                     double d = Math.hypot(spots.get(i).x() - spots.get(j).x(), spots.get(i).z() - spots.get(j).z());
-                    assertTrue(d >= 0.2, "buttons do not overlap: " + d);
+                    assertTrue(d >= 0.3 * slots.get(i).scale() + 0.01, "buttons do not overlap: " + d);
                 }
             }
         }
@@ -347,7 +346,7 @@ class HallTest {
         List<double[]> duel = List.of(new double[]{0.5, -0.5}, new double[]{0.5, 1.5});
         double[] dc = TableArt.center(duel);
         List<TableArt.Slot> four = TableArt.pad(4, TableArt.DUEL_REACH);
-        assertTrue(four.stream().allMatch(sl -> sl.out() == 0 && sl.scale() < 1 && sl.scale() > 0.6));
+        assertTrue(four.stream().allMatch(sl -> sl.scale() < 1 && sl.scale() > 0.6));
         for (int k = 0; k < 2; k++) {
             for (TableArt.Slot sl : four) {
                 TableArt.Spot s = TableArt.along(dc, duel.get(k), TableArt.DUEL_REACH.button(), sl.side(), true);

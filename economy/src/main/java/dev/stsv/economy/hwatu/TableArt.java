@@ -174,30 +174,20 @@ public final class TableArt {
     /** Gaps between things side by side (blocks): wider than the things (a card 0.28, a button 0.3, a die 0.15 across). */
     public static final double CARD_GAP = 0.32, BUTTON_GAP = 0.34, DIE_GAP = 0.2;
 
-    /** Buttons in a row before a second row starts; how far (blocks) the next row lies further out towards the seat. */
-    public static final int BUTTONS_A_ROW = 4;
-    public static final double BUTTON_ROW_STEP = 0.24;
-
-    /** Where one button of a seat's pad goes: `side` to the sitter's right, `out` blocks past the reach, drawn at `scale` (≤ 1). */
-    public record Slot(double side, double out, double scale) {}
+    /** Where one button of a seat's pad goes: `side` blocks to the sitter's right, drawn at `scale` (1 = full size). */
+    public record Slot(double side, double scale) {}
 
     /**
-     * A seat's buttons (up to {@link Controls#MOST}): rows of up to {@link #BUTTONS_A_ROW}, centred, the first row at the
-     * reach and the next ones further out; a row wider than the table allows (the duel crate) is drawn closer and smaller.
+     * A seat's buttons (up to {@link Controls#MOST}) in one row along the edge in front of it, centred: full size while
+     * they fit in the reach's buttonWidth (the round table: four, which is the most a 섯다 turn shows), closer and smaller
+     * past that (the duel crate's four, or seven anywhere), so the row never leaves the table or reaches a neighbour's.
+     * One row: a second row would stand either off the table's edge or behind the first, hidden from the sitter.
      */
     public static List<Slot> pad(int n, Reach r) {
-        List<Slot> out = new ArrayList<>();
-        int rows = Math.max(1, (n + BUTTONS_A_ROW - 1) / BUTTONS_A_ROW);
-        int perRow = (n + rows - 1) / rows;   // 7 = 4 + 3, 5 = 3 + 2
-        double gap = Math.min(BUTTON_GAP, r.buttonWidth() / Math.max(1, perRow));
+        double gap = Math.min(BUTTON_GAP, r.buttonWidth() / Math.max(1, n));
         double scale = gap / BUTTON_GAP;
-        for (int i = 0, row = 0; i < n; row++) {
-            int k = Math.min(perRow, n - i);
-            for (double side : row(k, gap)) {
-                out.add(new Slot(side, row * BUTTON_ROW_STEP * scale, scale));
-                i++;
-            }
-        }
+        List<Slot> out = new ArrayList<>();
+        for (double side : row(n, gap)) out.add(new Slot(side, scale));
         return out;
     }
 }

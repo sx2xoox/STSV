@@ -52,10 +52,10 @@ the model's north side (the same yaw that turns a sign to a player turns these t
                        Western and Korean dice); the one a big red pip. README "도박장" has the turn for each face up.
   gamble_bowl          an upturned white porcelain rice bowl (사발) with a blue line, 11 px across, 6.25 tall, a chip in
                        its rim; bottom on the display's position.
-  gamble_btn_<call|die|raise|odd|even|ready|leave>
+  gamble_btn_<die|check|ping|call|ddadang|half|odd|even|ready|leave>
                        a yellow safety-sign plate 12 x 6 px, 1 px thick, standing up, CENTRED on the display's position,
-                       its face (north) gamble_art.button: 콜 다이 레이즈 홀 짝 준비 일어나기 in stencil. Lit (light
-                       emission): readable in the dim hall.
+                       its face (north) gamble_art.button: 다이 체크 삥 콜 따당 하프 홀 짝 준비 일어나기 in stencil. Lit
+                       (light emission): readable in the dim hall. (레이즈 is retired: 섯다 bets 삥 · 체크 · 콜 · 따당 · 하프.)
   gamble_whiteboard    a wall whiteboard 2.5 x 1.5 blocks in an aluminium frame, marker tray with markers and an eraser,
                        old smudges, half-wiped marker scribbles (a blue scrawl, a red ring) and a tally (正), three magnets, a receipt under a magnet top left (as seen from in
                        front). Centred on the display's position side to side and up and down. Drawn with its back at z 16

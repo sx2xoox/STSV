@@ -351,7 +351,7 @@ public final class Table {
                     l.changed(this);
                     return;
                 }
-                start(ok, now, bank);
+                start(ok, now, bank, l);
                 l.changed(this);
             }
             case PLAYING -> {
@@ -366,7 +366,7 @@ public final class Table {
         }
     }
 
-    private void start(List<UUID> ok, long now, Bank bank) {
+    private void start(List<UUID> ok, long now, Bank bank, Listener l) {
         players.clear();
         put.clear();
         stake.clear();
@@ -402,6 +402,7 @@ public final class Table {
                 betting = round(null);
                 step = Step.BET;
                 deadline = now + spec.turnSeconds() * 1000L;
+                if (betting.done()) afterBet(now, l);   // nobody can bet (all-in on the ante): straight to the showdown
             }
         }
     }
@@ -523,6 +524,7 @@ public final class Table {
             deadline = now + spec.turnSeconds() * 1000L;
             l.replay(this);
             l.changed(this);
+            if (next.done()) afterBet(now, l);   // everyone left is all-in: the new cards go straight to the showdown
             return;
         }
         Map<UUID, String> detail = new LinkedHashMap<>();

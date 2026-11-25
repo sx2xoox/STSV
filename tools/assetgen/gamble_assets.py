@@ -173,9 +173,10 @@ def sheet(path=SHEET):
     # row 5: the buttons
     y0 = 1650
     for i, k in enumerate(ART.BUTTON_WORDS):
-        els.extend(_placed(pv[f"gamble_btn_{k}"], (5684 - i * 14, 3, 0), 1))
-    els.append(_plane("feltbg", 5585, -15, 5710, 15))
-    view(0, y0, 1600, 230, [5642, 3, 0], 50, 0, 8, 1.0, "gamble_btn_call · die · raise · odd · even · ready · leave (빛남)")
+        els.extend(_placed(pv[f"gamble_btn_{k}"], (5705 - i * 14, 3, 0), 1))
+    els.append(_plane("feltbg", 5565, -15, 5720, 15))
+    view(0, y0, 1600, 230, [5642, 3, 0], 50, 0, 8, 0.8,
+         "gamble_btn_die · check · ping · call · ddadang · half · odd · even · ready · leave (빛남)")
 
     H = 1880
     src = BUILD / "gamble_hall_assets.preview.json"

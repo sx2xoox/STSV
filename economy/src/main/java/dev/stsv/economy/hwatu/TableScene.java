@@ -635,13 +635,12 @@ final class TableScene {
         pad.key = key(t, p.getUniqueId(), buttons);
         List<TableArt.Slot> slots = TableArt.pad(buttons.size(), reach);
         double[] at = seat(seat);
-        double dist = Math.max(0.5, Math.hypot(at[0] - center[0], at[1] - center[1]));
         for (int i = 0; i < buttons.size(); i++) {
             Controls.Button b = buttons.get(i);
             TableArt.Slot slot = slots.get(i);
             float scale = (float) (BUTTON_SCALE * slot.scale());
             double half = BUTTON_HALF * slot.scale();
-            TableArt.Spot s = TableArt.along(center, at, reach.button() + slot.out() / dist, slot.side(), true);
+            TableArt.Spot s = TableArt.along(center, at, reach.button(), slot.side(), true);
             Location l = at(s, half + 0.03);
             Quaternionf rot = TableArt.facing(s.yaw()).rotateX((float) Math.toRadians(BUTTON_TILT));
             ItemDisplay d = item(l, b.model(), scale * 0.2f, rot, null, false);
