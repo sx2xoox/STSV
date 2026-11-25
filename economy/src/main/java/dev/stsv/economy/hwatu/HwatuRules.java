@@ -11,16 +11,17 @@ public final class HwatuRules {
 
     private HwatuRules() {}
 
-    /** null if n chips may be bought now, else why not. */
+    /** null if n chips may be bought now, else why not. dailyLimit 0 (or less): no daily limit. */
     public static String canBuy(long n, long boughtToday, long dailyLimit, long gold, long price) {
         if (n <= 0) return "hwatu.bad-amount";
-        if (boughtToday + n > dailyLimit) return "hwatu.buy-limit";
+        if (dailyLimit > 0 && boughtToday + n > dailyLimit) return "hwatu.buy-limit";
         if (gold < n * price) return "hwatu.buy-gold";
         return null;
     }
 
-    /** How many chips can still be bought today. */
+    /** How many chips can still be bought today (Long.MAX_VALUE with no daily limit). */
     public static long buyLeft(long boughtToday, long dailyLimit) {
+        if (dailyLimit <= 0) return Long.MAX_VALUE;
         return Math.max(0, dailyLimit - boughtToday);
     }
 
@@ -31,14 +32,15 @@ public final class HwatuRules {
         return null;
     }
 
-    /** Old enough: the account first joined at least minAgeMs ago (firstPlayed 0 = unknown: too new). */
+    /** Old enough: the account first joined at least minAgeMs ago (firstPlayed 0 = unknown: too new). minAgeMs 0: everyone. */
     public static boolean oldEnough(long firstPlayed, long now, long minAgeMs) {
+        if (minAgeMs <= 0) return true;
         return firstPlayed > 0 && now - firstPlayed >= minAgeMs;
     }
 
-    /** Today's loss (chips lost minus won, never below 0) reached the cap: no more sitting today. */
+    /** Today's loss (chips lost minus won, never below 0) reached the cap: no more sitting today. lossCap 0: never. */
     public static boolean resting(long netToday, long lossCap) {
-        return -netToday >= lossCap;
+        return lossCap > 0 && -netToday >= lossCap;
     }
 
     /**

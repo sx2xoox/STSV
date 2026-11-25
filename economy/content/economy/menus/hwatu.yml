@@ -1,6 +1,7 @@
 # /화투방 (README "화투방", 수치는 hwatu.yml). 배경은 우편함 것을 그대로 씀 (같은 칸 배치의 일부만 씀)
 # 위 = 내 칩, 가운데 = 방 9개 (줄마다 게임: 홀짝 · 주사위 · 섯다, 칸마다 방: 초보방 · 일반방 · 큰손방), 아래 = 칩 사기 · 바꾸기
 # 자리표시자: {chips} {chips_gold} {bought} {buy_left} {daily_buy} {net} {loss_cap} {buy_price} {cash_price} {rake} {hours} {turn} {balance}
+#            {rest} (쉬어 가기 한 줄: 한도가 0 이면 "제한 없음" 문구) {age} (계정 나이 한 줄: 0 이면 "새 계정도 바로") — 문구는 messages.yml hwatu.rest-* · age-*
 hwatu:
   title: "<#f0e2b0>화투방 <#b9a6d6>· 칩 {chips}"
   rows: 6
@@ -73,7 +74,7 @@ hwatu:
         - "<gray>내 차례 {turn}초: 넘기면 섯다는 낼 것이 있으면 다이, 없으면 콜"
         - "<gray>판 도중에 일어나면 다이 (건 칩은 판에 남음)"
         - "<gray>화면을 닫아 두면 다음 판부터 빠져요"
-        - "<dark_gray>처음 들어온 지 {hours}시간이 지난 계정부터"
+        - "{age}"
     M:
       action: ""
       icon: economy:gui/ledger
@@ -100,8 +101,7 @@ hwatu:
       material: CLOCK
       name: "<white>쉬어 가기"
       lore:
-        - "<gray>하루에 잃은 칩이 <white>{loss_cap}칩</white>이 되면"
-        - "<gray>그날(05시까지)은 판에 못 앉아요. <dark_gray>(환전은 됨)"
+        - "{rest}"
         - "<gray>오늘 <white>{net}칩"
         - "<dark_gray>딴 칩 순위는 두지 않아요"
 
@@ -144,7 +144,7 @@ hwatu_table:
       name: "<white>내 칩 <#e8c15a>{chips}"
       lore:
         - "<gray>판에 걸지 않은 칩 <white>{free}"
-        - "<gray>오늘 {net}칩 <dark_gray>/ 쉬어 가기 -{loss_cap}칩"
+        - "<gray>오늘 {net}칩 {rest}"
         - "<dark_gray>앉아 있으려면 칩 {need}개"
         - "<dark_gray>칩 사기 · 바꾸기: /화투방 방"
     X:

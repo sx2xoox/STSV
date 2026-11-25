@@ -50,4 +50,25 @@ public record Card(int month, Kind kind) {
         }
         return out;
     }
+
+    /** The short name used to pick a card (/관리자 화투방 시험 섯다 패): "3광", "7열끗", "4띠" (8월's second card: "8열끗"). */
+    public String label() {
+        return month + switch (kind) {
+            case GWANG -> "광";
+            case YEOL -> "열끗";
+            case TTI -> "띠";
+        };
+    }
+
+    /** A card by its {@link #label()} ("3광") or its item suffix ("3a", "hwatu_3a", "economy:hwatu_3a"); null if none. */
+    public static Card parse(String s) {
+        if (s == null) return null;
+        String t = s.trim().toLowerCase(java.util.Locale.ROOT);
+        if (t.startsWith("economy:")) t = t.substring(8);
+        if (t.startsWith("hwatu_")) t = t.substring(6);
+        for (Card c : deck()) {
+            if (c.label().equals(t) || c.item().substring("economy:hwatu_".length()).equals(t)) return c;
+        }
+        return null;
+    }
 }

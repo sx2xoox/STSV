@@ -105,6 +105,8 @@ public final class Table {
     private int replays;
     private Step step;
     private Result last;
+    /** 시험 판 (/관리자 화투방 시험 섯다 패): the cards some players get in the next 섯다 hand's first deal. */
+    private final Map<UUID, Card[]> forced = new LinkedHashMap<>();
 
     private final RandomGenerator rng;
 
@@ -147,6 +149,25 @@ public final class Table {
     /** Chips a player must hold to be dealt in here. */
     public long need() {
         return spec.need(game, room);
+    }
+
+    /**
+     * 시험 판 only: deals this player these two cards in the next 섯다 hand (its first deal, not a 구사 재경기). false (nothing
+     * changes) if the two are the same card or a card another forced player already gets.
+     */
+    public boolean force(UUID player, Card a, Card b) {
+        if (a == null || b == null || a.equals(b)) return false;
+        for (Map.Entry<UUID, Card[]> e : forced.entrySet()) {
+            if (e.getKey().equals(player)) continue;
+            for (Card c : e.getValue()) if (c.equals(a) || c.equals(b)) return false;
+        }
+        forced.put(player, new Card[]{a, b});
+        return true;
+    }
+
+    /** The cards forced for the next hand (empty: none). */
+    public Map<UUID, Card[]> forced() {
+        return Collections.unmodifiableMap(forced);
     }
 
     /** Picks up a reloaded hwatu.yml (timers, limits); the room's ante stays until the table empties. */
@@ -308,7 +329,8 @@ public final class Table {
                 deadline = now + spec.revealSeconds() * 1000L;
             }
             case SUTDA -> {
-                deal(null);
+                deal(null, forced);
+                forced.clear();
                 betting = new Betting(players.size(), ante(), spec.game(Game.SUTDA).maxRaises());
                 step = Step.BET;
                 deadline = now + spec.turnSeconds() * 1000L;
@@ -316,15 +338,23 @@ public final class Table {
         }
     }
 
-    /** Two cards each to the players still in (folded: null), from a fresh shuffled deck. */
-    private void deal(Betting folds) {
+    /** Two cards each to the players still in (folded: null), from a fresh shuffled deck; `fixed`: these players' cards. */
+    private void deal(Betting folds, Map<UUID, Card[]> fixed) {
         List<Card> deck = Card.deck();
         Collections.shuffle(deck, rng);
         cards.clear();
+        Map<UUID, Card[]> use = new HashMap<>();
+        for (Map.Entry<UUID, Card[]> e : fixed.entrySet()) {
+            if (!players.contains(e.getKey())) continue;
+            use.put(e.getKey(), e.getValue());
+            for (Card c : e.getValue()) deck.remove(c);
+        }
         int k = 0;
         for (int i = 0; i < players.size(); i++) {
             if (folds != null && folds.folded(i)) continue;
-            cards.put(players.get(i), new Card[]{deck.get(k++), deck.get(k++)});
+            UUID u = players.get(i);
+            Card[] mine = use.get(u);
+            cards.put(u, mine != null ? mine.clone() : new Card[]{deck.get(k++), deck.get(k++)});
         }
     }
 
@@ -401,7 +431,7 @@ public final class Table {
             replays++;
             Betting next = new Betting(players.size(), ante(), spec.game(Game.SUTDA).maxRaises());
             for (int i = 0; i < players.size(); i++) if (betting.folded(i)) next.fold(i);
-            deal(next);
+            deal(next, Map.of());
             betting = next;
             deadline = now + spec.turnSeconds() * 1000L;
             l.replay(this);

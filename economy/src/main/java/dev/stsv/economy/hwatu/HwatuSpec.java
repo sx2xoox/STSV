@@ -12,10 +12,11 @@ import java.util.Map;
  * play each other, every pot pays a 자릿세 that is destroyed. Pure (unit-tested).
  *
  * <pre>
- * chips: { buy-price: 100, cash-price: 95, daily-buy: 5000 }
+ * chips: { buy-price: 100, cash-price: 95, daily-buy: 0 }   # daily-buy 0: no daily limit
  * rake-percent: 5
- * daily-loss-cap: 3000          # chips lost (net) in a day before the player can't sit until 05시
- * min-account-hours: 24
+ * daily-loss-cap: 0             # chips lost (net) in a day before the player can't sit until 05시; 0: no cap
+ * min-account-hours: 0          # 0: no account-age rule
+ * test-chips: 100000            # /관리자 화투방 시험: each seat's pretend chips (never real)
  * timers: { turn: 20, start: 10, reveal: 3, result: 6 }
  * rooms:  [ { id: beginner, name: "초보방", ante: 10 }, ... ]     # exactly three, in order
  * games:
@@ -26,7 +27,7 @@ import java.util.Map;
  */
 public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePercent, long lossCap, long minAgeMs,
                         int turnSeconds, int startSeconds, int revealSeconds, int resultSeconds,
-                        List<Room> rooms, Map<Table.Game, GameSpec> games) {
+                        List<Room> rooms, Map<Table.Game, GameSpec> games, long testChips) {
 
     public record Room(String id, String name, long ante) {}
 
@@ -47,11 +48,11 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
         long buy = c.getLong("chips.buy-price"), cash = c.getLong("chips.cash-price"), daily = c.getLong("chips.daily-buy");
         if (buy <= 0) problems.add("chips.buy-price: 1 이상");
         if (cash <= 0 || cash > buy) problems.add("chips.cash-price: 1 이상, buy-price 이하 (칩으로 돈을 만들 수 없게)");
-        if (daily <= 0) problems.add("chips.daily-buy: 1 이상");
+        if (daily < 0) problems.add("chips.daily-buy: 0 이상 (0 = 제한 없음)");
         int rake = c.getInt("rake-percent");
         if (rake < 1 || rake > 50) problems.add("rake-percent: 1~50");
         long cap = c.getLong("daily-loss-cap");
-        if (cap <= 0) problems.add("daily-loss-cap: 1 이상");
+        if (cap < 0) problems.add("daily-loss-cap: 0 이상 (0 = 제한 없음)");
         int hours = c.getInt("min-account-hours");
         if (hours < 0) problems.add("min-account-hours: 0 이상");
         int turn = c.getInt("timers.turn"), start = c.getInt("timers.start"), reveal = c.getInt("timers.reveal"), result = c.getInt("timers.result");
@@ -85,13 +86,19 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
             if (raises < 0 || replays < 0) problems.add("games.sutda: max-raises · replays 는 0 이상");
             games.put(g, new GameSpec(s.getString("name", g.key()), Math.clamp(max, min, top), Math.clamp(dice, 0, 3), Math.max(0, raises), Math.max(0, replays)));
         }
-        // a 섯다 hand at the biggest room must fit under the daily loss cap and the daily buy limit
+        long test = c.getLong("test-chips", 100_000);
+        // a 섯다 hand at the biggest room must fit under the daily loss cap and the daily buy limit (when they are on),
+        // and under the test table's pretend chips
+        if (!rooms.isEmpty() && games.containsKey(Table.Game.SUTDA)
+                && test < HwatuRules.need(Table.Game.SUTDA, rooms.getLast().ante(), games.get(Table.Game.SUTDA).maxRaises(), games.get(Table.Game.SUTDA).replays()))
+            problems.add("test-chips 가 큰손방 섯다 한 판보다 작음");
         if (!rooms.isEmpty() && games.containsKey(Table.Game.SUTDA)) {
             long most = HwatuRules.need(Table.Game.SUTDA, rooms.getLast().ante(), games.get(Table.Game.SUTDA).maxRaises(), games.get(Table.Game.SUTDA).replays());
-            if (most > cap) problems.add("daily-loss-cap 이 큰손방 섯다 한 판(" + most + "칩)보다 작음");
-            if (most > daily) problems.add("chips.daily-buy 가 큰손방 섯다 한 판(" + most + "칩)보다 작음");
+            if (cap > 0 && most > cap) problems.add("daily-loss-cap 이 큰손방 섯다 한 판(" + most + "칩)보다 작음");
+            if (daily > 0 && most > daily) problems.add("chips.daily-buy 가 큰손방 섯다 한 판(" + most + "칩)보다 작음");
         }
-        return new HwatuSpec(Math.max(1, buy), Math.clamp(cash, 1, Math.max(1, buy)), Math.max(1, daily), Math.clamp(rake, 1, 50), Math.max(1, cap),
-                Math.max(0, hours) * 3_600_000L, Math.max(5, turn), Math.max(1, start), Math.max(1, reveal), Math.max(1, result), rooms, games);
+        return new HwatuSpec(Math.max(1, buy), Math.clamp(cash, 1, Math.max(1, buy)), Math.max(0, daily), Math.clamp(rake, 1, 50), Math.max(0, cap),
+                Math.max(0, hours) * 3_600_000L, Math.max(5, turn), Math.max(1, start), Math.max(1, reveal), Math.max(1, result), rooms, games,
+                Math.max(1, test));
     }
 }

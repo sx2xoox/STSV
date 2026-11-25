@@ -40,8 +40,9 @@ import java.util.UUID;
 /**
  * 화투방 (README "화투방"; hwatu.yml, see {@link HwatuSpec}): players play each other for chips, never the server. Chips are
  * bought with gold and cashed to gold only (never 별 or anything 후원), are a number on the account (no item), and every pot
- * pays the 자릿세, which is destroyed: the 화투방 only ever takes money out of the economy. Daily buy limit, daily loss cap,
- * no accounts younger than a day, every hand logged for /관리자 화투방 기록, no winnings ranking.
+ * pays the 자릿세, which is destroyed: the 화투방 only ever takes money out of the economy. A daily buy limit, a daily loss
+ * cap and a minimum account age can each be set in hwatu.yml (0 = none, the default), every hand is logged for /관리자 화투방
+ * 기록, no winnings ranking. /관리자 화투방 시험: a private table with bots and pretend chips ({@link Test}).
  *
  * <p>Money: buying holds the gold outside the balances (ESCROW, like shares) and the chips stand for it at the buy price;
  * cashing gives back the cash price (ESCROW) and destroys the rest; the 자릿세 destroys the gold behind its chips (burn).
@@ -64,6 +65,10 @@ public final class HwatuModule extends EcoModule {
     private final Map<Integer, UUID> turns = new HashMap<>();
     private int nextTable = 1;
     private final Events events = new Events();
+    /** 시험 판 (/관리자 화투방 시험): admin -> their private table with bots, pretend chips only. */
+    private final Map<UUID, Test> tests = new HashMap<>();
+    /** The bots of every 시험 판 and their names (봇1, 봇2 …). */
+    private final Map<UUID, String> bots = new HashMap<>();
 
     public HwatuModule(EcoPlugin eco) {
         super(eco);
@@ -80,8 +85,8 @@ public final class HwatuModule extends EcoModule {
         store = new ChipStore(core.db());
         store.init();
         eco.onReset(this::reset);
-        core.admin().add(EcoPlugin.ADMIN_OWNER, "화투방", "기록 [플레이어] · 칩 <플레이어> [수]",
-                "화투방 판 기록 (누가 누구에게 얼마를: 세탁 감시) / 칩 보기·정하기", this::admin, this::adminComplete);
+        core.admin().add(EcoPlugin.ADMIN_OWNER, "화투방", "기록 [플레이어] · 칩 <플레이어> [수] · 시험 <홀짝|주사위|섯다> [인원] [방] · 시험 섯다 패 <카드> <카드> · 시험 끝",
+                "화투방 판 기록 (누가 누구에게 얼마를: 세탁 감시) / 칩 보기·정하기 / 혼자 봇과 시험 판 (진짜 칩 · 골드 · 기록 없음)", this::admin, this::adminComplete);
         every(20, this::tick);
     }
 
@@ -89,6 +94,7 @@ public final class HwatuModule extends EcoModule {
     protected void stop() {
         // a running hand is void: nothing was moved yet (chips move only when a hand ends)
         for (Table t : tables.values()) t.abandon();
+        for (UUID admin : new ArrayList<>(tests.keySet())) endTest(admin, false);
         for (MenuView v : new ArrayList<>(views.values())) v.close();
         tables.clear();
         seated.clear();
@@ -99,6 +105,7 @@ public final class HwatuModule extends EcoModule {
     public void reload() {
         load();
         for (Table t : tables.values()) t.spec(spec);
+        for (Test x : tests.values()) x.table.spec(spec);
     }
 
     private void load() {
@@ -133,6 +140,7 @@ public final class HwatuModule extends EcoModule {
 
     private void reset() {
         for (Table t : tables.values()) t.abandon();
+        for (UUID admin : new ArrayList<>(tests.keySet())) endTest(admin, false);
         for (MenuView v : new ArrayList<>(views.values())) v.close();
         tables.clear();
         seated.clear();
@@ -160,7 +168,7 @@ public final class HwatuModule extends EcoModule {
         if (!core.economy().move(u, null, n * spec.buyPrice(), EconomyStore.Kind.ESCROW, "hwatu_chip_buy", n + "칩")) return "hwatu.buy-gold";
         store.bought(u, n, today());
         p.sendMessage(Lang.msg("hwatu.bought", "n", fmt(n), "gold", EconomyModule.format(n * spec.buyPrice()), "chips", fmt(chips(u)),
-                "left", fmt(HwatuRules.buyLeft(a.bought + n, spec.dailyBuy()))));
+                "left", buyLeftText(a.bought + n)));
         p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.4f);
         return null;
     }
@@ -205,6 +213,7 @@ public final class HwatuModule extends EcoModule {
             }
             return "hwatu.already-seated";
         }
+        if (tests.containsKey(u)) return "hwatu.test-busy";
         String why = refusal(u, spec.need(game, room));
         if (why != null) return why;
         Table pick = null;
@@ -220,7 +229,7 @@ public final class HwatuModule extends EcoModule {
         seated.put(u, pick);
         for (UUID o : pick.seats()) {
             Player op = Bukkit.getPlayer(o);
-            if (op != null && !o.equals(u)) op.sendMessage(Lang.msg("hwatu.joined", "player", Names.mini(u)));
+            if (op != null && !o.equals(u)) op.sendMessage(Lang.msg("hwatu.joined", "player", mini(u)));
         }
         p.sendMessage(Lang.msg("hwatu.sat", "game", gameName(game), "room", room.name(), "ante", fmt(room.ante()), "need", fmt(spec.need(game, room))));
         openTable(p);
@@ -238,7 +247,7 @@ public final class HwatuModule extends EcoModule {
         if (p != null) p.sendMessage(Lang.msg(folding ? "hwatu.left-fold" : "hwatu.left"));
         for (UUID o : t.seats()) {
             Player op = Bukkit.getPlayer(o);
-            if (op != null) op.sendMessage(Lang.msg("hwatu.someone-left", "player", Names.mini(u)));
+            if (op != null) op.sendMessage(Lang.msg("hwatu.someone-left", "player", mini(u)));
         }
         if (t.empty()) tables.remove(t.id());
     }
@@ -249,6 +258,7 @@ public final class HwatuModule extends EcoModule {
             if (t.empty()) tables.remove(t.id());
             else refresh(t);
         }
+        for (Test x : new ArrayList<>(tests.values())) x.tick(now());
     }
 
     /** What the table's own code tells the module. */
@@ -307,9 +317,17 @@ public final class HwatuModule extends EcoModule {
             if (!what.isEmpty()) d.append(" (").append(Text.plain(what)).append(')');
         }
         store.log(now(), t.game().key(), t.room().id(), r.players(), r.pot(), r.burned(), d.toString());
-        // tell the table
+        announce(t, r, this::chips, false);
+        for (UUID u : r.players()) {
+            Player p = Bukkit.getPlayer(u);
+            if (p != null && HwatuRules.resting(store.account(u, day).net, spec.lossCap())) p.sendMessage(Lang.msg("hwatu.resting-now", "cap", fmt(spec.lossCap())));
+        }
+    }
+
+    /** Tells everyone in a finished hand who won with what, and their own result (`chipsOf`: what they hold now). */
+    private void announce(Table t, Table.Result r, java.util.function.ToLongFunction<UUID> chipsOf, boolean test) {
         List<String> names = new ArrayList<>();
-        for (UUID w : r.winners()) names.add(Names.mini(w));
+        for (UUID w : r.winners()) names.add(mini(w));
         String winnerHand = r.winners().size() == 1 ? detail(r, r.winners().getFirst()) : "";
         long share = r.winners().isEmpty() ? 0 : r.payout().get(r.winners().getFirst());
         Component line = Lang.msg(r.uncontested() ? "hwatu.won-alone" : r.winners().size() > 1 ? "hwatu.won-split" : "hwatu.won",
@@ -320,13 +338,13 @@ public final class HwatuModule extends EcoModule {
             p.sendMessage(line);
             if (t.game() == Table.Game.SUTDA && !r.uncontested()) {
                 List<String> hands = new ArrayList<>();
-                for (UUID o : r.players()) hands.add(Names.mini(o) + " <gray>" + detail(r, o));
+                for (UUID o : r.players()) hands.add(mini(o) + " <gray>" + detail(r, o));
                 p.sendMessage(Lang.msg("hwatu.hands", "hands", String.join("<dark_gray> · </dark_gray>", hands)));
             }
             long net = r.net(u);
-            p.sendMessage(Lang.msg(net >= 0 ? "hwatu.my-win" : "hwatu.my-loss", "n", fmt(Math.abs(net)), "chips", fmt(chips(u))));
+            String key = (test ? "hwatu.test-" : "hwatu.") + (net >= 0 ? "my-win" : "my-loss");
+            p.sendMessage(Lang.msg(key, "n", fmt(Math.abs(net)), "chips", fmt(chipsOf.applyAsLong(u))));
             p.playSound(p.getLocation(), r.winners().contains(u) ? Sound.ENTITY_PLAYER_LEVELUP : Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, r.winners().contains(u) ? 1.4f : 0.8f);
-            if (HwatuRules.resting(store.account(u, day).net, spec.lossCap())) p.sendMessage(Lang.msg("hwatu.resting-now", "cap", fmt(spec.lossCap())));
         }
     }
 
@@ -357,6 +375,7 @@ public final class HwatuModule extends EcoModule {
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
         views.remove(e.getPlayer().getUniqueId());
+        endTest(e.getPlayer().getUniqueId(), false);
         leave(e.getPlayer().getUniqueId());
     }
 
@@ -366,6 +385,21 @@ public final class HwatuModule extends EcoModule {
 
     private static String fmt(long n) {
         return String.format("%,d", n);
+    }
+
+    /** A player's name, or a 시험 판 bot's (봇1 …). */
+    private String mini(UUID u) {
+        String bot = bots.get(u);
+        return bot != null ? bot : Names.mini(u);
+    }
+
+    /** Chips that can still be bought today, as text ("제한 없음" with no daily limit). */
+    private String buyLeftText(long boughtToday) {
+        return spec.dailyBuy() <= 0 ? Lang.raw("hwatu.no-limit") : fmt(HwatuRules.buyLeft(boughtToday, spec.dailyBuy()));
+    }
+
+    private String dailyBuyText() {
+        return spec.dailyBuy() <= 0 ? Lang.raw("hwatu.no-limit") : fmt(spec.dailyBuy());
     }
 
     // ------------------------------------------------------------------------------------------
@@ -392,12 +426,13 @@ public final class HwatuModule extends EcoModule {
                 String why = a[0].equals("사기") ? buy(p, n) : cash(p, n);
                 if (why != null) {
                     ChipStore.Account acc = store.account(p.getUniqueId(), today());
-                    p.sendMessage(Lang.msg(why, "hours", spec.minAgeMs() / 3_600_000L, "left", fmt(HwatuRules.buyLeft(acc.bought, spec.dailyBuy())),
-                            "daily", fmt(spec.dailyBuy()), "need", "0", "cap", fmt(spec.lossCap())));
+                    p.sendMessage(Lang.msg(why, "hours", spec.minAgeMs() / 3_600_000L, "left", buyLeftText(acc.bought),
+                            "daily", dailyBuyText(), "need", "0", "cap", fmt(spec.lossCap())));
                 }
             }
             case "나가기" -> {
-                if (!seated.containsKey(p.getUniqueId())) p.sendMessage(Lang.msg("hwatu.not-seated"));
+                if (tests.containsKey(p.getUniqueId())) endTest(p.getUniqueId(), true);
+                else if (!seated.containsKey(p.getUniqueId())) p.sendMessage(Lang.msg("hwatu.not-seated"));
                 else leave(p.getUniqueId());
             }
             case "방" -> openLobby(p);
@@ -414,7 +449,7 @@ public final class HwatuModule extends EcoModule {
     }
 
     public void open(Player p) {
-        if (seated.containsKey(p.getUniqueId())) openTable(p);
+        if (seated.containsKey(p.getUniqueId()) || tests.containsKey(p.getUniqueId())) openTable(p);
         else openLobby(p);
     }
 
@@ -431,10 +466,12 @@ public final class HwatuModule extends EcoModule {
             m.put("chips", fmt(a.chips));
             m.put("chips_gold", EconomyModule.format(a.chips * spec.cashPrice()));
             m.put("bought", fmt(a.bought));
-            m.put("buy_left", fmt(HwatuRules.buyLeft(a.bought, spec.dailyBuy())));
-            m.put("daily_buy", fmt(spec.dailyBuy()));
+            m.put("buy_left", buyLeftText(a.bought));
+            m.put("daily_buy", dailyBuyText());
             m.put("net", (a.net >= 0 ? "+" : "") + fmt(a.net));
-            m.put("loss_cap", fmt(spec.lossCap()));
+            m.put("loss_cap", spec.lossCap() <= 0 ? Lang.raw("hwatu.no-limit") : fmt(spec.lossCap()));
+            m.put("rest", spec.lossCap() <= 0 ? Lang.raw("hwatu.rest-off") : Lang.raw("hwatu.rest-on", "cap", fmt(spec.lossCap())));
+            m.put("age", spec.minAgeMs() <= 0 ? Lang.raw("hwatu.age-off") : Lang.raw("hwatu.age-on", "hours", spec.minAgeMs() / 3_600_000L));
             m.put("buy_price", fmt(spec.buyPrice()));
             m.put("cash_price", fmt(spec.cashPrice()));
             m.put("rake", String.valueOf(spec.rakePercent()));
@@ -524,7 +561,7 @@ public final class HwatuModule extends EcoModule {
     private void deny(Player p, String why, Table.Game g, HwatuSpec.Room r) {
         ChipStore.Account a = store.account(p.getUniqueId(), today());
         HudModule.flash(p, Lang.mm(why, "need", fmt(g == null ? 0 : spec.need(g, r)), "cap", fmt(spec.lossCap()), "hours", spec.minAgeMs() / 3_600_000L,
-                "left", fmt(HwatuRules.buyLeft(a.bought, spec.dailyBuy())), "daily", fmt(spec.dailyBuy())));
+                "left", buyLeftText(a.bought), "daily", dailyBuyText()));
         p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
     }
 
@@ -533,12 +570,19 @@ public final class HwatuModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     public void openTable(Player p) {
-        Table t = seated.get(p.getUniqueId());
+        Test x = tests.get(p.getUniqueId());
+        Table t = x != null ? x.table : seated.get(p.getUniqueId());
         if (t == null) {
             openLobby(p);
             return;
         }
-        core.menus().open(p, TABLE_MENU, new TableView(t)).ifPresent(v -> views.put(p.getUniqueId(), v));
+        core.menus().open(p, TABLE_MENU, new TableView(t, x)).ifPresent(v -> views.put(p.getUniqueId(), v));
+    }
+
+    /** The table a player sits at: their 시험 판, else a real one (null: none). */
+    private Table tableOf(UUID u) {
+        Test x = tests.get(u);
+        return x != null ? x.table : seated.get(u);
     }
 
     private void refresh(Table t) {
@@ -561,23 +605,38 @@ public final class HwatuModule extends EcoModule {
 
     private final class TableView implements MenuHandler {
         final Table table;
+        /** a 시험 판: pretend chips (null: a real table) */
+        final Test test;
 
-        TableView(Table table) {
+        TableView(Table table, Test test) {
             this.table = table;
+            this.test = test;
+        }
+
+        /** What a seat holds: real chips, or a 시험 판's pretend ones. */
+        private long held(UUID u) {
+            return test != null ? test.chips(u) : chips(u);
+        }
+
+        private String roomName() {
+            return test != null ? Lang.raw("hwatu.test-room", "room", table.room().name()) : table.room().name();
         }
 
         @Override
         public Map<String, String> placeholders(MenuView v) {
             UUID u = v.player().getUniqueId();
             ChipStore.Account a = store.account(u, today());
+            long chips = held(u), net = test != null ? test.net : a.net;
             Map<String, String> m = new HashMap<>();
             m.put("game", gameName(table.game()));
-            m.put("room", table.room().name());
+            m.put("room", roomName());
             m.put("ante", fmt(table.ante()));
-            m.put("chips", fmt(a.chips));
-            m.put("free", fmt(a.chips - table.committed(u)));
-            m.put("net", (a.net >= 0 ? "+" : "") + fmt(a.net));
-            m.put("loss_cap", fmt(spec.lossCap()));
+            m.put("chips", fmt(chips));
+            m.put("free", fmt(chips - table.committed(u)));
+            m.put("net", (net >= 0 ? "+" : "") + fmt(net));
+            m.put("loss_cap", spec.lossCap() <= 0 ? Lang.raw("hwatu.no-limit") : fmt(spec.lossCap()));
+            m.put("rest", test != null ? Lang.raw("hwatu.test-chips-note")
+                    : spec.lossCap() <= 0 ? Lang.raw("hwatu.rest-off-short") : Lang.raw("hwatu.rest-on-short", "cap", fmt(spec.lossCap())));
             m.put("need", fmt(table.need()));
             m.put("rake", String.valueOf(spec.rakePercent()));
             return m;
@@ -595,7 +654,7 @@ public final class HwatuModule extends EcoModule {
             ItemStack it = base.clone();
             if (a.equals("hwatu:info")) {
                 it.editMeta(meta -> {
-                    meta.itemName(Lang.item("hwatu.info-name", "game", gameName(table.game()), "room", table.room().name()));
+                    meta.itemName(Lang.item("hwatu.info-name", "game", gameName(table.game()), "room", roomName()));
                     List<Component> lore = new ArrayList<>();
                     lore.add(Lang.item("hwatu.info-pot", "pot", fmt(table.phase() == Table.Phase.WAITING ? 0 : table.pot()), "ante", fmt(table.ante()),
                             "rake", spec.rakePercent()));
@@ -604,19 +663,19 @@ public final class HwatuModule extends EcoModule {
                         case PLAYING -> table.step() == Table.Step.ROLL ? "hwatu.state-rolling"
                                 : table.turn() == null ? "hwatu.state-playing" : "hwatu.state-turn";
                         case RESULT -> "hwatu.state-result";
-                    }, "seconds", left(), "player", table.turn() == null ? "" : Names.mini(table.turn())));
+                    }, "seconds", left(), "player", table.turn() == null ? "" : mini(table.turn())));
                     if (table.game() == Table.Game.SUTDA && table.betting() != null && table.phase() == Table.Phase.PLAYING) {
                         lore.add(Lang.item("hwatu.info-raises", "n", table.betting().raises(), "max", spec.game(Table.Game.SUTDA).maxRaises()));
                         if (table.replays() > 0) lore.add(Lang.item("hwatu.info-replay"));
                     }
                     if (table.game() == Table.Game.HOLJJAK && table.calledOdd() != null) {
-                        lore.add(Lang.item("hwatu.info-called", "player", Names.mini(table.players().getFirst()),
+                        lore.add(Lang.item("hwatu.info-called", "player", mini(table.players().getFirst()),
                                 "call", Lang.raw(table.calledOdd() ? "hwatu.hand.odd" : "hwatu.hand.even")));
                     }
                     Table.Result r = table.last();
                     if (r != null && table.phase() == Table.Phase.RESULT) {
                         List<String> names = new ArrayList<>();
-                        for (UUID w : r.winners()) names.add(Names.mini(w));
+                        for (UUID w : r.winners()) names.add(mini(w));
                         lore.add(Lang.item("hwatu.info-result", "players", String.join(", ", names), "pot", fmt(r.pot()), "rake", fmt(r.burned())));
                     }
                     meta.lore(lore);
@@ -717,8 +776,8 @@ public final class HwatuModule extends EcoModule {
             boolean turn = u.equals(table.turn());
             Table.Result r = table.phase() == Table.Phase.RESULT ? table.last() : null;
             it.editMeta(meta -> {
-                if (meta instanceof SkullMeta sm) sm.setOwningPlayer(Bukkit.getOfflinePlayer(u));
-                meta.itemName(Text.item((turn ? "<yellow>▶ " : "<white>") + Names.mini(u)));
+                if (meta instanceof SkullMeta sm && !bots.containsKey(u)) sm.setOwningPlayer(Bukkit.getOfflinePlayer(u));
+                meta.itemName(Text.item((turn ? "<yellow>▶ " : "<white>") + mini(u)));
                 List<Component> lore = new ArrayList<>();
                 if (!table.players().contains(u) || table.phase() == Table.Phase.WAITING) lore.add(Lang.item("hwatu.seat-waiting"));
                 else {
@@ -732,7 +791,7 @@ public final class HwatuModule extends EcoModule {
                         lore.add(Lang.item(net >= 0 ? "hwatu.seat-won" : "hwatu.seat-lost", "n", fmt(Math.abs(net))));
                     }
                 }
-                lore.add(Lang.item("hwatu.seat-chips", "n", fmt(chips(u))));
+                lore.add(Lang.item(test != null ? "hwatu.test-seat-chips" : "hwatu.seat-chips", "n", fmt(held(u))));
                 meta.lore(lore);
                 meta.setEnchantmentGlintOverride(turn || (r != null && r.winners().contains(u)));
                 meta.addItemFlags(ItemFlag.values());
@@ -807,7 +866,8 @@ public final class HwatuModule extends EcoModule {
             Player p = v.player();
             UUID u = p.getUniqueId();
             if (action.equals("hwatu:leave")) {
-                leave(u);
+                if (test != null) endTest(u, true);
+                else leave(u);
                 Bukkit.getScheduler().runTask(eco, () -> openLobby(p));
                 return;
             }
@@ -819,8 +879,8 @@ public final class HwatuModule extends EcoModule {
                 case "hwatu:c" -> Table.Move.RAISE;
                 default -> null;
             };
-            if (m == null || seated.get(u) != table) return;
-            String why = table.act(u, m, now(), events);
+            if (m == null || tableOf(u) != table) return;
+            String why = table.act(u, m, now(), test != null ? test : events);
             if (why != null) HudModule.flash(p, Lang.mm(why));
             else p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.2f);
             v.refresh();
@@ -831,6 +891,237 @@ public final class HwatuModule extends EcoModule {
             // closing the screen does not stand up: the turn timer plays for the player, and the next hand is not dealt to
             // someone who is not looking (see refusal: "hwatu.away")
         }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 시험 판 (/관리자 화투방 시험): the admin alone with bots
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * An admin's private 시험 판 (README "화투방"): the admin and bots (봇1 …) who play by {@link HwatuBot}, the normal table
+     * screen and every move. Pretend chips only (hwatu.yml test-chips a seat, filled up again when short): no gold moves, no
+     * chip balance changes, no hand log row, nothing for the ranking, stamps, missions or achievements. Not in the lobby.
+     */
+    private final class Test implements Table.Listener, Table.Bank {
+        final UUID admin;
+        final Table table;
+        final List<UUID> botSeats = new ArrayList<>();
+        final Map<UUID, Long> chips = new HashMap<>();
+        /** the admin's pretend chips won (+) / lost (-) since the test began */
+        long net;
+        private UUID thinking, lastTurn;
+        private long actAt;
+
+        Test(UUID admin, Table table) {
+            this.admin = admin;
+            this.table = table;
+        }
+
+        long chips(UUID u) {
+            return chips.getOrDefault(u, spec.testChips());
+        }
+
+        /** Everyone is dealt in; a seat short of a hand's worst case gets its pretend chips back. */
+        @Override
+        public String refusal(UUID u, long need) {
+            if (chips(u) < need) chips.put(u, spec.testChips());
+            return null;
+        }
+
+        void tick(long now) {
+            table.tick(now, this, this);
+            UUID turn = table.turn();
+            if (turn == null || !bots.containsKey(turn)) {
+                thinking = null;
+                return;
+            }
+            if (!turn.equals(thinking)) {   // a bot's turn began: it thinks a little (well inside the turn timer)
+                thinking = turn;
+                actAt = now + HwatuBot.delay(spec.turnSeconds(), rng.nextDouble());
+                return;
+            }
+            if (now < actAt) return;
+            thinking = null;
+            Table.Move m = botMove(turn);
+            if (m != null) table.act(turn, m, now, this);
+        }
+
+        private Table.Move botMove(UUID bot) {
+            if (table.step() == Table.Step.PICK) return HwatuBot.callsOdd(rng.nextDouble()) ? Table.Move.ODD : Table.Move.EVEN;
+            if (table.step() != Table.Step.BET) return null;
+            Card[] c = table.cards(bot);
+            Betting b = table.betting();
+            int seat = table.players().indexOf(bot);
+            if (c == null || b == null || seat < 0) return Table.Move.CALL;
+            return switch (HwatuBot.sutda(Sutda.of(c[0], c[1]), b.toCall(seat), b.canRaise(), rng.nextDouble())) {
+                case DIE -> Table.Move.DIE;
+                case CALL -> Table.Move.CALL;
+                case RAISE -> Table.Move.RAISE;
+            };
+        }
+
+        @Override
+        public void changed(Table t) {
+            UUID turn = t.turn();
+            if (admin.equals(turn) && !admin.equals(lastTurn)) {
+                Player p = Bukkit.getPlayer(admin);
+                if (p != null) {
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.6f);
+                    HudModule.flash(p, Lang.mm("hwatu.your-turn", "seconds", spec.turnSeconds()));
+                }
+            }
+            lastTurn = turn;
+            refresh(t);
+        }
+
+        @Override
+        public void kicked(Table t, UUID player, String reason) {
+            // never: the 시험 판 deals everyone in
+        }
+
+        @Override
+        public void replay(Table t) {
+            Player p = Bukkit.getPlayer(admin);
+            if (p != null) p.sendMessage(Lang.msg("hwatu.replay"));
+        }
+
+        /** Only the pretend chips move: nothing is stored, logged, burned or counted. */
+        @Override
+        public void finished(Table t, Table.Result r) {
+            for (UUID u : r.players()) chips.put(u, Math.max(0, chips(u) + r.net(u)));
+            net += r.net(admin);
+            announce(t, r, this::chips, true);
+        }
+    }
+
+    /** Seats the admin at a new 시험 판 of that game with players − 1 bots (an earlier one ends); null, or why not. */
+    private String startTest(Player p, Table.Game g, int players, HwatuSpec.Room room) {
+        UUID u = p.getUniqueId();
+        if (seated.containsKey(u)) return "hwatu.test-seated";
+        endTest(u, false);
+        Table t = new Table(nextTable++, g, room, spec, rng);
+        Test x = new Test(u, t);
+        t.sit(u, now());
+        int n = Math.clamp(players, 2, t.max());
+        for (int i = 1; i < n; i++) {
+            UUID b = UUID.randomUUID();
+            bots.put(b, Lang.raw("hwatu.test-bot", "n", i));
+            x.botSeats.add(b);
+            t.sit(b, now());
+        }
+        tests.put(u, x);
+        p.sendMessage(Lang.msg("hwatu.test-start", "game", gameName(g), "room", room.name(), "n", n, "bots", n - 1, "chips", fmt(spec.testChips())));
+        openTable(p);
+        return null;
+    }
+
+    /** Ends an admin's 시험 판 (nothing to settle: the chips were pretend). */
+    private void endTest(UUID admin, boolean tell) {
+        Test x = tests.remove(admin);
+        if (x == null) return;
+        x.table.abandon();
+        for (UUID b : x.botSeats) bots.remove(b);
+        views.remove(admin);
+        Player p = Bukkit.getPlayer(admin);
+        if (p != null && tell) p.sendMessage(Lang.msg("hwatu.test-end", "net", (x.net >= 0 ? "+" : "") + fmt(x.net)));
+    }
+
+    /** A game by its name (홀짝) or key (holjjak), or null. */
+    private Table.Game gameOf(String s) {
+        for (Table.Game g : Table.Game.values()) if (g.key().equals(s) || gameName(g).equals(s)) return g;
+        return null;
+    }
+
+    /** A room by its name (초보방) or id (beginner), or null. */
+    private HwatuSpec.Room roomOf(String s) {
+        for (HwatuSpec.Room r : spec.rooms()) if (r.id().equals(s) || r.name().equals(s)) return r;
+        return null;
+    }
+
+    /** /관리자 화투방 시험 &lt;홀짝|주사위|섯다&gt; [인원] [방] · 시험 섯다 패 &lt;카드&gt; &lt;카드&gt; [봇1의 카드 둘] · 시험 끝 */
+    private void adminTest(CommandSender s, String[] a) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("hwatu.test-player-only"));
+            return;
+        }
+        UUID u = p.getUniqueId();
+        if (a.length == 0) {
+            p.sendMessage(Lang.msg("hwatu.test-usage"));
+            return;
+        }
+        if (a[0].equals("끝")) {
+            if (!tests.containsKey(u)) {
+                p.sendMessage(Lang.msg("hwatu.test-none"));
+                return;
+            }
+            MenuView v = views.get(u);
+            endTest(u, true);
+            if (v != null && v.player().getOpenInventory().getTopInventory().getHolder(false) == v) Bukkit.getScheduler().runTask(eco, v::close);
+            return;
+        }
+        Table.Game g = gameOf(a[0]);
+        if (g == null) {
+            p.sendMessage(Lang.msg("hwatu.test-usage"));
+            return;
+        }
+        if (g == Table.Game.SUTDA && a.length >= 2 && a[1].equals("패")) {
+            if (a.length != 4 && a.length != 6) {
+                p.sendMessage(Lang.msg("hwatu.test-usage"));
+                return;
+            }
+            Card[] c = new Card[a.length - 2];
+            for (int i = 0; i < c.length; i++) {
+                c[i] = Card.parse(a[i + 2]);
+                if (c[i] == null) {
+                    p.sendMessage(Lang.msg("hwatu.test-bad-card", "card", a[i + 2]));
+                    return;
+                }
+            }
+            if (java.util.Arrays.stream(c).distinct().count() != c.length) {
+                p.sendMessage(Lang.msg("hwatu.test-cards-clash"));
+                return;
+            }
+            Test x = tests.get(u);
+            if (x == null || x.table.game() != Table.Game.SUTDA) {
+                String why = startTest(p, Table.Game.SUTDA, 3, spec.rooms().getFirst());
+                if (why != null) {
+                    p.sendMessage(Lang.msg(why));
+                    return;
+                }
+                x = tests.get(u);
+            }
+            if (!x.table.force(u, c[0], c[1]) || (c.length == 4 && !x.table.force(x.botSeats.getFirst(), c[2], c[3]))) {
+                p.sendMessage(Lang.msg("hwatu.test-cards-clash"));
+                return;
+            }
+            p.sendMessage(Lang.msg("hwatu.test-forced", "cards", c[0].label() + " · " + c[1].label(), "hand", Lang.raw(HAND + Sutda.of(c[0], c[1]).code())));
+            if (c.length == 4) {
+                p.sendMessage(Lang.msg("hwatu.test-forced-bot", "bot", mini(x.botSeats.getFirst()), "cards", c[2].label() + " · " + c[3].label(),
+                        "hand", Lang.raw(HAND + Sutda.of(c[2], c[3]).code())));
+            }
+            return;
+        }
+        int n = g == Table.Game.HOLJJAK ? 2 : 3;
+        HwatuSpec.Room room = spec.rooms().getFirst();
+        for (int i = 1; i < a.length; i++) {
+            HwatuSpec.Room r = roomOf(a[i]);
+            if (r != null) {
+                room = r;
+                continue;
+            }
+            try {
+                n = Integer.parseInt(a[i]);
+            } catch (NumberFormatException e) {
+                p.sendMessage(Lang.msg("hwatu.test-usage"));
+                return;
+            }
+            if (n < 2 || n > 6) {
+                p.sendMessage(Lang.msg("hwatu.test-usage"));
+                return;
+            }
+        }
+        String why = startTest(p, g, n, room);
+        if (why != null) p.sendMessage(Lang.msg(why));
     }
 
     /** Players at a table must be looking at it to be dealt in. */
@@ -844,12 +1135,13 @@ public final class HwatuModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     private void admin(CommandSender s, String[] a) {
-        String usage = "<red>/관리자 화투방 기록 [플레이어] · 칩 <플레이어> [수]";
+        String usage = "<red>/관리자 화투방 기록 [플레이어] · 칩 <플레이어> [수] · 시험 <홀짝|주사위|섯다> [인원] [방] · 시험 끝";
         if (a.length < 1) {
             s.sendMessage(Text.msg(usage));
             return;
         }
         switch (a[0]) {
+            case "시험" -> adminTest(s, java.util.Arrays.copyOfRange(a, 1, a.length));
             case "기록" -> {
                 if (a.length < 2) {
                     showLog(s, null, "전체");
@@ -910,8 +1202,32 @@ public final class HwatuModule extends EcoModule {
     }
 
     private List<String> adminComplete(CommandSender s, String[] a) {
-        if (a.length == 1) return List.of("기록", "칩");
+        if (a.length == 1) return List.of("기록", "칩", "시험");
+        if (a[0].equals("시험")) return testComplete(java.util.Arrays.copyOfRange(a, 1, a.length));
         if (a.length == 2) return Players.complete(s, a[1]);
         return List.of();
+    }
+
+    /** /관리자 화투방 시험 …: games, then players · rooms, or 패 and the cards (3광, 7열끗 …). */
+    private List<String> testComplete(String[] a) {
+        String last = a[a.length - 1];
+        List<String> out = new ArrayList<>();
+        if (a.length == 1) {
+            for (Table.Game g : Table.Game.values()) out.add(gameName(g));
+            out.add("끝");
+        } else {
+            Table.Game g = gameOf(a[0]);
+            if (g == null) return List.of();
+            boolean cards = g == Table.Game.SUTDA && a.length >= 3 && a[1].equals("패");
+            if (cards) {
+                if (a.length <= 6) for (Card c : Card.deck()) out.add(c.label());
+            } else if (a.length <= 3) {
+                if (a.length == 2 && g == Table.Game.SUTDA) out.add("패");
+                for (int n = 2; n <= spec.game(g).max(); n++) out.add(String.valueOf(n));
+                for (HwatuSpec.Room r : spec.rooms()) out.add(r.name());
+            }
+        }
+        out.removeIf(x -> !x.startsWith(last));
+        return out;
     }
 }
