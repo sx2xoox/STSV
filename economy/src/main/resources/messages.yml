@@ -2047,6 +2047,7 @@ hwatu:
   board-rolling: "<yellow>주사위 굴리는 중\t{seconds}초"
   board-pot: "<gray>판\t<#e8c15a>{pot}칩"
   board-put: "<gray>내가 건 칩\t<white>{n}"
+  board-hand: "<gray>내 패\t{hand}"
   board-folded: "<red>다이</red> <gray>(건 칩 {n})"
   board-bet: "<white>{player}</white>\t{act}"
   board-to-call: "<gray>콜 하려면\t<white>{n}칩"

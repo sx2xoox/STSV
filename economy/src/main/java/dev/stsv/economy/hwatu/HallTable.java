@@ -440,6 +440,11 @@ final class HallTable implements Table.Listener, Table.Bank {
                 else rows.add(new HudLayout.Board.Row(null, Lang.mm(t.step() == Table.Step.ROLL ? "hwatu.board-rolling" : "hwatu.board-playing", "seconds", left)));
                 rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-pot", "pot", fmt(t.pot()), "ante", fmt(t.ante()))));
                 if (t.players().contains(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm(t.folded(me) ? "hwatu.board-folded" : "hwatu.board-put", "n", fmt(t.put(me)))));
+                if (game == Table.Game.SUTDA && t.players().contains(me) && !t.folded(me)) {   // 내 패의 족보 (나에게만)
+                    Card[] c = t.cards(me);
+                    if (c != null && c.length == 2 && c[0] != null && c[1] != null)
+                        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-hand", "hand", Lang.raw(HwatuModule.HAND + Sutda.of(c[0], c[1]).code()))));
+                }
                 if (game == Table.Game.SUTDA && t.betting() != null) {
                     Table.Bet b = t.lastBet();
                     if (b != null) rows.add(new HudLayout.Board.Row(mod.isBot(b.player()) ? null : b.player(),

@@ -204,7 +204,7 @@ final class TableScene {
 
     /** Draws the table as it is now (spawned with its furniture, or again after a reload). */
     void spawn() {
-        sign = text(middle(1.75), Component.empty(), 0.9f, true);
+        sign = text(middle(1.75), Component.empty(), 0.6f, true);
         sync();
     }
 
@@ -254,7 +254,7 @@ final class TableScene {
     // ------------------------------------------------------------------------------------------ the sign
 
     private void drawSign(Table t) {
-        if (sign == null || !sign.isValid()) sign = text(middle(1.75), Component.empty(), 0.9f, true);
+        if (sign == null || !sign.isValid()) sign = text(middle(1.75), Component.empty(), 0.6f, true);
         String state = switch (t.phase()) {
             case WAITING -> t.seats().size() < 2 ? Lang.raw("hwatu.sign-alone")
                     : Lang.raw("hwatu.sign-starting", "seconds", host.secondsLeft());
@@ -418,7 +418,7 @@ final class TableScene {
         if (label == null) {
             kill(potLabel);
             potLabel = null;
-        } else if (potLabel == null || !potLabel.isValid()) potLabel = text(middle(0.62), label, 0.5f, true);
+        } else if (potLabel == null || !potLabel.isValid()) potLabel = text(middle(0.62), label, 0.35f, true);
         else potLabel.text(label);
     }
 
@@ -518,7 +518,7 @@ final class TableScene {
         } else if (call == null || !call.isValid()) {
             Integer seat = t.players().isEmpty() ? null : host.seatOf(t.players().getFirst());
             TableArt.Spot s = TableArt.along(center, seat(seat == null ? 0 : seat), reach.timer(), 0, true);
-            call = text(at(s, 0.5), Lang.mm("hwatu.called", "call", Lang.raw(odd ? "hwatu.hand.odd" : "hwatu.hand.even")), 0.8f, true);
+            call = text(at(s, 0.5), Lang.mm("hwatu.called", "call", Lang.raw(odd ? "hwatu.hand.odd" : "hwatu.hand.even")), 0.5f, true);
             sound(at(s, 0.5), Sound.ENTITY_VILLAGER_YES, 0.5f, odd ? 1.3f : 0.9f);
         }
     }
@@ -656,7 +656,7 @@ final class TableScene {
                 tag(x);
             });
             p.showEntity(plugin, hit);
-            TextDisplay label = text(at(s, 2 * half + 0.16), label(t, p.getUniqueId(), b), (float) Math.max(0.3, 0.4 * slot.scale()), false);
+            TextDisplay label = text(at(s, 2 * half + 0.16), label(t, p.getUniqueId(), b), (float) Math.max(0.22, 0.28 * slot.scale()), false);
             p.showEntity(plugin, label);
             pad.entities.add(d);
             pad.entities.add(hit);
@@ -674,7 +674,7 @@ final class TableScene {
         Integer seat = host.seatOf(b.player());
         if (seat == null) return;
         TableArt.Spot s = TableArt.along(center, seat(seat), reach.timer(), 0, true);
-        TextDisplay pop = text(at(s, 0.85), what, b.allIn() ? 0.75f : 0.6f, true);
+        TextDisplay pop = text(at(s, 0.85), what, b.allIn() ? 0.5f : 0.4f, true);
         Transformation base = pop.getTransformation();
         later(2, () -> animate(pop, new Transformation(new Vector3f(0, 0.35f, 0), base.getLeftRotation(), base.getScale(), base.getRightRotation()), 30));
         later(40, () -> kill(pop));
@@ -742,7 +742,7 @@ final class TableScene {
                 later(1, () -> animate(chips, pose(CHIPS_SCALE, new Quaternionf(), null), 8));
                 later(36, () -> kill(chips));
                 long won = r.payout().getOrDefault(w, 0L) - r.put().getOrDefault(w, 0L);
-                TextDisplay gain = text(at(s, 0.75), Lang.mm("hwatu.gain", "n", HallTable.fmt(Math.max(0, won)), "player", host.mini(w)), 0.6f, true);
+                TextDisplay gain = text(at(s, 0.75), Lang.mm("hwatu.gain", "n", HallTable.fmt(Math.max(0, won)), "player", host.mini(w)), 0.4f, true);
                 Transformation base = gain.getTransformation();
                 later(2, () -> animate(gain, new Transformation(new Vector3f(0, 0.5f, 0), base.getLeftRotation(), base.getScale(), base.getRightRotation()), 40));
                 later(44, () -> kill(gain));
@@ -792,6 +792,6 @@ final class TableScene {
     /** Text over a seat (a 시험 bot without a mannequin). */
     TextDisplay seatLabel(int seat, Component c) {
         double[] s = seat(seat);
-        return text(at(s[0], top + 1.1, s[1]), c, 0.7f, true);
+        return text(at(s[0], top + 1.1, s[1]), c, 0.45f, true);
     }
 }
