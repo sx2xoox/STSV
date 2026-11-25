@@ -446,9 +446,7 @@ final class HallTable implements Table.Listener, Table.Bank {
                         rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-hand", "hand", Lang.raw(HwatuModule.HAND + Sutda.of(c[0], c[1]).code()))));
                 }
                 if (game == Table.Game.SUTDA && t.betting() != null) {
-                    Table.Bet b = t.lastBet();
-                    if (b != null) rows.add(new HudLayout.Board.Row(mod.isBot(b.player()) ? null : b.player(),
-                            Lang.mm("hwatu.board-bet", "player", mini(b.player()), "act", act(b))));
+                    // 마지막 베팅은 자리 위 글자 · 채팅으로 보임: 판(최대 6줄)에 내 칩 줄이 남도록 여기서는 뺌
                     int seat = t.players().indexOf(me);
                     if (t.allIn(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-allin")));
                     else if (seat >= 0 && t.inHand(me) && t.betting().toCall(seat) > 0)

@@ -50,7 +50,7 @@ final class TableScene {
     static final NamespacedKey BUTTON = new NamespacedKey("economy", "hwatu_button");
 
     /** Sizes of the models on the table (scale of a display; the models are drawn at their own size, 16 px a block). */
-    static final float CARD_SCALE = 0.75f, BUTTON_SCALE = 0.4f, DIE_SCALE = 0.6f, CHIPS_SCALE = 1f, BOWL_SCALE = 0.8f;
+    static final float CARD_SCALE = 0.75f, BUTTON_SCALE = 0.4f, DIE_SCALE = 0.6f, CHIPS_SCALE = 0.45f, BOWL_SCALE = 0.8f;
     /** Half of the centred models (the die is 4 px, a button plate 6 px tall): how high their middle stands. */
     static final double DIE_HALF = 0.125 * DIE_SCALE, BUTTON_HALF = 0.1875 * BUTTON_SCALE;
     /** Buttons lean back (degrees round their own left-right axis) to face someone sitting at the table. */
@@ -568,7 +568,7 @@ final class TableScene {
         Location l = at(s, 0.55);
         if (timer == null || !timer.isValid() || timer.getLocation().distanceSquared(l) > 0.01) {
             kill(timer);
-            timer = text(l, c, 0.55f, true);
+            timer = text(l, c, 0.4f, true);
         } else timer.text(c);
     }
 
@@ -656,7 +656,7 @@ final class TableScene {
                 tag(x);
             });
             p.showEntity(plugin, hit);
-            TextDisplay label = text(at(s, 2 * half + 0.16), label(t, p.getUniqueId(), b), (float) Math.max(0.22, 0.28 * slot.scale()), false);
+            TextDisplay label = text(at(s, 2 * half + 0.16), label(t, p.getUniqueId(), b), (float) Math.max(0.16, 0.2 * slot.scale()), false);
             p.showEntity(plugin, label);
             pad.entities.add(d);
             pad.entities.add(hit);
