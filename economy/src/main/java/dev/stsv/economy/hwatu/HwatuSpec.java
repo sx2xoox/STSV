@@ -22,7 +22,7 @@ import java.util.Map;
  * games:
  *   holjjak: { name: "홀짝", max: 2 }
  *   dice:    { name: "주사위", max: 6, dice: 2 }
- *   sutda:   { name: "섯다", max: 6, max-raises: 2, replays: 1 }
+ *   sutda:   { name: "섯다", max: 6, sit-antes: 3, replays: 1 }   # sit with ante × sit-antes; no cap on raises (all-in)
  * </pre>
  */
 public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePercent, long lossCap, long minAgeMs,
@@ -31,8 +31,8 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
 
     public record Room(String id, String name, long ante) {}
 
-    /** max players at a table; dice: how many dice a player rolls; maxRaises · replays: 섯다. */
-    public record GameSpec(String name, int max, int dice, int maxRaises, int replays) {}
+    /** max players at a table; dice: how many dice a player rolls; sitAntes (chips to sit, in antes) · replays: 섯다. */
+    public record GameSpec(String name, int max, int dice, int sitAntes, int replays) {}
 
     public GameSpec game(Table.Game g) {
         return games.get(g);
@@ -41,7 +41,7 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
     /** Chips a player must hold to be dealt in at this game and room. */
     public long need(Table.Game g, Room r) {
         GameSpec s = game(g);
-        return HwatuRules.need(g, r.ante(), s.maxRaises(), s.replays());
+        return HwatuRules.need(g, r.ante(), s.sitAntes());
     }
 
     public static HwatuSpec parse(ConfigurationSection c, List<String> problems) {
@@ -82,20 +82,19 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
             if (max < min || max > top) problems.add("games." + g.key() + ".max: " + min + "~" + top);
             int dice = g == Table.Game.DICE ? s.getInt("dice") : 0;
             if (g == Table.Game.DICE && (dice < 1 || dice > 3)) problems.add("games.dice.dice: 1~3");
-            int raises = g == Table.Game.SUTDA ? s.getInt("max-raises") : 0, replays = g == Table.Game.SUTDA ? s.getInt("replays") : 0;
-            if (raises < 0 || replays < 0) problems.add("games.sutda: max-raises · replays 는 0 이상");
-            games.put(g, new GameSpec(s.getString("name", g.key()), Math.clamp(max, min, top), Math.clamp(dice, 0, 3), Math.max(0, raises), Math.max(0, replays)));
+            int sit = g == Table.Game.SUTDA ? s.getInt("sit-antes", 3) : 1, replays = g == Table.Game.SUTDA ? s.getInt("replays") : 0;
+            if (sit < 1) problems.add("games.sutda.sit-antes: 1 이상 (앉는 데 드는 칩 = 판돈 × 이만큼)");
+            if (replays < 0) problems.add("games.sutda.replays: 0 이상");
+            games.put(g, new GameSpec(s.getString("name", g.key()), Math.clamp(max, min, top), Math.clamp(dice, 0, 3), Math.max(1, sit), Math.max(0, replays)));
         }
         long test = c.getLong("test-chips", 100_000);
-        // a 섯다 hand at the biggest room must fit under the daily loss cap and the daily buy limit (when they are on),
+        // sitting at the biggest room's 섯다 must fit under the daily loss cap and the daily buy limit (when they are on),
         // and under the test table's pretend chips
-        if (!rooms.isEmpty() && games.containsKey(Table.Game.SUTDA)
-                && test < HwatuRules.need(Table.Game.SUTDA, rooms.getLast().ante(), games.get(Table.Game.SUTDA).maxRaises(), games.get(Table.Game.SUTDA).replays()))
-            problems.add("test-chips 가 큰손방 섯다 한 판보다 작음");
         if (!rooms.isEmpty() && games.containsKey(Table.Game.SUTDA)) {
-            long most = HwatuRules.need(Table.Game.SUTDA, rooms.getLast().ante(), games.get(Table.Game.SUTDA).maxRaises(), games.get(Table.Game.SUTDA).replays());
-            if (cap > 0 && most > cap) problems.add("daily-loss-cap 이 큰손방 섯다 한 판(" + most + "칩)보다 작음");
-            if (daily > 0 && most > daily) problems.add("chips.daily-buy 가 큰손방 섯다 한 판(" + most + "칩)보다 작음");
+            long sit = HwatuRules.need(Table.Game.SUTDA, rooms.getLast().ante(), games.get(Table.Game.SUTDA).sitAntes());
+            if (test < sit) problems.add("test-chips 가 큰손방 섯다에 앉는 칩(" + sit + "칩)보다 작음");
+            if (cap > 0 && sit > cap) problems.add("daily-loss-cap 이 큰손방 섯다에 앉는 칩(" + sit + "칩)보다 작음");
+            if (daily > 0 && sit > daily) problems.add("chips.daily-buy 가 큰손방 섯다에 앉는 칩(" + sit + "칩)보다 작음");
         }
         return new HwatuSpec(Math.max(1, buy), Math.clamp(cash, 1, Math.max(1, buy)), Math.max(0, daily), Math.clamp(rake, 1, 50), Math.max(0, cap),
                 Math.max(0, hours) * 3_600_000L, Math.max(5, turn), Math.max(1, start), Math.max(1, reveal), Math.max(1, result), rooms, games,

@@ -85,3 +85,167 @@ pear:
   food:
     nutrition: 3
     saturation: 1.8
+
+# 마을버스 손님이 손에 든 물건 (bus.yml types.*.hold = 주로 쓰는 손, hold-off = 다른 손): 손님 마네킹만 듦, 아무도 갖지 않음
+# (상점이 사지도 팔지도 않음, 떨어뜨리지 않음). 모델: tools/assetgen/models/bus_hold.py (python3 tools/assetgen/bus_hold_assets.py),
+# 미리보기: docs/previews/bus_held_props.png, bus_chicken_hold.png. bus_hold_chicken_flap = 덜컹할 때 버스 안을 날아다니는 닭 (bus.yml hold-fly)
+bus_hold_chicken:
+  material: paper
+  name: "<white>닭 (할머니 품)"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_chicken
+  max-stack: 1
+
+bus_hold_chicken_flap:
+  material: paper
+  name: "<white>닭 (푸드덕)"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_chicken_flap
+  max-stack: 1
+
+bus_hold_folder:
+  material: paper
+  name: "<white>서류 파일"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_folder
+  max-stack: 1
+
+bus_hold_yeot_scissors:
+  material: paper
+  name: "<white>엿가위"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_yeot_scissors
+  max-stack: 1
+
+bus_hold_map:
+  material: paper
+  name: "<white>관광 지도"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_map
+  max-stack: 1
+
+bus_hold_selfie:
+  material: paper
+  name: "<white>셀카봉"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_selfie
+  max-stack: 1
+
+bus_hold_snack:
+  material: paper
+  name: "<white>과자 봉지"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_snack
+  max-stack: 1
+
+bus_hold_bells:
+  material: paper
+  name: "<white>무당 방울"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_bells
+  max-stack: 1
+
+bus_hold_fan:
+  material: paper
+  name: "<white>무당 부채"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_fan
+  max-stack: 1
+
+bus_hold_leash:
+  material: paper
+  name: "<white>강아지 목줄"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_leash
+  max-stack: 1
+
+bus_hold_towel:
+  material: paper
+  name: "<white>손수건"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_towel
+  max-stack: 1
+
+bus_hold_plastic_bag:
+  material: paper
+  name: "<white>검은 비닐봉지"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_plastic_bag
+  max-stack: 1
+
+bus_hold_shoe_bag:
+  material: paper
+  name: "<white>실내화 주머니"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_shoe_bag
+  max-stack: 1
+
+bus_hold_bouquet:
+  material: paper
+  name: "<white>부케"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_bouquet
+  max-stack: 1
+
+bus_hold_wand:
+  material: paper
+  name: "<white>마술봉"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_wand
+  max-stack: 1
+
+bus_hold_cards:
+  material: paper
+  name: "<white>트럼프 카드"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_cards
+  max-stack: 1
+
+bus_hold_rose:
+  material: paper
+  name: "<white>장미 한 송이"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_rose
+  max-stack: 1
+
+bus_hold_cane:
+  material: paper
+  name: "<white>지팡이"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_cane
+  max-stack: 1
+
+bus_hold_pole:
+  material: paper
+  name: "<white>등산 스틱"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_pole
+  max-stack: 1
+
+bus_hold_rod:
+  material: paper
+  name: "<white>낚싯대"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_rod
+  max-stack: 1
+
+bus_hold_parcel:
+  material: paper
+  name: "<white>택배 상자"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_parcel
+  max-stack: 1
+
+bus_hold_bungeo_bag:
+  material: paper
+  name: "<white>붕어빵 봉지"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_bungeo_bag
+  max-stack: 1
+
+bus_hold_bundle:
+  material: paper
+  name: "<white>보따리"
+  lore: ["<gray>마을버스 손님이 든 물건 · 표시용"]
+  model: bus_hold_bundle
+  max-stack: 1

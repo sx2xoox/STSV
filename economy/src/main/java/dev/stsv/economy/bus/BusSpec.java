@@ -142,7 +142,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                        double far, double tipMood, double rush, double late, double scale, boolean announce, List<String> skins,
                        Map<String, Double> tags, int hourFrom, int hourTo, double weekend, double market, double luggage, boolean pair,
                        double wander, double turnFactor, boolean toEnd, double doze, List<Gift> gifts, Map<String, List<String>> talk,
-                       Traits x) {
+                       Traits x, Hold hold) {
 
         /** This kind's weight at a stop of these traits, at this hour, on a weekend or not, on its market day or not (0: not now). */
         public double weightAt(Set<String> stopTags, int hour, boolean weekendDay, boolean marketDay, boolean rush) {
@@ -185,6 +185,85 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
      * after they get off (스님); a ★5 review when they get off at `review` mood or more (유튜버); their own gift chance and mood
      * (-1: bus.yml's); `tagsOnly`: only at stops of their traits.
      */
+    /**
+     * What a passenger mannequin holds (bus.yml types.*.hold / hold-off / hold-fly, README "마을버스"): an item id per look (index
+     * of `skins`; one for every look when bus.yml gives one id) in the main hand and in the off hand, "" for an empty hand; a
+     * 별난 손님 (look -1) holds what the first look holds. `fly`: the model the main-hand thing becomes when a jolt or a bump
+     * sends it fluttering round the bus (the hen), "" for none.
+     */
+    public record Hold(List<String> main, List<String> off, String fly) {
+        public static final Hold NONE = new Hold(List.of(), List.of(), "");
+
+        /** The main-hand item of this look (0-based; -1 or past the end: the first look's when there is one list entry, else ""). */
+        public String main(int look) {
+            return at(main, look);
+        }
+
+        public String off(int look) {
+            return at(off, look);
+        }
+
+        public boolean any() {
+            return main.stream().anyMatch(s -> !s.isEmpty()) || off.stream().anyMatch(s -> !s.isEmpty());
+        }
+
+        private static String at(List<String> l, int look) {
+            if (l.isEmpty()) return "";
+            if (l.size() == 1) return l.getFirst();
+            return look >= 0 && look < l.size() ? l.get(look) : l.getFirst();
+        }
+
+        /** Every item id it names (for the content check). */
+        public java.util.Set<String> ids() {
+            java.util.Set<String> out = new java.util.LinkedHashSet<>();
+            for (String s : main) if (!s.isEmpty()) out.add(s);
+            for (String s : off) if (!s.isEmpty()) out.add(s);
+            if (!fly.isEmpty()) out.add(fly);
+            return out;
+        }
+
+        static Hold parse(ConfigurationSection t, String id, int looks, List<String> problems) {
+            List<String> main = ids(t, "hold", id, looks, problems), off = ids(t, "hold-off", id, looks, problems);
+            String fly = norm(t.getString("hold-fly", ""));
+            if (!fly.isEmpty() && !valid(fly)) {
+                problems.add("types." + id + ".hold-fly: 잘못된 아이템 키 " + fly);
+                fly = "";
+            }
+            if (!fly.isEmpty() && main.stream().allMatch(String::isEmpty)) problems.add("types." + id + ".hold-fly: hold 가 없음 (날아갈 물건이 없음)");
+            if (main.isEmpty() && off.isEmpty() && fly.isEmpty()) return NONE;
+            return new Hold(main, off, fly);
+        }
+
+        private static List<String> ids(ConfigurationSection t, String key, String id, int looks, List<String> problems) {
+            if (!t.contains(key)) return List.of();
+            List<String> raw = new ArrayList<>();
+            if (t.isList(key)) {
+                for (Object o : t.getList(key, List.of())) raw.add(o == null ? "" : String.valueOf(o));
+                if (raw.size() != looks) problems.add("types." + id + "." + key + ": 모습(skins) " + looks + "개인데 " + raw.size() + "개");
+            } else raw.add(t.getString(key, ""));
+            List<String> out = new ArrayList<>();
+            for (String r : raw) {
+                String k = norm(r);
+                if (!k.isEmpty() && !valid(k)) {
+                    problems.add("types." + id + "." + key + ": 잘못된 아이템 키 " + r);
+                    k = "";
+                }
+                out.add(k);
+            }
+            return out.stream().allMatch(String::isEmpty) ? List.of() : List.copyOf(out);
+        }
+
+        static String norm(String s) {
+            if (s == null) return "";
+            String k = s.trim().toLowerCase(java.util.Locale.ROOT);
+            return k.isEmpty() || k.equals("~") || k.equals("none") ? "" : k.contains(":") ? k : "economy:" + k;
+        }
+
+        private static boolean valid(String k) {
+            return k.matches("[a-z0-9_.-]+:[a-z0-9_./-]+");
+        }
+    }
+
     public record Traits(double chatter, double chatterMood, double moodFloor, double sickAt, double babyCry, double babySmile, int seats,
                          String pet, Set<Integer> months, Set<Integer> peakDays, double peak, boolean ghost, int token, double onTime,
                          double lateHit, int bless, double blessTip, double review, double giftChance, double giftMood, boolean tagsOnly,
@@ -242,7 +321,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                     List.copyOf(t.getStringList("skins")), tg, when.size() == 2 ? when.get(0) : -1, when.size() == 2 ? when.get(1) : -1,
                     t.getDouble("weekend", 1), t.getDouble("market", 1), t.getDouble("luggage", 0), t.getBoolean("pair"), t.getDouble("wander", 0),
                     t.getDouble("turn", 1), t.getBoolean("to-end"), t.getDouble("doze", 0.15), List.copyOf(gifts), talk(t.getConfigurationSection("talk")),
-                    Traits.parse(t)));
+                    Traits.parse(t), Hold.parse(t, id, t.getStringList("skins").size(), problems)));
         }
         if (types.isEmpty()) problems.add("types 가 비어 있음");
         ConfigurationSection mk = section(c, "market"), pc = section(c, "picnic"), dz = section(c, "doze");

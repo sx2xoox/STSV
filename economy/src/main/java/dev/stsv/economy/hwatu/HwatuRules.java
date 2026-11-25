@@ -55,12 +55,14 @@ public final class HwatuRules {
     }
 
     /**
-     * Chips a player must hold to be dealt in: the ante, and in 섯다 every raise of every round it may take (the first
-     * round and each 구사 재경기), so a hand can never ask for more than the player has (no all-in, no side pots).
+     * Chips a player must hold to sit and to be dealt in. 홀짝 · 주사위: the ante (a hand never takes more). 섯다: ante ×
+     * sitAntes (hwatu.yml games.sutda.sit-antes, at least 1). A 섯다 hand can never take more than the player holds
+     * (short of chips they go all-in and play for the side pots they matched), so even 1 ante is safe; a few antes make
+     * sure a player can pay the ante, open with 삥 and answer a 따당 before going all-in.
      */
-    public static long need(Table.Game game, long ante, int maxRaises, int replays) {
+    public static long need(Table.Game game, long ante, int sitAntes) {
         if (game != Table.Game.SUTDA) return ante;
-        return ante + Betting.most(ante, maxRaises) * (1L + replays);
+        return ante * Math.max(1, sitAntes);
     }
 
     /** The 자릿세 of a pot: percent of it, rounded up (a pot is never free). */

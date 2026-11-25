@@ -168,3 +168,8 @@ ALL.update(MONUMENT.ALL)
 # bowl, buttons, whiteboard)
 from models import gamble as GAMBLE   # noqa: E402
 ALL.update(GAMBLE.ALL)
+
+# 마을버스 손님이 손에 든 물건 (models/bus_hold.py, items/bus.yml bus_hold_*, bus.yml types.*.hold / hold-off): the hen,
+# the scissors, the bouquet … a passenger mannequin holds (python3 tools/assetgen/bus_hold_assets.py writes only these)
+from models import bus_hold as BUS_HOLD   # noqa: E402
+ALL.update(BUS_HOLD.ALL)

@@ -19,9 +19,12 @@ import java.util.random.RandomGenerator;
  * PLAYING  everyone in pays the ante, then
  *            홀짝:   the first player calls 홀 or 짝 (turn timer: a random call), the die is rolled after timers.reveal
  *            주사위: everyone's dice are rolled after timers.reveal, the highest total wins (ties split)
- *            섯다:   two cards each, one betting round (다이 · 콜 · 레이즈; turn timer: 다이 if there is something to
- *                    match, else 콜), showdown ({@link Sutda}); 구사 replays with the same pot (no new ante)
+ *            섯다:   two cards each, one betting round ({@link Betting}: 삥 · 체크 · 콜 · 따당 · 하프 · 다이, no cap,
+ *                    올인 when short; turn timer: 다이 if there is something to match, else 체크), showdown ({@link Sutda})
+ *                    of the main pot and each side pot ({@link Pots}); 구사 replays with the same pot (no new ante)
  *          leaving mid-hand folds (the chips put in stay in the pot); one player left wins the pot
+ *          a 섯다 player's stake is every chip they hold when the hand starts (the bank's {@link Bank#stack}): they can
+ *          never put in more, so chips never go below 0
  * RESULT   timers.result to read it, then the next hand
  * </pre>
  * Every pot pays the 자릿세 ({@link HwatuRules#split}); the chips are moved by the listener (nothing is taken before a hand ends,
@@ -49,12 +52,44 @@ public final class Table {
     public enum Step { PICK, ROLL, BET }
 
     /** 홀짝's call and 섯다's actions. */
-    public enum Move { ODD, EVEN, DIE, CALL, RAISE }
+    public enum Move { ODD, EVEN, DIE, CHECK, PING, CALL, DDADANG, HALF }
+
+    /** The 섯다 action of a move (null: 홀 · 짝). */
+    public static Betting.Action action(Move m) {
+        return switch (m) {
+            case DIE -> Betting.Action.DIE;
+            case CHECK -> Betting.Action.CHECK;
+            case PING -> Betting.Action.PING;
+            case CALL -> Betting.Action.CALL;
+            case DDADANG -> Betting.Action.DDADANG;
+            case HALF -> Betting.Action.HALF;
+            default -> null;
+        };
+    }
+
+    public static Move move(Betting.Action a) {
+        return switch (a) {
+            case DIE -> Move.DIE;
+            case CHECK -> Move.CHECK;
+            case PING -> Move.PING;
+            case CALL -> Move.CALL;
+            case DDADANG -> Move.DDADANG;
+            case HALF -> Move.HALF;
+        };
+    }
 
     /** Who may be dealt in: null, or why not (a message key; that player stands up). */
     public interface Bank {
         String refusal(UUID player, long need);
+
+        /** The chips a player dealt in can bet this hand (all they hold); a 섯다 player goes all-in at this. */
+        default long stack(UUID player) {
+            return 1_000_000_000L;
+        }
     }
+
+    /** A 섯다 bet made: who, what, the chips it added, and whether it left them all-in (올인). */
+    public record Bet(UUID player, Betting.Action action, long added, boolean allIn) {}
 
     public interface Listener {
         /** Something on the table changed (redraw). */
@@ -68,15 +103,23 @@ public final class Table {
 
         /** 구사: the hand is dealt again with the same pot. */
         void replay(Table t);
+
+        /** A 섯다 player bet (or the turn timer did for them); changed() follows. */
+        default void bet(Table t, Bet b) {}
     }
+
+    /** One pot of a finished hand (섯다 may have side pots): its chips, its winners, each one's share, what burned. */
+    public record PotResult(long amount, List<UUID> winners, long share, long burned) {}
 
     /**
      * A finished hand. put: what each put in (ante + bets), payout: what each gets back (winners only), burned: the 자릿세 and
      * the odd chips of a split (destroyed). detail: per player what they had (섯다 hand code, 주사위 "a+b", 홀짝 the call
      * "odd"/"even" for the caller), "die" for a player who folded or left. uncontested: everyone else folded or left.
+     * pots: the main pot first, then 섯다's side pots; winners: everyone who won a pot (the main pot's first). put is
+     * after the chips nobody matched went back ({@link Pots#uncalled}), so pot = the sum of put.
      */
     public record Result(Game game, List<UUID> players, Map<UUID, Long> put, Map<UUID, Long> payout, long pot, long burned,
-                         List<UUID> winners, Map<UUID, String> detail, int die, boolean uncontested) {
+                         List<UUID> winners, Map<UUID, String> detail, int die, boolean uncontested, List<PotResult> pots) {
 
         /** Chips won (+) or lost (-) by a player in this hand. */
         public long net(UUID player) {
@@ -96,6 +139,8 @@ public final class Table {
     // the hand
     private final List<UUID> players = new ArrayList<>();
     private final Map<UUID, Long> put = new HashMap<>();
+    private final Map<UUID, Long> stake = new HashMap<>();
+    private Bet lastBet;
     private boolean[] out = new boolean[0];
     private final Map<UUID, Card[]> cards = new HashMap<>();
     private final Map<UUID, int[]> rolls = new HashMap<>();
@@ -133,6 +178,8 @@ public final class Table {
     public int die() { return die; }
     public Betting betting() { return betting; }
     public int replays() { return replays; }
+    /** The last 섯다 bet of this round (null: none yet). */
+    public Bet lastBet() { return lastBet; }
 
     public int max() {
         return spec.game(game).max();
@@ -194,9 +241,24 @@ public final class Table {
         return put.getOrDefault(u, 0L);
     }
 
-    /** Chips held in the running hand (not yet won or lost). */
+    /**
+     * Chips held by the running hand (not yet won or lost, not to be cashed): what was put in, and in 섯다 the whole stake
+     * (it may all be bet).
+     */
     public long committed(UUID u) {
-        return phase == Phase.PLAYING ? put(u) : 0;
+        if (phase != Phase.PLAYING) return 0;
+        return game == Game.SUTDA ? Math.max(put(u), stake.getOrDefault(u, 0L)) : put(u);
+    }
+
+    /** What a 섯다 player can still put in this hand (0: all-in or not in it). */
+    public long left(UUID u) {
+        if (phase != Phase.PLAYING || !stake.containsKey(u)) return 0;
+        return Math.max(0, stake.get(u) - put(u));
+    }
+
+    /** In the running 섯다 hand with nothing left to bet. */
+    public boolean allIn(UUID u) {
+        return game == Game.SUTDA && inHand(u) && left(u) == 0;
     }
 
     public long pot() {
@@ -289,7 +351,7 @@ public final class Table {
                     l.changed(this);
                     return;
                 }
-                start(ok, now);
+                start(ok, now, bank);
                 l.changed(this);
             }
             case PLAYING -> {
@@ -304,9 +366,11 @@ public final class Table {
         }
     }
 
-    private void start(List<UUID> ok, long now) {
+    private void start(List<UUID> ok, long now, Bank bank) {
         players.clear();
         put.clear();
+        stake.clear();
+        lastBet = null;
         cards.clear();
         rolls.clear();
         calledOdd = null;
@@ -316,7 +380,11 @@ public final class Table {
         last = null;
         int shift = Math.floorMod(dealer++, ok.size());
         for (int k = 0; k < ok.size(); k++) players.add(ok.get((shift + k) % ok.size()));
-        for (UUID u : players) put.put(u, ante());
+        for (UUID u : players) {
+            long s = Math.clamp(bank.stack(u), 0, Betting.MOST);
+            stake.put(u, s);
+            put.put(u, Math.min(ante(), s));
+        }
         out = new boolean[players.size()];
         phase = Phase.PLAYING;
         switch (game) {
@@ -331,11 +399,23 @@ public final class Table {
             case SUTDA -> {
                 deal(null, forced);
                 forced.clear();
-                betting = new Betting(players.size(), ante(), spec.game(Game.SUTDA).maxRaises());
+                betting = round(null);
                 step = Step.BET;
                 deadline = now + spec.turnSeconds() * 1000L;
             }
         }
+    }
+
+    /** A new betting round for the players still in (prev: the round before, whose folds carry over). */
+    private Betting round(Betting prev) {
+        long[] left = new long[players.size()];
+        boolean[] out = new boolean[players.size()];
+        for (int i = 0; i < players.size(); i++) {
+            UUID u = players.get(i);
+            left[i] = Math.max(0, stake.get(u) - put(u));
+            out[i] = prev != null && prev.folded(i);
+        }
+        return new Betting(ante(), pot(), left, out);
     }
 
     /** Two cards each to the players still in (folded: null), from a fresh shuffled deck; `fixed`: these players' cards. */
@@ -370,10 +450,7 @@ public final class Table {
             case BET -> {
                 int seat = betting.turn();
                 if (seat < 0) afterBet(now, l);
-                else {
-                    put.merge(players.get(seat), betting.act(seat, betting.timeout()), Long::sum);
-                    afterBet(now, l);
-                }
+                else bet(seat, betting.timeout(), now, l);
             }
         }
     }
@@ -392,18 +469,28 @@ public final class Table {
             l.changed(this);
             return null;
         }
-        Betting.Action a = switch (m) {
-            case DIE -> Betting.Action.DIE;
-            case CALL -> Betting.Action.CALL;
-            case RAISE -> Betting.Action.RAISE;
-            default -> null;
-        };
+        Betting.Action a = action(m);
         if (a == null) return "hwatu.not-your-turn";
-        if (a == Betting.Action.RAISE && !betting.canRaise()) return "hwatu.no-raise";
         int seat = players.indexOf(u);
-        put.merge(u, betting.act(seat, a), Long::sum);
-        afterBet(now, l);
+        if (!betting.legal(seat).contains(a)) return "hwatu.bad-bet";
+        bet(seat, a, now, l);
         return null;
+    }
+
+    /** What the seat may do now (empty when it is not their turn or no 섯다 round runs). */
+    public java.util.Set<Betting.Action> legal(UUID u) {
+        int seat = players.indexOf(u);
+        if (phase != Phase.PLAYING || step != Step.BET || betting == null || seat < 0) return java.util.EnumSet.noneOf(Betting.Action.class);
+        return betting.legal(seat);
+    }
+
+    private void bet(int seat, Betting.Action a, long now, Listener l) {
+        UUID u = players.get(seat);
+        long added = betting.act(seat, a);
+        put.merge(u, added, Long::sum);
+        lastBet = new Bet(u, a, added, a != Betting.Action.DIE && added > 0 && left(u) == 0);
+        l.bet(this, lastBet);
+        afterBet(now, l);
     }
 
     private void afterBet(long now, Listener l) {
@@ -429,10 +516,10 @@ public final class Table {
         Sutda.Outcome o = Sutda.showdown(hands, replays < spec.game(Game.SUTDA).replays());
         if (o.replay()) {
             replays++;
-            Betting next = new Betting(players.size(), ante(), spec.game(Game.SUTDA).maxRaises());
-            for (int i = 0; i < players.size(); i++) if (betting.folded(i)) next.fold(i);
+            Betting next = round(betting);
             deal(next, Map.of());
             betting = next;
+            lastBet = null;
             deadline = now + spec.turnSeconds() * 1000L;
             l.replay(this);
             l.changed(this);
@@ -441,9 +528,44 @@ public final class Table {
         Map<UUID, String> detail = new LinkedHashMap<>();
         for (int i = 0; i < players.size(); i++) detail.put(players.get(i), betting.folded(i) ? "die" : null);
         for (int k = 0; k < in.size(); k++) detail.put(players.get(in.get(k)), hands.get(k).code());
-        List<UUID> winners = new ArrayList<>();
-        for (int k : o.winners()) winners.add(players.get(in.get(k)));
-        finish(winners, detail, false, now, l);
+        settleSutda(detail, false, now, l);
+    }
+
+    /**
+     * A 섯다 hand ends: the chips nobody matched go back, then the main pot and each side pot is won by the best hand among
+     * those who may win it ({@link Sutda#showdown} on them alone, no 재경기), each pot paying its own 자릿세.
+     */
+    private void settleSutda(Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
+        int n = players.size();
+        long[] c = new long[n];
+        boolean[] folded = new boolean[n];
+        for (int i = 0; i < n; i++) {
+            c[i] = put(players.get(i));
+            folded[i] = betting.folded(i);
+        }
+        long[] back = Pots.uncalled(c);
+        for (int i = 0; i < n; i++) {
+            if (back[i] == 0) continue;
+            c[i] -= back[i];
+            put.put(players.get(i), c[i]);
+        }
+        List<PotResult> results = new ArrayList<>();
+        for (Pots.Pot p : Pots.of(c, folded)) {
+            List<Integer> e = p.eligible();
+            List<UUID> won = new ArrayList<>();
+            if (e.size() == 1) won.add(players.get(e.getFirst()));
+            else if (e.size() > 1) {
+                List<Sutda.Hand> hands = new ArrayList<>();
+                for (int i : e) {
+                    Card[] cs = cards.get(players.get(i));
+                    hands.add(Sutda.of(cs[0], cs[1]));
+                }
+                for (int k : Sutda.showdown(hands, false).winners()) won.add(players.get(e.get(k)));
+            }
+            HwatuRules.Split s = HwatuRules.split(p.amount(), spec.rakePercent(), won.size());
+            results.add(new PotResult(p.amount(), List.copyOf(won), s.share(), s.burned()));
+        }
+        finish(results, detail, uncontested, now, l);
     }
 
     private void roll(long now, Listener l) {
@@ -492,16 +614,33 @@ public final class Table {
             detail.put(players.get(i), f ? "die" : null);
             if (!f) winners.add(players.get(i));
         }
+        if (game == Game.SUTDA) {
+            settleSutda(detail, true, now, l);
+            return;
+        }
         finish(winners, detail, true, now, l);
     }
 
+    /** 홀짝 · 주사위: one pot, split among the winners. */
     private void finish(List<UUID> winners, Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
         long pot = pot();
         HwatuRules.Split s = HwatuRules.split(pot, spec.rakePercent(), winners.size());
+        finish(List.of(new PotResult(pot, List.copyOf(winners), s.share(), s.burned())), detail, uncontested, now, l);
+    }
+
+    private void finish(List<PotResult> pots, Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
+        long pot = pot(), burned = 0;
         Map<UUID, Long> payout = new LinkedHashMap<>();
-        for (UUID w : winners) payout.put(w, s.share());
-        last = new Result(game, List.copyOf(players), Map.copyOf(put), Map.copyOf(payout), pot, s.burned(), List.copyOf(winners),
-                Collections.unmodifiableMap(detail), die, uncontested);
+        List<UUID> winners = new ArrayList<>();
+        for (PotResult p : pots) {
+            burned += p.burned();
+            for (UUID w : p.winners()) {
+                payout.merge(w, p.share(), Long::sum);
+                if (!winners.contains(w)) winners.add(w);
+            }
+        }
+        last = new Result(game, List.copyOf(players), Map.copyOf(put), Map.copyOf(payout), pot, burned, List.copyOf(winners),
+                Collections.unmodifiableMap(detail), die, uncontested, List.copyOf(pots));
         phase = Phase.RESULT;
         step = null;
         deadline = now + spec.resultSeconds() * 1000L;
@@ -514,7 +653,9 @@ public final class Table {
         if (phase == Phase.PLAYING) {
             players.clear();
             put.clear();
+            stake.clear();
         }
+        lastBet = null;
         phase = Phase.WAITING;
         deadline = 0;
     }
