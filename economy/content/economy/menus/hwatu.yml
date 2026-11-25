@@ -1,19 +1,18 @@
-# /화투방 (README "화투방", 수치는 hwatu.yml). 배경은 우편함 것을 그대로 씀 (같은 칸 배치의 일부만 씀)
-# 위 = 내 칩, 가운데 = 방 9개 (줄마다 게임: 홀짝 · 주사위 · 섯다, 칸마다 방: 초보방 · 일반방 · 큰손방), 아래 = 칩 사기 · 바꾸기
+# 도박장 칩 창 (/화투방 칩 · 도박장 환전 창구의 현장 소장 우클릭, README "도박장", 수치는 hwatu.yml). 배경은 우편함 것을 그대로 씀
+# 위 = 내 칩, 가운데 = 전적 · 도박장으로, 아래 = 칩 사기 · 바꾸기. 판은 도박장 테이블에 앉아서 함 (이 창에는 없음)
 # 자리표시자: {chips} {chips_gold} {bought} {buy_left} {daily_buy} {net} {loss_cap} {buy_price} {cash_price} {rake} {hours} {turn} {balance}
 #            {rest} (쉬어 가기 한 줄: 한도가 0 이면 "제한 없음" 문구) {age} (계정 나이 한 줄: 0 이면 "새 계정도 바로") — 문구는 messages.yml hwatu.rest-* · age-*
 hwatu:
-  title: "<#f0e2b0>화투방 <#b9a6d6>· 칩 {chips}"
+  title: "<#f0e2b0>도박장 <#b9a6d6>· 칩 {chips}"
   rows: 6
   background: economy:gui/mail
   layout:
     - "....I...."
-    - "..L.L.L.."
-    - "..L.L.L.."
-    - "..L.L.L.."
+    - "........."
+    - "...H.W..."
+    - "........."
     - "bcd...efg"
     - "R..M.X..Q"
-  list: L
   buttons:
     I:
       action: ""
@@ -27,6 +26,17 @@ hwatu:
         - ""
         - "<gray>칩은 골드로만 사고 골드로만 바꿔요."
         - "<dark_gray>아이템이 아니라 계정에 쌓이는 숫자 (잃어버릴 일 없음)"
+    H:
+      action: "hwatu:record"
+      icon: economy:gui/ledger
+      material: PAPER
+      name: "<white>내 전적 <dark_gray>(최근 8판)"
+    W:
+      action: "hwatu:hall"
+      icon: stsv:gui/info
+      material: OAK_DOOR
+      name: "<#e8c15a>도박장으로"
+      lore: ["<gray>테이블 의자에 앉으면 그 판에 앉아요", "<dark_gray>/화투방"]
     b:
       action: "hwatu:buy:10"
       icon: economy:gui/buy_1
@@ -67,13 +77,14 @@ hwatu:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>화투방 규칙"
+      name: "<white>도박장 규칙"
       lore:
         - "<gray>플레이어끼리만 겨뤄요 (서버는 상대하지 않음)"
         - "<gray>판마다 자릿세 <white>{rake}%</white>는 사라져요"
         - "<gray>내 차례 {turn}초: 넘기면 섯다는 낼 것이 있으면 다이, 없으면 콜"
+        - "<gray>테이블 의자에 앉으면 그 판에 앉고, 일어나면 나감"
         - "<gray>판 도중에 일어나면 다이 (건 칩은 판에 남음)"
-        - "<gray>화면을 닫아 두면 다음 판부터 빠져요"
+        - "<gray>차례를 놓치면 다음 판부터 쉬어요 (자리 앞 준비 버튼)"
         - "{age}"
     M:
       action: ""
@@ -104,52 +115,3 @@ hwatu:
         - "{rest}"
         - "<gray>오늘 <white>{net}칩"
         - "<dark_gray>딴 칩 순위는 두지 않아요"
-
-# 판 화면: 위 = 판 정보, 가운데 = 자리 6개 (머리 · 패 두 장 / 주사위), 아래 = 내 차례 버튼 · 내 칩 · 일어나기
-# 버튼 A · B · C 는 그때그때 바뀜 (섯다: 다이 · 콜 · 레이즈, 홀짝: 홀 · 짝)
-hwatu_table:
-  title: "<#f0e2b0>화투방 <#b9a6d6>· {game} {room}"
-  rows: 6
-  background: economy:gui/mail
-  layout:
-    - "....I...."
-    - ".LLL.LLL."
-    - ".LLL.LLL."
-    - ".LLL.LLL."
-    - "..A.B.C.."
-    - "...M.X..."
-  list: L
-  buttons:
-    I:
-      action: "hwatu:info"
-      icon: stsv:gui/info
-      material: GOLD_NUGGET
-      name: "<white>판"
-    A:
-      action: "hwatu:a"
-      material: GRAY_STAINED_GLASS_PANE
-      name: "<gray>기다리는 중"
-    B:
-      action: "hwatu:b"
-      material: GRAY_STAINED_GLASS_PANE
-      name: "<gray>기다리는 중"
-    C:
-      action: "hwatu:c"
-      material: GRAY_STAINED_GLASS_PANE
-      name: "<gray>기다리는 중"
-    M:
-      action: ""
-      icon: economy:gui/coins
-      material: GOLD_INGOT
-      name: "<white>내 칩 <#e8c15a>{chips}"
-      lore:
-        - "<gray>판에 걸지 않은 칩 <white>{free}"
-        - "<gray>오늘 {net}칩 {rest}"
-        - "<dark_gray>앉아 있으려면 칩 {need}개"
-        - "<dark_gray>칩 사기 · 바꾸기: /화투방 방"
-    X:
-      action: "hwatu:leave"
-      icon: stsv:gui/exit
-      material: OAK_DOOR
-      name: "<red>일어나기"
-      lore: ["<gray>판 도중이면 다이 (건 칩은 판에 남음)", "<dark_gray>방 목록으로"]

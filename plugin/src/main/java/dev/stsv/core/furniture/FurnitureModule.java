@@ -207,8 +207,12 @@ public final class FurnitureModule implements StsvModule, Listener {
     public record Plan(Block anchor, float yaw, List<Block> cells, boolean fits, Placed shape) {}
 
     public Plan plan(Player player, CustomItem item, Block anchor) {
+        return planAt(item, anchor, placementYaw(item.furniture(), player.getYaw()));
+    }
+
+    /** {@link #plan} for a given yaw (the way the piece's front faces, Minecraft degrees: 0 = south). */
+    private Plan planAt(CustomItem item, Block anchor, float yaw) {
         FurnitureSpec spec = item.furniture();
-        float yaw = placementYaw(spec, player.getYaw());
         World world = anchor.getWorld();
         List<Block> cells = new ArrayList<>();
         boolean fits = true;
@@ -289,24 +293,11 @@ public final class FurnitureModule implements StsvModule, Listener {
     }
 
     public Optional<Furniture> place(Player player, CustomItem item, Block anchor, Block against, EquipmentSlot hand) {
-        FurnitureSpec spec = item.furniture();
         Plan plan = plan(player, item, anchor);
         if (!plan.fits()) return Optional.empty();
         if (!mayBuild(player, plan.cells(), against, hand)) return Optional.empty();
 
-        World world = anchor.getWorld();
-        Location loc = anchor.getLocation().add(0.5, 0.5, 0.5);
-        loc.setYaw(displayYaw(plan.yaw()));
-        loc.setPitch(0);
-        ItemDisplay display = world.spawn(loc, ItemDisplay.class, d -> {
-            applyModel(d, item);
-            DisplayView.apply(d, view.viewRange(DisplayView.kindOf(spec)), DisplayView.furnitureBox(spec), view.culling());
-            if (spec.brightness() >= 0) d.setBrightness(new Display.Brightness(spec.brightness(), 15));
-            d.setPersistent(true);
-            d.getPersistentDataContainer().set(keyItem, PersistentDataType.STRING, item.key().asString());
-            d.getPersistentDataContainer().set(keyYaw, PersistentDataType.FLOAT, plan.yaw());
-        });
-
+        ItemDisplay display = spawnDisplay(item, plan);
         Furniture furniture = new Furniture(display, item);
         FurniturePlaceEvent event = new FurniturePlaceEvent(player, furniture);
         Bukkit.getPluginManager().callEvent(event);
@@ -314,7 +305,59 @@ public final class FurnitureModule implements StsvModule, Listener {
             display.remove();
             return Optional.empty();
         }
+        settle(display, item, plan);
 
+        display.getWorld().playSound(display.getLocation(), Sound.BLOCK_STONE_PLACE, 1f, 0.9f);
+        ItemStack from = player.getInventory().getItem(hand);
+        behavior(item).ifPresent(b -> b.onPlace(player, furniture, from));
+        return Optional.of(furniture);
+    }
+
+    /**
+     * Places a piece the server builds (no player: a structure such as the 도박장's tables), its front facing yaw
+     * (Minecraft degrees, 0 = south; snapped to 90 for a CARDINAL piece). It fits as a player's would (cells empty or
+     * replaceable, nobody where a barrier goes) but no protection plugin is asked, no {@link FurniturePlaceEvent} is
+     * called and no behaviour's onPlace runs (nobody placed it). Main thread, the chunks loaded. Empty: it did not fit.
+     */
+    public Optional<Furniture> placeAt(CustomItem item, Block anchor, float yaw) {
+        FurnitureSpec spec = item.furniture();
+        if (spec == null) return Optional.empty();
+        float y = spec.rotation() == FurnitureSpec.Rotation.CARDINAL ? Math.round(yaw / 90f) * 90f : Math.round(yaw / 15f) * 15f;
+        Plan plan = planAt(item, anchor, ((y % 360f) + 360f) % 360f);
+        if (!plan.fits()) return Optional.empty();
+        ItemDisplay display = spawnDisplay(item, plan);
+        settle(display, item, plan);
+        return Optional.of(new Furniture(display, item));
+    }
+
+    /**
+     * Takes a piece away without a player (a structure the server took down): its seats, parts, click targets,
+     * barriers and light go, no {@link FurnitureBreakEvent}, no behaviour's onBreak, nothing dropped.
+     */
+    public void discard(Furniture furniture) {
+        clearPiece(furniture.display());
+    }
+
+    /** The piece's display entity at its plan (keyed with its item and yaw). */
+    private ItemDisplay spawnDisplay(CustomItem item, Plan plan) {
+        FurnitureSpec spec = item.furniture();
+        Location loc = plan.anchor().getLocation().add(0.5, 0.5, 0.5);
+        loc.setYaw(displayYaw(plan.yaw()));
+        loc.setPitch(0);
+        return plan.anchor().getWorld().spawn(loc, ItemDisplay.class, d -> {
+            applyModel(d, item);
+            DisplayView.apply(d, view.viewRange(DisplayView.kindOf(spec)), DisplayView.furnitureBox(spec), view.culling());
+            if (spec.brightness() >= 0) d.setBrightness(new Display.Brightness(spec.brightness(), 15));
+            d.setPersistent(true);
+            d.getPersistentDataContainer().set(keyItem, PersistentDataType.STRING, item.key().asString());
+            d.getPersistentDataContainer().set(keyYaw, PersistentDataType.FLOAT, plan.yaw());
+        });
+    }
+
+    /** A placed piece's barriers, light, click targets and parts, written onto its display. */
+    private void settle(ItemDisplay display, CustomItem item, Plan plan) {
+        FurnitureSpec spec = item.furniture();
+        World world = plan.anchor().getWorld();
         StringBuilder cellData = new StringBuilder();
         StringBuilder partData = new StringBuilder();
         for (Block b : plan.cells()) {
@@ -335,11 +378,6 @@ public final class FurnitureModule implements StsvModule, Listener {
         pdc.set(keyShapeBoxes, PersistentDataType.STRING, plan.shape().hash());
         pdc.set(keyShapeBarriers, PersistentDataType.STRING, plan.shape().hash());
         loaded(display);
-
-        world.playSound(loc, Sound.BLOCK_STONE_PLACE, 1f, 0.9f);
-        ItemStack from = player.getInventory().getItem(hand);
-        behavior(item).ifPresent(b -> b.onPlace(player, furniture, from));
-        return Optional.of(furniture);
     }
 
     /** A click target over the world box {minX, minY, minZ, size, height}. */
@@ -865,6 +903,16 @@ public final class FurnitureModule implements StsvModule, Listener {
         behavior(furniture.item()).ifPresent(b -> b.onBreak(player, furniture));
 
         ItemDisplay display = furniture.display();
+        World world = display.getWorld();
+        Location loc = display.getLocation();
+        clearPiece(display);
+        if (dropped != null && !dropped.isEmpty()) world.dropItemNaturally(loc, dropped);
+        world.playSound(loc, Sound.BLOCK_STONE_BREAK, 1f, 0.9f);
+        return true;
+    }
+
+    /** A piece's seats, parts, click targets, barriers and light, and the piece itself, gone. */
+    private void clearPiece(ItemDisplay display) {
         PersistentDataContainer pdc = display.getPersistentDataContainer();
         World world = display.getWorld();
         for (ItemDisplay seat : seatsOf(display)) {
@@ -884,11 +932,7 @@ public final class FurnitureModule implements StsvModule, Listener {
         }
         reserved.remove(display.getUniqueId());
         refreshAt.remove(display.getUniqueId());
-        Location loc = display.getLocation();
-        if (dropped != null && !dropped.isEmpty()) world.dropItemNaturally(loc, dropped);
-        world.playSound(loc, Sound.BLOCK_STONE_BREAK, 1f, 0.9f);
         display.remove();
-        return true;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -979,40 +1023,121 @@ public final class FurnitureModule implements StsvModule, Listener {
         return out;
     }
 
+    /** A taken seat: the piece and which of its seats (the index in the item's seat list). */
+    public record Seated(Furniture furniture, int seat) {}
+
+    /**
+     * Where each seat of a piece is, in the order of the item's seat list (games give the seats meaning, e.g. the 화투방
+     * tables: seat 0 at the front, then clockwise), facing the way its sitter looks. Empty for a piece without seats.
+     */
+    public List<Location> seats(Furniture furniture) {
+        FurnitureSpec spec = furniture.item().furniture();
+        List<Location> out = new ArrayList<>();
+        if (spec == null || !spec.sittable()) return out;
+        float yaw = yawOf(furniture);
+        Block anchor = furniture.display().getLocation().getBlock();
+        for (FurnitureSpec.Seat seat : spec.seats()) {
+            int[] o = rotate(seat.cell(), yaw);
+            Location at = anchor.getRelative(o[0], o[1], o[2]).getLocation().add(0.5, seat.height(), 0.5);
+            at.setYaw(((yaw + seat.facing()) % 360f + 360f) % 360f);
+            at.setPitch(0);
+            out.add(at);
+        }
+        return out;
+    }
+
+    /** Whether someone (a player, a mannequin...) sits on that seat of the piece. */
+    public boolean seatTaken(Furniture furniture, int seat) {
+        List<Location> spots = seats(furniture);
+        if (seat < 0 || seat >= spots.size()) return true;
+        return seatAt(spots.get(seat)) != null;
+    }
+
+    /** The seat entity with a rider at this seat spot, or null. */
+    private ItemDisplay seatAt(Location at) {
+        for (ItemDisplay d : at.getWorld().getNearbyEntitiesByType(ItemDisplay.class, at, 0.2)) {
+            if (d.getPersistentDataContainer().has(keySeat) && !d.getPassengers().isEmpty()) return d;
+        }
+        return null;
+    }
+
+    /** The seat this entity rides (a seat of a placed piece), or empty. */
+    public Optional<Seated> seated(Entity rider) {
+        return rider == null ? Optional.empty() : seatOf(rider.getVehicle());
+    }
+
+    /** The piece and seat index a seat entity belongs to, or empty if it is not a furniture seat. */
+    public Optional<Seated> seatOf(Entity seatEntity) {
+        if (!(seatEntity instanceof ItemDisplay seat)) return Optional.empty();
+        String owner = seat.getPersistentDataContainer().get(keySeat, PersistentDataType.STRING);
+        if (owner == null) return Optional.empty();
+        Optional<Furniture> f;
+        try {
+            f = Bukkit.getEntity(UUID.fromString(owner)) instanceof ItemDisplay d ? fromDisplay(d) : Optional.empty();
+        } catch (IllegalArgumentException e) {
+            return Optional.empty();
+        }
+        if (f.isEmpty()) return Optional.empty();
+        List<Location> spots = seats(f.get());
+        List<double[]> xyz = new ArrayList<>();
+        for (Location l : spots) xyz.add(new double[]{l.getX(), l.getY(), l.getZ()});
+        Location at = seat.getLocation();
+        int i = nearestSeat(xyz, new boolean[xyz.size()], at.getX(), at.getY(), at.getZ());
+        return i < 0 ? Optional.empty() : Optional.of(new Seated(f.get(), i));
+    }
+
+    /** The index of the free spot (not taken) nearest to x y z, or -1 if every one is taken. */
+    static int nearestSeat(List<double[]> spots, boolean[] taken, double x, double y, double z) {
+        int best = -1;
+        double bestD = Double.MAX_VALUE;
+        for (int i = 0; i < spots.size(); i++) {
+            if (i < taken.length && taken[i]) continue;
+            double[] s = spots.get(i);
+            double d = (s[0] - x) * (s[0] - x) + (s[1] - y) * (s[1] - y) + (s[2] - z) * (s[2] - z);
+            if (d < bestD) {
+                bestD = d;
+                best = i;
+            }
+        }
+        return best;
+    }
+
     /** Sits the player on the seat closest to where they clicked. Returns false if there is no free seat. */
     public boolean sit(Player player, Furniture furniture, Location clicked) {
         FurnitureSpec spec = furniture.item().furniture();
         if (!spec.sittable() || player.isInsideVehicle()) return false;
-        float yaw = yawOf(furniture);
-        Block anchor = furniture.display().getLocation().getBlock();
-
-        Location best = null;
-        float facing = 0;
-        for (FurnitureSpec.Seat seat : spec.seats()) {
-            int[] o = rotate(seat.cell(), yaw);
-            Block cell = anchor.getRelative(o[0], o[1], o[2]);
-            Location at = cell.getLocation().add(0.5, seat.height(), 0.5);
-            boolean taken = at.getWorld().getNearbyEntitiesByType(ItemDisplay.class, at, 0.2).stream()
-                    .anyMatch(d -> d.getPersistentDataContainer().has(keySeat) && !d.getPassengers().isEmpty());
-            if (taken) continue;
-            if (best == null || at.distanceSquared(clicked) < best.distanceSquared(clicked)) {
-                best = at;
-                facing = seat.facing();
-            }
+        List<Location> spots = seats(furniture);
+        List<double[]> xyz = new ArrayList<>();
+        boolean[] taken = new boolean[spots.size()];
+        for (int i = 0; i < spots.size(); i++) {
+            Location l = spots.get(i);
+            xyz.add(new double[]{l.getX(), l.getY(), l.getZ()});
+            taken[i] = seatAt(l) != null;
         }
-        if (best == null) return false;
+        int best = nearestSeat(xyz, taken, clicked.getX(), clicked.getY(), clicked.getZ());
+        return best >= 0 && sit(player, furniture, best);
+    }
 
-        // a seat may face another way than the piece (cushions round a low table look at the table)
-        yaw = ((yaw + facing) % 360f + 360f) % 360f;
-        best.setYaw(yaw);
-        best.setPitch(0);
+    /**
+     * Sits anyone (a player, a mannequin) on that seat of the piece, facing where the seat faces (a seat may face another
+     * way than the piece: cushions round a low table look at the table). False if the seat is taken or does not exist, or
+     * the rider already rides something.
+     */
+    public boolean sit(Entity rider, Furniture furniture, int seat) {
+        List<Location> spots = seats(furniture);
+        if (seat < 0 || seat >= spots.size() || rider.isInsideVehicle()) return false;
+        Location best = spots.get(seat);
+        if (seatAt(best) != null) return false;
         String owner = furniture.display().getUniqueId().toString();
-        ItemDisplay seat = best.getWorld().spawn(best, ItemDisplay.class, d -> {
+        ItemDisplay display = best.getWorld().spawn(best, ItemDisplay.class, d -> {
             d.setPersistent(false);
             d.getPersistentDataContainer().set(keySeat, PersistentDataType.STRING, owner);
         });
-        player.setRotation(yaw, player.getPitch()); // face where the furniture faces
-        seat.addPassenger(player);
+        rider.setRotation(best.getYaw(), rider.getPitch()); // face where the seat faces
+        if (!display.addPassenger(rider)) {
+            display.remove();
+            return false;
+        }
         return true;
     }
 

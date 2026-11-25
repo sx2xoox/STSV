@@ -204,7 +204,7 @@ hub_trade:
       label: "수표"
       accent: "#f2c24c"
       name: "<white>수표"
-      lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>", "<yellow>우클릭: 화투방 <gray>(칩 환전 · 홀짝 · 주사위 · 섯다)"]
+      lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>", "<yellow>우클릭: 도박장으로 <gray>(홀짝 · 주사위 · 섯다)"]
     B:
       action: "command:건축월드"
       icon: stsv:gui/blank

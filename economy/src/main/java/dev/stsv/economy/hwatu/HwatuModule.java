@@ -2,30 +2,59 @@ package dev.stsv.economy.hwatu;
 
 import dev.stsv.core.economy.EconomyModule;
 import dev.stsv.core.economy.EconomyStore;
+import dev.stsv.core.furniture.Furniture;
+import dev.stsv.core.furniture.FurnitureBreakEvent;
+import dev.stsv.core.furniture.FurnitureInteractEvent;
+import dev.stsv.core.furniture.FurnitureModule;
 import dev.stsv.core.gui.menu.MenuHandler;
 import dev.stsv.core.gui.menu.MenuSpec;
 import dev.stsv.core.gui.menu.MenuView;
+import dev.stsv.core.hud.HudLayout;
 import dev.stsv.core.hud.HudModule;
 import dev.stsv.core.nickname.Names;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
-import dev.stsv.economy.util.Items;
+import dev.stsv.economy.hwatu.hall.HallBuilder;
+import dev.stsv.economy.hwatu.hall.HallLayout;
 import dev.stsv.economy.util.Players;
+import io.papermc.paper.datacomponent.item.ResolvableProfile;
+import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Display;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Interaction;
+import org.bukkit.entity.Mannequin;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.entity.EntityDismountEvent;
 import org.bukkit.event.inventory.ClickType;
+import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.ItemFlag;
+import org.bukkit.event.world.EntitiesLoadEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.SkullMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Transformation;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -34,15 +63,21 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.random.RandomGenerator;
 
 /**
- * 화투방 (README "화투방"; hwatu.yml, see {@link HwatuSpec}): players play each other for chips, never the server. Chips are
- * bought with gold and cashed to gold only (never 별 or anything 후원), are a number on the account (no item), and every pot
- * pays the 자릿세, which is destroyed: the 화투방 only ever takes money out of the economy. A daily buy limit, a daily loss
- * cap and a minimum account age can each be set in hwatu.yml (0 = none, the default), every hand is logged for /관리자 화투방
- * 기록, no winnings ranking. /관리자 화투방 시험: a private table with bots and pretend chips ({@link Test}).
+ * 화투방 · 도박장 (README "도박장"; hwatu.yml, see {@link HwatuSpec} and {@link HallSpec}): players play each other for chips,
+ * never the server, at real tables in the 도박장 building ({@link HallBuilder}). Sitting in a table's chair is sitting at its
+ * {@link Table} ({@link HallTable}: one a bound table furniture, its game and room kept in {@link HallStore}); what lies on
+ * the table is {@link TableScene}. Chips are bought with gold and cashed to gold only (never 별 or anything 후원), are a
+ * number on the account (no item), and every pot pays the 자릿세, which is destroyed: the 도박장 only ever takes money out of
+ * the economy. A daily buy limit, a daily loss cap and a minimum account age can each be set in hwatu.yml (0 = none, the
+ * default), every hand is logged for /관리자 도박장 기록, no winnings ranking. /관리자 도박장 시험: a 시험 판 at a real table
+ * with bots and pretend chips.
  *
  * <p>Money: buying holds the gold outside the balances (ESCROW, like shares) and the chips stand for it at the buy price;
  * cashing gives back the cash price (ESCROW) and destroys the rest; the 자릿세 destroys the gold behind its chips (burn).
@@ -50,25 +85,34 @@ import java.util.UUID;
  */
 public final class HwatuModule extends EcoModule {
 
-    static final String MENU = "economy:hwatu", TABLE_MENU = "economy:hwatu_table";
+    static final String MENU = "economy:hwatu";
     /** Message keys of what a player had: hwatu.hand.&lt;code&gt; ({@link Sutda.Hand#code()}, odd, even, die). */
     static final String HAND = "hwatu.hand.";
+    /** The hall's name (its entities' tag, HallBuilder). One hall. */
+    static final String HALL = "main";
+    /** The whiteboard text and the 현장 소장 (not saved, drawn again when their chunk is loaded): tag value. */
+    private static final String BOARD_TAG = "whiteboard", BOSS_TAG = "counter";
     private static final DateTimeFormatter WHEN = DateTimeFormatter.ofPattern("MM-dd HH:mm");
+    /** The board (core HUD, bottom right) of a seated player. */
+    private static final String HUD = "eco-hwatu";
 
     private HwatuSpec spec;
+    private HallSpec hall;
     private ChipStore store;
+    private HallStore halls;
     private ZoneId zone;
     private final SecureRandom rng = new SecureRandom();
-    private final Map<Integer, Table> tables = new LinkedHashMap<>();
-    private final Map<UUID, Table> seated = new HashMap<>();
-    private final Map<UUID, MenuView> views = new HashMap<>();
-    private final Map<Integer, UUID> turns = new HashMap<>();
-    private int nextTable = 1;
-    private final Events events = new Events();
-    /** 시험 판 (/관리자 화투방 시험): admin -> their private table with bots, pretend chips only. */
-    private final Map<UUID, Test> tests = new HashMap<>();
-    /** The bots of every 시험 판 and their names (봇1, 봇2 …). */
+    /** bound tables by their furniture entity */
+    private final Map<UUID, HallTable> tables = new LinkedHashMap<>();
+    /** who sits at which table (players; a 시험 판's admin too) */
+    private final Map<UUID, HallTable> seated = new HashMap<>();
+    /** the bots of every 시험 판 and their names (봇1, 봇2 …) */
     private final Map<UUID, String> bots = new HashMap<>();
+    private int nextTable = 1;
+    private BigPots bigPots;
+    private TextDisplay whiteboard;
+    private Mannequin boss;
+    private HallBuilder job;
 
     public HwatuModule(EcoPlugin eco) {
         super(eco);
@@ -84,39 +128,108 @@ public final class HwatuModule extends EcoModule {
         load();
         store = new ChipStore(core.db());
         store.init();
+        halls = new HallStore(core.db());
+        halls.init();
+        bigPots = BigPots.decode(halls.get(HallStore.RECORDS), hall.boardLines());
+        for (HallStore.Binding b : halls.tables()) bindQuiet(b);
         eco.onReset(this::reset);
-        core.admin().add(EcoPlugin.ADMIN_OWNER, "화투방", "기록 [플레이어] · 칩 <플레이어> [수] · 시험 <홀짝|주사위|섯다> [인원] [방] · 시험 섯다 패 <카드> <카드> · 시험 끝",
-                "화투방 판 기록 (누가 누구에게 얼마를: 세탁 감시) / 칩 보기·정하기 / 혼자 봇과 시험 판 (진짜 칩 · 골드 · 기록 없음)", this::admin, this::adminComplete);
-        every(20, this::tick);
+        core.admin().add(EcoPlugin.ADMIN_OWNER, "도박장",
+                "건설 · 제거 · 테이블 <종목> <방> | 해제 | 목록 · 위치 · 창구 · 칠판 · 시험 [인원] | 섯다 패 <카드> <카드> | 끝 · 기록 [플레이어] · 칩 <플레이어> [수]",
+                "도박장 짓기 · 테이블 묶기 (보고 있는 테이블) · /화투방 위치 · 혼자 봇과 시험 판 (진짜 칩 · 골드 · 기록 없음) · 판 기록 (세탁 감시) · 칩 보기·정하기",
+                this::admin, this::adminComplete);
+        purgeStrays();
+        if (core.hud() != null) core.hud().board(HUD, this::board);
+        every(20, this::second);
+        every(1, this::frame);
     }
 
     @Override
     protected void stop() {
+        if (job != null && job.running()) job.cancel();
         // a running hand is void: nothing was moved yet (chips move only when a hand ends)
-        for (Table t : tables.values()) t.abandon();
-        for (UUID admin : new ArrayList<>(tests.keySet())) endTest(admin, false);
-        for (MenuView v : new ArrayList<>(views.values())) v.close();
+        for (HallTable t : tables.values()) t.close(null);
         tables.clear();
         seated.clear();
-        views.clear();
+        bots.clear();
+        removeHallNpcs();
+        if (core.hud() != null) core.hud().removeBoard(HUD);
     }
 
     @Override
     public void reload() {
         load();
-        for (Table t : tables.values()) t.spec(spec);
-        for (Test x : tests.values()) x.table.spec(spec);
+        for (HallTable t : tables.values()) t.spec(spec);
     }
 
     private void load() {
         List<String> problems = new ArrayList<>();
-        spec = HwatuSpec.parse(eco.data("hwatu.yml"), problems);
+        var data = eco.data("hwatu.yml");
+        spec = HwatuSpec.parse(data, problems);
+        hall = HallSpec.parse(data.getConfigurationSection("hall"), problems);
         zone = ZoneId.of(eco.getConfig().getString("time.zone"));
         problems.forEach(p -> eco.getLogger().warning("[hwatu.yml] " + p));
     }
 
+    // ------------------------------------------------------------------------------------------ what HallTable uses
+
     public HwatuSpec spec() {
         return spec;
+    }
+
+    HallSpec hall() {
+        return hall;
+    }
+
+    RandomGenerator rng() {
+        return rng;
+    }
+
+    int nextTableId() {
+        return nextTable++;
+    }
+
+    Plugin plugin() {
+        return eco;
+    }
+
+    FurnitureModule furniture() {
+        return core.furniture();
+    }
+
+    boolean isBot(UUID u) {
+        return bots.containsKey(u);
+    }
+
+    void addBot(UUID u, String name) {
+        bots.put(u, name);
+    }
+
+    void removeBot(UUID u) {
+        bots.remove(u);
+    }
+
+    void seat(UUID u, HallTable t) {
+        seated.put(u, t);
+    }
+
+    void unseat(UUID u, HallTable t) {
+        seated.remove(u, t);
+    }
+
+    HallTable bound(UUID furniture) {
+        return tables.get(furniture);
+    }
+
+    /** A bound table's furniture turned up under a new entity id (placed again where it stood). */
+    void moved(UUID from, HallTable t) {
+        tables.remove(from);
+        tables.put(t.furniture(), t);
+        halls.moved(from, t.binding());
+        eco.getLogger().info("[도박장] 테이블을 다시 찾음: " + from + " → " + t.furniture());
+    }
+
+    void refreshBoard() {
+        if (core.hud() != null) core.hud().refreshBoard();
     }
 
     private int today() {
@@ -132,17 +245,14 @@ public final class HwatuModule extends EcoModule {
         return store.account(player, today()).chips;
     }
 
-    /** Chips not held in a running hand. */
+    /** Chips not held in a running hand (a 시험 판 holds none: its chips are pretend). */
     long available(UUID player) {
-        Table t = seated.get(player);
-        return chips(player) - (t == null ? 0 : t.committed(player));
+        HallTable t = seated.get(player);
+        return chips(player) - (t == null || t.testing() ? 0 : t.table().committed(player));
     }
 
     private void reset() {
-        for (Table t : tables.values()) t.abandon();
-        for (UUID admin : new ArrayList<>(tests.keySet())) endTest(admin, false);
-        for (MenuView v : new ArrayList<>(views.values())) v.close();
-        tables.clear();
+        for (HallTable t : tables.values()) t.close(null);
         seated.clear();
         // the chips' gold goes back (a test reset must not destroy money held outside the balances)
         for (var e : store.holders()) core.economy().move(null, e.getKey(), e.getValue() * spec.buyPrice(), EconomyStore.Kind.ESCROW, "hwatu_reset", null);
@@ -170,6 +280,7 @@ public final class HwatuModule extends EcoModule {
         p.sendMessage(Lang.msg("hwatu.bought", "n", fmt(n), "gold", EconomyModule.format(n * spec.buyPrice()), "chips", fmt(chips(u)),
                 "left", buyLeftText(a.bought + n)));
         p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.8f, 1.4f);
+        refreshBoard();
         return null;
     }
 
@@ -180,131 +291,35 @@ public final class HwatuModule extends EcoModule {
         if (n < 0) n = free;
         String why = HwatuRules.canCash(n, free);
         if (why != null) return why;
-        Table t = seated.get(u);
-        if (!store.cash(u, n, t == null ? 0 : t.committed(u), today())) return "hwatu.cash-short";
+        if (!store.cash(u, n, chips(u) - free, today())) return "hwatu.cash-short";
         long gold = n * spec.cashPrice(), fee = n * (spec.buyPrice() - spec.cashPrice());
         core.economy().move(null, u, gold, EconomyStore.Kind.ESCROW, "hwatu_chip_cash", n + "칩");
         if (fee > 0) core.economy().burn(fee, "hwatu_cash_fee", u + " " + n + "칩");
         p.sendMessage(Lang.msg("hwatu.cashed", "n", fmt(n), "gold", EconomyModule.format(gold), "fee", EconomyModule.format(fee), "chips", fmt(chips(u))));
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 1.2f);
+        refreshBoard();
         return null;
     }
 
     // ------------------------------------------------------------------------------------------
-    // Tables
+    // Hands
     // ------------------------------------------------------------------------------------------
 
     /** Why a player may not be dealt in (or sit down), null if they may. */
-    private String refusal(UUID u, long need) {
+    String refusal(UUID u, long need) {
         Player p = Bukkit.getPlayer(u);
         if (p == null) return "hwatu.away";
         ChipStore.Account a = store.account(u, today());
         return HwatuRules.canPlay(p.getFirstPlayed(), now(), spec.minAgeMs(), a.net, spec.lossCap(), a.chips, need);
     }
 
-    /** Sits the player at a table of that game and room (one with players waiting first); null on success, else why not. */
-    public String sit(Player p, Table.Game game, HwatuSpec.Room room) {
-        UUID u = p.getUniqueId();
-        Table at = seated.get(u);
-        if (at != null) {
-            if (at.game() == game && at.room().id().equals(room.id())) {
-                openTable(p);
-                return null;
-            }
-            return "hwatu.already-seated";
-        }
-        if (tests.containsKey(u)) return "hwatu.test-busy";
-        String why = refusal(u, spec.need(game, room));
-        if (why != null) return why;
-        Table pick = null;
-        for (Table t : tables.values()) {
-            if (t.game() != game || !t.room().id().equals(room.id()) || t.full()) continue;
-            if (pick == null || t.seats().size() > pick.seats().size()) pick = t;
-        }
-        if (pick == null) {
-            pick = new Table(nextTable++, game, room, spec, rng);
-            tables.put(pick.id(), pick);
-        }
-        pick.sit(u, now());
-        seated.put(u, pick);
-        for (UUID o : pick.seats()) {
-            Player op = Bukkit.getPlayer(o);
-            if (op != null && !o.equals(u)) op.sendMessage(Lang.msg("hwatu.joined", "player", mini(u)));
-        }
-        p.sendMessage(Lang.msg("hwatu.sat", "game", gameName(game), "room", room.name(), "ante", fmt(room.ante()), "need", fmt(spec.need(game, room))));
-        openTable(p);
-        refresh(pick);
-        return null;
-    }
-
-    /** Stands up (a fold in a running hand). */
-    public void leave(UUID u) {
-        Table t = seated.remove(u);
-        if (t == null) return;
-        boolean folding = t.inHand(u);
-        t.leave(u, now(), events);
-        Player p = Bukkit.getPlayer(u);
-        if (p != null) p.sendMessage(Lang.msg(folding ? "hwatu.left-fold" : "hwatu.left"));
-        for (UUID o : t.seats()) {
-            Player op = Bukkit.getPlayer(o);
-            if (op != null) op.sendMessage(Lang.msg("hwatu.someone-left", "player", mini(u)));
-        }
-        if (t.empty()) tables.remove(t.id());
-    }
-
-    private void tick() {
-        for (Table t : new ArrayList<>(tables.values())) {
-            t.tick(now(), this::refusalAt, events);
-            if (t.empty()) tables.remove(t.id());
-            else refresh(t);
-        }
-        for (Test x : new ArrayList<>(tests.values())) x.tick(now());
-    }
-
-    /** What the table's own code tells the module. */
-    private final class Events implements Table.Listener {
-        @Override
-        public void changed(Table t) {
-            UUID turn = t.turn();
-            if (turn != null && !turn.equals(turns.get(t.id()))) {
-                Player p = Bukkit.getPlayer(turn);
-                if (p != null) {
-                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.6f);
-                    HudModule.flash(p, Lang.mm("hwatu.your-turn", "seconds", spec.turnSeconds()));
-                }
-            }
-            if (turn == null) turns.remove(t.id());
-            else turns.put(t.id(), turn);
-            refresh(t);
-        }
-
-        @Override
-        public void kicked(Table t, UUID player, String reason) {
-            seated.remove(player);
-            Player p = Bukkit.getPlayer(player);
-            if (p != null) {
-                p.sendMessage(Lang.msg(reason, "need", fmt(t.need()), "cap", fmt(spec.lossCap())));
-                p.sendMessage(Lang.msg("hwatu.stood-up"));
-            }
-        }
-
-        @Override
-        public void replay(Table t) {
-            tell(t, Lang.msg("hwatu.replay"));
-        }
-
-        @Override
-        public void finished(Table t, Table.Result r) {
-            settle(t, r);
-        }
-    }
-
-    private void settle(Table t, Table.Result r) {
+    /** A real hand ended: the chips move, the ranking leaves it out, the hand is logged, everyone is told. */
+    void settle(Table t, Table.Result r) {
         int day = today();
         for (UUID u : r.players()) {
             long delta = r.net(u);
             store.settle(u, delta, day);
-            // not earnings, not a loss: the weekly ranking and the 순자산 achievements leave the 화투방 out
+            // not earnings, not a loss: the weekly ranking and the 순자산 achievements leave the 도박장 out
             if (eco.rank() != null) eco.rank().gambled(u, delta * spec.buyPrice());
         }
         if (r.burned() > 0) core.economy().burn(r.burned() * spec.buyPrice(), "hwatu_rake", t.game().key() + " " + t.room().id());
@@ -322,10 +337,11 @@ public final class HwatuModule extends EcoModule {
             Player p = Bukkit.getPlayer(u);
             if (p != null && HwatuRules.resting(store.account(u, day).net, spec.lossCap())) p.sendMessage(Lang.msg("hwatu.resting-now", "cap", fmt(spec.lossCap())));
         }
+        refreshBoard();
     }
 
     /** Tells everyone in a finished hand who won with what, and their own result (`chipsOf`: what they hold now). */
-    private void announce(Table t, Table.Result r, java.util.function.ToLongFunction<UUID> chipsOf, boolean test) {
+    void announce(Table t, Table.Result r, java.util.function.ToLongFunction<UUID> chipsOf, boolean test) {
         List<String> names = new ArrayList<>();
         for (UUID w : r.winners()) names.add(mini(w));
         String winnerHand = r.winners().size() == 1 ? detail(r, r.winners().getFirst()) : "";
@@ -365,30 +381,37 @@ public final class HwatuModule extends EcoModule {
         };
     }
 
-    private void tell(Table t, Component c) {
-        for (UUID u : t.seats()) {
-            Player p = Bukkit.getPlayer(u);
-            if (p != null) p.sendMessage(c);
+    /** A big pot won (not a 시험 판): the hall hears of it, and it goes on the whiteboard. */
+    void bigWin(HallTable t, Table.Result r) {
+        UUID w = r.winners().getFirst();
+        long won = r.payout().getOrDefault(w, 0L);
+        String names = String.join(", ", r.winners().stream().map(this::mini).toList());
+        String hand = r.winners().size() == 1 ? detail(r, w) : "";
+        String line = Lang.raw("hwatu.whiteboard-line", "players", names, "game", t.gameName(), "room", t.room().name(), "pot", fmt(r.pot()), "hand", hand);
+        if (bigPots.add(today(), r.pot(), line)) {
+            halls.set(HallStore.RECORDS, bigPots.encode());
+            drawWhiteboard();
+        }
+        Location at = t.furnitureEntity().map(Furniture::location).orElse(null);
+        if (at == null) return;
+        Component c = Lang.msg("hwatu.big-win", "players", names, "game", t.gameName(), "room", t.room().name(), "share", fmt(won), "hand", hand);
+        for (Player p : at.getWorld().getPlayers()) {
+            if (p.getLocation().distanceSquared(at) > (double) hall.radius() * hall.radius()) continue;
+            p.sendMessage(c);
+            p.playSound(p.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_TWINKLE, 0.6f, 1f);
         }
     }
 
-    @EventHandler
-    public void onQuit(PlayerQuitEvent e) {
-        views.remove(e.getPlayer().getUniqueId());
-        endTest(e.getPlayer().getUniqueId(), false);
-        leave(e.getPlayer().getUniqueId());
-    }
-
-    private String gameName(Table.Game g) {
+    String gameName(Table.Game g) {
         return spec.game(g).name();
     }
 
-    private static String fmt(long n) {
+    static String fmt(long n) {
         return String.format("%,d", n);
     }
 
     /** A player's name, or a 시험 판 bot's (봇1 …). */
-    private String mini(UUID u) {
+    String mini(UUID u) {
         String bot = bots.get(u);
         return bot != null ? bot : Names.mini(u);
     }
@@ -403,16 +426,309 @@ public final class HwatuModule extends EcoModule {
     }
 
     // ------------------------------------------------------------------------------------------
-    // /화투방: the lobby
+    // The tables in the world
     // ------------------------------------------------------------------------------------------
 
-    /** /화투방 [사기 &lt;칩&gt; | 바꾸기 &lt;칩|전부&gt; | 나가기 | 방] */
+    /** A binding of the store as a playing table (null: its game or room is not in hwatu.yml any more). */
+    private HallTable bindQuiet(HallStore.Binding b) {
+        Table.Game g = gameOf(b.game());
+        HwatuSpec.Room r = roomOf(b.room());
+        TableKind k = null;
+        Entity e = Bukkit.getEntity(b.furniture());
+        if (e instanceof org.bukkit.entity.ItemDisplay d) k = core.furniture().fromDisplay(d).map(f -> TableKind.of(f.item().key().asString())).orElse(null);
+        if (k == null) k = g == Table.Game.HOLJJAK ? TableKind.DUEL : TableKind.ROUND;   // not loaded now: the kind its game needs
+        if (g == null || r == null) {
+            eco.getLogger().warning("[도박장] 테이블 묶음의 종목/방이 없음: " + b);
+            return null;
+        }
+        HallTable t = new HallTable(this, b, k, g, r);
+        tables.put(b.furniture(), t);
+        return t;
+    }
+
+    /** Binds a table furniture to a game and room (rebinding closes the old game: its hand is void). */
+    private HallTable bind(Furniture f, Table.Game g, HwatuSpec.Room r) {
+        UUID id = f.display().getUniqueId();
+        HallTable old = tables.remove(id);
+        if (old != null) old.close("hwatu.table-rebound");
+        Location l = f.location();
+        HallStore.Binding b = new HallStore.Binding(id, l.getWorld().getName(), l.getBlockX(), l.getBlockY(), l.getBlockZ(), g.key(), r.id());
+        halls.bind(b);
+        return bindQuiet(b);
+    }
+
+    private void unbind(UUID furniture, String why) {
+        HallTable t = tables.remove(furniture);
+        if (t != null) t.close(why);
+        halls.unbind(furniture);
+    }
+
+    private void second() {
+        long now = now();
+        for (HallTable t : new ArrayList<>(tables.values())) t.second(now);
+        keepHallNpcs();
+        smoke();
+    }
+
+    private void frame() {
+        for (HallTable t : tables.values()) t.frame();
+    }
+
+    /** Entities of scenes that are not running (left from a crash, an older version): none of ours is ever saved. */
+    private void purgeStrays() {
+        int n = 0;
+        for (World w : Bukkit.getWorlds()) {
+            for (Entity e : w.getEntities()) {
+                if (e.getPersistentDataContainer().has(TableScene.TAG)) {
+                    e.remove();
+                    n++;
+                }
+            }
+        }
+        if (n > 0) eco.getLogger().info("[도박장] 남아 있던 테이블 표시 " + n + "개 치움");
+    }
+
+    @EventHandler
+    public void onEntitiesLoad(EntitiesLoadEvent e) {
+        for (Entity en : e.getEntities()) if (en.getPersistentDataContainer().has(TableScene.TAG)) en.remove();
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onTableClick(FurnitureInteractEvent e) {
+        HallTable t = tables.get(e.getFurniture().display().getUniqueId());
+        if (t == null) return;
+        e.setCancelled(true);
+        Player p = e.getPlayer();
+        if (p.isSneaking() || p.isInsideVehicle()) return;
+        HallTable at = seated.get(p.getUniqueId());
+        if (at != null && at != t) {
+            deny(p, "hwatu.already-seated", t);
+            return;
+        }
+        String why = t.sit(p, e.getFurniture());
+        if (why != null) deny(p, why, t);
+        else seated.put(p.getUniqueId(), t);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onTableBreak(FurnitureBreakEvent e) {
+        HallTable t = tables.get(e.getFurniture().display().getUniqueId());
+        if (t == null) return;
+        Player p = e.getPlayer();
+        if (p == null || !p.hasPermission("stsv.economy.admin")) {
+            e.setCancelled(true);
+            if (p != null) p.sendMessage(Lang.msg("hwatu.table-locked"));
+            return;
+        }
+        unbind(t.furniture(), "hwatu.table-removed");
+        p.sendMessage(Lang.msg("hwatu.table-unbound", "game", t.gameName(), "room", t.room().name()));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDismount(EntityDismountEvent e) {
+        if (!(e.getEntity() instanceof Player p)) return;
+        HallTable t = seated.get(p.getUniqueId());
+        if (t != null) t.stood(p.getUniqueId());
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent e) {
+        HallTable t = seated.get(e.getPlayer().getUniqueId());
+        if (t != null) t.stood(e.getPlayer().getUniqueId());
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (!p.isOnline()) return;
+            for (HallTable t : tables.values()) t.showTo(p);
+        }, 2L);
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onButton(PlayerInteractEntityEvent e) {
+        Entity clicked = e.getRightClicked();
+        if (boss != null && clicked.equals(boss)) {
+            e.setCancelled(true);
+            if (e.getHand() == EquipmentSlot.HAND) openChips(e.getPlayer());
+            return;
+        }
+        if (!(clicked instanceof Interaction)) return;
+        String tag = clicked.getPersistentDataContainer().get(TableScene.BUTTON, PersistentDataType.STRING);
+        if (tag == null) return;
+        e.setCancelled(true);
+        if (e.getHand() == EquipmentSlot.HAND) press(e.getPlayer(), tag);
+    }
+
+    @EventHandler(priority = EventPriority.LOW)
+    public void onButtonHit(PrePlayerAttackEntityEvent e) {
+        Entity hit = e.getAttacked();
+        if (boss != null && hit.equals(boss)) {
+            e.setCancelled(true);
+            openChips(e.getPlayer());
+            return;
+        }
+        String tag = hit instanceof Interaction ? hit.getPersistentDataContainer().get(TableScene.BUTTON, PersistentDataType.STRING) : null;
+        if (tag == null) return;
+        e.setCancelled(true);
+        press(e.getPlayer(), tag);
+    }
+
+    /** A button's click box was clicked: "viewer;button". Only its viewer can (nobody else is shown it). */
+    private void press(Player p, String tag) {
+        String[] v = tag.split(";", 2);
+        if (v.length != 2 || !v[0].equals(p.getUniqueId().toString())) return;
+        Controls.Button b = Controls.Button.of(v[1]);
+        HallTable t = seated.get(p.getUniqueId());
+        if (b != null && t != null) t.press(p, b);
+    }
+
+    private void deny(Player p, String why, HallTable t) {
+        ChipStore.Account a = store.account(p.getUniqueId(), today());
+        HudModule.flash(p, Lang.mm(why, "need", fmt(t == null ? 0 : t.table().need()), "cap", fmt(spec.lossCap()), "hours", spec.minAgeMs() / 3_600_000L,
+                "left", buyLeftText(a.bought), "daily", dailyBuyText(), "chips", fmt(a.chips)));
+        p.sendMessage(Lang.msg(why, "need", fmt(t == null ? 0 : t.table().need()), "cap", fmt(spec.lossCap()), "hours", spec.minAgeMs() / 3_600_000L,
+                "left", buyLeftText(a.bought), "daily", dailyBuyText(), "chips", fmt(a.chips)));
+        p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
+    }
+
+    /** The board (bottom right) of whoever sits at a table. */
+    private HudLayout.Board board(Player viewer) {
+        HallTable t = seated.get(viewer.getUniqueId());
+        return t == null ? null : t.board(viewer);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // The hall: its warp, the 현장 소장 at the counter, the whiteboard, a little smoke
+    // ------------------------------------------------------------------------------------------
+
+    private static String place(Location l) {
+        return String.format(Locale.ROOT, "%s;%.3f;%.3f;%.3f;%.1f;%.1f", l.getWorld().getName(), l.getX(), l.getY(), l.getZ(), l.getYaw(), l.getPitch());
+    }
+
+    /** A stored place (world;x;y;z;yaw;pitch), or null (none, or its world is not loaded). */
+    private static Location place(String s) {
+        if (s == null) return null;
+        String[] v = s.split(";");
+        if (v.length < 6) return null;
+        World w = Bukkit.getWorld(v[0]);
+        if (w == null) return null;
+        try {
+            return new Location(w, Double.parseDouble(v[1]), Double.parseDouble(v[2]), Double.parseDouble(v[3]), Float.parseFloat(v[4]), Float.parseFloat(v[5]));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private HallLayout.Site site() {
+        String s = halls.get("site");
+        if (s == null) return null;
+        String[] v = s.split(";");
+        try {
+            return new HallLayout.Site(v[0], Integer.parseInt(v[1]), Integer.parseInt(v[2]), Integer.parseInt(v[3]), Integer.parseInt(v[4]));
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static boolean loaded(Location l) {
+        return l != null && l.getWorld().isChunkLoaded(l.getBlockX() >> 4, l.getBlockZ() >> 4);
+    }
+
+    /** The 현장 소장 and the whiteboard's text stand while their chunk is loaded (not saved: no copies pile up). */
+    private void keepHallNpcs() {
+        Location counter = place(halls.get(HallStore.COUNTER));
+        if (counter != null && loaded(counter) && (boss == null || !boss.isValid())) boss = spawnBoss(counter);
+        if (boss != null && !boss.isValid()) boss = null;
+        Location board = place(halls.get(HallStore.BOARD));
+        if (board != null && loaded(board) && (whiteboard == null || !whiteboard.isValid())) drawWhiteboard();
+        if (whiteboard != null && !whiteboard.isValid()) whiteboard = null;
+        if (whiteboard != null && today() != boardDay) drawWhiteboard();   // a new day: an empty board
+    }
+
+    private int boardDay = -1;
+
+    private void removeHallNpcs() {
+        if (boss != null) boss.remove();
+        if (whiteboard != null) whiteboard.remove();
+        boss = null;
+        whiteboard = null;
+    }
+
+    private Mannequin spawnBoss(Location at) {
+        return at.getWorld().spawn(at, Mannequin.class, x -> {
+            x.setPersistent(false);
+            x.setInvulnerable(true);
+            x.setSilent(true);
+            x.setImmovable(true);
+            x.setGravity(false);
+            x.setCollidable(false);
+            x.setRemoveWhenFarAway(false);
+            x.customName(Lang.mm("hwatu.boss-name"));
+            x.setCustomNameVisible(true);
+            x.setDescription(Lang.mm("hwatu.boss-description"));
+            x.getPersistentDataContainer().set(TableScene.TAG, PersistentDataType.STRING, BOSS_TAG);
+            String skin = eco.data("hwatu.yml").getString("hall.boss-skin", "economy:entity/bus/site_boss");
+            try {
+                x.setProfile(ResolvableProfile.resolvableProfile().name("site_boss").skinPatch(sp -> sp.body(Key.key(skin))).build());
+            } catch (RuntimeException e) {
+                eco.getLogger().warning("[hwatu.yml] hall.boss-skin 키가 잘못됨: " + skin);
+            }
+        });
+    }
+
+    /** 오늘의 큰 판 on the whiteboard. */
+    private void drawWhiteboard() {
+        Location at = place(halls.get(HallStore.BOARD));
+        if (at == null || !loaded(at)) return;
+        boardDay = today();
+        List<BigPots.Entry> list = bigPots.entries(today());
+        StringBuilder b = new StringBuilder(Lang.raw("hwatu.whiteboard-title"));
+        if (list.isEmpty()) b.append('\n').append(Lang.raw("hwatu.whiteboard-empty"));
+        for (int i = 0; i < list.size(); i++) b.append('\n').append(Lang.raw("hwatu.whiteboard-entry", "n", i + 1, "line", list.get(i).line()));
+        Component c = Text.mm(b.toString());
+        if (whiteboard != null && whiteboard.isValid()) {
+            whiteboard.text(c);
+            return;
+        }
+        whiteboard = at.getWorld().spawn(at, TextDisplay.class, t -> {
+            t.setPersistent(false);
+            t.text(c);
+            t.setBillboard(Display.Billboard.FIXED);
+            t.setAlignment(TextDisplay.TextAlignment.LEFT);
+            t.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+            t.setShadowed(false);
+            t.setLineWidth(260);
+            t.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.45f, 0.45f, 0.45f), new Quaternionf()));
+            t.setViewRange(0.5f);
+            t.getPersistentDataContainer().set(TableScene.TAG, PersistentDataType.STRING, BOARD_TAG);
+        });
+    }
+
+    /** A wisp of 담배연기 now and then over the hall's tables (only while someone is near). */
+    private void smoke() {
+        for (HallTable t : tables.values()) {
+            if (t.seatedPlayers().isEmpty() || rng.nextInt(3) != 0) continue;
+            t.furnitureEntity().ifPresent(f -> {
+                Location l = f.location().add(rng.nextDouble() - 0.5, 2.2 + rng.nextDouble() * 0.6, rng.nextDouble() - 0.5);
+                l.getWorld().spawnParticle(Particle.SMOKE, l, 3, 0.25, 0.1, 0.25, 0.005);
+            });
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /화투방: to the 도박장 · 칩 · 사기 · 바꾸기 · 나가기
+    // ------------------------------------------------------------------------------------------
+
+    /** /화투방 [칩 | 사기 &lt;칩&gt; | 바꾸기 &lt;칩|전부&gt; | 나가기] */
     public void command(Player p, String[] a) {
         if (a.length == 0) {
-            open(p);
+            goToHall(p);
             return;
         }
         switch (a[0]) {
+            case "칩", "전적" -> openChips(p);
             case "사기", "바꾸기" -> {
                 if (a.length < 2) {
                     p.sendMessage(Lang.msg("hwatu.usage"));
@@ -431,11 +747,10 @@ public final class HwatuModule extends EcoModule {
                 }
             }
             case "나가기" -> {
-                if (tests.containsKey(p.getUniqueId())) endTest(p.getUniqueId(), true);
-                else if (!seated.containsKey(p.getUniqueId())) p.sendMessage(Lang.msg("hwatu.not-seated"));
-                else leave(p.getUniqueId());
+                if (!seated.containsKey(p.getUniqueId())) p.sendMessage(Lang.msg("hwatu.not-seated"));
+                else if (p.isInsideVehicle()) p.leaveVehicle();
+                else seated.get(p.getUniqueId()).stood(p.getUniqueId());
             }
-            case "방" -> openLobby(p);
             default -> p.sendMessage(Lang.msg("hwatu.usage"));
         }
     }
@@ -448,16 +763,31 @@ public final class HwatuModule extends EcoModule {
         }
     }
 
-    public void open(Player p) {
-        if (seated.containsKey(p.getUniqueId()) || tests.containsKey(p.getUniqueId())) openTable(p);
-        else openLobby(p);
+    /** /화투방: to the hall's door (standing up first). */
+    public void goToHall(Player p) {
+        Location warp = place(halls.get(HallStore.WARP));
+        if (warp == null) {
+            p.sendMessage(Lang.msg("hwatu.no-hall"));
+            return;
+        }
+        boolean riding = p.isInsideVehicle();
+        if (riding) p.leaveVehicle();   // a chair puts its sitter beside it on the next tick: go after that
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (!p.isOnline()) return;
+            p.teleportAsync(warp).thenAccept(ok -> {
+                if (!ok) return;
+                p.playSound(warp, Sound.BLOCK_IRON_DOOR_OPEN, 0.6f, 0.9f);
+                p.sendMessage(Lang.msg("hwatu.welcome", "chips", fmt(chips(p.getUniqueId()))));
+            });
+        }, riding ? 3L : 1L);
     }
 
-    public void openLobby(Player p) {
-        core.menus().open(p, MENU, new Lobby());
+    public void openChips(Player p) {
+        core.menus().open(p, MENU, new Chips());
     }
 
-    private final class Lobby implements MenuHandler {
+    /** The chip screen (/화투방 칩, the 현장 소장): my chips, buy · cash, the rules, the 족보, my last hands. */
+    private final class Chips implements MenuHandler {
         @Override
         public Map<String, String> placeholders(MenuView v) {
             UUID u = v.player().getUniqueId();
@@ -481,550 +811,55 @@ public final class HwatuModule extends EcoModule {
             return m;
         }
 
-        /** The rooms: every game in every room (3 × 3, game by game). */
-        private List<Object[]> kinds() {
-            List<Object[]> out = new ArrayList<>();
-            for (Table.Game g : Table.Game.values()) for (HwatuSpec.Room r : spec.rooms()) out.add(new Object[]{g, r});
-            return out;
-        }
-
+        /** 전적: my last few hands (newest first). */
         @Override
-        public List<ItemStack> list(MenuView v) {
+        public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
+            if (base == null || !b.action().equals("hwatu:record")) return base;
             UUID me = v.player().getUniqueId();
-            List<ItemStack> out = new ArrayList<>();
-            for (Object[] k : kinds()) {
-                Table.Game g = (Table.Game) k[0];
-                HwatuSpec.Room r = (HwatuSpec.Room) k[1];
-                int sitting = 0, open = 0;
-                for (Table t : tables.values()) {
-                    if (t.game() != g || !t.room().id().equals(r.id())) continue;
-                    sitting += t.seats().size();
-                    if (!t.full()) open++;
+            ItemStack it = base.clone();
+            List<ChipStore.Hand> hands = store.hands(me, 8);
+            it.editMeta(meta -> {
+                List<Component> lore = new ArrayList<>();
+                for (ChipStore.Hand h : hands) {
+                    String game = switch (h.game()) {
+                        case "holjjak" -> gameName(Table.Game.HOLJJAK);
+                        case "dice" -> gameName(Table.Game.DICE);
+                        case "sutda" -> gameName(Table.Game.SUTDA);
+                        default -> h.game();
+                    };
+                    String room = spec.rooms().stream().filter(r -> r.id().equals(h.room())).map(HwatuSpec.Room::name).findFirst().orElse(h.room());
+                    lore.add(Lang.item("hwatu.record-line", "when", WHEN.format(Instant.ofEpochMilli(h.at()).atZone(zone)), "game", game, "room", room,
+                            "pot", fmt(h.pot())));
                 }
-                String icon = switch (g) {
-                    case HOLJJAK -> "economy:hwatu_back";
-                    case DICE -> "minecraft:bone_block";
-                    case SUTDA -> "economy:hwatu_3a";
-                };
-                ItemStack it = Items.create(icon, 1).orElseGet(() -> new ItemStack(Material.PAPER));
-                boolean here = seated.get(me) != null && seated.get(me).game() == g && seated.get(me).room().id().equals(r.id());
-                int people = sitting, tablesOpen = open;
-                it.editMeta(meta -> {
-                    meta.itemName(Lang.item("hwatu.room-name", "game", gameName(g), "room", r.name()));
-                    String about = "hwatu.room-lore-" + g.key();
-                    List<Component> lore = new ArrayList<>(Lang.items(about, "max", spec.game(g).max(), "dice", spec.game(g).dice(),
-                            "raises", spec.game(g).maxRaises()));
-                    lore.add(Lang.item("hwatu.room-ante", "ante", fmt(r.ante()), "gold", EconomyModule.format(r.ante() * spec.buyPrice()),
-                            "need", fmt(spec.need(g, r))));
-                    lore.add(Lang.item("hwatu.room-people", "n", people, "open", tablesOpen));
-                    lore.add(Component.empty());
-                    lore.add(Lang.item(here ? "hwatu.room-here" : "hwatu.room-click"));
-                    meta.lore(lore);
-                    meta.setEnchantmentGlintOverride(here);
-                    meta.addItemFlags(ItemFlag.values());
-                });
-                out.add(it);
-            }
-            return out;
-        }
-
-        @Override
-        public void onListClick(MenuView v, int index, ClickType click) {
-            List<Object[]> k = kinds();
-            if (index < 0 || index >= k.size()) return;
-            Table.Game g = (Table.Game) k.get(index)[0];
-            HwatuSpec.Room r = (HwatuSpec.Room) k.get(index)[1];
-            Player p = v.player();
-            Bukkit.getScheduler().runTask(eco, () -> {   // not inside the click: sitting opens the table's screen
-                String why = sit(p, g, r);
-                if (why != null) {
-                    deny(p, why, g, r);
-                    v.refresh();
-                }
+                if (hands.isEmpty()) lore.add(Lang.item("hwatu.record-empty"));
+                meta.lore(lore);
             });
+            return it;
         }
 
         @Override
         public void onAction(MenuView v, String action, ClickType click) {
             Player p = v.player();
-            String why = null;
+            String why;
             if (action.startsWith("hwatu:buy:")) why = buy(p, Long.parseLong(action.substring(10)));
             else if (action.startsWith("hwatu:cash:")) {
                 String n = action.substring(11);
                 why = cash(p, n.equals("all") ? -1 : Long.parseLong(n));
-            } else return;
-            if (why != null) deny(p, why, null, null);
-            v.refresh();
-        }
-    }
-
-    private void deny(Player p, String why, Table.Game g, HwatuSpec.Room r) {
-        ChipStore.Account a = store.account(p.getUniqueId(), today());
-        HudModule.flash(p, Lang.mm(why, "need", fmt(g == null ? 0 : spec.need(g, r)), "cap", fmt(spec.lossCap()), "hours", spec.minAgeMs() / 3_600_000L,
-                "left", buyLeftText(a.bought), "daily", dailyBuyText()));
-        p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
-    }
-
-    // ------------------------------------------------------------------------------------------
-    // The table screen
-    // ------------------------------------------------------------------------------------------
-
-    public void openTable(Player p) {
-        Test x = tests.get(p.getUniqueId());
-        Table t = x != null ? x.table : seated.get(p.getUniqueId());
-        if (t == null) {
-            openLobby(p);
-            return;
-        }
-        core.menus().open(p, TABLE_MENU, new TableView(t, x)).ifPresent(v -> views.put(p.getUniqueId(), v));
-    }
-
-    /** The table a player sits at: their 시험 판, else a real one (null: none). */
-    private Table tableOf(UUID u) {
-        Test x = tests.get(u);
-        return x != null ? x.table : seated.get(u);
-    }
-
-    private void refresh(Table t) {
-        for (UUID u : t.seats()) {
-            MenuView v = views.get(u);
-            if (v == null) continue;
-            if (!(v.handler() instanceof TableView tv) || tv.table != t || v.player().getOpenInventory().getTopInventory().getHolder(false) != v) {
-                views.remove(u);
-                continue;
-            }
-            v.refresh();
-        }
-    }
-
-    /** True while the player has their table's screen open (a player who wandered off is not dealt the next hand). */
-    private boolean watching(UUID u) {
-        MenuView v = views.get(u);
-        return v != null && v.player().getOpenInventory().getTopInventory().getHolder(false) == v;
-    }
-
-    private final class TableView implements MenuHandler {
-        final Table table;
-        /** a 시험 판: pretend chips (null: a real table) */
-        final Test test;
-
-        TableView(Table table, Test test) {
-            this.table = table;
-            this.test = test;
-        }
-
-        /** What a seat holds: real chips, or a 시험 판's pretend ones. */
-        private long held(UUID u) {
-            return test != null ? test.chips(u) : chips(u);
-        }
-
-        private String roomName() {
-            return test != null ? Lang.raw("hwatu.test-room", "room", table.room().name()) : table.room().name();
-        }
-
-        @Override
-        public Map<String, String> placeholders(MenuView v) {
-            UUID u = v.player().getUniqueId();
-            ChipStore.Account a = store.account(u, today());
-            long chips = held(u), net = test != null ? test.net : a.net;
-            Map<String, String> m = new HashMap<>();
-            m.put("game", gameName(table.game()));
-            m.put("room", roomName());
-            m.put("ante", fmt(table.ante()));
-            m.put("chips", fmt(chips));
-            m.put("free", fmt(chips - table.committed(u)));
-            m.put("net", (net >= 0 ? "+" : "") + fmt(net));
-            m.put("loss_cap", spec.lossCap() <= 0 ? Lang.raw("hwatu.no-limit") : fmt(spec.lossCap()));
-            m.put("rest", test != null ? Lang.raw("hwatu.test-chips-note")
-                    : spec.lossCap() <= 0 ? Lang.raw("hwatu.rest-off-short") : Lang.raw("hwatu.rest-on-short", "cap", fmt(spec.lossCap())));
-            m.put("need", fmt(table.need()));
-            m.put("rake", String.valueOf(spec.rakePercent()));
-            return m;
-        }
-
-        private long left() {
-            return Math.max(0, (table.deadline() - now() + 999) / 1000);
-        }
-
-        @Override
-        public ItemStack button(MenuView v, MenuSpec.Button b, ItemStack base) {
-            if (base == null) return null;
-            UUID me = v.player().getUniqueId();
-            String a = b.action();
-            ItemStack it = base.clone();
-            if (a.equals("hwatu:info")) {
-                it.editMeta(meta -> {
-                    meta.itemName(Lang.item("hwatu.info-name", "game", gameName(table.game()), "room", roomName()));
-                    List<Component> lore = new ArrayList<>();
-                    lore.add(Lang.item("hwatu.info-pot", "pot", fmt(table.phase() == Table.Phase.WAITING ? 0 : table.pot()), "ante", fmt(table.ante()),
-                            "rake", spec.rakePercent()));
-                    lore.add(Lang.item(switch (table.phase()) {
-                        case WAITING -> table.seats().size() < 2 ? "hwatu.state-alone" : "hwatu.state-starting";
-                        case PLAYING -> table.step() == Table.Step.ROLL ? "hwatu.state-rolling"
-                                : table.turn() == null ? "hwatu.state-playing" : "hwatu.state-turn";
-                        case RESULT -> "hwatu.state-result";
-                    }, "seconds", left(), "player", table.turn() == null ? "" : mini(table.turn())));
-                    if (table.game() == Table.Game.SUTDA && table.betting() != null && table.phase() == Table.Phase.PLAYING) {
-                        lore.add(Lang.item("hwatu.info-raises", "n", table.betting().raises(), "max", spec.game(Table.Game.SUTDA).maxRaises()));
-                        if (table.replays() > 0) lore.add(Lang.item("hwatu.info-replay"));
-                    }
-                    if (table.game() == Table.Game.HOLJJAK && table.calledOdd() != null) {
-                        lore.add(Lang.item("hwatu.info-called", "player", mini(table.players().getFirst()),
-                                "call", Lang.raw(table.calledOdd() ? "hwatu.hand.odd" : "hwatu.hand.even")));
-                    }
-                    Table.Result r = table.last();
-                    if (r != null && table.phase() == Table.Phase.RESULT) {
-                        List<String> names = new ArrayList<>();
-                        for (UUID w : r.winners()) names.add(mini(w));
-                        lore.add(Lang.item("hwatu.info-result", "players", String.join(", ", names), "pot", fmt(r.pot()), "rake", fmt(r.burned())));
-                    }
-                    meta.lore(lore);
+            } else if (action.equals("hwatu:hall")) {
+                Bukkit.getScheduler().runTask(eco, () -> {
+                    v.close();
+                    goToHall(p);
                 });
-                return it;
-            }
-            if (!a.equals("hwatu:a") && !a.equals("hwatu:b") && !a.equals("hwatu:c")) return base;
-            boolean myTurn = me.equals(table.turn());
-            String key;
-            Material mat;
-            boolean glint = false;
-            long amount = 0;
-            if (myTurn && table.step() == Table.Step.PICK) {
-                switch (a) {
-                    case "hwatu:a" -> { key = "hwatu.btn-odd"; mat = Material.RED_CONCRETE; }
-                    case "hwatu:c" -> { key = "hwatu.btn-even"; mat = Material.BLUE_CONCRETE; }
-                    default -> { key = "hwatu.btn-pick"; mat = Material.CLOCK; }
-                }
-            } else if (myTurn && table.step() == Table.Step.BET) {
-                Betting bet = table.betting();
-                int seat = table.players().indexOf(me);
-                switch (a) {
-                    case "hwatu:a" -> { key = "hwatu.btn-die"; mat = Material.RED_CONCRETE; }
-                    case "hwatu:b" -> {
-                        amount = bet.toCall(seat);
-                        key = amount > 0 ? "hwatu.btn-call" : "hwatu.btn-check";
-                        mat = Material.LIME_CONCRETE;
-                    }
-                    default -> {
-                        amount = bet.toRaise(seat);
-                        key = bet.canRaise() ? "hwatu.btn-raise" : "hwatu.btn-no-raise";
-                        mat = bet.canRaise() ? Material.ORANGE_CONCRETE : Material.GRAY_CONCRETE;
-                    }
-                }
-                glint = a.equals("hwatu:b");
-            } else {
-                key = "hwatu.btn-wait";
-                mat = Material.GRAY_STAINED_GLASS_PANE;
-            }
-            ItemStack out = new ItemStack(mat);
-            String k = key;
-            long n = amount;
-            boolean g = glint;
-            long seconds = left();
-            out.editMeta(meta -> {
-                meta.itemName(Lang.item(k, "n", fmt(n)));
-                String loreKey = k + "-lore";
-                List<Component> lore = new ArrayList<>(Lang.items(loreKey, "n", fmt(n), "seconds", seconds,
-                        "auto", Lang.raw(table.step() == Table.Step.BET && table.betting() != null && table.betting().turn() >= 0
-                                && table.betting().toCall(table.betting().turn()) > 0 ? "hwatu.hand.die" : "hwatu.auto-call")));
-                meta.lore(lore);
-                meta.setEnchantmentGlintOverride(g);
-                meta.addItemFlags(ItemFlag.values());
-            });
-            return out;
-        }
-
-        /** 18 cells: the six seats (heads), then each seat's first card / die, then its second. */
-        @Override
-        public List<ItemStack> list(MenuView v) {
-            UUID me = v.player().getUniqueId();
-            List<UUID> order = new ArrayList<>(table.phase() == Table.Phase.WAITING ? table.seats() : table.players());
-            for (UUID u : table.seats()) if (!order.contains(u)) order.add(u);   // sat down during the hand: waiting
-            List<ItemStack> heads = new ArrayList<>(), first = new ArrayList<>(), second = new ArrayList<>();
-            for (int i = 0; i < 6; i++) {
-                if (i >= table.max()) {
-                    heads.add(null);
-                    first.add(null);
-                    second.add(null);
-                    continue;
-                }
-                if (i >= order.size()) {
-                    heads.add(pane("hwatu.seat-empty"));
-                    first.add(null);
-                    second.add(null);
-                    continue;
-                }
-                UUID u = order.get(i);
-                heads.add(head(u));
-                ItemStack[] two = shown(u, me);
-                first.add(two[0]);
-                second.add(two[1]);
-            }
-            List<ItemStack> out = new ArrayList<>(heads);
-            out.addAll(first);
-            out.addAll(second);
-            return out;
-        }
-
-        private ItemStack pane(String key) {
-            ItemStack it = new ItemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE);
-            it.editMeta(meta -> meta.itemName(Lang.item(key)));
-            return it;
-        }
-
-        private ItemStack head(UUID u) {
-            ItemStack it = new ItemStack(Material.PLAYER_HEAD);
-            boolean turn = u.equals(table.turn());
-            Table.Result r = table.phase() == Table.Phase.RESULT ? table.last() : null;
-            it.editMeta(meta -> {
-                if (meta instanceof SkullMeta sm && !bots.containsKey(u)) sm.setOwningPlayer(Bukkit.getOfflinePlayer(u));
-                meta.itemName(Text.item((turn ? "<yellow>▶ " : "<white>") + mini(u)));
-                List<Component> lore = new ArrayList<>();
-                if (!table.players().contains(u) || table.phase() == Table.Phase.WAITING) lore.add(Lang.item("hwatu.seat-waiting"));
-                else {
-                    lore.add(Lang.item("hwatu.seat-put", "n", fmt(table.put(u))));
-                    if (table.folded(u)) lore.add(Lang.item("hwatu.seat-die"));
-                    else if (turn) lore.add(Lang.item("hwatu.seat-turn", "seconds", left()));
-                    if (r != null) {
-                        String d = detail(r, u);
-                        if (!d.isEmpty() && !table.folded(u)) lore.add(Text.item("<gray>" + d));
-                        long net = r.net(u);
-                        lore.add(Lang.item(net >= 0 ? "hwatu.seat-won" : "hwatu.seat-lost", "n", fmt(Math.abs(net))));
-                    }
-                }
-                lore.add(Lang.item(test != null ? "hwatu.test-seat-chips" : "hwatu.seat-chips", "n", fmt(held(u))));
-                meta.lore(lore);
-                meta.setEnchantmentGlintOverride(turn || (r != null && r.winners().contains(u)));
-                meta.addItemFlags(ItemFlag.values());
-            });
-            return it;
-        }
-
-        /** The two cells under a seat: cards (섯다), dice (주사위), the call and the die (홀짝). */
-        private ItemStack[] shown(UUID u, UUID me) {
-            ItemStack[] out = new ItemStack[2];
-            if (table.phase() == Table.Phase.WAITING || !table.players().contains(u)) return out;
-            switch (table.game()) {
-                case SUTDA -> {
-                    Card[] c = table.cards(u);
-                    if (c == null) return out;   // folded before a 재경기 deal
-                    boolean open = u.equals(me) || (table.phase() == Table.Phase.RESULT && !table.folded(u));
-                    for (int k = 0; k < 2; k++) out[k] = open ? card(c[k]) : back();
-                }
-                case DICE -> {
-                    int[] r = table.rolls(u);
-                    if (r == null) {
-                        if (!table.folded(u)) out[0] = rolling();
-                        return out;
-                    }
-                    for (int k = 0; k < Math.min(2, r.length); k++) out[k] = die(r[k]);   // a third die is told in the seat
-                }
-                case HOLJJAK -> {
-                    if (table.players().indexOf(u) == 0 && table.calledOdd() != null) {
-                        ItemStack it = new ItemStack(table.calledOdd() ? Material.RED_CONCRETE : Material.BLUE_CONCRETE);
-                        it.editMeta(meta -> meta.itemName(Lang.item(table.calledOdd() ? "hwatu.hand.odd" : "hwatu.hand.even")));
-                        out[0] = it;
-                    }
-                    if (table.players().indexOf(u) == 0 && table.die() > 0) out[1] = die(table.die());
-                }
-            }
-            return out;
-        }
-
-        private ItemStack card(Card c) {
-            ItemStack it = Items.create(c.item(), 1).orElseGet(() -> new ItemStack(Material.PAPER));
-            it.editMeta(meta -> {
-                String name = c.gwang() ? "hwatu.card-gwang" : c.yeol() ? "hwatu.card-yeol" : "hwatu.card-tti";
-                meta.itemName(Lang.item(name, "month", c.month()));
-                meta.lore(List.of());
-            });
-            return it;
-        }
-
-        private ItemStack back() {
-            ItemStack it = Items.create("economy:hwatu_back", 1).orElseGet(() -> new ItemStack(Material.PAPER));
-            it.editMeta(meta -> {
-                meta.itemName(Lang.item("hwatu.card-back"));
-                meta.lore(List.of());
-            });
-            return it;
-        }
-
-        private ItemStack die(int n) {
-            ItemStack it = new ItemStack(Material.BONE_BLOCK, Math.max(1, n));
-            it.editMeta(meta -> meta.itemName(Lang.item("hwatu.die-item", "n", n)));
-            return it;
-        }
-
-        private ItemStack rolling() {
-            ItemStack it = new ItemStack(Material.BONE_BLOCK);
-            it.editMeta(meta -> meta.itemName(Lang.item("hwatu.die-rolling")));
-            return it;
-        }
-
-        @Override
-        public void onAction(MenuView v, String action, ClickType click) {
-            Player p = v.player();
-            UUID u = p.getUniqueId();
-            if (action.equals("hwatu:leave")) {
-                if (test != null) endTest(u, true);
-                else leave(u);
-                Bukkit.getScheduler().runTask(eco, () -> openLobby(p));
                 return;
-            }
-            Table.Move m = null;
-            if (table.step() == Table.Step.PICK) m = action.equals("hwatu:a") ? Table.Move.ODD : action.equals("hwatu:c") ? Table.Move.EVEN : null;
-            else if (table.step() == Table.Step.BET) m = switch (action) {
-                case "hwatu:a" -> Table.Move.DIE;
-                case "hwatu:b" -> Table.Move.CALL;
-                case "hwatu:c" -> Table.Move.RAISE;
-                default -> null;
-            };
-            if (m == null || tableOf(u) != table) return;
-            String why = table.act(u, m, now(), test != null ? test : events);
-            if (why != null) HudModule.flash(p, Lang.mm(why));
-            else p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.2f);
+            } else return;
+            if (why != null) deny(p, why, null);
             v.refresh();
         }
-
-        @Override
-        public void onClose(MenuView v) {
-            // closing the screen does not stand up: the turn timer plays for the player, and the next hand is not dealt to
-            // someone who is not looking (see refusal: "hwatu.away")
-        }
     }
 
     // ------------------------------------------------------------------------------------------
-    // 시험 판 (/관리자 화투방 시험): the admin alone with bots
+    // /관리자 도박장
     // ------------------------------------------------------------------------------------------
-
-    /**
-     * An admin's private 시험 판 (README "화투방"): the admin and bots (봇1 …) who play by {@link HwatuBot}, the normal table
-     * screen and every move. Pretend chips only (hwatu.yml test-chips a seat, filled up again when short): no gold moves, no
-     * chip balance changes, no hand log row, nothing for the ranking, stamps, missions or achievements. Not in the lobby.
-     */
-    private final class Test implements Table.Listener, Table.Bank {
-        final UUID admin;
-        final Table table;
-        final List<UUID> botSeats = new ArrayList<>();
-        final Map<UUID, Long> chips = new HashMap<>();
-        /** the admin's pretend chips won (+) / lost (-) since the test began */
-        long net;
-        private UUID thinking, lastTurn;
-        private long actAt;
-
-        Test(UUID admin, Table table) {
-            this.admin = admin;
-            this.table = table;
-        }
-
-        long chips(UUID u) {
-            return chips.getOrDefault(u, spec.testChips());
-        }
-
-        /** Everyone is dealt in; a seat short of a hand's worst case gets its pretend chips back. */
-        @Override
-        public String refusal(UUID u, long need) {
-            if (chips(u) < need) chips.put(u, spec.testChips());
-            return null;
-        }
-
-        void tick(long now) {
-            table.tick(now, this, this);
-            UUID turn = table.turn();
-            if (turn == null || !bots.containsKey(turn)) {
-                thinking = null;
-                return;
-            }
-            if (!turn.equals(thinking)) {   // a bot's turn began: it thinks a little (well inside the turn timer)
-                thinking = turn;
-                actAt = now + HwatuBot.delay(spec.turnSeconds(), rng.nextDouble());
-                return;
-            }
-            if (now < actAt) return;
-            thinking = null;
-            Table.Move m = botMove(turn);
-            if (m != null) table.act(turn, m, now, this);
-        }
-
-        private Table.Move botMove(UUID bot) {
-            if (table.step() == Table.Step.PICK) return HwatuBot.callsOdd(rng.nextDouble()) ? Table.Move.ODD : Table.Move.EVEN;
-            if (table.step() != Table.Step.BET) return null;
-            Card[] c = table.cards(bot);
-            Betting b = table.betting();
-            int seat = table.players().indexOf(bot);
-            if (c == null || b == null || seat < 0) return Table.Move.CALL;
-            return switch (HwatuBot.sutda(Sutda.of(c[0], c[1]), b.toCall(seat), b.canRaise(), rng.nextDouble())) {
-                case DIE -> Table.Move.DIE;
-                case CALL -> Table.Move.CALL;
-                case RAISE -> Table.Move.RAISE;
-            };
-        }
-
-        @Override
-        public void changed(Table t) {
-            UUID turn = t.turn();
-            if (admin.equals(turn) && !admin.equals(lastTurn)) {
-                Player p = Bukkit.getPlayer(admin);
-                if (p != null) {
-                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.6f);
-                    HudModule.flash(p, Lang.mm("hwatu.your-turn", "seconds", spec.turnSeconds()));
-                }
-            }
-            lastTurn = turn;
-            refresh(t);
-        }
-
-        @Override
-        public void kicked(Table t, UUID player, String reason) {
-            // never: the 시험 판 deals everyone in
-        }
-
-        @Override
-        public void replay(Table t) {
-            Player p = Bukkit.getPlayer(admin);
-            if (p != null) p.sendMessage(Lang.msg("hwatu.replay"));
-        }
-
-        /** Only the pretend chips move: nothing is stored, logged, burned or counted. */
-        @Override
-        public void finished(Table t, Table.Result r) {
-            for (UUID u : r.players()) chips.put(u, Math.max(0, chips(u) + r.net(u)));
-            net += r.net(admin);
-            announce(t, r, this::chips, true);
-        }
-    }
-
-    /** Seats the admin at a new 시험 판 of that game with players − 1 bots (an earlier one ends); null, or why not. */
-    private String startTest(Player p, Table.Game g, int players, HwatuSpec.Room room) {
-        UUID u = p.getUniqueId();
-        if (seated.containsKey(u)) return "hwatu.test-seated";
-        endTest(u, false);
-        Table t = new Table(nextTable++, g, room, spec, rng);
-        Test x = new Test(u, t);
-        t.sit(u, now());
-        int n = Math.clamp(players, 2, t.max());
-        for (int i = 1; i < n; i++) {
-            UUID b = UUID.randomUUID();
-            bots.put(b, Lang.raw("hwatu.test-bot", "n", i));
-            x.botSeats.add(b);
-            t.sit(b, now());
-        }
-        tests.put(u, x);
-        p.sendMessage(Lang.msg("hwatu.test-start", "game", gameName(g), "room", room.name(), "n", n, "bots", n - 1, "chips", fmt(spec.testChips())));
-        openTable(p);
-        return null;
-    }
-
-    /** Ends an admin's 시험 판 (nothing to settle: the chips were pretend). */
-    private void endTest(UUID admin, boolean tell) {
-        Test x = tests.remove(admin);
-        if (x == null) return;
-        x.table.abandon();
-        for (UUID b : x.botSeats) bots.remove(b);
-        views.remove(admin);
-        Player p = Bukkit.getPlayer(admin);
-        if (p != null && tell) p.sendMessage(Lang.msg("hwatu.test-end", "net", (x.net >= 0 ? "+" : "") + fmt(x.net)));
-    }
 
     /** A game by its name (홀짝) or key (holjjak), or null. */
     private Table.Game gameOf(String s) {
@@ -1038,110 +873,49 @@ public final class HwatuModule extends EcoModule {
         return null;
     }
 
-    /** /관리자 화투방 시험 &lt;홀짝|주사위|섯다&gt; [인원] [방] · 시험 섯다 패 &lt;카드&gt; &lt;카드&gt; [봇1의 카드 둘] · 시험 끝 */
-    private void adminTest(CommandSender s, String[] a) {
-        if (!(s instanceof Player p)) {
-            s.sendMessage(Lang.msg("hwatu.test-player-only"));
-            return;
+    /** The table furniture the player looks at (6 blocks), or empty. */
+    private Optional<Furniture> lookedAt(Player p) {
+        Location eye = p.getEyeLocation();
+        RayTraceResult r = p.getWorld().rayTraceEntities(eye, eye.getDirection(), 6, 0.05,
+                e -> e instanceof Interaction && !e.getPersistentDataContainer().has(TableScene.BUTTON));
+        Optional<Furniture> f = r == null || r.getHitEntity() == null ? Optional.empty() : core.furniture().fromPart(r.getHitEntity());
+        if (f.isEmpty()) {
+            var b = p.getTargetBlockExact(6);
+            if (b != null) f = core.furniture().furnitureAt(b);
         }
-        UUID u = p.getUniqueId();
-        if (a.length == 0) {
-            p.sendMessage(Lang.msg("hwatu.test-usage"));
-            return;
-        }
-        if (a[0].equals("끝")) {
-            if (!tests.containsKey(u)) {
-                p.sendMessage(Lang.msg("hwatu.test-none"));
-                return;
-            }
-            MenuView v = views.get(u);
-            endTest(u, true);
-            if (v != null && v.player().getOpenInventory().getTopInventory().getHolder(false) == v) Bukkit.getScheduler().runTask(eco, v::close);
-            return;
-        }
-        Table.Game g = gameOf(a[0]);
-        if (g == null) {
-            p.sendMessage(Lang.msg("hwatu.test-usage"));
-            return;
-        }
-        if (g == Table.Game.SUTDA && a.length >= 2 && a[1].equals("패")) {
-            if (a.length != 4 && a.length != 6) {
-                p.sendMessage(Lang.msg("hwatu.test-usage"));
-                return;
-            }
-            Card[] c = new Card[a.length - 2];
-            for (int i = 0; i < c.length; i++) {
-                c[i] = Card.parse(a[i + 2]);
-                if (c[i] == null) {
-                    p.sendMessage(Lang.msg("hwatu.test-bad-card", "card", a[i + 2]));
-                    return;
-                }
-            }
-            if (java.util.Arrays.stream(c).distinct().count() != c.length) {
-                p.sendMessage(Lang.msg("hwatu.test-cards-clash"));
-                return;
-            }
-            Test x = tests.get(u);
-            if (x == null || x.table.game() != Table.Game.SUTDA) {
-                String why = startTest(p, Table.Game.SUTDA, 3, spec.rooms().getFirst());
-                if (why != null) {
-                    p.sendMessage(Lang.msg(why));
-                    return;
-                }
-                x = tests.get(u);
-            }
-            if (!x.table.force(u, c[0], c[1]) || (c.length == 4 && !x.table.force(x.botSeats.getFirst(), c[2], c[3]))) {
-                p.sendMessage(Lang.msg("hwatu.test-cards-clash"));
-                return;
-            }
-            p.sendMessage(Lang.msg("hwatu.test-forced", "cards", c[0].label() + " · " + c[1].label(), "hand", Lang.raw(HAND + Sutda.of(c[0], c[1]).code())));
-            if (c.length == 4) {
-                p.sendMessage(Lang.msg("hwatu.test-forced-bot", "bot", mini(x.botSeats.getFirst()), "cards", c[2].label() + " · " + c[3].label(),
-                        "hand", Lang.raw(HAND + Sutda.of(c[2], c[3]).code())));
-            }
-            return;
-        }
-        int n = g == Table.Game.HOLJJAK ? 2 : 3;
-        HwatuSpec.Room room = spec.rooms().getFirst();
-        for (int i = 1; i < a.length; i++) {
-            HwatuSpec.Room r = roomOf(a[i]);
-            if (r != null) {
-                room = r;
-                continue;
-            }
-            try {
-                n = Integer.parseInt(a[i]);
-            } catch (NumberFormatException e) {
-                p.sendMessage(Lang.msg("hwatu.test-usage"));
-                return;
-            }
-            if (n < 2 || n > 6) {
-                p.sendMessage(Lang.msg("hwatu.test-usage"));
-                return;
-            }
-        }
-        String why = startTest(p, g, n, room);
-        if (why != null) p.sendMessage(Lang.msg(why));
+        return f.filter(x -> TableKind.of(x.item().key().asString()) != null);
     }
 
-    /** Players at a table must be looking at it to be dealt in. */
-    private String refusalAt(UUID u, long need) {
-        if (!watching(u)) return "hwatu.away";
-        return refusal(u, need);
+    /** The bound table the player looks at, else the nearest bound one within 12 blocks, or null. */
+    private HallTable tableNear(Player p) {
+        Optional<Furniture> f = lookedAt(p);
+        if (f.isPresent() && tables.containsKey(f.get().display().getUniqueId())) return tables.get(f.get().display().getUniqueId());
+        HallTable best = null;
+        double bestD = 12 * 12;
+        for (HallTable t : tables.values()) {
+            Optional<Furniture> tf = t.furnitureEntity();
+            if (tf.isEmpty() || !tf.get().location().getWorld().equals(p.getWorld())) continue;
+            double d = tf.get().location().distanceSquared(p.getLocation());
+            if (d < bestD) {
+                bestD = d;
+                best = t;
+            }
+        }
+        return best;
     }
-
-    // ------------------------------------------------------------------------------------------
-    // /관리자 화투방
-    // ------------------------------------------------------------------------------------------
 
     private void admin(CommandSender s, String[] a) {
-        String usage = "<red>/관리자 화투방 기록 [플레이어] · 칩 <플레이어> [수] · 시험 <홀짝|주사위|섯다> [인원] [방] · 시험 끝";
         if (a.length < 1) {
-            s.sendMessage(Text.msg(usage));
+            s.sendMessage(Lang.msg("hwatu.admin-usage"));
             return;
         }
+        String[] rest = java.util.Arrays.copyOfRange(a, 1, a.length);
         switch (a[0]) {
-            case "시험" -> adminTest(s, java.util.Arrays.copyOfRange(a, 1, a.length));
+            case "건설" -> adminBuild(s);
+            case "제거" -> adminRemove(s);
+            case "테이블" -> adminTable(s, rest);
+            case "위치", "창구", "칠판" -> adminPlace(s, a[0]);
+            case "시험" -> adminTest(s, rest);
             case "기록" -> {
                 if (a.length < 2) {
                     showLog(s, null, "전체");
@@ -1152,41 +926,314 @@ public final class HwatuModule extends EcoModule {
                     else showLog(s, found.get(), a[1]);
                 }));
             }
-            case "칩" -> {
-                if (a.length < 2) {
-                    s.sendMessage(Text.msg(usage));
+            case "칩" -> adminChips(s, a);
+            default -> s.sendMessage(Lang.msg("hwatu.admin-usage"));
+        }
+    }
+
+    private void adminChips(CommandSender s, String[] a) {
+        if (a.length < 2) {
+            s.sendMessage(Lang.msg("hwatu.admin-usage"));
+            return;
+        }
+        Players.find(a[1], found -> sync(() -> {
+            if (found.isEmpty()) {
+                s.sendMessage(Text.msg("<red>그런 플레이어가 없습니다."));
+                return;
+            }
+            UUID u = found.get();
+            if (a.length >= 3) {
+                long n;
+                try {
+                    n = Long.parseLong(a[2].replace(",", ""));
+                } catch (NumberFormatException e) {
+                    s.sendMessage(Lang.msg("hwatu.admin-usage"));
                     return;
                 }
-                Players.find(a[1], found -> sync(() -> {
-                    if (found.isEmpty()) {
-                        s.sendMessage(Text.msg("<red>그런 플레이어가 없습니다."));
-                        return;
-                    }
-                    UUID u = found.get();
-                    if (a.length >= 3) {
-                        long n;
-                        try {
-                            n = Long.parseLong(a[2].replace(",", ""));
-                        } catch (NumberFormatException e) {
-                            s.sendMessage(Text.msg(usage));
-                            return;
-                        }
-                        long before = chips(u);
-                        store.set(u, n, today());   // a correction: logged, no gold moves
-                        eco.getLogger().info("[화투방] " + s.getName() + ": " + a[1] + " 칩 " + before + " → " + Math.max(0, n));
-                    }
-                    ChipStore.Account acc = store.account(u, today());
-                    s.sendMessage(Text.msg("<gold>" + a[1] + " <gray>칩 <white>" + fmt(acc.chips) + "</white> · 오늘 산 칩 " + fmt(acc.bought)
-                            + " · 오늘 " + (acc.net >= 0 ? "+" : "") + fmt(acc.net) + "칩" + (seated.containsKey(u) ? " · 앉아 있음" : "")));
-                }));
+                long before = chips(u);
+                store.set(u, n, today());   // a correction: logged, no gold moves
+                eco.getLogger().info("[도박장] " + s.getName() + ": " + a[1] + " 칩 " + before + " → " + Math.max(0, n));
             }
-            default -> s.sendMessage(Text.msg(usage));
+            ChipStore.Account acc = store.account(u, today());
+            s.sendMessage(Text.msg("<gold>" + a[1] + " <gray>칩 <white>" + fmt(acc.chips) + "</white> · 오늘 산 칩 " + fmt(acc.bought)
+                    + " · 오늘 " + (acc.net >= 0 ? "+" : "") + fmt(acc.net) + "칩" + (seated.containsKey(u) ? " · 앉아 있음" : "")));
+        }));
+    }
+
+    /** /관리자 도박장 테이블 &lt;종목&gt; &lt;방&gt; | 해제 | 목록 (the table looked at). */
+    private void adminTable(CommandSender s, String[] a) {
+        if (a.length >= 1 && a[0].equals("목록")) {
+            s.sendMessage(Lang.msg("hwatu.table-list", "n", tables.size()));
+            for (HallTable t : tables.values()) {
+                HallStore.Binding b = t.binding();
+                s.sendMessage(Lang.mm("hwatu.table-list-line", "game", t.gameName(), "room", t.room().name(), "world", b.world(), "x", b.x(), "y", b.y(),
+                        "z", b.z(), "n", t.seatedPlayers().size(), "loaded", t.furnitureEntity().isPresent() ? "" : Lang.raw("hwatu.table-unloaded")));
+            }
+            return;
+        }
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("hwatu.test-player-only"));
+            return;
+        }
+        Optional<Furniture> f = lookedAt(p);
+        if (f.isEmpty()) {
+            p.sendMessage(Lang.msg("hwatu.table-look"));
+            return;
+        }
+        UUID id = f.get().display().getUniqueId();
+        if (a.length >= 1 && a[0].equals("해제")) {
+            HallTable t = tables.get(id);
+            if (t == null) {
+                p.sendMessage(Lang.msg("hwatu.table-not-bound"));
+                return;
+            }
+            unbind(id, "hwatu.table-removed");
+            p.sendMessage(Lang.msg("hwatu.table-unbound", "game", t.gameName(), "room", t.room().name()));
+            return;
+        }
+        if (a.length < 2) {
+            p.sendMessage(Lang.msg("hwatu.admin-usage"));
+            return;
+        }
+        Table.Game g = gameOf(a[0]);
+        HwatuSpec.Room r = roomOf(a[1]);
+        if (g == null || r == null) {
+            p.sendMessage(Lang.msg("hwatu.admin-usage"));
+            return;
+        }
+        TableKind k = TableKind.of(f.get().item().key().asString());
+        if (TableKind.usable(k.seats(), spec.game(g).max()).size() < 2) {
+            p.sendMessage(Lang.msg("hwatu.table-too-small", "game", gameName(g)));
+            return;
+        }
+        bind(f.get(), g, r);
+        p.sendMessage(Lang.msg("hwatu.table-bound", "game", gameName(g), "room", r.name(), "ante", fmt(r.ante()),
+                "seats", Math.min(k.seats(), spec.game(g).max())));
+    }
+
+    /** /관리자 도박장 위치 (where /화투방 brings people) · 창구 (the 현장 소장 here) · 칠판 (the whiteboard text here). */
+    private void adminPlace(CommandSender s, String what) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("hwatu.test-player-only"));
+            return;
+        }
+        Location l = p.getLocation();
+        switch (what) {
+            case "위치" -> halls.set(HallStore.WARP, place(l));
+            case "창구" -> {
+                halls.set(HallStore.COUNTER, place(new Location(l.getWorld(), l.getX(), l.getY(), l.getZ(), l.getYaw(), 0)));
+                if (boss != null) boss.remove();
+                boss = null;
+            }
+            default -> {
+                Location at = l.clone().add(l.getDirection().setY(0).normalize().multiply(0.1)).add(0, 1.4, 0);
+                at.setYaw(l.getYaw() + 180);
+                at.setPitch(0);
+                halls.set(HallStore.BOARD, place(at));
+                if (whiteboard != null) whiteboard.remove();
+                whiteboard = null;
+            }
+        }
+        keepHallNpcs();
+        p.sendMessage(Lang.msg("hwatu.place-set", "what", what));
+    }
+
+    /** /관리자 도박장 건설: the hall where the admin stands, the way they look; its tables, counter and whiteboard bound after. */
+    private void adminBuild(CommandSender s) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("hwatu.test-player-only"));
+            return;
+        }
+        if (job != null && job.running()) {
+            p.sendMessage(Lang.msg("hwatu.hall-busy"));
+            return;
+        }
+        Location l = p.getLocation();
+        HallLayout.Site site = new HallLayout.Site(l.getWorld().getName(), l.getBlockX(), l.getBlockY(), l.getBlockZ(), HallLayout.Site.facing(l.getYaw()));
+        HallLayout.Site old = site();
+        if (old != null && !old.equals(site)) {
+            p.sendMessage(Lang.msg("hwatu.hall-exists", "site", old.toString()));
+            return;
+        }
+        try {
+            job = HallBuilder.build(eco, core, HALL, site, undoFile(), HallBuilder.Settings.of(eco.getConfig()),
+                    pct -> p.sendActionBar(Lang.mm("hwatu.hall-progress", "pct", pct)), placed -> built(p, site, placed));
+        } catch (IOException | IllegalArgumentException e) {
+            p.sendMessage(Lang.msg("hwatu.hall-failed", "error", String.valueOf(e.getMessage())));
+            return;
+        }
+        halls.set("site", site.world() + ";" + site.x() + ";" + site.y() + ";" + site.z() + ";" + site.facing());
+        p.sendMessage(Lang.msg("hwatu.hall-started", "site", site.toString()));
+    }
+
+    private Path undoFile() {
+        return eco.getDataFolder().toPath().resolve("hall").resolve(HALL + ".undo");
+    }
+
+    /** The hall stands: /화투방 goes to its door, the 현장 소장 to the counter, the board's text up, the six tables bound. */
+    private void built(Player admin, HallLayout.Site site, HallBuilder.Placed placed) {
+        halls.set(HallStore.WARP, place(placed.warp()));
+        halls.set(HallStore.COUNTER, place(placed.counterNpc()));
+        halls.set(HallStore.BOARD, place(placed.whiteboard()));
+        removeHallNpcs();
+        int bound = 0;
+        for (HallBuilder.PlacedTable pt : placed.tables()) {
+            if (pt.furniture() == null) continue;
+            Entity e = Bukkit.getEntity(pt.furniture());
+            Optional<Furniture> f = e instanceof org.bukkit.entity.ItemDisplay d ? core.furniture().fromDisplay(d) : Optional.empty();
+            Table.Game g = gameOf(pt.game());
+            HwatuSpec.Room r = roomOf(pt.room());
+            if (f.isEmpty() || g == null || r == null) continue;
+            bind(f.get(), g, r);
+            bound++;
+        }
+        // tables of an earlier build of this hall that are gone now (it builds over itself)
+        for (HallTable t : new ArrayList<>(tables.values())) {
+            if (t.furnitureEntity().isEmpty() && placed.inside(new Location(Bukkit.getWorld(t.binding().world()), t.binding().x() + 0.5, t.binding().y() + 0.5,
+                    t.binding().z() + 0.5))) unbind(t.furniture(), null);
+        }
+        keepHallNpcs();
+        if (admin.isOnline()) {
+            admin.sendMessage(Lang.msg("hwatu.hall-built", "tables", bound));
+            for (String problem : placed.problems()) admin.sendMessage(Lang.msg("hwatu.hall-problem", "problem", problem));
+        }
+    }
+
+    /** /관리자 도박장 제거: the hall's tables unbound, its entities gone, the ground back (its undo file). */
+    private void adminRemove(CommandSender s) {
+        HallLayout.Site site = site();
+        if (site == null) {
+            s.sendMessage(Lang.msg("hwatu.no-hall-admin"));
+            return;
+        }
+        if (job != null && job.running()) {
+            s.sendMessage(Lang.msg("hwatu.hall-busy"));
+            return;
+        }
+        for (HallTable t : new ArrayList<>(tables.values())) {
+            HallStore.Binding b = t.binding();
+            if (b.world().equals(site.world()) && site.inside(b.world(), b.x() + 0.5, b.y() + 0.5, b.z() + 0.5)) unbind(t.furniture(), "hwatu.table-removed");
+        }
+        removeHallNpcs();
+        halls.set(HallStore.WARP, null);
+        halls.set(HallStore.COUNTER, null);
+        halls.set(HallStore.BOARD, null);
+        try {
+            job = HallBuilder.remove(eco, core, HALL, site, undoFile(), HallBuilder.Settings.of(eco.getConfig()),
+                    pct -> { if (s instanceof Player p) p.sendActionBar(Lang.mm("hwatu.hall-progress", "pct", pct)); },
+                    restored -> {
+                        halls.set("site", null);
+                        s.sendMessage(Lang.msg("hwatu.hall-removed", "blocks", restored));
+                    });
+        } catch (IOException | IllegalArgumentException e) {
+            s.sendMessage(Lang.msg("hwatu.hall-failed", "error", String.valueOf(e.getMessage())));
+        }
+    }
+
+    /** /관리자 도박장 시험 [인원] · 시험 섯다 패 &lt;카드&gt; &lt;카드&gt; [봇1의 카드 둘] · 시험 끝 */
+    private void adminTest(CommandSender s, String[] a) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("hwatu.test-player-only"));
+            return;
+        }
+        UUID u = p.getUniqueId();
+        HallTable mine = seated.get(u);
+        if (a.length >= 1 && a[0].equals("끝")) {
+            if (mine == null || !u.equals(mine.testAdmin())) p.sendMessage(Lang.msg("hwatu.test-none"));
+            else mine.endTest(true);
+            return;
+        }
+        int cards = a.length >= 1 && a[0].equals("패") ? 1 : a.length >= 2 && a[1].equals("패") && gameOf(a[0]) == Table.Game.SUTDA ? 2 : -1;
+        if (cards > 0) {
+            forceCards(p, java.util.Arrays.copyOfRange(a, cards, a.length));
+            return;
+        }
+        int n = -1;
+        if (a.length >= 1) {
+            try {
+                n = Integer.parseInt(a[0]);
+            } catch (NumberFormatException e) {
+                p.sendMessage(Lang.msg("hwatu.test-usage"));
+                return;
+            }
+            if (n < 2 || n > 6) {
+                p.sendMessage(Lang.msg("hwatu.test-usage"));
+                return;
+            }
+        }
+        startTest(p, n);
+    }
+
+    /** Seats the admin at the table they look at (or the nearest) with bots; null on success, else why not (already told). */
+    private HallTable startTest(Player p, int n) {
+        UUID u = p.getUniqueId();
+        HallTable t = tableNear(p);
+        if (t == null) {
+            p.sendMessage(Lang.msg("hwatu.test-no-table"));
+            return null;
+        }
+        HallTable mine = seated.get(u);
+        if (mine != null && mine != t) {
+            p.sendMessage(Lang.msg("hwatu.test-seated"));
+            return null;
+        }
+        Optional<Furniture> f = t.furnitureEntity();
+        if (f.isEmpty()) {
+            p.sendMessage(Lang.msg("hwatu.test-no-table"));
+            return null;
+        }
+        int players = n > 0 ? n : t.game() == Table.Game.HOLJJAK ? 2 : 3;
+        String why = t.startTest(p, f.get(), players);
+        if (why != null) {
+            p.sendMessage(Lang.msg(why));
+            return null;
+        }
+        return t;
+    }
+
+    /** /관리자 도박장 시험 섯다 패 …: the cards of the next 섯다 hand (opens a 시험 판 at a 섯다 table if none). */
+    private void forceCards(Player p, String[] a) {
+        if (a.length != 2 && a.length != 4) {
+            p.sendMessage(Lang.msg("hwatu.test-usage"));
+            return;
+        }
+        Card[] c = new Card[a.length];
+        for (int i = 0; i < c.length; i++) {
+            c[i] = Card.parse(a[i]);
+            if (c[i] == null) {
+                p.sendMessage(Lang.msg("hwatu.test-bad-card", "card", a[i]));
+                return;
+            }
+        }
+        if (java.util.Arrays.stream(c).distinct().count() != c.length) {
+            p.sendMessage(Lang.msg("hwatu.test-cards-clash"));
+            return;
+        }
+        UUID u = p.getUniqueId();
+        HallTable t = seated.get(u);
+        if (t == null || !u.equals(t.testAdmin())) {
+            t = startTest(p, 3);
+            if (t == null) return;
+        }
+        if (t.game() != Table.Game.SUTDA) {
+            p.sendMessage(Lang.msg("hwatu.test-not-sutda"));
+            return;
+        }
+        UUID bot = t.firstBot();
+        if (!t.table().force(u, c[0], c[1]) || (c.length == 4 && (bot == null || !t.table().force(bot, c[2], c[3])))) {
+            p.sendMessage(Lang.msg("hwatu.test-cards-clash"));
+            return;
+        }
+        p.sendMessage(Lang.msg("hwatu.test-forced", "cards", c[0].label() + " · " + c[1].label(), "hand", Lang.raw(HAND + Sutda.of(c[0], c[1]).code())));
+        if (c.length == 4) {
+            p.sendMessage(Lang.msg("hwatu.test-forced-bot", "bot", mini(bot), "cards", c[2].label() + " · " + c[3].label(),
+                    "hand", Lang.raw(HAND + Sutda.of(c[2], c[3]).code())));
         }
     }
 
     private void showLog(CommandSender s, UUID player, String who) {
         List<ChipStore.Hand> hands = store.hands(player, 15);
-        s.sendMessage(Text.msg("<gold>화투방 기록 <gray>(" + who + ", 최근 " + hands.size() + "판, 새것부터 · 넣은 칩→받은 칩)"));
+        s.sendMessage(Text.msg("<gold>도박장 기록 <gray>(" + who + ", 최근 " + hands.size() + "판, 새것부터 · 넣은 칩→받은 칩)"));
         for (ChipStore.Hand h : hands) {
             String game = switch (h.game()) {
                 case "holjjak" -> gameName(Table.Game.HOLJJAK);
@@ -1202,30 +1249,27 @@ public final class HwatuModule extends EcoModule {
     }
 
     private List<String> adminComplete(CommandSender s, String[] a) {
-        if (a.length == 1) return List.of("기록", "칩", "시험");
-        if (a[0].equals("시험")) return testComplete(java.util.Arrays.copyOfRange(a, 1, a.length));
-        if (a.length == 2) return Players.complete(s, a[1]);
-        return List.of();
-    }
-
-    /** /관리자 화투방 시험 …: games, then players · rooms, or 패 and the cards (3광, 7열끗 …). */
-    private List<String> testComplete(String[] a) {
         String last = a[a.length - 1];
         List<String> out = new ArrayList<>();
-        if (a.length == 1) {
-            for (Table.Game g : Table.Game.values()) out.add(gameName(g));
-            out.add("끝");
-        } else {
-            Table.Game g = gameOf(a[0]);
-            if (g == null) return List.of();
-            boolean cards = g == Table.Game.SUTDA && a.length >= 3 && a[1].equals("패");
-            if (cards) {
-                if (a.length <= 6) for (Card c : Card.deck()) out.add(c.label());
-            } else if (a.length <= 3) {
-                if (a.length == 2 && g == Table.Game.SUTDA) out.add("패");
-                for (int n = 2; n <= spec.game(g).max(); n++) out.add(String.valueOf(n));
-                for (HwatuSpec.Room r : spec.rooms()) out.add(r.name());
+        if (a.length == 1) out.addAll(List.of("건설", "제거", "테이블", "위치", "창구", "칠판", "시험", "기록", "칩"));
+        else switch (a[0]) {
+            case "테이블" -> {
+                if (a.length == 2) {
+                    for (Table.Game g : Table.Game.values()) out.add(gameName(g));
+                    out.addAll(List.of("해제", "목록"));
+                } else if (a.length == 3 && gameOf(a[1]) != null) for (HwatuSpec.Room r : spec.rooms()) out.add(r.name());
             }
+            case "시험" -> {
+                if (a.length == 2) {
+                    for (int n = 2; n <= 6; n++) out.add(String.valueOf(n));
+                    out.addAll(List.of("섯다", "끝"));
+                } else if (a.length == 3 && a[1].equals("섯다")) out.add("패");
+                else if (a.length >= 4 && a.length <= 7 && a[2].equals("패")) for (Card c : Card.deck()) out.add(c.label());
+            }
+            case "기록", "칩" -> {
+                if (a.length == 2) return Players.complete(s, a[1]);
+            }
+            default -> {}
         }
         out.removeIf(x -> !x.startsWith(last));
         return out;

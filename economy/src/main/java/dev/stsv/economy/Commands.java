@@ -346,7 +346,7 @@ final class Commands {
         eco.command("납품", new Simple(player((p, a) -> eco.shop().deliver(p)), null));
         eco.command("소식", new Simple((s, a) -> eco.events().news(s), null));
         eco.command("길라잡이", new Simple(player((p, a) -> eco.guide().command(p, a)), (s, a) -> eco.guide().complete(a)));
-        eco.command("화투방", new Simple(player((p, a) -> eco.hwatu().command(p, a)), (s, a) -> a.length == 1 ? List.of("사기", "바꾸기", "나가기", "방") : List.of()));
+        eco.command("화투방", new Simple(player((p, a) -> eco.hwatu().command(p, a)), (s, a) -> a.length == 1 ? List.of("칩", "사기", "바꾸기", "나가기") : List.of()));
         eco.command("기부", new Simple(player((p, a) -> eco.vanity().donate(p, a.length > 0 ? amount(a[0]) : 0)), null));
     }
 }

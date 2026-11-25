@@ -562,11 +562,9 @@ class HwatuTest {
             if (!m.isString(k)) missing.add(k);
         }
         for (String k : List.of("odd", "even", "die")) if (!m.isString(HwatuModule.HAND + k)) missing.add(k);
-        for (Table.Game g : Table.Game.values()) if (!m.isList("hwatu.room-lore-" + g.key())) missing.add("room-lore-" + g.key());
-        for (String b : List.of("wait", "pick", "odd", "even", "die", "call", "check", "raise", "no-raise")) {
-            if (!m.isString("hwatu.btn-" + b)) missing.add("btn-" + b);
-            if (!m.isList("hwatu.btn-" + b + "-lore")) missing.add("btn-" + b + "-lore");
-        }
+        // the buttons on the tables (TableScene: hwatu.btn.<key>, a free call "call-free")
+        for (Controls.Button b : Controls.Button.values()) if (!m.isString("hwatu.btn." + b.key())) missing.add("btn." + b.key());
+        if (!m.isString("hwatu.btn.call-free")) missing.add("btn.call-free");
         assertTrue(missing.isEmpty(), String.join("\n", missing));
     }
 }

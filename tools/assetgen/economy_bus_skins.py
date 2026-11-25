@@ -8,6 +8,8 @@ textures, so nothing is uploaded to Mojang.
     python3 economy_bus_skins.py --sheet out.png --types farmer,drunk   # the sheet with only these types
     python3 economy_bus_skins.py --shiny-sheet shiny.png   # + the 별난 손님 sheet (each kind's first look and its <id>_s1)
 
+Also NPCs drawn the same way that are not passengers (NPCS: 현장 소장 site_boss of the 도박장), written to the same folder.
+
 A texture at assets/economy/textures/entity/bus/<id>.png is the key "economy:entity/bus/<id>"
 (ResolvableProfile.skinPatch().body(key), with .model(SLIM) for the slim ones: see SLIM / main()).
 
@@ -5157,6 +5159,115 @@ TYPES = [("resident", "동네 주민", resident), ("student", "학생", student)
 VARIANTS = 3
 
 
+# ---------------------------------------------------------------------------------------------
+# NPCs drawn the same way but not bus passengers (no _1.._3 looks, no shiny): written next to the passengers, the key
+# "economy:entity/bus/<id>" all the same
+# ---------------------------------------------------------------------------------------------
+
+def site_boss():
+    """현장 소장 (도박장의 칩 환전 창구, docs/plans/도박장_기획.md): a yellow hard hat with a green-cross safety sticker, a
+    pencil behind his ear, a thick moustache, a gold tooth in a sly grin; a lime hi-vis vest riding up over a pot belly
+    (the shirt's belly bulging out under its hem on the outer layer), a walkie-talkie clipped to the vest, navy work
+    clothes with the sleeves pushed up, a gold watch, a rolled blueprint in his right hand, dusty knees, safety boots"""
+    s, sk = Skin(), "c8865a"
+    head(s, sk, "4a4642", "short", brows="221c1a", mouth="7a3e36", pupils="in")
+    s.paint("head", lambda fc, x, y, w, h: C("8a8680") if fc in SIDES and fwd(fc, x, 8) >= 4 and y in (3, 4) else None)   # grey at the temples
+    s.paint("head", lambda fc, x, y, w, h: shade(C(sk), 0.88) if fc == "front" and y == 7 and 1 <= x <= 6 else None)   # a double chin
+    s.paint("head", lambda fc, x, y, w, h: C("221c1a") if fc == "front" and (x, y) in ((2, 5), (5, 5)) else None)      # the moustache's ends
+    mustache("221c1a")(s)
+    grin("5a2a24", teeth="f2eee6")(s)
+    s.paint("head", lambda fc, x, y, w, h: C("e8c25a") if fc == "front" and (x, y) == (4, 6) else None)                 # the gold tooth
+    hard_hat("f2c22a")(s)
+
+    def sticker(fc, x, y, w, h):
+        # the 안전제일 sticker on the front of the hat: a green cross on white
+        if fc == "front" and y <= 1 and 2 <= x <= 5:
+            return C("2e9a4a") if x in (3, 4) else C("f6f4ee")
+        return None
+    s.paint("head", sticker, 1)
+
+    def pencil(fc, x, y, w, h):
+        # a carpenter's pencil behind his right ear (the head's own right side)
+        if fc == "right" and y == 3 and 3 <= fwd(fc, x, 8) <= 6:
+            return C("e8a830") if fwd(fc, x, 8) > 3 else C("3a2a22")
+        return None
+    s.paint("head", pencil, 1)
+    shirt, navy, vest, strip = "f0ece4", "2e3a52", "c8f03a", "e8eef0"
+    N, V, S = C(navy), C(vest), C(strip)
+
+    def b(fc, x, y, w, h):
+        if fc == "front" and y == 0 and x in (3, 4):
+            return C(sk)
+        if fc == "front" and y <= 2 and x in (3, 4):
+            return C(shirt)                                # the undershirt in the open collar
+        if y == 11:
+            return C("e8c25a") if fc == "front" and x in (3, 4) else C("2a1e18")   # the belt under the belly
+        if fc == "front" and 9 <= y <= 10 and 1 <= x <= 6:
+            return shade(C(shirt), 1.04 if y == 9 else 0.94)   # the untucked shirt over the belly
+        return N
+    body(s, b)
+
+    def v(fc, x, y, w, h):
+        # the vest: no sleeves, two reflective bands, rides up to row 8 over the belly; the belly bulges under it
+        if fc == "bottom":
+            return None
+        if fc == "front" and 9 <= y <= 10 and 1 <= x <= 6:
+            return shade(C(shirt), 1.02 if y == 9 else 0.9)   # the belly sticking out under the vest
+        if y > 8:
+            return None
+        if fc == "top":
+            return S if x in (1, 6) else V
+        if fc == "front" and ((y == 0 and 2 <= x <= 5) or (y in (1, 2) and x in (3, 4))):
+            return None
+        if fc == "front" and (x, y) in ((5, 2), (5, 3)):
+            return C("26262c")                             # the walkie-talkie on the chest
+        if fc == "front" and (x, y) == (5, 1):
+            return C("5a5e66")                             # its antenna
+        if fc == "front" and (x, y) == (1, 3):
+            return C("f6f4ee")                             # a name tag
+        if y in (4, 7):
+            return S
+        if fc in ("front", "back") and x in (1, 6) and y < 4:
+            return S
+        if fc == "front" and 5 <= y <= 8 and 2 <= x <= 5:
+            return shade(V, 1.08)                          # stretched tight over the belly, catching the light
+        if fc == "front" and y == 8:
+            return shade(V, 0.85)
+        return V
+    s.paint("body", v, 1)
+    arms(s, navy, sk, sleeve=7, cuff=shade_hex(navy, 1.25))
+    s.paint("larm", lambda fc, x, y, w, h: C("e8c25a") if fc not in ("top", "bottom") and y == 10 else None)   # the gold watch
+    s.paint("larm", lambda fc, x, y, w, h: shade(C("e8c25a"), 1.15) if fc == "front" and y == 10 and x == 1 else None)
+
+    def plan(fc, x, y, w, h):
+        # a rolled blueprint held in the right hand: pale blue paper sticking out in front and below
+        if fc == "front" and 9 <= y <= 11 and x in (1, 2):
+            return C("cfe0f2") if y < 11 else C("9ab8dc")
+        if fc == "bottom" and x in (1, 2):
+            return C("9ab8dc")
+        return None
+    s.paint("rarm", plan, 1)
+    legs(s, "3a4256", "6a4a2a", shoe_rows=2)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(C("3a4256"), 1.3) if fc == "front" and y in (5, 6) and (x * 3 + y) % 4 == 1 else None)   # dusty knees
+    boots(s, "6a4a2a", rows=2, top="8a6a4a")
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: C("9aa0a8") if fc == "front" and y == 11 and x in (1, 2) else None)   # the steel toe caps
+    return s
+
+
+NPCS = {"site_boss": site_boss}
+
+
+def build_npcs():
+    """id -> (skin image, slim) of the NPCs above"""
+    out = {}
+    for nid, fn in NPCS.items():
+        s = fn()
+        out[nid] = (s.finish(), s.slim)
+    return out
+
+
 def build():
     """id -> (skin image, slim)"""
     out = {}
@@ -5382,7 +5493,7 @@ def main():
     skins = build()
     shinies = build_shiny()
     OUT.mkdir(parents=True, exist_ok=True)
-    for key, (im, slim) in {**skins, **shinies}.items():
+    for key, (im, slim) in {**skins, **shinies, **build_npcs()}.items():
         im.save(OUT / f"{key}.png")
         print(f"economy:entity/bus/{key}  {'slim' if slim else 'wide'}")
     SILHOUETTE.parent.mkdir(parents=True, exist_ok=True)
