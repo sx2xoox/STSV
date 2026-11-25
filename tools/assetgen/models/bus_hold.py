@@ -18,14 +18,14 @@ uses the same transform mirrored (vanilla: thirdperson_lefthand defaults to the 
                           wattles, an orange beak and feet, an amber eye, layered wing feathers, a cocked tail
   bus_hold_chicken_flap   the same hen with her wings spread and flapping, legs down (BusModule: a hard brake
                           sends her fluttering round the bus for a moment, swapping these two)
-  bus_hold_folder         면접 청년: a navy document folder held at the side, papers showing, a clip
+  bus_hold_folder         면접 청년: a navy document folder held upright on his lap, papers showing, a clip
   bus_hold_yeot_scissors  엿장수: the big iron 엿가위, blades open in a V above the fist
   bus_hold_map            외국인 여행객: a folded tourist map held open, roads, a river, a red pin
   bus_hold_selfie         유튜버: a phone held up in a ring light, the screen lit
   bus_hold_snack          과자 부스러기 학생: an open crisp packet, crimped top, a crisp peeking out
   bus_hold_bells          무당: a bunch of brass 방울 on a handle with five-colour ribbons
   bus_hold_fan            무당: a folding fan, open, in the five colours
-  bus_hold_leash          강아지 할아버지: a red lead looped round the hand, its clip hanging
+  bus_hold_leash          강아지 할아버지: a red lead, its handle loop above the fist, its clip hanging
   bus_hold_towel          멀미하는 아저씨: a pink hand towel bunched in the fist
   bus_hold_plastic_bag    멀미하는 아저씨: a black plastic bag hanging from the fist, just in case
   bus_hold_shoe_bag       초등학생: a blue drawstring indoor-shoe bag (실내화 주머니)
@@ -33,6 +33,12 @@ uses the same transform mirrored (vanilla: thirdperson_lefthand defaults to the 
   bus_hold_wand           마술사: a black wand with white tips
   bus_hold_cards          마술사: a fan of playing cards
   bus_hold_rose           마술사: a single red rose
+  bus_hold_cane           강아지 할아버지: his walking stick, planted between his feet
+  bus_hold_pole           등산객: a trekking pole with a wrist strap and a basket
+  bus_hold_rod            낚시꾼: a short rod with a spinning reel, the line and a float hanging from the tip
+  bus_hold_parcel         택배기사: a taped cardboard parcel with a label and a barcode
+  bus_hold_bungeo_bag     붕어빵 장수: a paper bag of 붕어빵, two poking out
+  bus_hold_bundle         시장 아줌마: a flowery 보따리 held by its knot
 """
 
 import math
@@ -852,4 +858,10 @@ ALL = {
     "bus_hold_wand": wand,
     "bus_hold_cards": cards,
     "bus_hold_rose": rose,
+    "bus_hold_cane": cane,
+    "bus_hold_pole": trekking_pole,
+    "bus_hold_rod": fishing_rod,
+    "bus_hold_parcel": parcel,
+    "bus_hold_bungeo_bag": bungeo_bag,
+    "bus_hold_bundle": bundle,
 }

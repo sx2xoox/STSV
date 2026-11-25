@@ -2,7 +2,7 @@
 마을버스 손님이 손에 든 물건 (bus.yml types.*.hold / hold-off, models/bus_hold.py): writes only these models, the
 skins they replace a painting on, and the preview sheets.
 
-    python3 tools/assetgen/bus_hold_assets.py              # models + skins + docs/previews/bus_hold_items.png, bus_chicken_hold.png
+    python3 tools/assetgen/bus_hold_assets.py              # models + skins + docs/previews/bus_held_props.png, bus_chicken_hold.png
     python3 tools/assetgen/bus_hold_assets.py --no-sheet   # models + skins only
     python3 tools/assetgen/bus_hold_assets.py --sheet-only # the sheets only (nothing in the pack touched)
     (the sheets need: cd tools/assetgen/render && npm install)
@@ -33,11 +33,12 @@ REPO = HERE.parent.parent
 PACK = REPO / "economy" / "content" / "economy"
 BUILD = HERE / "build"
 RENDER = HERE / "render" / "render.mjs"
-SHEET = REPO / "docs" / "previews" / "bus_hold_items.png"
+SHEET = REPO / "docs" / "previews" / "bus_held_props.png"
 CHICKEN = REPO / "docs" / "previews" / "bus_chicken_hold.png"
 FONT = HERE / "fonts" / "Sunflower-Medium.ttf"
 
-# the kinds whose skins changed (their held prop is a model now): only these skins are rewritten
+# what each kind holds per look (bus.yml types.*.hold / hold-off; the shiny <id>_s1 holds what its first look holds):
+# kind -> [(main, off) of look 1, 2, 3]
 HOLDS = {
     "chicken": [("bus_hold_chicken", None)] * 3,
     "interview": [(None, "bus_hold_folder")] * 3,
@@ -46,13 +47,21 @@ HOLDS = {
     "youtuber": [("bus_hold_selfie", None)] * 3,
     "crumbs": [(None, "bus_hold_snack")] * 3,
     "shaman": [("bus_hold_bells", None), (None, "bus_hold_fan"), ("bus_hold_bells", "bus_hold_fan")],
-    "dogwalker": [(None, "bus_hold_leash")] * 3,
+    "dogwalker": [("bus_hold_cane", "bus_hold_leash")] * 3,
     "motionsick": [(None, None), (None, None), ("bus_hold_towel", "bus_hold_plastic_bag")],
     "kid": [(None, None), (None, None), (None, "bus_hold_shoe_bag")],
     "bride": [("bus_hold_bouquet", None), (None, None), (None, None)],
     "magician": [("bus_hold_wand", None), (None, "bus_hold_cards"), ("bus_hold_wand", "bus_hold_rose")],
+    # never painted on the skin: a new thing in hand, the skin as it was
+    "hiker": [("bus_hold_pole", None)] * 3,
+    "fisher": [("bus_hold_rod", None)] * 3,
+    "courier": [(None, "bus_hold_parcel")] * 3,
+    "market": [(None, "bus_hold_bundle")] * 3,
+    "bungeo": [(None, "bus_hold_bungeo_bag")] * 3,
 }
-SKIN_TYPES = list(HOLDS)
+# the kinds whose skins changed (the painted prop taken off, the model in hand instead): only these skins are rewritten
+SKIN_TYPES = ["chicken", "interview", "yeot", "traveler", "youtuber", "crumbs", "shaman", "dogwalker", "motionsick", "kid",
+              "bride", "magician"]
 
 
 def write_models():

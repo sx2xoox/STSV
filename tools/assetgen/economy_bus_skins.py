@@ -2380,22 +2380,6 @@ def flat_cap(col, fleck):
     return lambda s: s.paint("head", f, layer=1)
 
 
-def cane(s, wood, arm="rarm"):
-    """a walking stick hooked over the forearm (outer layer): the crook at row 6, the shaft down the front"""
-    W = C(wood)
-
-    def f(fc, x, y, w, h):
-        if fc == "front":
-            if y == 6 and x in (1, 2):
-                return shade(W, 1.12)                         # the crook
-            if x == 1 and 7 <= y <= 11:
-                return W
-        if fc == "bottom" and x == 1 and y == 0:
-            return shade(W, 0.7)
-        return None
-    s.paint(arm, f, 1)
-
-
 def earpiece(col="d8d4cc"):
     """a security earpiece: a bud in the right ear, the clear coiled cord down the side of the neck"""
     E = C(col)
@@ -2871,25 +2855,26 @@ def mom(v):
 
 
 def dogwalker(v):
-    """강아지 데려온 할아버지: a flat cap, a cardigan, a walking stick on one arm and the dog's lead in the other hand"""
+    """강아지 데려온 할아버지: a flat cap, a cardigan (his walking stick and the dog's lead are held models: bus.yml
+    types.dogwalker.hold / hold-off, models/bus_hold.py)"""
     if v == 1:
         # a brown tweed cap, a beige cardigan over a white shirt, brown slacks, glasses, a white mustache, a red lead
         s, sk = Skin(), "dcaa86"
         head(s, sk, "e8e4dc", "short", brows="f2efe8", mouth="8a4a40",
              extra=[mustache("eeeae2"), glasses("6a5a3a"), flat_cap("7a6248", "a08868")])
-        shirt, cardi, slacks, wood = "f4f4f0", "d8c8a0", "6a5440", "8a5a2a"
+        shirt, cardi, slacks = "f4f4f0", "d8c8a0", "6a5440"
     elif v == 2:
         # a navy cap, a burgundy cardigan over a sky blue shirt, grey slacks, white brows, smiling eyes, a blue lead
         s, sk = Skin(), "d09a74"
         head(s, sk, "d8d4cc", "short", brows="f0ede6", mouth="8a4a40",
              extra=[happy_eyes("3a2a22"), flat_cap("2a3456", "4a5476")])
-        shirt, cardi, slacks, wood = "a8c8e8", "7a2a38", "6a6c72", "5a3a1e"
+        shirt, cardi, slacks = "a8c8e8", "7a2a38", "6a6c72"
     else:
         # a beige cap, an olive cardigan over a checked shirt, khaki slacks, a grey mustache, a green lead
         s, sk = Skin(), "c88c62"
         head(s, sk, "9a9690", "short", brows="7a7670", mouth="7a3e36",
              extra=[mustache("8a8680"), flat_cap("c8b48a", "a8946a")])
-        shirt, cardi, slacks, wood = None, "5e6a3e", "a89a74", "a87a4a"
+        shirt, cardi, slacks = None, "5e6a3e", "a89a74"
     chk = plaid("e8e0d0", "c06a5a", "9a4a3a")
 
     def b(fc, x, y, w, h):
@@ -2908,7 +2893,6 @@ def dogwalker(v):
     arms(s, shirt or "e8e0d0", sk, sleeve=10, layer_cloth=cardi)
     for a in ("rarm", "larm"):
         s.paint(a, lambda fc, x, y, w, h: shade(C(cardi), 0.82) if y == 9 and fc not in ("top", "bottom") else None, 1)
-    cane(s, wood)
     legs(s, slacks, "2a1e16", shoe_rows=1)
     for lg in ("rleg", "lleg"):
         s.paint(lg, lambda fc, x, y, w, h: shade(C(slacks), 0.88) if fc == "front" and x == 1 and y < 11 else None)
