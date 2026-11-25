@@ -502,6 +502,10 @@ b21e07a36fc6b7e7dc82f7e66ad0629cd2d8776c economy/assets/economy/textures/entity/
 9af72dd1a930ae2644aae0faaffde205f7180c10 economy/assets/economy/textures/entity/bus/tardy_2.png
 b164a4e6ac67bb1e0370f9414a9878df6256078d economy/assets/economy/textures/entity/bus/tardy_3.png
 53669218e8eabae6ceeb188335f9a60a776ef486 economy/assets/economy/textures/entity/bus/tardy_s1.png
+620e3f0e358a1aa613d6b3cee55b1315ea8dd4e9 economy/assets/economy/textures/entity/bus/thug_1.png
+1fb1331d434a05f21c15cd12a6d7b04059ad19ba economy/assets/economy/textures/entity/bus/thug_2.png
+e90e6e64c6af8998584ef045991a35f7fe7892ca economy/assets/economy/textures/entity/bus/thug_3.png
+b731a31cdc3a4d9f99304bcca94da53b7340593c economy/assets/economy/textures/entity/bus/thug_s1.png
 c2540c5375787fd1ad3e3304d8248e1150a3bc6d economy/assets/economy/textures/entity/bus/tourist_1.png
 e111cfb904c7dc1697e47ac647890489acc532db economy/assets/economy/textures/entity/bus/tourist_2.png
 ce03cc669008b345bbe0fd1779e794434281541d economy/assets/economy/textures/entity/bus/tourist_3.png
@@ -944,10 +948,12 @@ c10c07342f78dadb46948453aac783c096bdb13e economy/bus.yml
 cb82a685155978d70418229c8403582359e8ae10 economy/bus.yml
 da272777a5c75cfa49a0bb83be2b2982961f2dd9 economy/bus.yml
 dafb030dc60a9bc0b77e6dff033fe21e569effe2 economy/bus.yml
+e6ada194eed96eb316ffb8fc6b986e3fd1c8374a economy/bus.yml
 eb1516d4ac617b98965ba58eebe19ac3fc3055a2 economy/bus.yml
 f15215cd8a3211f0ea3cf28dddebe6e28a2a34eb economy/bus.yml
 f33c39b79f3dcf76c6623c8c580ef6933e3f0a0b economy/bus.yml
 f81a55ae862cd76c0c0d1f9c0be248acf6766040 economy/bus.yml
+02792cc0bc3af586d18d015edd01bf52b929fc17 economy/bus_scenes.yml
 8d93e15f9b539d2460209c983e7da12811e399dd economy/crop-blocks.yml
 c838f00f3a85ea081b0bd52deca3e5f44d7467f1 economy/crop-blocks.yml
 258c154bf988f0599a64c21761af35c35dd2e952 economy/crops/crops.yml
@@ -1783,6 +1789,7 @@ cd6908f81215e45c3c1830499947b5cc18320379 economy/models/zucchini_4.bbmodel
 08c049539ca86e23bff1aa98c22b4e04f45f77fb economy/pack.yml
 5f96a73fe259021eec77e48d9c6f78657ee348a7 economy/pack.yml
 668a05f6e461a224718db0918ba366212d813e9b economy/people.yml
+6f454587f63e8d02f9eecc1fd9dd847b7cc34d78 economy/people.yml
 737125d3f8f740e3ccab66dbf9c8c758ae7a733c economy/people.yml
 225bcee1738c72e6cd00e12b69f296cde0f41a42 economy/recipes/jobs.yml
 664f25c217e067ab24bc967e17c7c7ab76e36b5b economy/recipes/jobs.yml
