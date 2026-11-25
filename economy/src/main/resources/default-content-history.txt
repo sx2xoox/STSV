@@ -1000,6 +1000,7 @@ c2ccd754f9dffe056d20a43e68a2f600da952b88 economy/guide/topics/shop.yml
 95793403d9fa2eef3d1062e804928101448f17b4 economy/guide/topics/trade.yml
 009cf1a2e7dd4dd3ea0fba35d0376dacb16dd109 economy/hwatu.yml
 0d94f0d3f80a8da2a4e875229ed3a79db21b89e9 economy/hwatu.yml
+2815594685fec99c17aac85faa5f3584afc3577f economy/hwatu.yml
 4c8c61c5e2bc7f3b0944b9c2952dfb2aae124115 economy/hwatu.yml
 5a8a20c424b595dd80663dd7aa8927f145c8e5ed economy/hwatu.yml
 ab4b77632ab7177ff417e189c299b1dbf46aa4af economy/hwatu.yml
@@ -1157,6 +1158,7 @@ c09bc55207fbf0409a6976c6492f73e422e34f2f economy/menus/hub_minigame.yml
 21be32b1dd103baf4cc7e58d6623af1b3f3e9679 economy/menus/hwatu.yml
 3320dbc462ee4ac95ada60073f32cdba8343a541 economy/menus/hwatu.yml
 33ce0414b083ba7be50a4f5720a1644f66f1e379 economy/menus/hwatu.yml
+6abb82023f073b720681c8938446ece1e38a5e11 economy/menus/hwatu.yml
 b17d065b5cb23cc4934df2fd526936882b034a02 economy/menus/hwatu.yml
 cc142aefac33122c2a8e2d2d3f1271e94158ee7e economy/menus/hwatu.yml
 d44bd8271a6d917d0bc03898ff7d0e8226d8dd4c economy/menus/hwatu.yml
