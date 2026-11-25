@@ -163,11 +163,11 @@ def sheet(path=SHEET):
     view(0, y0, 560, 300, [4822.5, 2, 0], 24, 0, 45, 2.2, "gamble_die · 위 1 … 6 (README 회전표대로)")
     els.extend(_placed(pv["gamble_bowl"], (5200, 0, 0), 1))
     els.append(_plane("feltbg", 5180, -20, 5220, 20))
-    view(560, y0, 150, 300, [5200, 3, 0], 10, 10, 28, 3.4, "gamble_bowl · 사발")
+    view(560, y0, 150, 300, [5200, 3, 0], 10, 10, 28, 3.4, "bowl · 사발")
     els.extend(_placed(pv["gamble_cup"], (5300, 0, 0), 1))
     els.extend(_placed(pv["gamble_die"], (5306, 2, -6), 1))
     els.append(_plane("feltbg", 5280, -20, 5320, 20))
-    view(710, y0, 150, 300, [5302, 3, -2], 11, 10, 28, 3.4, "gamble_cup · 주사위 컵")
+    view(710, y0, 150, 300, [5302, 3, -2], 11, 10, 28, 3.4, "cup · 주사위 컵")
     els.extend(_placed(pv["gamble_whiteboard"], (6000, 22, 0), 1))
     els.append({"from": [5970, -2, -3.49], "to": [6030, 50, 0], "shade": True, "rotation": None,
                 "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "ply"}}})

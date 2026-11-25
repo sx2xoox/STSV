@@ -472,7 +472,8 @@ final class HallTable implements Table.Listener, Table.Bank {
             String mine = Jokbo.row(code);
             for (String r : Jokbo.SUTDA.get(page))
                 rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.jokbo." + r, "c", r.equals(mine) ? Lang.raw("hwatu.jokbo-mine") : Lang.raw("hwatu.jokbo-row"))));
-            String note = code == null ? Lang.raw("hwatu.jokbo-note-" + (page + 1)) : Lang.raw("hwatu.jokbo-my-hand", "hand", Lang.raw(HwatuModule.HAND + code));
+            if (code != null) return new HudLayout.Board(Lang.mm("hwatu.jokbo-title-mine", "hand", Lang.raw(HwatuModule.HAND + code)), rows);
+            String note = Lang.raw("hwatu.jokbo-notes." + "p" + (page + 1));
             return new HudLayout.Board(Lang.mm("hwatu.jokbo-title", "page", page + 1, "pages", Jokbo.SUTDA.size(), "note", note), rows);
         }
         String key = game.key();
@@ -489,42 +490,53 @@ final class HallTable implements Table.Listener, Table.Bank {
     Component actionLine(Player viewer) {
         UUID me = viewer.getUniqueId();
         Table t = table;
-        List<String> parts = new ArrayList<>();
+        List<ActionLine.Part> parts = new ArrayList<>();
         long left = secondsLeft();
         boolean in = t.players().contains(me);
         switch (t.phase()) {
-            case WAITING -> parts.add(Lang.raw(t.seats().size() < 2 ? "hwatu.line.alone" : "hwatu.line.starting", "seconds", left));
+            case WAITING -> parts.add(part(t.seats().size() < 2 ? "hwatu.line.alone" : "hwatu.line.starting", 0, "seconds", left));
             case PLAYING -> {
                 UUID turn = t.turn();
                 if (turn != null && turn.equals(me))
-                    parts.add(Lang.raw(t.step() == Table.Step.ROLL ? "hwatu.line.my-roll" : t.step() == Table.Step.PICK ? "hwatu.line.my-pick" : "hwatu.line.my-turn", "seconds", left));
-                else if (turn != null) parts.add(Lang.raw("hwatu.line.turn", "player", mini(turn), "seconds", left));
-                else parts.add(Lang.raw("hwatu.line.showing", "seconds", left));
-                if (game == Table.Game.SUTDA) parts.add(Lang.raw("hwatu.line.street", "n", t.street()));
-                parts.add(Lang.raw("hwatu.line.pot", "pot", fmt(t.pot())));
-                if (in && t.folded(me)) parts.add(Lang.raw("hwatu.line.folded"));
+                    parts.add(part(t.step() == Table.Step.ROLL ? "hwatu.line.my-roll" : t.step() == Table.Step.PICK ? "hwatu.line.my-pick" : "hwatu.line.my-turn", 0, "seconds", left));
+                else if (turn != null) parts.add(part("hwatu.line.turn", 0, "seconds", left));   // whose: the timer over their seat
+                else parts.add(part("hwatu.line.showing", 0, "seconds", left));
+                parts.add(part("hwatu.line.pot", 2, "pot", fmt(t.pot())));
+                if (in && t.folded(me)) parts.add(part("hwatu.line.folded", 0));
                 else if (in) {
-                    if (game == Table.Game.SUTDA) parts.add(Lang.raw("hwatu.line.put", "n", fmt(t.put(me))));
+                    if (game == Table.Game.SUTDA) parts.add(part("hwatu.line.put", 1, "n", fmt(t.put(me))));
                     int seat = t.players().indexOf(me);
-                    if (t.allIn(me)) parts.add(Lang.raw("hwatu.line.allin"));
+                    if (t.allIn(me)) parts.add(part("hwatu.line.allin", 0));
                     else if (game == Table.Game.SUTDA && t.betting() != null && seat >= 0 && t.betting().toCall(seat) > 0)
-                        parts.add(Lang.raw("hwatu.line.to-call", "n", fmt(t.betting().toCall(seat))));
+                        parts.add(part("hwatu.line.to-call", 0, "n", fmt(t.betting().toCall(seat))));
                     String mine = mine(t, me);
-                    if (mine != null) parts.add(mine);
-                } else parts.add(Lang.raw("hwatu.line.watching"));
+                    if (mine != null) parts.add(new ActionLine.Part(mine, plain(mine), 0));
+                } else parts.add(part("hwatu.line.watching", 0));
             }
             case RESULT -> {
                 Table.Result r = t.last();
                 if (r != null && r.players().contains(me)) {
                     long net = r.net(me);
-                    parts.add(Lang.raw(net >= 0 ? "hwatu.line.won" : "hwatu.line.lost", "n", fmt(Math.abs(net))));
+                    parts.add(part(net >= 0 ? "hwatu.line.won" : "hwatu.line.lost", 0, "n", fmt(Math.abs(net))));
                 }
-                parts.add(Lang.raw("hwatu.line.next", "seconds", left));
+                parts.add(part("hwatu.line.next", 0, "seconds", left));
             }
         }
-        parts.add(Lang.raw(test != null ? "hwatu.line.test-chips" : "hwatu.line.chips", "n", fmt(held(me) - (t.phase() == Table.Phase.PLAYING ? t.put(me) : 0))));
-        if (out.contains(me)) parts.add(Lang.raw("hwatu.line.sitting-out"));
-        return Lang.mm("hwatu.line.all", "line", String.join(Lang.raw("hwatu.line.sep"), parts));
+        parts.add(part(test != null ? "hwatu.line.test-chips" : "hwatu.line.chips", 3, "n", fmt(held(me) - (t.phase() == Table.Phase.PLAYING ? t.put(me) : 0))));
+        if (out.contains(me)) parts.add(part("hwatu.line.sitting-out", 0));
+        String sep = Lang.raw("hwatu.line.sep");
+        List<String> kept = new ArrayList<>();
+        for (ActionLine.Part p : ActionLine.fit(parts, ActionLine.MOST, ActionLine.width(plain(sep)))) kept.add(p.mm());
+        return Lang.mm("hwatu.line.all", "line", String.join(sep, kept));
+    }
+
+    private static ActionLine.Part part(String key, int drop, Object... pairs) {
+        String mm = Lang.raw(key, pairs);
+        return new ActionLine.Part(mm, plain(mm), drop);
+    }
+
+    private static String plain(String mm) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(dev.stsv.core.util.Text.mm(mm));
     }
 
     /** My cards (one: the card, two: the 족보), my dice or my call, as MiniMessage; null if nothing yet. */

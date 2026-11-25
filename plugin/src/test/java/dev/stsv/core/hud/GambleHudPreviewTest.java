@@ -22,36 +22,60 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Writes build/gamble-hud-preview.json for tools/assetgen/gamble_scene_preview.py (docs/previews/gamble_hud.png): the
- * bottom-right board of a seated 섯다 player mid-hand and of a fishing tournament, laid out by the real HudLayout /
- * HudClient from the generated fonts, with the economy's own message templates (economy messages.yml). The rows are
- * built the way HallTable.board and TournamentModule.board build them (those need a server; the same keys, the same
- * order, the same placeholders here).
+ * Writes build/gamble-hud-preview.json for tools/assetgen/gamble_scene_preview.py (docs/previews/gamble_hud.png): what a
+ * seated 도박장 player sees at the bottom of the screen (the hand on the action bar as one line, the game's 족보 / rules on
+ * the bottom-right board) and the fishing tournament's board everyone else sees, laid out by the real HudLayout /
+ * HudClient from the generated fonts, with the economy's own message templates (economy messages.yml). The rows and the
+ * line are built the way HallTable.board / HallTable.actionLine and TournamentModule.board build them (those need a
+ * server; the same keys, the same order, the same placeholders here; Jokbo.SUTDA's pages).
  *
- * <p>The 섯다 hand (초보방, ante 10, five players): 삥 10, 하프 +45, 하프 +120 (Betting.amount: 45 + max(10, (105 + 45) / 2)),
- * now the viewer's turn: pot 225, the viewer put the ante 10, 120 to call, 38광땡 in hand.
+ * <p>The 섯다 hand (초보방, ante 10, five players), the second street: 삥 10, 하프 +45, 하프 +120, now the viewer's turn: pot
+ * 225, the viewer put 10, 120 to call, 38광땡 in hand (its row lit on the 족보's first page).
  */
 class GambleHudPreviewTest {
 
     static final UUID ME = UUID.nameUUIDFromBytes("me".getBytes(StandardCharsets.UTF_8));
 
+    /** Jokbo.SUTDA (economy): 섯다's pages. */
+    static final List<List<String>> JOKBO = List.of(
+            List.of("gwang38", "gwang18", "gwang13", "ttaeng10", "ttaeng", "ttaeng1"),
+            List.of("ali", "doksa", "gupping", "jangpping", "jangsa", "seryuk"),
+            List.of("kkeut", "ttaengjabi", "amhaeng", "gusa", "meong-gusa", "kkeut-note"));
+
+    /** The board's widest at the default right edge (hud.board.right 212: up to x 106, past the hotbar and the bars). */
+    static final int DEFAULT_CAP = 212 - HudLayout.BOARD_CLEAR_X;
+
     static String fmt(long n) {
         return String.format("%,d", n);
     }
 
-    /** HallTable.board (PLAYING, 섯다, the viewer in the hand and on turn), row for row. */
-    static HudLayout.Board sutda(long seconds, String bettor, long held) {
-        long pot = 225, ante = 10, put = 10, toCall = 120;
+    /** HallTable.board for 섯다: a page of the 족보, my hand's row lit (null: none, the note of the page instead). */
+    static HudLayout.Board jokbo(int page, String mineRow, String handCode) {
         List<HudLayout.Board.Row> rows = new ArrayList<>();
-        rows.add(new HudLayout.Board.Row(ME, Lang.mm("hwatu.board-my-turn", "player", "나", "seconds", seconds)));
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-pot", "pot", fmt(pot), "ante", fmt(ante))));
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-put", "n", fmt(put))));
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-hand", "hand", Lang.raw("hwatu.hand.gwang38"))));
-        String act = Lang.raw("hwatu.act.half", "n", fmt(120));   // HallTable.act
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-bet", "player", bettor, "act", act)));
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-to-call", "n", fmt(toCall))));
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-chips", "n", fmt(held - put))));
-        return new HudLayout.Board(Lang.mm("hwatu.board-title", "game", "섯다", "room", "초보방"), rows);
+        for (String r : JOKBO.get(page))
+            rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.jokbo." + r, "c", Lang.raw(r.equals(mineRow) ? "hwatu.jokbo-mine" : "hwatu.jokbo-row"))));
+        if (handCode != null) return new HudLayout.Board(Lang.mm("hwatu.jokbo-title-mine", "hand", Lang.raw("hwatu.hand." + handCode)), rows);
+        String note = Lang.raw("hwatu.jokbo-notes.p" + (page + 1));
+        return new HudLayout.Board(Lang.mm("hwatu.jokbo-title", "page", page + 1, "pages", JOKBO.size(), "note", note), rows);
+    }
+
+    /** HallTable.board for 주사위 / 홀짝: the rules. */
+    static HudLayout.Board rules(String game, String name, long ante) {
+        List<HudLayout.Board.Row> rows = new ArrayList<>();
+        for (int i = 1; i <= 6; i++) rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules." + game + "-" + i, "ante", fmt(ante), "rake", 5, "roll", 10, "dice", 2)));
+        return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", name, "room", "초보방"), rows);
+    }
+
+    /** HallTable.actionLine: the parts joined by hwatu.line.sep. */
+    static Component line(String... parts) {
+        return Lang.mm("hwatu.line.all", "line", String.join(Lang.raw("hwatu.line.sep"), parts));
+    }
+
+    /** The 섯다 hand above, on the viewer's turn of the second street. */
+    static Component sutdaLine(long seconds, long held) {
+        return line(Lang.raw("hwatu.line.my-turn", "seconds", seconds), Lang.raw("hwatu.line.pot", "pot", fmt(225)),
+                Lang.raw("hwatu.line.put", "n", fmt(10)), Lang.raw("hwatu.line.to-call", "n", fmt(120)),
+                Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.hand.gwang38")), Lang.raw("hwatu.line.chips", "n", fmt(held - 10)));
     }
 
     /** TournamentModule.board: the top 5, then the viewer's own place (8th). */
@@ -82,13 +106,39 @@ class GambleHudPreviewTest {
 
         int w = 1920, h = 1080, scale = 2;
         HudLayout.Placement atEdge = new HudLayout.Placement(HudLayout.Size.NORMAL, HudScreen.rightFor(w, h, scale, 2), 54);
+        Component sutda = sutdaLine(14, 1530);
+        Component firstStreet = line(Lang.raw("hwatu.line.turn", "seconds", 17), Lang.raw("hwatu.line.pot", "pot", fmt(60)), Lang.raw("hwatu.line.put", "n", fmt(10)),
+                Lang.raw("hwatu.line.one-card", "card", "8광"), Lang.raw("hwatu.line.chips", "n", fmt(1520)));
+        Component dice = line(Lang.raw("hwatu.line.my-roll", "seconds", 8), Lang.raw("hwatu.line.pot", "pot", fmt(40)), Lang.raw("hwatu.line.chips", "n", fmt(990)));
+        Component holjjak = line(Lang.raw("hwatu.line.turn", "seconds", 6), Lang.raw("hwatu.line.pot", "pot", fmt(20)),
+                Lang.raw("hwatu.line.call", "call", Lang.raw("hwatu.hand.even")), Lang.raw("hwatu.line.chips", "n", fmt(240)));
         JsonArray scenes = new JsonArray();
-        scenes.add(scene(layout, client, "hwatu", "섯다 · 기본 자리 (사이드바를 옮긴 적 없음: 보드 오른쪽 끝 = 가운데 +212)",
-                w, h, scale, sidebar, null, health, sutda(14, "달빛여우", 1530)));
-        scenes.add(scene(layout, client, "hwatu", "섯다 · /사이드바 위치 로 사이드바를 오른쪽 끝에 붙인 사람 (보드도 화면 끝)",
-                w, h, scale, sidebar, atEdge, health, sutda(14, "달빛여우", 1530)));
-        scenes.add(scene(layout, client, "fishing", "낚시대회 순위 · 기본 자리",
-                w, h, scale, sidebar, null, health, tournament()));
+        scenes.add(scene(layout, client, "hwatu", "섯다 · 두 번째 장, 내 차례 (액션바 한 줄 · 보드 = 족보, 내 38광땡 줄)",
+                w, h, scale, sidebar, null, health, jokbo(0, "gwang38", "gwang38"), sutda));
+        scenes.add(scene(layout, client, "hwatu", "섯다 · 첫 장 (한 장: 족보는 몇 초마다 넘어감 · 2/3쪽)",
+                w, h, scale, sidebar, null, health, jokbo(1, null, null), firstStreet));
+        scenes.add(scene(layout, client, "hwatu", "섯다 · /사이드바 위치 로 사이드바를 오른쪽 끝에 붙인 사람 (보드도 화면 끝) · 3/3쪽",
+                w, h, scale, sidebar, atEdge, health, jokbo(2, null, null), sutda));
+        scenes.add(scene(layout, client, "hwatu", "주사위 · 내가 굴릴 차례 (보드 = 규칙)",
+                w, h, scale, sidebar, null, health, rules("dice", "주사위", 10), dice));
+        scenes.add(scene(layout, client, "hwatu", "홀짝 · 상대가 굴릴 차례",
+                w, h, scale, sidebar, null, health, rules("holjjak", "홀짝", 10), holjjak));
+        scenes.add(scene(layout, client, "fishing", "낚시대회 순위 · 테이블에 앉지 않은 사람 (앉은 사람은 족보: 보드 우선순위)",
+                w, h, scale, sidebar, null, health, tournament(), null));
+
+        // everything fits: each board row at the default right edge (no ellipsis), each line clear of the board's corner
+        for (int p = 0; p < JOKBO.size(); p++) fits(layout, jokbo(p, null, null));
+        fits(layout, jokbo(0, "gwang38", "gwang38"));
+        fits(layout, jokbo(2, "meong-gusa", "meong-gusa"));
+        fits(layout, rules("dice", "주사위", 500));
+        fits(layout, rules("holjjak", "홀짝", 500));
+        // a long one: a 6-digit stack, 4-digit bets (큰손방), 13광땡: too wide with "건 2,500", which ActionLine drops first
+        Component longest = line(Lang.raw("hwatu.line.my-turn", "seconds", 20), Lang.raw("hwatu.line.pot", "pot", fmt(12_500)),
+                Lang.raw("hwatu.line.to-call", "n", fmt(5_000)),
+                Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.hand.gwang13")), Lang.raw("hwatu.line.chips", "n", fmt(123_456)));
+        for (Component c : List.of(sutdaLine(20, 98_765), longest, firstStreet, dice, holjjak))
+            assertTrue(layout.messageWidth(c) <= 2 * HudLayout.BOARD_CLEAR_X, "the action bar's line stays off the board's corner: "
+                    + layout.messageWidth(c) + " px: " + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(c));
 
         JsonObject root = new JsonObject();
         root.add("scenes", scenes);
@@ -99,8 +149,20 @@ class GambleHudPreviewTest {
         assertFalse(all.contains("[hwatu.") || all.contains("[tournament."), "every template exists");
     }
 
+    /** Every row of the board (and its title) as wide as it wants at the default right edge: nothing cut short. */
+    static void fits(HudLayout layout, HudLayout.Board b) {
+        List<HudLayout.Board.Row> all = new ArrayList<>(b.rows());
+        all.add(new HudLayout.Board.Row(null, b.title()));
+        for (HudLayout.Board.Row r : all) {
+            int natural = layout.boardWidth(new HudLayout.Board(Component.empty(), List.of(r)), 1000);
+            assertTrue(natural <= DEFAULT_CAP, natural + " px > " + DEFAULT_CAP + ": "
+                    + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(r.text()));
+        }
+    }
+
     static JsonObject scene(HudLayout layout, HudClient client, String kind, String label, int w, int h, int scale,
-                            List<HudLayout.Row> sidebar, HudLayout.Placement placed, HudLayout.Health health, HudLayout.Board board) {
+                            List<HudLayout.Row> sidebar, HudLayout.Placement placed, HudLayout.Health health, HudLayout.Board board,
+                            Component message) {
         HudLayout.Placement at = placed == null ? layout.defaults() : placed;
         // HudModule.boardFor: the configured right edge, or the edge the player's own sidebar is against
         int right = HudLayout.boardRight(layout.settings().boardRight(), placed == null ? null : placed.right(),
@@ -121,8 +183,10 @@ class GambleHudPreviewTest {
         JsonArray draws = new JsonArray();
         for (HudClient.Draw d : client.lay(layout.panel(sidebar, at, false)).draws()) draws.add(draw(d, "top", 3 + d.y(), "panel"));
         Set<HudClient.Draw> bars = new HashSet<>(client.lay(layout.actionBar(health, null)).draws());
-        for (HudClient.Draw d : client.lay(layout.actionBar(health, null, drawn)).draws())
-            draws.add(draw(d, "bottom", d.y() - 72, bars.contains(d) ? "bars" : "board"));
+        Set<HudClient.Draw> line = message == null ? Set.of() : new HashSet<>(client.lay(layout.actionBar(null, message)).draws());
+        for (HudClient.Draw d : client.lay(layout.actionBar(health, message, drawn)).draws())
+            draws.add(draw(d, "bottom", d.y() - 72, bars.contains(d) ? "bars" : line.contains(d) ? "line" : "board"));
+        o.addProperty("lineWidth", message == null ? 0 : layout.messageWidth(message));
         o.add("draws", draws);
         return o;
     }

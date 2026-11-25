@@ -35,6 +35,7 @@ public final class Jokbo {
     /** The page (0 ..) that holds a hand's row, or -1. */
     public static int pageOf(String code) {
         String r = row(code);
+        if (r == null) return -1;
         for (int i = 0; i < SUTDA.size(); i++) if (SUTDA.get(i).contains(r)) return i;
         return -1;
     }

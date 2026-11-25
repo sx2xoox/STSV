@@ -130,15 +130,22 @@ class HwatuBotTest {
             assertFalse(t.force(who.get(2), Card.parse("1광"), Card.parse("1광")), "the same card twice");
             HwatuTest.Log log = new HwatuTest.Log();
             t.tick(10_000, HwatuTest.ALL, log);
+            // dealt in order: the first card on the first street, the second on the second
+            assertEquals(List.of(Card.parse("3광")), List.of(t.cards(admin)));
+            assertEquals(List.of(Card.parse("9열끗")), List.of(t.cards(bot)));
+            assertNull(t.hand(admin), "one card: no 족보 yet");
+            assertTrue(t.forced().isEmpty(), "used once");
+            for (int k = 0; k < 4; k++) assertNull(t.act(t.turn(), Table.Move.CHECK, 10_000, log));
+            assertEquals(2, t.street());
             assertEquals(List.of(Card.parse("3광"), Card.parse("7열끗")), List.of(t.cards(admin)));
             assertEquals(List.of(Card.parse("9열끗"), Card.parse("9띠")), List.of(t.cards(bot)));
+            assertEquals("ttaengjabi", t.hand(admin).code());
             Set<Card> dealt = new HashSet<>();
             for (UUID u : t.players()) dealt.addAll(List.of(t.cards(u)));
             assertEquals(8, dealt.size(), "nobody else holds a forced card");
-            assertTrue(t.forced().isEmpty(), "used once");
-            // everyone calls: when the bot's 9땡 is the top hand, the admin's 땡잡이 catches it (a 구사 may replay instead)
+            // everyone checks: when the bot's 9땡 is the top hand, the admin's 땡잡이 catches it (a 구사 may replay instead)
             int top = 0;
-            for (UUID u : t.players()) if (!u.equals(admin)) top = Math.max(top, Sutda.of(t.cards(u)[0], t.cards(u)[1]).rank());
+            for (UUID u : t.players()) if (!u.equals(admin)) top = Math.max(top, t.hand(u).rank());
             for (int k = 0; k < 4; k++) assertNull(t.act(t.turn(), Table.Move.CHECK, 10_000, log));
             if (log.replays == 0 && top == Sutda.TTAENG + 9) {
                 assertEquals(List.of(admin), log.results.getFirst().winners(), "땡잡이 catches 9땡, seed " + seed);
@@ -146,6 +153,32 @@ class HwatuBotTest {
             }
         }
         throw new AssertionError("no seed showed 땡잡이 against 9땡");
+    }
+
+    @Test
+    void onOneCardGwangAndTenAreStrongAndAFreeCheckIsNeverFolded() {
+        Card g8 = Card.parse("8광"), g1 = Card.parse("1광"), ten = Card.parse("10띠"), two = Card.parse("2띠"), five = Card.parse("5띠");
+        assertTrue(HwatuBot.strength(g8) > HwatuBot.strength(g1));
+        assertTrue(HwatuBot.strength(g1) > HwatuBot.strength(ten));
+        assertTrue(HwatuBot.strength(ten) > HwatuBot.strength(Card.parse("1띠")));
+        assertTrue(HwatuBot.strength(Card.parse("9띠")) > HwatuBot.strength(five));
+        assertTrue(HwatuBot.strength(five) > HwatuBot.strength(two));
+        int gwangOpens = 0, weakFolds = 0;
+        for (double roll = 0; roll < 1; roll += 0.01) {
+            for (Card c : Card.deck()) {
+                Betting.Action open = HwatuBot.sutdaFirst(c, OPEN, 0, 40, 0, roll);
+                assertTrue(OPEN.contains(open));
+                assertTrue(open != Betting.Action.DIE, "nothing to match: never 다이");
+                assertTrue(FACING.contains(HwatuBot.sutdaFirst(c, FACING, 10, 40, 0, roll)));
+                assertTrue(CALL_ONLY.contains(HwatuBot.sutdaFirst(c, CALL_ONLY, 10, 40, 0, roll)));
+            }
+            assertTrue(HwatuBot.sutdaFirst(g8, FACING, 100, 40, 0, roll) != Betting.Action.DIE, "a 광 never folds on the first card");
+            assertTrue(HwatuBot.sutdaFirst(ten, FACING, 100, 40, 0, roll) != Betting.Action.DIE, "nor a 10");
+            if (HwatuBot.sutdaFirst(g8, OPEN, 0, 40, 0, roll).raises()) gwangOpens++;
+            if (HwatuBot.sutdaFirst(two, FACING, 100, 40, 0, roll) == Betting.Action.DIE) weakFolds++;
+        }
+        assertTrue(gwangOpens > 20 && gwangOpens < 80, "a 광 opens often, not always: " + gwangOpens);
+        assertTrue(weakFolds > 50, "a weak card mostly folds to a big bet: " + weakFolds);
     }
 
     /** Bots playing whole hands through the real table: every move legal, every hand ends. */
@@ -167,7 +200,8 @@ class HwatuBotTest {
                 assertNotNull(u);
                 int seat = t.players().indexOf(u);
                 Card[] c = t.cards(u);
-                Betting.Action a = HwatuBot.sutda(Sutda.of(c[0], c[1]), t.betting(), seat, r.nextDouble());
+                Betting.Action a = c.length < 2 ? HwatuBot.sutdaFirst(c[0], t.betting(), seat, r.nextDouble())
+                        : HwatuBot.sutda(Sutda.of(c[0], c[1]), t.betting(), seat, r.nextDouble());
                 assertNull(t.act(u, Table.move(a), now, log));
                 assertTrue(++steps < 500);
             }

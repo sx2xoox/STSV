@@ -93,6 +93,13 @@ class HallTest {
         assertEquals(List.of(Controls.Button.ODD, Controls.Button.EVEN),
                 Controls.buttons(state(Table.Game.HOLJJAK, Table.Phase.PLAYING, Table.Step.PICK, true, true, NONE, false)));
         assertEquals(List.of(), Controls.buttons(state(Table.Game.DICE, Table.Phase.PLAYING, Table.Step.ROLL, true, false, NONE, false)));
+        assertEquals(List.of(Controls.Button.ROLL), Controls.buttons(state(Table.Game.DICE, Table.Phase.PLAYING, Table.Step.ROLL, true, true, NONE, false)),
+                "my roll: 굴리기");
+        assertEquals(List.of(Controls.Button.ROLL), Controls.buttons(state(Table.Game.HOLJJAK, Table.Phase.PLAYING, Table.Step.ROLL, true, true, NONE, false)),
+                "called: now shake the bowl");
+        assertEquals(List.of(), Controls.buttons(state(Table.Game.DICE, Table.Phase.PLAYING, Table.Step.SHOW, true, false, NONE, false)));
+        assertEquals(Table.Move.ROLL, Controls.Button.ROLL.move());
+        assertNull(Controls.Button.ROLL.action());
         assertEquals(List.of(Controls.Button.LEAVE), Controls.buttons(state(Table.Game.DICE, Table.Phase.WAITING, null, false, false, NONE, false)));
         assertEquals(List.of(Controls.Button.LEAVE), Controls.buttons(state(Table.Game.SUTDA, Table.Phase.RESULT, null, false, false, NONE, false)));
         assertEquals(List.of(Controls.Button.LEAVE),
@@ -164,7 +171,7 @@ class HallTest {
         t.tick(now, (u, n) -> null, quiet);
         for (UUID u : List.of(A, B, C)) assertFalse(TableArt.revealed(t, u), "dealt: face down");
         // C folds, the others call round
-        for (int i = 0; i < 6 && t.phase() == Table.Phase.PLAYING; i++) {
+        for (int i = 0; i < 14 && t.phase() == Table.Phase.PLAYING; i++) {
             UUID turn = t.turn();
             assertNull(t.act(turn, turn.equals(C) ? Table.Move.DIE : HwatuTest.pass(t, turn), now, quiet));
         }
@@ -436,6 +443,63 @@ class HallTest {
         HallSpec d = HallSpec.parse(null, none);
         assertEquals(1, none.size(), "missing: said, and the defaults used");
         assertEquals(1000, d.bigPot());
+    }
+
+    // ------------------------------------------------------------------------------------------ the action bar's line
+
+    @Test
+    void theActionLineDropsWhatItCanSpareToStayOffTheBoard() {
+        // the HUD letters' widths as the core measures them (GambleHudPreviewTest): never under
+        assertTrue(ActionLine.width("칩 1,520") >= 40);
+        assertTrue(ActionLine.width("내 차례 14초") >= 59);
+        assertEquals(10, ActionLine.width("▶"));
+        List<ActionLine.Part> normal = List.of(new ActionLine.Part("a", "▶14초", 0), new ActionLine.Part("b", "판225", 2),
+                new ActionLine.Part("c", "건10", 1), new ActionLine.Part("d", "콜120", 0), new ActionLine.Part("e", "38광땡", 0),
+                new ActionLine.Part("f", "칩1,520", 3));
+        assertEquals(normal, ActionLine.fit(normal, ActionLine.MOST, 4), "a usual hand fits whole");
+        List<ActionLine.Part> big = List.of(new ActionLine.Part("a", "▶20초", 0), new ActionLine.Part("b", "판12,500", 2),
+                new ActionLine.Part("c", "건2,500", 1), new ActionLine.Part("d", "콜5,000", 0), new ActionLine.Part("e", "13광땡", 0),
+                new ActionLine.Part("f", "칩123,456", 3));
+        List<ActionLine.Part> kept = ActionLine.fit(big, ActionLine.MOST, 4);
+        assertEquals(List.of("a", "b", "d", "e", "f"), kept.stream().map(ActionLine.Part::mm).toList(), "what I put in goes first");
+        List<ActionLine.Part> huge = List.of(new ActionLine.Part("a", "▶20초 아주 긴 말이 들어간 차례 표시", 0), new ActionLine.Part("b", "판99,999,999", 2),
+                new ActionLine.Part("c", "건9,999,999", 1), new ActionLine.Part("f", "칩999,999,999", 3));
+        assertEquals(List.of("a"), ActionLine.fit(huge, ActionLine.MOST, 4).stream().map(ActionLine.Part::mm).toList(), "never the turn");
+    }
+
+    // ------------------------------------------------------------------------------------------ the board: 족보
+
+    @Test
+    void everyHandHasItsRowOnAPageOfTheJokbo() throws Exception {
+        YamlConfiguration m;
+        try (var in = getClass().getResourceAsStream("/messages.yml")) {
+            m = YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+        }
+        for (List<String> page : Jokbo.SUTDA) {
+            assertTrue(page.size() <= 6, "the board holds 6 rows under its title");
+            for (String r : page) assertTrue(m.isString("hwatu.jokbo." + r), r);
+        }
+        for (int i = 1; i <= Jokbo.SUTDA.size(); i++) assertTrue(m.isString("hwatu.jokbo-notes.p" + i));
+        List<Card> d = Card.deck();
+        for (int i = 0; i < d.size(); i++) for (int j = i + 1; j < d.size(); j++) {
+            String code = Sutda.of(d.get(i), d.get(j)).code();
+            int page = Jokbo.pageOf(code);
+            assertTrue(page >= 0, code);
+            assertTrue(Jokbo.SUTDA.get(page).contains(Jokbo.row(code)));
+            assertEquals(page, Jokbo.page(code, 123_456_789L), "my hand's page stays while I hold it");
+        }
+        assertEquals("ttaeng", Jokbo.row("ttaeng9"));
+        assertEquals("ttaeng10", Jokbo.row("ttaeng10"));
+        assertEquals("ttaeng1", Jokbo.row("ttaeng1"));
+        assertEquals("ttaengjabi", Jokbo.row("ttaengjabi"));
+        assertEquals("kkeut", Jokbo.row("gabo"));
+        assertEquals("kkeut", Jokbo.row("mangtong"));
+        // without a hand the pages turn with the clock
+        java.util.Set<Integer> seen = new java.util.HashSet<>();
+        for (long t = 0; t < 3 * Jokbo.PAGE_MILLIS; t += Jokbo.PAGE_MILLIS) seen.add(Jokbo.page(null, t));
+        assertEquals(Jokbo.SUTDA.size(), seen.size());
+        for (String g : List.of("dice", "holjjak"))
+            for (int i = 1; i <= Jokbo.RULE_ROWS; i++) assertTrue(m.isString("hwatu.rules." + g + "-" + i), g + i);
     }
 
     // ------------------------------------------------------------------------------------------ messages

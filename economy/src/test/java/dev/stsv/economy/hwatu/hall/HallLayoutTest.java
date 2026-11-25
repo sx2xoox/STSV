@@ -248,6 +248,46 @@ class HallLayoutTest {
         assertEquals(6 + 2, L.smoke().size());
     }
 
+    @Test
+    void theWhiteboardHangsOnTheWallAboveTheFloor() {
+        HallLayout.Prop wb = L.props().stream().filter(p -> p.item().equals("economy:gamble_whiteboard")).findFirst().orElseThrow();
+        double floor = 1;   // the hall's floor blocks are y 0: people stand on 1, the ceiling (the roof's blocks) is at ROOF
+        // HallBuilder lifts every prop half a block (a model's floor on its point); this model is centred on its display
+        double middle = wb.y() + 0.5 * wb.scale();
+        double bottom = middle - HallLayout.WHITEBOARD_DOWN * wb.scale(), top = middle + HallLayout.WHITEBOARD_UP * wb.scale();
+        assertTrue(bottom >= floor + 0.5, "the tray clear of the floor: " + bottom);
+        assertTrue(top <= HallLayout.ROOF - 0.3, "under the ceiling: " + top);
+        assertTrue(middle - floor > 1.2 && middle - floor < 1.9, "about eye height: " + middle);
+        // its words (a text display growing up from 0.45 under its point, six lines at 0.45) stay on the writing surface
+        double textLow = L.whiteboard().y() - 0.45, textHigh = textLow + 6 * 0.25 * 0.45;
+        assertTrue(textLow >= middle - 0.72 && textHigh <= middle + 0.72, textLow + " .. " + textHigh + " on " + middle);
+        // against the back wall, inside the hall
+        assertTrue(Math.abs(wb.z() - (HallLayout.HALL_Z1 - 0.55)) < 1e-9);
+        assertTrue(L.hall().contains(wb.x(), wb.y(), wb.z()));
+    }
+
+    @Test
+    void everyFloorPropStandsOnSomething() {
+        Map<Long, String> solid = solid();
+        for (HallLayout.Prop p : L.props()) {
+            if (p.item().equals("economy:gamble_whiteboard")) continue;   // hangs on the wall (above)
+            int x = (int) Math.floor(p.x()), z = (int) Math.floor(p.z());
+            double y = p.y();
+            // on a block's top (a pallet on a pallet: 0.15 up)
+            int under = (int) Math.floor(y) - 1;
+            assertTrue(y - Math.floor(y) < 0.2, p + ": not on a block's top");
+            boolean onSomething = solid.containsKey(key(x, under, z)) || under < 0 && y >= 0;   // y 0: the lot's own ground
+            assertTrue(onSomething, p + " floats");
+            assertFalse(solid.containsKey(key(x, (int) Math.floor(y), z)) && y - Math.floor(y) < 0.01, p + " is sunk in a block");
+        }
+        // the tables' signs float between their bulb and the ceiling, the same height over the floor as TableScene's
+        for (HallLayout.Table t : L.tables()) {
+            assertEquals(t.y() + dev.stsv.economy.hwatu.TableArt.SIGN_UP, t.sign().y(), 1e-9);
+            assertTrue(t.sign().y() + 0.4 <= HallLayout.ROOF, t.title() + ": the sign under the ceiling");
+            assertTrue(t.sign().y() > t.y() + 2.5, t.title() + ": over the bulb");
+        }
+    }
+
     // ------------------------------------------------------------------------------------------
     // turning
     // ------------------------------------------------------------------------------------------

@@ -600,7 +600,7 @@ public final class HallLayout {
 
     private void yard() {
         // by the gate and along the plates: cones
-        for (double[] c : new double[][]{{-3.5, -4.5}, {4.5, -4.5}, {-3.5, -1.5}, {4.5, -1.5}, {13.5, 7.5}, {10.5, -0.5}})
+        for (double[] c : new double[][]{{-3.5, -3.5}, {4.5, -4.5}, {-3.5, -1.5}, {4.5, -1.5}, {13.5, 7.5}, {10.5, -0.5}})
             prop(c[0], 0, c[1], "cone", 0);
         // the sign at the gate, outside, facing whoever comes
         prop(-5.5, 0, FRONT - 1.5, "sign", 180);

@@ -83,7 +83,8 @@ def source_numbers():
     N["card"], N["button"], _, N["chips"] = _num(s, r"CARD_SCALE = ([\d.]+)f, BUTTON_SCALE = ([\d.]+)f, DIE_SCALE = ([\d.]+)f, CHIPS_SCALE = ([\d.]+)f", 4)
     N["button_half_k"] = _num(s, r"BUTTON_HALF = ([\d.]+) \* BUTTON_SCALE")
     N["tilt"] = _num(s, r"BUTTON_TILT = (-?[\d.]+)f")
-    N["sign_up"], N["sign_scale"] = _num(s, r"sign = text\(middle\(([\d.]+)\), Component.empty\(\), ([\d.]+)f", 2)
+    N["sign_scale"] = _num(s, r"SIGN_SCALE = ([\d.]+)f")
+    N["sign_up"] = _num(a, r"SIGN_UP = ([\d.]+);")   # over the FLOOR (the table's anchor block), not its top
     N["pot_up"], N["pot_scale"] = _num(s, r"potLabel = text\(middle\(([\d.]+)\), label, ([\d.]+)f", 2)
     N["timer_up"] = _num(s, r"reach.timer\(\), 0, true\);\s*Location l = at\(s, ([\d.]+)\);")
     N["timer_scale"] = _num(s, r"timer = text\(l, c, ([\d.]+)f")
@@ -479,10 +480,11 @@ HAND_LATE = {
     "seats": {0: ("도토리", "student_1.png"), 1: ("새벽낚시", "camper_1.png"), 2: ("곰돌이", "office_1.png"),
               3: ("치킨왕", "chicken_1.png"), 4: ("달빛여우", "chatty_1.png")},
     "buttons": [("die", 0), ("call", 120), ("ddadang", 240), ("half", 292)],
-    "cards": ("3a", "8a"),
+    "cards": ("3a", "8a"), "street": 2,
 }
-# the same table at the first turn of the hand (the viewer first to act): only the antes in (5 x 10), nothing bet yet
-HAND_EARLY = dict(HAND_LATE, pot=50, bettor=None, turn_left=18,
+# the same table at the first turn of the hand (the viewer first to act): one card each (the first street), only the
+# antes in (5 x 10), nothing bet yet
+HAND_EARLY = dict(HAND_LATE, pot=50, bettor=None, turn_left=18, street=1,
                   buttons=[("die", 0), ("check", 0), ("ping", 10), ("half", 25)])   # 하프: 0 + max(10, 50 / 2)
 
 
@@ -540,7 +542,7 @@ def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, t
         sign = raw(msgs, "hwatu.sign", game=games[T["t"]["game"]], room=rooms[T["t"]["room"]], ante=antes[T["t"]["room"]],
                    n=n, max=maxes[T["t"]["game"]], state=st)
         c = T["centre"]
-        text(f"sign{i}", sign, (c[0], T["top"] + N["sign_up"], c[1]), N["sign_scale"])
+        text(f"sign{i}", sign, (c[0], T["t"]["y"] + N["sign_up"], c[1]), N["sign_scale"])
         for s in T["seats"][:n]:
             seated_player(extra_skins[si % len(extra_skins)], s, yaw_toward(c[0] - s[0], c[1] - s[2]), textures, els, head_pitch=12)
             si += 1
@@ -560,7 +562,7 @@ def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, t
                       head_pitch=10 if k != HAND["me"] else 30, head_turn=0)
     # cards: the viewer's faces, everyone else's backs (as the viewer sees them)
     for k in HAND["seats"]:
-        for j, side in enumerate(row(2, N["card_gap"])):
+        for j, side in enumerate(row(2, N["card_gap"])[:HAND["street"]]):   # a card a street
             x, z, yaw = along(c, seat_xz(k), R["card"], side)
             model = "gamble_card_" + HAND["cards"][j] if k == HAND["me"] else "gamble_card_back"
             place(model, display_matrix((x, top + 0.002 + j * 0.004, z), facing(yaw), N["card"]), textures, els)
@@ -600,8 +602,10 @@ def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, t
     else:
         state = raw(msgs, "hwatu.sign-playing")
     # the sign over the table
+    if HAND["bettor"] is None:
+        state = raw(msgs, "hwatu.sign-street", n=HAND["street"])
     sign_text = raw(msgs, "hwatu.sign", game="섯다", room="초보방", ante=HAND["ante"], n=len(HAND["seats"]), max=6, state=state)
-    sign = text("sign0", sign_text, (c[0], top + N["sign_up"], c[1]), N["sign_scale"])
+    sign = text("sign0", sign_text, (c[0], T["t"]["y"] + N["sign_up"], c[1]), N["sign_scale"])
     texts.sort(key=lambda e: -e.pop("_depth"))
     marks = dict(centre=c, top=top, seats=seats, pot=pot, timer=timer, pop=pop, sign=sign, buttons=btns)
     return els + texts, textures, marks
@@ -739,7 +743,7 @@ def scene_sheet(N, msgs, hall):
     for name, cam, hand, body, cut, fix in (("eye", eye_camera(N, hall), HAND_LATE, False, None, None),
                                             ("over", over_camera(hall), HAND_LATE, True, GHP.ROOF, None),
                                             ("early", eye_camera(N, hall), HAND_EARLY, False, None, None),
-                                            ("fixed", eye_camera(N, hall), HAND_EARLY, False, None, round(felt + 0.005, 3))):
+                                            ("early_over", over_camera(hall), HAND_EARLY, True, GHP.ROOF, None)):
         els, tex, marks = build(N, msgs, hall, cam, viewer_body=body, cut=cut, hand=hand, top_fix=fix)
         im = render(f"gamble_scene_{name}", els, tex, cam, W, H)
         shots[name] = (im.copy(), cam, marks)
@@ -749,37 +753,32 @@ def scene_sheet(N, msgs, hall):
         if name == "eye":
             callout(im, f"턴 타이머 · 내 자리 쪽 위 (크기 {N['timer_scale']:g}, 윗면 + {N['timer_up']:g})", pj(top_of_text(marks["timer"])), (40, 120))
             callout(im, f"베팅 팝업 · 달빛여우 (크기 {N['pop_scale']:g})", pj(top_of_text(marks["pop"])), (1330, 300))
-            callout(im, f"칩 더미 gamble_chips_{lvl} × {sc:.2f} (판 {hand['pot']}칩 = 판돈 {hand['pot'] // hand['ante']}배) · 높이 {0.88 * sc:.2f}칸",
+            callout(im, f"칩 더미 gamble_chips_{lvl} × {sc:.2f} (판 {hand['pot']}칩 = 판돈 {hand['pot'] // hand['ante']}배)",
                     pj((c[0] - 0.3, top + 0.5, c[1])), (40, 560))
-            callout(im, f"판 라벨 '판 {hand['pot']}칩' (윗면 + {N['pot_up']:g}) → 칩 더미 속에 묻혀 안 보임", pj((c[0], top + N['pot_up'], c[1])), (1080, 400))
-            callout(im, "내 패 (3광 · 8광) → 칩 더미 밑이라 안 보임", pj(card_point(N, marks, 0)), (1250, 730))
+            callout(im, "내 패 두 장 (3광 · 8광 = 38광땡, 나만 앞면)", pj(card_point(N, marks, 0)), (1250, 730))
             callout(im, f"내 버튼 4개 (나만 보임) + 금액 라벨 (크기 {N['label_scale']:g})", pj(marks["buttons"][0][0]), (40, 1010))
-            panels.append(titled(im, "(가) 0번 자리에 앉은 플레이어의 눈 · 내 차례 (달빛여우 하프 +120 다음, 판 225칩)",
-                                 "1920×1080 · 시야 70 · 눈높이 바닥 + 1.52 (의자 0.5 - 0.6 + 1.62) · 내려다봄 14° · 테이블 위 표지판은 시선 위라 화면 밖 · 1인칭 빈손 팔 생략"))
+            panels.append(titled(im, "(가) 0번 자리의 눈 · 두 번째 장의 베팅, 내 차례 (달빛여우 하프 +120 다음, 판 225칩)",
+                                 "섯다 = 한 장 → 베팅 → 한 장 더 → 베팅 → 패 공개 · 1920×1080 · 시야 70 · 눈높이 바닥 + 1.52 · 내려다봄 14°"))
         elif name == "over":
-            callout(im, f"테이블 표지판 (크기 {N['sign_scale']:g}, 윗면 + {N['sign_up']:g})", pj(top_of_text(marks["sign"])), (40, 60))
+            callout(im, f"테이블 표지판 (크기 {N['sign_scale']:g}, 바닥 + {N['sign_up']:g}: 전구 위 · 천장 아래)", pj(top_of_text(marks["sign"])), (40, 60))
             callout(im, f"턴 타이머 (차례인 0번 쪽, 크기 {N['timer_scale']:g})", pj(top_of_text(marks["timer"])), (40, 330))
-            callout(im, f"베팅 팝업 '달빛여우 / 하프! +120칩' (4번 자리, 크기 {N['pop_scale']:g})", pj(top_of_text(marks["pop"])), (1150, 120))
-            callout(im, f"칩 더미 gamble_chips_{lvl} (폭 2.5칸 · 높이 1칸): 판 라벨 · 패를 덮음", pj((c[0] + 0.5, top + 0.7, c[1] + 0.2)), (1150, 300))
+            callout(im, f"베팅 팝업 '달빛여우 / 하프! +120칩' (4번 자리)", pj(top_of_text(marks["pop"])), (1150, 120))
             callout(im, "0번 자리 버튼 + 금액 라벨 (0번 사람만 보임)", pj(marks["buttons"][-1][0]), (1100, 960))
-            callout(im, "0번 · 나 (도토리)", pj(marks["seats"][0] + np.array([0, 1.1, 0])), (40, 760))
+            callout(im, "0번 · 나 (도토리): 앞면 두 장", pj(marks["seats"][0] + np.array([0, 1.1, 0])), (40, 760))
             callout(im, "5번 빈 자리", pj(marks["seats"][5] + np.array([0, 0.1, 0])), (40, 980))
             panels.append(titled(im, "(나) 같은 순간, 비스듬히 위에서 (0번 자리 사람에게 보이는 대로: 내 패 앞면 · 남의 패 뒷면 · 내 버튼만)",
                                  "섯다 초보방 = 도박장 1층 앞줄 왼쪽 테이블 (지붕 · 2층 걷어 냄) · 0 도토리(나) · 1 새벽낚시 · 2 곰돌이(삥) · 3 치킨왕(하프) · 4 달빛여우(하프 +120) · 5 빈 자리"))
         elif name == "early":
             callout(im, "턴 타이머 (18초)", pj(top_of_text(marks["timer"])), (40, 120))
-            callout(im, f"판 라벨 '판 {hand['pot']}칩' (크기 {N['pot_scale']:g}): 이제 보임", pj(top_of_text(marks["pot"])), (1330, 300))
-            callout(im, f"칩 더미 gamble_chips_{lvl} × {sc:.2f} (판돈 {hand['pot'] // hand['ante']}배)", pj((c[0] + 0.1, top + 0.3, c[1])), (1330, 470))
-            callout(im, f"내 패 자리: 윗면 {N['top_round']:g} + 0.002 < 천 윗면 {felt:.3f} → 천 속에 묻혀 안 보임", pj(card_point(N, marks, 0, -0.16)), (40, 600))
+            callout(im, f"판 라벨 '판 {hand['pot']}칩' (크기 {N['pot_scale']:g})", pj(top_of_text(marks["pot"])), (1330, 300))
+            callout(im, "내 첫 장 (3광): 두 번째 장은 첫 베팅이 끝나면", pj(card_point(N, marks, 0, -0.16)), (40, 600))
             callout(im, "버튼: 다이 · 체크 · 삥 +10 · 하프 +25 (아무도 안 걸었을 때)", pj(marks["buttons"][0][0]), (40, 1010))
-            panels.append(titled(im, "(다) 같은 자리, 판 첫 차례 (판 50칩 = 판돈만): 칩 더미가 작아도 패는 안 보임",
-                                 f"hwatu.yml hall.top.round = {N['top_round']:g} 인데 원탁 모델(gamble_table_round × 2)의 천 윗면은 바닥 + {felt:.3f}: 패 · 칩 바닥 · 버튼 높이가 그만큼 낮음"))
+            panels.append(titled(im, "(다) 같은 자리, 판 첫 차례 · 첫 장 (판 50칩 = 판돈만): 한 장씩만 받고 베팅",
+                                 "체크는 아무도 안 걸었을 때 (두 번째 장에서도 다시 체크로 시작할 수 있음)"))
         else:
-            callout(im, "내 패: 나만 앞면 (3광 · 8광 = 38광땡)", pj(card_point(N, marks, 0, -0.16)), (40, 600))
-            callout(im, "남의 패 = 뒷면 (1번 새벽낚시)", pj(card_point(N, marks, 1)), (40, 420))
-            callout(im, f"판 라벨 '판 {hand['pot']}칩'", pj(top_of_text(marks["pot"])), (1330, 300))
-            panels.append(titled(im, f"(라) 참고 (배포 값 아님): hall.top.round 를 {fix:g} (천 윗면 + 0.005) 로 두면",
-                                 "(다)와 같은 순간 · 패 · 칩 · 버튼이 천 위에 올라옴"))
+            callout(im, "자리마다 한 장 (남의 것은 뒷면)", pj(card_point(N, marks, 1)), (40, 420))
+            callout(im, f"테이블 표지판 '진행 중 · 1번째 장'", pj(top_of_text(marks["sign"])), (40, 60))
+            panels.append(titled(im, "(라) 첫 장을 돌린 직후, 위에서", "카드는 한 장씩 가운데에서 미끄러져 옴 · 두 번째 장도 같은 순서로"))
     stack(panels, OUT / "gamble_table_scene.png", width=1600)
     return shots
 
@@ -817,6 +816,7 @@ def hud_sheet(eye_shot):
         gw, gh = hud_layer(screen, sc, glyphs)
         # the board's box (GUI px) and the hotbar, outlined on the whole screen
         bd = [dr for dr in sc["draws"] if dr["part"] == "board"]
+        ln = [dr for dr in sc["draws"] if dr["part"] == "line"]
         x0 = min(dr["x"] for dr in bd) + gw // 2
         x1 = max(dr["x"] + 9 * dr["scale"] for dr in bd) + gw // 2
         y0 = min(dr["y"] for dr in bd) + gh
@@ -827,13 +827,19 @@ def hud_sheet(eye_shot):
         f = _font(40)
         d.text(((gw // 2 - 91) * s - 200, (gh - 22) * s - 56), "단축바 (가운데 182px)", font=f, fill=(120, 200, 255), stroke_width=3, stroke_fill=(0, 0, 0))
         d.text(((x0 - 2) * s, (y0 - 2) * s - 56), "보드", font=f, fill=(255, 214, 90), stroke_width=3, stroke_fill=(0, 0, 0))
+        if ln:
+            lx0 = min(dr["x"] for dr in ln) + gw // 2
+            lx1 = max(dr["x"] + 9 * dr["scale"] for dr in ln) + gw // 2
+            ly0 = min(dr["y"] for dr in ln) + gh
+            d.rectangle(((lx0 - 2) * s, (ly0 - 2) * s, (lx1 + 2) * s, (ly0 + 11) * s), outline=(150, 255, 150, 255), width=3)
+            d.text(((lx0 - 2) * s, (ly0 - 2) * s - 50), "액션바 한 줄", font=f, fill=(150, 255, 150), stroke_width=3, stroke_fill=(0, 0, 0))
         small = full.resize((W // 2, H // 2), Image.LANCZOS)
         # the corner, enlarged 2x (4 screen px a GUI px), from the hotbar's right end to the board's right edge
-        cx0 = (gw // 2 + 70) * s
+        cx0 = (gw // 2 - 110) * s
         cx1 = min(W, (x1 + 10) * s)
         cy0 = (y0 - 14) * s
         crop = screen.crop((cx0, cy0, cx1, H))
-        crop = crop.resize((crop.width * 2, crop.height * 2), Image.NEAREST)
+        crop = crop.resize((crop.width * 3 // 2, crop.height * 3 // 2), Image.NEAREST)
         # side by side: the screen (half size) and the corner (2x)
         hgt = max(small.height, crop.height)
         row_im = Image.new("RGBA", (small.width + 16 + crop.width, hgt), (20, 20, 24, 255))
@@ -842,8 +848,8 @@ def hud_sheet(eye_shot):
         kept = len(sc["rowsKept"])
         note = f"화면 {W}×{H} · GUI {s} ({gw}×{gh}) · 보드 오른쪽 끝 = 가운데 +{sc['boardRight']} · 폭 {sc['boardWidth']}px"
         if sc["kind"] == "hwatu":
-            note += f" · 줄: 제목 + {kept} (HallTable이 만든 7줄 중 '내 칩'은 6줄 한도로 잘림)"
-        panels.append(titled(row_im, sc["label"], note + " · 오른쪽: 구석을 2배로"))
+            note += f" · 보드: 제목 + {kept}줄 · 액션바 줄 폭 {sc['lineWidth']}px (≤ 212)"
+        panels.append(titled(row_im, sc["label"], note + " · 오른쪽: 아래쪽을 1.5배로"))
     stack(panels, OUT / "gamble_hud.png")
 
 
