@@ -31,7 +31,7 @@ class HudEditTest {
     @BeforeAll
     static void load() throws Exception {
         HudSheets bundled = HudSheets.load();
-        sheets = HudLayout.panelSheets(bundled, bundled.panelLetters());
+        sheets = bundled;
         layout = new HudLayout(sheets, HudLayout.Settings.defaults());
         sheets = layout.sheets();
         client = new HudClient(sheets, layout.fonts());
@@ -89,7 +89,7 @@ class HudEditTest {
                     assertEquals(x + HudLayout.TEXT_X * k, line.stream().mapToInt(HudClient.Draw::x).min().orElseThrow());
                     int end = line.stream().mapToInt(d -> d.x() + width(d) + 1).max().orElseThrow();
                     assertEquals(right - HudLayout.PAD * k, end, size + ": value against the right edge");
-                    String letters = size == HudLayout.Size.NORMAL ? "hangul_panel" : "hangul_panel7";
+                    String letters = size == HudLayout.Size.NORMAL ? "hangul" : "hangul7";
                     assertTrue(line.stream().allMatch(d -> d.sheet().equals(letters) || d.sheet().startsWith("text")), size + ": its own letters");
                 }
             }

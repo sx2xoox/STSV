@@ -24,8 +24,8 @@ import java.util.Map;
  * (advance = round(width x scale) + 1, scale = height on screen / cell height); this class measures the same PNG
  * the same way, so the layout always knows where the game will put the pen, at any height a font draws it.
  *
- * The panel's letters come from smaller sheets made here ({@link #subset}): only the Hangul syllables the server's
- * texts use, so the panel's many rows (three sizes, a range of heights) stay light on the client's memory.
+ * Every font that draws text holds the whole Hangul sheet of its size (hangul: Galmuri9, hangul7: Galmuri7, the
+ * 2,350 syllables of KS X 1001 and every one the repository's texts use); see HudLayout.
  */
 public final class HudSheets {
 
@@ -71,16 +71,9 @@ public final class HudSheets {
     }
 
     private final Map<String, Sheet> sheets;
-    private final java.util.Set<Integer> panelLetters;
 
-    private HudSheets(Map<String, Sheet> sheets, java.util.Set<Integer> panelLetters) {
+    private HudSheets(Map<String, Sheet> sheets) {
         this.sheets = sheets;
-        this.panelLetters = panelLetters;
-    }
-
-    /** The Hangul syllables of the repository's texts (sheets.json): the panel's letters always include them. */
-    public java.util.Set<Integer> panelLetters() {
-        return panelLetters;
     }
 
     public Sheet sheet(String name) {
@@ -95,49 +88,6 @@ public final class HudSheets {
 
     public Collection<Sheet> all() {
         return sheets.values();
-    }
-
-    /**
-     * These sheets and one more: `name`, the cells of `base` whose letter is one of `letters` (in the base's order,
-     * same cell size, 64 to a row). Letters the base lacks are left out; with none left, the base's first cell
-     * stays (a font provider needs a glyph).
-     */
-    public HudSheets subset(String base, String name, Collection<Integer> letters) {
-        Sheet b = sheet(base);
-        java.util.Set<Integer> wanted = new java.util.HashSet<>(letters);
-        List<Integer> keep = new ArrayList<>();
-        for (int k = 0; k < b.names().size(); k++) if (wanted.contains(b.names().get(k).codePointAt(0))) keep.add(k);
-        if (keep.isEmpty()) keep.add(0);
-        int cols = Math.min(64, keep.size()), rows = (keep.size() + cols - 1) / cols;
-        BufferedImage from = image(b.png());
-        BufferedImage to = new BufferedImage(cols * b.cellW(), rows * b.cellH(), BufferedImage.TYPE_INT_ARGB);
-        List<String> names = new ArrayList<>();
-        int[] widths = new int[keep.size()];
-        for (int i = 0; i < keep.size(); i++) {
-            int k = keep.get(i);
-            int sx = (k % b.cols()) * b.cellW(), sy = (k / b.cols()) * b.cellH();
-            int dx = (i % cols) * b.cellW(), dy = (i / cols) * b.cellH();
-            for (int y = 0; y < b.cellH(); y++) {
-                for (int x = 0; x < b.cellW(); x++) to.setRGB(dx + x, dy + y, from.getRGB(sx + x, sy + y));
-            }
-            names.add(b.names().get(k));
-            widths[i] = b.widths()[k];
-        }
-        Map<String, Sheet> out = new LinkedHashMap<>(sheets);
-        out.put(name, new Sheet(name, b.cellW(), b.cellH(), cols, b.height(), List.copyOf(names), widths, b.space(), png(to)));
-        return new HudSheets(out, panelLetters);
-    }
-
-    /**
-     * These sheets and one more: `name`, the named cells of `base` (in the given order, those it has; at least its
-     * first), same cell size, all in one row.
-     */
-    public HudSheets pick(String base, String name, List<String> cells) {
-        Sheet b = sheet(base);
-        List<Integer> keep = new ArrayList<>();
-        for (String c : cells) if (b.has(c)) keep.add(b.index(c));
-        if (keep.isEmpty()) keep.add(0);
-        return copy(b, name, keep, keep.size(), 0);
     }
 
     /**
@@ -172,7 +122,7 @@ public final class HudSheets {
         }
         Map<String, Sheet> out = new LinkedHashMap<>(sheets);
         out.put(name, new Sheet(name, b.cellW(), ch, cols, b.height() + extra, List.copyOf(names), widths, b.space(), png(to)));
-        return new HudSheets(out, panelLetters);
+        return new HudSheets(out);
     }
 
     /** The sheets bundled in the plugin jar. */
@@ -183,10 +133,8 @@ public final class HudSheets {
             manifest = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
         }
         Map<String, Sheet> out = new LinkedHashMap<>();
-        java.util.Set<Integer> panel = new java.util.TreeSet<>();
         for (Map.Entry<String, JsonElement> e : manifest.entrySet()) {
             JsonObject o = e.getValue().getAsJsonObject();
-            if (o.has("panel")) o.get("panel").getAsString().codePoints().forEach(panel::add);
             byte[] png;
             try (InputStream in = HudSheets.class.getResourceAsStream(ROOT + o.get("file").getAsString())) {
                 if (in == null) throw new IOException(ROOT + o.get("file").getAsString() + " 없음");
@@ -214,7 +162,7 @@ public final class HudSheets {
             }
             out.put(e.getKey(), new Sheet(e.getKey(), cw, ch, cols, height, List.copyOf(names), widths, space, png));
         }
-        return new HudSheets(out, java.util.Collections.unmodifiableSet(panel));
+        return new HudSheets(out);
     }
 
     private static BufferedImage image(byte[] png) {

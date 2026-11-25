@@ -27,18 +27,18 @@ import java.util.UUID;
  *       advance after it.</li>
  * </ul>
  * The board ({@link Board}: a header and up to 6 rows of text, a fishing tournament's ranking) has no background,
- * like the overlay, and sits in the bottom right corner of the screen, in Galmuri9 (the normal panel's letters). It goes on the action bar, the
- * only line the game anchors to the bottom of the screen: the boss bar title is anchored to the top and the server
- * is never told the screen's height, so a board there (as before) sat at a fixed distance from the top, at the
- * bottom of a GUI 240 high only. On the action bar its lowest row is hud.board.margin (2) px above the bottom at
- * every GUI scale and window size. A glyph can rise at most its own height above the action bar's line (65 px up;
- * the game refuses an ascent over a font's height), so the rows above it (the top one at the default margin) draw from
- * copies of their sheets with see-through rows under the cells (HudSheets.pad): with 11 px rows and no panel that is
- * a few pixels, not the 60 a 120 px panel would need. Each row has its own fonts at its own height. Its right edge is the
- * sidebar's (the player's own place, the screen's edge as for the overlay) or hud.board.right; it is never wider
- * than reaches x 106, past the hotbar (91) and the bars' numbers (105) beside the same bottom rows, so it cannot
- * cover them; chat is on the left (its default 320 px width ends about x 118 on a GUI 427 wide, so only a board
- * wider than about 94 px there can reach under the chat's background while the chat shows).
+ * like the overlay, and sits in the bottom right corner of the screen, in Galmuri9 (the normal panel's letters). It
+ * goes on the action bar, the only line the game anchors to the bottom of the screen: the boss bar title is anchored
+ * to the top and the server is never told the screen's height, so a board there (as before) sat at a fixed distance
+ * from the top, at the bottom of a GUI 240 high only. On the action bar its lowest row is hud.board.margin (2) px
+ * above the bottom at every GUI scale and window size. A glyph can rise at most its own height above the action
+ * bar's line (65 px up; the game refuses an ascent over a font's height), so the rows above it (the top one at the
+ * default margin) draw from copies of their sheets with see-through rows under the cells (HudSheets.pad): with 11 px
+ * rows and no panel that is a few pixels, not the 60 a 120 px panel would need. Each row has its own font at its own
+ * height. Its right edge is the sidebar's (the player's own place, the screen's edge as for the overlay) or
+ * hud.board.right; it is never wider than reaches x 106, past the hotbar (91) and the bars' numbers (105) beside the
+ * same bottom rows, so it cannot cover them; chat is on the left (its default 320 px width ends about x 118 on a GUI
+ * 427 wide, so only a board wider than about 94 px there can reach under the chat's background while the chat shows).
  * Nothing in the game anchors a server's text to the right edge of the screen, and the server is never told the
  * window size or GUI scale, so the board is placed from the middle: by default where the right edge of a 16:9
  * window at its automatic GUI scale is (720p, 1440p and 4K all give a GUI width of 427: 213 px right of the
@@ -376,7 +376,7 @@ public final class HudLayout {
         return settings;
     }
 
-    /** The sheets the fonts are made of (with the panel's letter subsets). */
+    /** The sheets the fonts are made of (with the board's padded copies). */
     public HudSheets sheets() {
         return sheets;
     }

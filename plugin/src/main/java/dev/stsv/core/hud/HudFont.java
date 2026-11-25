@@ -18,7 +18,7 @@ import java.util.Map;
  * default font as a last resort for anything else.
  *
  * Every bitmap provider keeps its whole sheet in the client's memory (RGBA), once per provider, whatever its
- * scale: a full Hangul sheet costs about 0.8 MB, the panel's smaller ones about a third of that, a picture a few kB.
+ * scale: the Galmuri9 Hangul sheet costs 0.77 MB, Galmuri7's 0.46 MB, a picture a few kB.
  */
 final class HudFont {
 

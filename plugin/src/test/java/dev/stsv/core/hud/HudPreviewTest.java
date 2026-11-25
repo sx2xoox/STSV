@@ -49,8 +49,7 @@ class HudPreviewTest {
         File eco = new File("../economy/src/main/resources/messages.yml");
         if (eco.exists()) Lang.useExtra("STSV-Economy", YamlConfiguration.loadConfiguration(eco));
         HudSheets bundled = HudSheets.load();
-        HudSheets sheets = HudLayout.panelSheets(bundled, bundled.panelLetters());
-        HudLayout layout = new HudLayout(sheets, HudLayout.Settings.defaults());
+        HudLayout layout = new HudLayout(bundled, HudLayout.Settings.defaults());
         HudClient client = new HudClient(layout.sheets(), layout.fonts());
 
         List<HudLayout.Row> rows = List.of(
@@ -215,8 +214,8 @@ class HudPreviewTest {
         o.addProperty("x", d.x());
         o.addProperty("y", y);
         o.addProperty("anchor", anchor);
-        // the panel's letter subsets hold the same cells as the whole sheets (which the preview reads)
-        o.addProperty("sheet", d.sheet().equals(HudLayout.PANEL_HANGUL) ? "hangul" : d.sheet().equals(HudLayout.PANEL_HANGUL7) ? "hangul7" : d.sheet());
+        // the board's padded copies hold the same cells as the whole sheets (which the preview reads)
+        o.addProperty("sheet", d.sheet().replaceFirst("_p\\d+$", ""));
         o.addProperty("scale", d.scale());
         o.addProperty("cell", d.cell());
         o.addProperty("color", String.format("%06x", d.color()));

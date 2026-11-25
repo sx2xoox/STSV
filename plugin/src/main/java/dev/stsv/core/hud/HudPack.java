@@ -49,7 +49,7 @@ public final class HudPack {
     }
 
     /**
-     * Every file (pack path -> bytes): the sheets the fonts use (the panel's letter subsets among them), the fonts.
+     * Every file (pack path -> bytes): the sheets the fonts use (the board's padded copies among them), the fonts.
      *
      * @param bossBarColour the BossBar.Color name whose bar the panel uses (its sprites become see-through), or
      *                      null when the panel is off

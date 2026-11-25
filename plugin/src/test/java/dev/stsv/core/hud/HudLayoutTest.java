@@ -37,8 +37,7 @@ class HudLayoutTest {
     @BeforeAll
     static void load() throws Exception {
         HudSheets bundled = HudSheets.load();
-        sheets = HudLayout.panelSheets(bundled, bundled.panelLetters());
-        layout = new HudLayout(sheets, HudLayout.Settings.defaults());
+        layout = new HudLayout(bundled, HudLayout.Settings.defaults());
         sheets = layout.sheets();
         client = new HudClient(sheets, layout.fonts());
     }
@@ -346,25 +345,101 @@ class HudLayoutTest {
         assertEquals(6, g14.textAdvance(' '));
     }
 
+    /** The 2,350 syllables of KS X 1001 (EUC-KR's two-byte Hangul), in order. */
+    static List<Integer> ksx1001() {
+        java.nio.charset.Charset euc = java.nio.charset.Charset.forName("EUC-KR");
+        return java.util.stream.IntStream.rangeClosed(0xAC00, 0xD7A3)
+                .filter(cp -> new String(Character.toChars(cp)).getBytes(euc).length == 2).boxed().toList();
+    }
+
+    static String text(List<Integer> cps) {
+        StringBuilder sb = new StringBuilder();
+        for (int cp : cps) sb.appendCodePoint(cp);
+        return sb.toString();
+    }
+
+    /** The Hangul syllables a laid line draws, left to right, top to bottom ('?' for a letter drawn as '?'). */
+    static String drawnSyllables(HudClient.Laid laid) {
+        return laid.draws().stream().filter(d -> d.shadow() || d.sheet().startsWith("hangul") || "?".equals(d.cell()))
+                .filter(d -> "?".equals(d.cell()) || (d.cell().codePointAt(0) >= 0xAC00 && d.cell().codePointAt(0) <= 0xD7A3))
+                .sorted(java.util.Comparator.comparingInt(HudClient.Draw::y).thenComparingInt(HudClient.Draw::x))
+                .map(HudClient.Draw::cell).collect(Collectors.joining());
+    }
+
     @Test
-    void panelLettersAreTheServersOwn() {
-        HudSheets.Sheet panel = sheets.sheet(HudLayout.PANEL_HANGUL), panel7 = sheets.sheet(HudLayout.PANEL_HANGUL7);
-        assertEquals(sheets.panelLetters().size(), panel.names().size(), "every syllable of the repository's texts, no more");
-        assertEquals(panel.names(), panel7.names());
-        assertTrue(panel.names().containsAll(List.of("잔", "액", "직", "업", "농", "부", "사", "건")));
-        assertTrue(panel.names().size() < sheets.sheet("hangul").names().size() / 2, "a light sheet: " + panel.names().size());
-        // a syllable no text uses is drawn as ? in the panel (the action bar still has every syllable)
-        assertFalse(sheets.panelLetters().contains((int) '꽥'));
-        HudClient.Laid laid = client.lay(layout.panel(List.of(new HudLayout.Row(null, mm("꽥"), false)), 212));
-        assertTrue(laid.draws().stream().anyMatch(d -> "?".equals(d.cell())));
-        assertEquals(1, client.lay(layout.actionBar(null, mm("꽥"))).draws().stream().filter(d -> d.cell().equals("꽥")).count());
-        // the server's own letters come first, then the most used of the rest, up to the limit
-        Map<Integer, Integer> counts = new java.util.HashMap<>();
-        HudModule.count("똠똠똠 뷁", counts);
-        int[] dropped = {0};
-        Set<Integer> picked = HudModule.pickLetters(Set.of((int) '가'), counts, 2, n -> dropped[0] = n);
-        assertEquals(Set.of((int) '가', (int) '똠'), picked);
-        assertEquals(1, dropped[0]);
+    void everySyllableOfKsX1001IsDrawnEverywhere() {
+        // the owner's report: 띵 (a bus passenger's line) and 컵 (a tournament nickname) were '?' / tofu, because the
+        // panel's rows held only the syllables of the server's texts (1,024 at most)
+        List<Integer> ks = ksx1001();
+        assertEquals(2350, ks.size());
+        assertTrue(ks.contains((int) '띵') && ks.contains((int) '컵'));
+        // every font that draws text declares every one of them (and every syllable of its Hangul sheet)
+        Set<Integer> sheetLetters = sheets.sheet("hangul").names().stream().map(n -> n.codePointAt(0)).collect(Collectors.toSet());
+        assertTrue(sheetLetters.containsAll(ks));
+        assertEquals(sheetLetters, sheets.sheet("hangul7").names().stream().map(n -> n.codePointAt(0)).collect(Collectors.toSet()));
+        int textFonts = 0;
+        for (var f : layout.fonts().entrySet()) {
+            String name = f.getKey().substring(f.getKey().lastIndexOf('/') + 1);
+            if (!name.startsWith("row_") && !name.startsWith("board_") && !name.equals("line.json")) continue;
+            textFonts++;
+            Set<Integer> declared = new HashSet<>();
+            for (JsonElement e : f.getValue().getAsJsonArray("providers")) {
+                JsonObject p = e.getAsJsonObject();
+                if (p.get("type").getAsString().equals("bitmap")) {
+                    for (JsonElement row : p.getAsJsonArray("chars")) row.getAsString().codePoints().forEach(declared::add);
+                }
+            }
+            assertTrue(declared.containsAll(sheetLetters), f.getKey() + " lacks syllables");
+        }
+        assertEquals(1 + 12 + 11 + 8 + HudLayout.BOARD_SLOTS, textFonts, "the line, the panel's rows of three sizes, the board's");
+        // and every one is drawn as itself through every path: 띵 and 컵 first, then all 2,350, eight to a row
+        List<Integer> all = new java.util.ArrayList<>(List.of((int) '띵', (int) '컵'));
+        all.addAll(ks);
+        List<String> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < all.size(); i += 8) rows.add(text(all.subList(i, Math.min(all.size(), i + 8))));
+        for (HudLayout.Size size : HudLayout.Size.values()) {
+            for (boolean low : new boolean[]{false, true}) {
+                int n = layout.maxRows(size);
+                int top = low ? layout.maxTop(size, n) : layout.minTop(size);
+                for (int i = 0; i < rows.size(); i += n) {
+                    List<String> chunk = rows.subList(i, Math.min(rows.size(), i + n));
+                    List<HudLayout.Row> panel = chunk.stream().map(t -> new HudLayout.Row(null, Component.text(t), false)).toList();
+                    HudClient.Laid laid = client.lay(layout.panel(panel, new HudLayout.Placement(size, 212, top), false));
+                    assertEquals(String.join("", chunk), drawnSyllables(laid), size + " panel at " + top);
+                }
+            }
+        }
+        for (int i = 0; i < rows.size(); i += HudLayout.OVERLAY_ROWS) {
+            List<String> chunk = rows.subList(i, Math.min(rows.size(), i + HudLayout.OVERLAY_ROWS));
+            List<HudLayout.OverlayRow> overlay = chunk.stream().map(t -> new HudLayout.OverlayRow("bus_driver", null, Component.text(t))).toList();
+            assertEquals(String.join("", chunk), drawnSyllables(client.lay(layout.overlay(overlay, -200))), "overlay");
+        }
+        for (int i = 0; i < rows.size(); i += HudLayout.BOARD_SLOTS) {
+            List<String> chunk = rows.subList(i, Math.min(rows.size(), i + HudLayout.BOARD_SLOTS));
+            HudLayout.Board b = new HudLayout.Board(Component.text(chunk.getFirst()),
+                    chunk.subList(1, chunk.size()).stream().map(t -> new HudLayout.Board.Row(player(1), Component.text(t))).toList());
+            assertEquals(String.join("", chunk), drawnSyllables(client.lay(layout.board(b, 240))), "board");
+        }
+        for (String r : rows) assertEquals(r, drawnSyllables(client.lay(layout.actionBar(null, Component.text(r)))), "action bar");
+        // a nickname with them: name and score whole on the tournament board
+        HudLayout.Board tournament = new HudLayout.Board(mm("<aqua>가장 큰 한 마리\t<white>12:34"), List.of(
+                new HudLayout.Board.Row(player(1), mm("<gray>1 <white>띵컵\t<aqua>31.0cm"))));
+        assertEquals("가장큰한마리띵컵", drawnSyllables(client.lay(layout.board(tournament, 212))));
+    }
+
+    @Test
+    void aSyllableOutsideTheSheetsIsAQuestionMarkOfItsWidth() {
+        // KS X 1001 lacks some of the 11,172 syllables (똠, 햏): they are '?' in the panel, the overlay and the board,
+        // exactly as wide, so nothing after them moves
+        assertFalse(sheets.sheet("hangul").has("똠"));
+        HudClient.Laid panel = client.lay(layout.panel(List.of(new HudLayout.Row(null, mm("똠띵"), false)), 212));
+        assertEquals("?띵", drawnSyllables(panel));
+        assertEquals("?띵", drawnSyllables(client.lay(layout.overlay(List.of(new HudLayout.OverlayRow(null, null, mm("똠띵"))), -200))));
+        HudLayout.Board odd = new HudLayout.Board(mm("똠\t1"), List.of()), plain = new HudLayout.Board(mm("?\t1"), List.of());
+        assertEquals(layout.boardWidth(plain, 212), layout.boardWidth(odd, 212));
+        assertEquals("?", drawnSyllables(client.lay(layout.board(odd, 212))));
+        // the action bar's line has the game's font behind its own: there it is the game's glyph
+        assertEquals(1, client.lay(layout.actionBar(null, mm("띵"))).draws().stream().filter(d -> d.cell().equals("띵")).count());
     }
 
     @Test
@@ -489,21 +564,9 @@ class HudLayoutTest {
             assertTrue(files.containsKey(f.getKey()));
         }
         assertNotNull(files.get("assets/stsv/textures/font/hud/LICENSE-galmuri.txt"), "the font's licence travels with it");
-        assertNull(files.get("assets/stsv/textures/font/hud/hangul7.png"), "the whole Galmuri7 sheet is only cut from, not shipped");
-        assertNotNull(files.get("assets/stsv/textures/font/hud/" + HudLayout.PANEL_HANGUL7 + ".png"));
-    }
-
-    @Test
-    void commentsAreNotCountedForThePanelsLetters() {
-        // a file's comments are for the operator: counting them filled the letter sheets with syllables no player sees
-        String yaml = "a: \"x # y\"  # 설명\n# 전체 주석\nname: \"<#e06439>경운기\"\nb: '따옴표 # 안'\nc: 1 #붙은 주석\nd: 색#아님";
-        assertEquals("a: \"x # y\"  \n\nname: \"<#e06439>경운기\"\nb: '따옴표 # 안'\nc: 1 \nd: 색#아님", HudModule.stripComments(yaml));
-        Map<Integer, Integer> counts = new HashMap<>();
-        HudModule.count(HudModule.stripComments(yaml), counts);
-        assertTrue(counts.containsKey((int) '경') && counts.containsKey((int) '옴') && counts.containsKey((int) '색'));
-        assertFalse(counts.containsKey((int) '설') || counts.containsKey((int) '체') || counts.containsKey((int) '붙'), "nothing from a comment");
-        // the bundled set is the shipped texts' own: with the files' comments it had grown past the memory budget below
-        assertTrue(sheets.panelLetters().size() < 860, "the repository's shown syllables: " + sheets.panelLetters().size());
+        assertNotNull(files.get("assets/stsv/textures/font/hud/hangul.png"));
+        assertNotNull(files.get("assets/stsv/textures/font/hud/hangul7.png"), "every row draws from the whole sheets");
+        assertTrue(files.keySet().stream().noneMatch(k -> k.contains("hangul_panel") || k.contains("board_faces")), "no subsets, no board faces");
     }
 
     @Test

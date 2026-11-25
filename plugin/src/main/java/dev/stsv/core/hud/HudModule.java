@@ -49,10 +49,6 @@ import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -92,7 +88,7 @@ import java.util.function.Function;
  * ones are joined left to right by their order. A one-off action-bar message must go through {@link #flash} so the
  * status line steps aside for a few seconds instead of overwriting it (and, in pack mode, so the health bars stay).
  *
- * Board ({@link #board}, pack mode): rows of a face and text without a background in the bottom right corner of
+ * Board ({@link #board}, pack mode): rows of text (Galmuri9) without a background in the bottom right corner of
  * the screen (a fishing tournament's ranking), shown to every online player with the pack while a producer has one:
  * the first registered producer that answers a board for that player wins. It is drawn on the action bar with the
  * bars (each piece has zero net advance; the action bar is the only line the game anchors to the bottom of the
@@ -794,8 +790,8 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     }
 
     /**
-     * The sample of /관리자 사이드바 보드시험 (a fishing tournament's ranking): five made-up players (each a face of
-     * their own, as any player gets), then the viewer's own row with their face.
+     * The sample of /관리자 사이드바 보드시험 (a fishing tournament's ranking): five made-up players, then the
+     * viewer's own row.
      */
     private static HudLayout.Board sampleBoard(Player viewer) {
         List<HudLayout.Board.Row> rows = new ArrayList<>();
