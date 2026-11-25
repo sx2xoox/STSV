@@ -10,7 +10,55 @@ import java.util.Set;
 
 /** bus.yml: fares, moods, stops and passenger types of the 마을버스 (README "마을버스"). Pure (unit-tested). */
 public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, Map<String, Type> types, Extra extra, Rental rental,
-                      Queue queue, Patience patience, Board board, BusEvents events, ServiceGate.Rules fair) {
+                      Queue queue, Patience patience, Board board, BusEvents events, ServiceGate.Rules fair, Shiny shiny) {
+
+    /**
+     * 별난 손님 (bus.yml shiny, README "마을버스" 별난 손님): a passenger who comes to a stop is, with `chance`, the 별난 one of
+     * their kind: the same fare, mood and rewards, another look (`skins`: kind -> its skin, else its first skin's file with
+     * _s1), a sparkle and a chime, a ✦ before the name, and their own lines (`own`: kind -> situation -> lines, else `talk`).
+     * Never a kind of weight 0 (the secret ??? who comes by his own rules) or in `never`; never an event team, a 특급 손님 or
+     * a transfer (they wait for something of their own).
+     */
+    public record Shiny(double chance, Map<String, List<String>> talk, Map<String, Map<String, List<String>>> own, Map<String, String> skins,
+                        Set<String> never) {
+        public static final String MARK = "✦";
+
+        public boolean eligible(Type t) {
+            return t != null && t.weight() > 0 && !never.contains(t.id());
+        }
+
+        /** The skin (with " slim" like the bus.yml skins) a shiny of this kind wears, or null when it has no skins at all. */
+        public String skin(Type t) {
+            String own = skins.get(t.id());
+            if (own != null && !own.isBlank()) return own;
+            return t.skins().isEmpty() ? null : shinySkin(t.skins().getFirst(), t.id());
+        }
+
+        /** economy:entity/bus/grandma_1 slim -> economy:entity/bus/grandma_s1 slim (the folder of the first skin, the kind's id). */
+        static String shinySkin(String first, String id) {
+            boolean slim = first.endsWith(" slim");
+            String key = slim ? first.substring(0, first.length() - 5).trim() : first.trim();
+            int cut = key.lastIndexOf('/');
+            int colon = key.indexOf(':');
+            String folder = cut >= 0 ? key.substring(0, cut + 1) : colon >= 0 ? key.substring(0, colon + 1) : "";
+            return folder + id + "_s1" + (slim ? " slim" : "");
+        }
+
+        /** A shiny one's lines in this situation (board, thanks): their kind's own, else the general ones, else null. */
+        public List<String> lines(Type t, String situation) {
+            List<String> mine = t == null ? null : own.getOrDefault(t.id(), Map.of()).get(situation);
+            if (mine != null && !mine.isEmpty()) return mine;
+            List<String> all = talk.get(situation);
+            return all == null || all.isEmpty() ? null : all;
+        }
+
+        /** How many of `newcomers` who just came are shiny: one roll each (`roll` gives 0..1). */
+        public int arrivals(int newcomers, java.util.function.DoubleSupplier roll) {
+            int n = 0;
+            for (int i = 0; i < newcomers; i++) if (roll.getAsDouble() < chance) n++;
+            return n;
+        }
+    }
 
     /**
      * How waiting passengers stand and pass the time: `gap` blocks apart in their line, they notice a bus within `notice`
@@ -242,7 +290,21 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
         ServiceGate.Rules d = ServiceGate.Rules.DEFAULT;
         ServiceGate.Rules fair = new ServiceGate.Rules(fr.getDouble("min-drive", d.minDrive()), fr.getDouble("road-share", d.roadShare()),
                 fr.getDouble("max-speed", d.maxSpeed()), fr.getDouble("min-ride", d.minRide()));
-        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board, events, fair);
+        ConfigurationSection sh = section(c, "shiny");
+        Map<String, Map<String, List<String>>> shinyOwn = new LinkedHashMap<>();
+        Map<String, String> shinySkins = new LinkedHashMap<>();
+        if (ts != null) for (String id : ts.getKeys(false)) {
+            ConfigurationSection t = ts.getConfigurationSection(id);
+            if (t == null) continue;
+            Map<String, List<String>> own = talk(t.getConfigurationSection("shiny-talk"));
+            if (!own.isEmpty()) shinyOwn.put(id, own);
+            String sk = t.getString("shiny-skin");
+            if (sk != null) shinySkins.put(id, sk);
+        }
+        Shiny shiny = new Shiny(Math.clamp(sh.getDouble("chance", 0.004), 0, 1), talk(sh.getConfigurationSection("talk")), shinyOwn, shinySkins,
+                Set.copyOf(sh.getStringList("never")));
+        for (String k : shiny.never()) if (!types.containsKey(k)) problems.add("shiny.never: 없는 손님 종류 " + k);
+        return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board, events, fair, shiny);
     }
 
     private static Map<String, List<String>> talk(ConfigurationSection t) {

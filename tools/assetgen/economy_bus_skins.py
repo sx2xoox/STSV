@@ -6,6 +6,7 @@ textures, so nothing is uploaded to Mojang.
     python3 economy_bus_skins.py                    # skins -> economy/content/economy/assets/economy/textures/entity/bus/
     python3 economy_bus_skins.py --sheet out.png    # + a preview sheet (front and back, flat, 4x and 1x)
     python3 economy_bus_skins.py --sheet out.png --types farmer,drunk   # the sheet with only these types
+    python3 economy_bus_skins.py --shiny-sheet shiny.png   # + the 별난 손님 sheet (each kind's first look and its <id>_s1)
 
 A texture at assets/economy/textures/entity/bus/<id>.png is the key "economy:entity/bus/<id>"
 (ResolvableProfile.skinPatch().body(key), with .model(SLIM) for the slim ones: see SLIM / main()).
@@ -5167,6 +5168,144 @@ def build():
 
 
 # ---------------------------------------------------------------------------------------------
+# 별난 손님 (shiny passengers, README "마을버스" 별난 손님): one <id>_s1 per kind, phase 1 = the kind's first look with
+# its clothes and hair in another palette (gold, or a pastel) plus a small accessory of its own (a star or heart pin, a
+# flower, a tiny crown, a ribbon). The skin itself (sampled from the face) keeps its colour; the 유령 손님's shiny is a
+# perfectly healthy person (warm skin: the plugin shows it un-see-through). The secret ??? (shades) has none.
+# ---------------------------------------------------------------------------------------------
+
+SHINY_SKIP = {"shades"}
+# theme -> how a colour changes: ("gold", ...) a gold ramp by lightness; ("pastel", hue shift, tint) a hue turn, softened
+SHINY_THEMES = [
+    ("gold", None, None),
+    ("pastel", 0.55, "ffb6d0"),     # 벚꽃
+    ("pastel", 0.33, "aef0d0"),     # 민트
+    ("pastel", 0.75, "d0b8ff"),     # 라벤더
+    ("pastel", 0.15, "a8dcff"),     # 하늘
+    ("pastel", 0.90, "e8f590"),     # 연두
+]
+SHINY_PINS = ["star", "heart", "flower", "crown", "ribbon"]
+GOLD_RAMP = [(0.0, (70, 44, 8)), (0.35, (168, 112, 20)), (0.65, (232, 184, 52)), (0.85, (250, 224, 120)), (1.0, (255, 250, 214))]
+
+
+def _hsv(c):
+    import colorsys
+    return colorsys.rgb_to_hsv(c[0] / 255, c[1] / 255, c[2] / 255)
+
+
+def _rgb(h, s, v, a=255):
+    import colorsys
+    r, g, b = colorsys.hsv_to_rgb(h % 1.0, max(0.0, min(1.0, s)), max(0.0, min(1.0, v)))
+    return (round(r * 255), round(g * 255), round(b * 255), a)
+
+
+def _ramp(stops, t):
+    for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+        if t <= t1:
+            k = 0 if t1 == t0 else (t - t0) / (t1 - t0)
+            return tuple(round(c0[i] + (c1[i] - c0[i]) * k) for i in range(3))
+    return stops[-1][1]
+
+
+def shiny_colour(c, theme):
+    """A clothes or hair colour in the theme's palette (alpha kept)."""
+    kind, shift, tint = theme
+    if kind == "gold":
+        lum = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / 255
+        return _ramp(GOLD_RAMP, 0.15 + 0.8 * lum) + (c[3],)
+    h, s, v = _hsv(c)
+    t = C(tint)
+    th = _hsv(t)[0]
+    # a grey (suits, black hair) takes the theme's own hue; a colour turns by `shift`; all of it soft and light
+    hue = th if s < 0.15 else h + shift
+    out = _rgb(hue, max(s * 0.7, 0.38), 0.4 + 0.58 * v)
+    return tuple(round(out[i] * 0.75 + t[i] * 0.25) for i in range(3)) + (c[3],)
+
+
+def face_skin(im):
+    """The skin colour: the commonest colour of the inner head's front below the eyes (rows 5-7)."""
+    from collections import Counter
+    seen = Counter(im.getpixel((8 + x, 8 + y)) for x in range(8) for y in range(5, 8))
+    return seen.most_common(1)[0][0]
+
+
+def _near(a, b, tol=22):
+    return a[3] and b[3] and sum(abs(a[i] - b[i]) for i in range(3)) <= tol
+
+
+def shiny_pin(s, kind, col, light):
+    """The small accessory on the head's outer layer (front, the wearer's left of the top) or on top."""
+    Co, Li = C(col), C(light)
+    if kind == "star":
+        px = {(6, 0): Co, (5, 1): Co, (6, 1): Li, (7, 1): Co, (6, 2): Co}
+    elif kind == "heart":
+        px = {(5, 0): Co, (7, 0): Co, (5, 1): Co, (6, 1): Li, (7, 1): Co, (6, 2): Co}
+    elif kind == "flower":
+        px = {(6, 0): Co, (5, 1): Co, (6, 1): Li, (7, 1): Co, (6, 2): Co, (5, 2): C("5aa04a")}
+    elif kind == "ribbon":
+        px = {(4, 0): Co, (6, 0): Co, (4, 1): Co, (5, 1): Li, (6, 1): Co, (5, 0): Co}
+    else:   # a tiny crown on the hair (front edge and top)
+        px = {(2, 0): Co, (3, 0): Li, (4, 0): Li, (5, 0): Co, (2, 1): Co, (5, 1): Co}
+        s.paint("head", lambda fc, x, y, w, h: (Li if (x + y) % 3 == 0 else Co) if fc == "top" and 2 <= x <= 5 and 2 <= y <= 5 else None, 1)
+    s.paint("head", lambda fc, x, y, w, h: px.get((x, y)) if fc == "front" else None, 1)
+
+
+def shiny(tid, fn, i):
+    """The kind's 별난 look (see above): its first skin, recoloured, with its pin and two glints on the chest."""
+    s = fn(1)
+    theme = SHINY_THEMES[i % len(SHINY_THEMES)]
+    pin = SHINY_PINS[i % len(SHINY_PINS)]
+    im = s.im
+    skin = face_skin(im)
+    warm = tid == "ghost"   # the ghost's shiny: a healthy, living face
+    for y in range(64):
+        for x in range(64):
+            c = im.getpixel((x, y))
+            if c[3] == 0:
+                continue
+            if _near(c, skin):
+                if warm:
+                    k = (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) / max(1, 0.299 * skin[0] + 0.587 * skin[1] + 0.114 * skin[2])
+                    im.putpixel((x, y), shade(C("f0c4a0"), k))
+                continue
+            if 9 <= x < 15 and 11 <= y < 16:
+                continue   # the face itself (eyes, nose, mouth, cheeks) as it was
+            im.putpixel((x, y), shiny_colour(c, theme))
+    if theme[0] == "gold":
+        shiny_pin(s, pin, "ff6aa8", "ffd0e4")
+    else:
+        shiny_pin(s, pin, "f2c23a", "fff4b8")
+    glint = C("fffbe8")
+    s.paint("body", lambda fc, x, y, w, h: glint if fc == "front" and (x, y) in ((1, 2), (6, 6)) else None, 1)
+    return s
+
+
+def silhouette():
+    """인물 도감's unmet person (its head in the codex): a plain dark figure, a pale "?" on the face."""
+    s = Skin()
+    dark, edge, mark = C("2a2c38"), C("3a3d4c"), C("c8cce0")
+    q = {(2, 1), (3, 1), (4, 1), (5, 1), (1, 2), (6, 2), (5, 3), (4, 4), (3, 5), (3, 7)}
+    for part in ("head", "body", "rarm", "larm", "rleg", "lleg"):
+        s.paint(part, lambda fc, x, y, w, h: edge if fc == "top" else dark)
+    s.paint("head", lambda fc, x, y, w, h: mark if fc == "front" and (x, y) in q else None)
+    return s
+
+
+SILHOUETTE = OUT.parent / "people" / "unknown.png"
+
+
+def build_shiny():
+    """<id>_s1 -> (skin image, slim) for every kind but SHINY_SKIP."""
+    out = {}
+    for i, (tid, _, fn) in enumerate(TYPES):
+        if tid in SHINY_SKIP:
+            continue
+        s = shiny(tid, fn, i)
+        out[f"{tid}_s1"] = (s.finish(), s.slim)
+    return out
+
+
+# ---------------------------------------------------------------------------------------------
 # preview: front and back as a flat 2D player
 # ---------------------------------------------------------------------------------------------
 
@@ -5213,18 +5352,46 @@ def sheet(skins, path, types=None):
     img.save(path)
 
 
+def shiny_sheet(skins, shinies, path, cols=6):
+    """별난 손님 preview: each kind's first look beside its shiny one (front and back, 4x)."""
+    from PIL import ImageDraw, ImageFont
+    small = ImageFont.truetype(str(HERE / "fonts" / "Sunflower-Medium.ttf"), 14)
+    names = {tid: name for tid, name, _ in TYPES}
+    keys = list(shinies)
+    cw, ch = 4 * 68 + 20, 128 + 40
+    rows = (len(keys) + cols - 1) // cols
+    img = Image.new("RGBA", (cw * cols + 10, ch * rows + 10), (58, 62, 70, 255))
+    d = ImageDraw.Draw(img)
+    for k, key in enumerate(keys):
+        tid = key[:-3]
+        x, y = 10 + (k % cols) * cw, 10 + (k // cols) * ch
+        d.rectangle((x - 4, y - 4, x + cw - 14, y + ch - 10), fill=(72, 77, 86, 255))
+        d.text((x, y), f"{names[tid]} {key}", font=small, fill=(255, 230, 150))
+        for j, (im, slim) in enumerate((skins[f"{tid}_1"], shinies[key])):
+            img.alpha_composite(flat(im, slim).resize((64, 128), Image.NEAREST), (x + j * 136, y + 20))
+            img.alpha_composite(flat(im, slim, back=True).resize((64, 128), Image.NEAREST), (x + j * 136 + 66, y + 20))
+    img.save(path)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sheet", help="also write a preview sheet here")
     ap.add_argument("--types", help="only these types on the sheet (comma separated ids)")
+    ap.add_argument("--shiny-sheet", help="also write the 별난 손님 preview sheet here")
     args = ap.parse_args()
     skins = build()
+    shinies = build_shiny()
     OUT.mkdir(parents=True, exist_ok=True)
-    for key, (im, slim) in skins.items():
+    for key, (im, slim) in {**skins, **shinies}.items():
         im.save(OUT / f"{key}.png")
         print(f"economy:entity/bus/{key}  {'slim' if slim else 'wide'}")
+    SILHOUETTE.parent.mkdir(parents=True, exist_ok=True)
+    silhouette().finish().save(SILHOUETTE)
+    print("economy:entity/people/unknown  wide")
     if args.sheet:
         sheet(skins, args.sheet, args.types.split(",") if args.types else None)
+    if args.shiny_sheet:
+        shiny_sheet(skins, shinies, args.shiny_sheet)
 
 
 if __name__ == "__main__":

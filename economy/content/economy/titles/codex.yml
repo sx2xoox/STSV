@@ -31,3 +31,12 @@ codex_all:
   name: "<gradient:#ffd36b:#ff8a3d><b>[살아있는 도감]</b></gradient>"
   description: "도감: 모든 분류 모두 등록"
   category: codex
+# 인물 도감 칭호 (people.yml titles: /도감 인물 · 버스 손님 모두 등록)
+people_all:
+  name: "<#ffb37a>[마을 사람 박사]"
+  description: "인물 도감: 모든 인물을 만나 등록"
+  category: codex
+people_shiny_all:
+  name: "<gradient:#fff3a0:#ff9ed8><b>[✦ 별난 사람 수집가]</b></gradient>"
+  description: "인물 도감: 모든 인물의 별난 모습 등록"
+  category: codex

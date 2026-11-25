@@ -40,6 +40,8 @@ final class PassengerPreview {
     private final BusModule bus;
     private final EcoPlugin eco;
     private final Set<Batch> batches = new HashSet<>();
+    /** the word after the kind that shows the 별난 손님 look */
+    static final String SHINY_WORD = "별난";
 
     PassengerPreview(BusModule bus, EcoPlugin eco) {
         this.bus = bus;
@@ -157,6 +159,10 @@ final class PassengerPreview {
             return;
         }
         BusSpec spec = bus.spec();
+        // 별난: the kinds' 별난 손님 look (their shiny skin, ✦, sparkle and their own lines getting on and off)
+        List<String> rest = new ArrayList<>(List.of(args));
+        boolean shine = rest.size() > 2 && rest.subList(2, rest.size()).remove(SHINY_WORD);
+        args = rest.toArray(String[]::new);
         if (args.length < 2) {
             s.sendMessage(Lang.mm("bus.preview-usage"));
             return;
@@ -167,7 +173,7 @@ final class PassengerPreview {
                 s.sendMessage(Lang.mm("bus.preview-no-sit", "type", "전체", "sit", sit, "sits", String.join(", ", allSituations(spec))));
                 return;
             }
-            showAll(p, sit);
+            showAll(p, sit, shine);
             return;
         }
         BusSpec.Type t = spec.types().get(args[1]);
@@ -179,7 +185,7 @@ final class PassengerPreview {
             s.sendMessage(Lang.mm("bus.preview-no-sit", "type", bus.typeTag(t), "sit", sit, "sits", String.join(", ", spec.situations(t))));
             return;
         }
-        showOne(p, t, sit);
+        showOne(p, t, sit, shine);
     }
 
     List<String> complete(String[] args) {
@@ -189,10 +195,13 @@ final class PassengerPreview {
             out.add("전체");
             return out.stream().filter(k -> k.startsWith(args[1])).toList();
         }
-        if (args.length == 3) {
+        if (args.length == 3 || args.length == 4) {
             BusSpec.Type t = spec.types().get(args[1]);
-            List<String> sits = args[1].equals("전체") ? allSituations(spec) : t == null ? List.of() : spec.situations(t);
-            return sits.stream().filter(k -> k.startsWith(args[2])).toList();
+            List<String> sits = new ArrayList<>(args[1].equals("전체") ? allSituations(spec) : t == null ? List.of() : spec.situations(t));
+            if (args.length == 3) sits.addFirst(SHINY_WORD);
+            else if (!args[2].equals(SHINY_WORD)) sits = new ArrayList<>(List.of(SHINY_WORD));
+            String last = args[args.length - 1];
+            return sits.stream().filter(k -> k.startsWith(last)).toList();
         }
         return List.of();
     }
@@ -203,10 +212,11 @@ final class PassengerPreview {
         return List.copyOf(out);
     }
 
-    private void showOne(Player p, BusSpec.Type t, String sit) {
+    private void showOne(Player p, BusSpec.Type t, String sit, boolean shine) {
         BusSpec spec = bus.spec();
         Batch b = new Batch(p, SECONDS * 20, false);
-        Show sh = spawn(b, t, spot(p, 0, AHEAD), sit, 0);
+        if (shine && !spec.shiny().eligible(t)) p.sendMessage(Lang.mm("bus.preview-no-shiny", "type", bus.typeTag(t)));
+        Show sh = spawn(b, t, spot(p, 0, AHEAD), sit, 0, shine && spec.shiny().eligible(t));
         if (sh == null) return;
         String idle = spec.queue().idleOf(t.id());
         p.sendMessage(Lang.mm("bus.preview-start", "type", bus.typeTag(t), "secs", SECONDS, "fare", num(t.fare()),
@@ -217,13 +227,13 @@ final class PassengerPreview {
         start(b);
     }
 
-    private void showAll(Player p, String sit) {
+    private void showAll(Player p, String sit, boolean shine) {
         Batch b = new Batch(p, ALL_SECONDS * 20, true);
-        List<BusSpec.Type> types = List.copyOf(bus.spec().types().values());
+        List<BusSpec.Type> types = bus.spec().types().values().stream().filter(t -> !shine || bus.spec().shiny().eligible(t)).toList();
         for (int i = 0; i < types.size(); i++) {
             int row = i / ROW, col = i % ROW, inRow = Math.min(ROW, types.size() - row * ROW);
             double side = (col - (inRow - 1) / 2.0) * APART + (row % 2 == 1 ? APART / 2 : 0);
-            spawn(b, types.get(i), spot(p, side, AHEAD + row * ROW_STEP), sit, ThreadLocalRandom.current().nextInt(20));
+            spawn(b, types.get(i), spot(p, side, AHEAD + row * ROW_STEP), sit, ThreadLocalRandom.current().nextInt(20), shine);
         }
         if (b.shows.isEmpty()) return;
         p.sendMessage(Lang.mm("bus.preview-all", "n", b.shows.size(), "secs", ALL_SECONDS));
@@ -336,9 +346,9 @@ final class PassengerPreview {
     }
 
     /** One kind shown at this spot, facing the admin: added to the batch (null when nothing could be shown). */
-    private Show spawn(Batch b, BusSpec.Type t, Location at, String sit, int phase) {
+    private Show spawn(Batch b, BusSpec.Type t, Location at, String sit, int phase, boolean shine) {
         BusSpec spec = bus.spec();
-        List<String[]> script = script(spec, t, sit, b.length - phase);
+        List<String[]> script = script(spec, t, sit, b.length - phase, shine);
         String act = spec.queue().idleOf(t.id());
         double yaw = Math.toRadians(at.getYaw());
         // somewhere off to the side to glance at (fidget: down the road)
@@ -349,8 +359,9 @@ final class PassengerPreview {
         boolean sits = "sit".equals(act);
         Location stand = sits ? at.clone().add(0, 0.5, 0) : at;
         sh.home = stand;
-        sh.m = bus.spawnGuest(stand, t, BusModule.pickSkin(t, false), x -> {
-            x.customName(dev.stsv.core.util.Text.mm(bus.typeTag(t)));
+        String skin = shine && spec.shiny().skin(t) != null ? spec.shiny().skin(t) : BusModule.pickSkin(t, false);
+        sh.m = bus.spawnGuest(stand, t, skin, shine, x -> {
+            x.customName(dev.stsv.core.util.Text.mm(bus.typeTag(t, shine)));
             x.setCustomNameVisible(true);
             x.setDescription(Lang.mm("bus.preview-tag", "fare", num(t.fare())));
         });
@@ -367,6 +378,7 @@ final class PassengerPreview {
             Location d = at.clone().add(Math.cos(yaw) * 0.9, 0, Math.sin(yaw) * 0.9);
             sh.dog = BusModule.spawnDog(d);
         }
+        if (shine) BusModule.sparkle(sh.m, true);
         b.shows.add(sh);
         return sh;
     }
@@ -376,16 +388,21 @@ final class PassengerPreview {
      * one asked (as many as fit in `ticks`, a bubble at least MIN_BUBBLE ticks).
      */
     static List<String[]> script(BusSpec spec, BusSpec.Type t, String sit, int ticks) {
+        return script(spec, t, sit, ticks, false);
+    }
+
+    /** The same; a 별난 손님 (`shine`) says its own lines getting on and off (shiny.talk, types.*.shiny-talk). */
+    static List<String[]> script(BusSpec spec, BusSpec.Type t, String sit, int ticks, boolean shine) {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         List<String[]> out = new ArrayList<>();
         if (sit == null) {
             for (String k : spec.previewSequence(t)) {
-                List<String> lines = spec.lines(t, k);
+                List<String> lines = shine && spec.shiny().lines(t, k) != null ? spec.shiny().lines(t, k) : spec.lines(t, k);
                 out.add(new String[]{k, lines.get(rnd.nextInt(lines.size()))});
             }
             return out;
         }
-        List<String> lines = spec.lines(t, sit);
+        List<String> lines = shine && spec.shiny().lines(t, sit) != null ? spec.shiny().lines(t, sit) : spec.lines(t, sit);
         if (lines == null) return out;
         int fit = Math.max(1, ticks / MIN_BUBBLE);
         for (int i = 0; i < Math.min(fit, lines.size()); i++) out.add(new String[]{sit, lines.get(i)});

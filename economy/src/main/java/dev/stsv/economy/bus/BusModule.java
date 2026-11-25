@@ -134,6 +134,8 @@ public final class BusModule extends EcoModule {
         /** an event team's number (0: none) and a 특급 손님's kind (or null) */
         int team;
         String special;
+        /** 별난 손님 (decided when they came to the stop); a couple's second half (the 인물 도감 counts the pair once) */
+        boolean shiny, half;
 
         Waiter(Mannequin m, BusSpec.Type type, String face) {
             this.m = m;
@@ -146,9 +148,18 @@ public final class BusModule extends EcoModule {
      * Someone queued to wait at a stop: a transfer passenger (their line and stop), one of an event team (출근 대란, 야구 끝,
      * 소풍날: its number) or a 특급 손님 (its kind).
      */
-    record Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special) {
+    record Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special, boolean shiny) {
         Forced(String type, Integer line, Integer dest, boolean transfer) {
-            this(type, line, dest, transfer, 0, null);
+            this(type, line, dest, transfer, 0, null, false);
+        }
+
+        Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special) {
+            this(type, line, dest, transfer, team, special, false);
+        }
+
+        /** A 별난 손님 waiting on unseen (its kind kept; null: any kind, the admin's test), else an ordinary one. */
+        static Forced shinyOne(String type) {
+            return new Forced(type, null, null, false, 0, null, true);
         }
     }
 
@@ -201,6 +212,8 @@ public final class BusModule extends EcoModule {
         boolean rerouted;
         /** 벨 장난 꼬마: rang the bell for nobody already this ride */
         boolean pranked;
+        /** 별난 손님; a couple's second half (인물 도감: one meeting a pair) */
+        boolean shiny, half;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -252,6 +265,14 @@ public final class BusModule extends EcoModule {
     private final Map<Integer, java.util.Set<String>> stopTags = new HashMap<>();
     /** stop id -> who is queued to wait there next (transfers, a picnic) */
     private final Map<Integer, Deque<Forced>> forced = new HashMap<>();
+    /**
+     * 별난 손님: stop id -> how many of those counted there came shiny and have not been seen yet (the next ordinary
+     * passengers to appear are they); and how many of its count are passengers set down where they got on (noRide: they
+     * come back, not anew: no new roll).
+     */
+    private final Map<Integer, Integer> shinyTickets = new HashMap<>(), comeBack = new HashMap<>();
+    /** marks a 별난 손님's mannequin (its lines, its sparkle) */
+    static final NamespacedKey SHINY = new NamespacedKey("economy", "bus_shiny");
     private int marketSaidDay = -1;
 
     /** An event team (단체 손님): up to events.team.size passengers of one crowd, going to one stop together. */
@@ -1065,6 +1086,14 @@ public final class BusModule extends EcoModule {
             if (r.team != 0) teamOff(p, run, r, here, atDest, onTime);
             if (rode) maybeLose(p, run, r, here);
             if (atDest) alightTraits(p, run, r);
+            // 인물 도감: carried where they were going, the whole way (공정 운행: the bus drove it)
+            if (!r.half && dev.stsv.economy.people.PeopleSpec.registers(atDest, road, r.road) && eco.people() != null) {
+                eco.people().met(p, r.type.id(), r.shiny, dev.stsv.economy.people.PeopleSpec.PLACE_BUS);
+            }
+            if (r.shiny && atDest) {
+                talk(null, r.m, r.type, "thanks", true);
+                sparkle(r.m, false);
+            }
             walkOff(r.m, here, d.world().hasStorm());
             if (rode) maybeTransfer(n, line, here, r);
             run.busy = (int) (cfg.boardTicks() * r.type.slow());
@@ -1227,7 +1256,10 @@ public final class BusModule extends EcoModule {
         r.odoAt = run.meter.total();
         r.face = w.face;
         r.transfer = w.transfer;
+        r.shiny = w.shiny;
+        r.half = w.half;
         run.riders.add(r);
+        if (w.shiny) sparkle(w.m, false);
         // 바둑아 어디 가: now and then the 강아지 할아버지 boards alone (his dog ran off at a stop of this line)
         boolean dogLost = w.type.x().seats() > 1 && lostDog.boarding(p, run, r, w, here, line);
         if (w.type.x().seats() > 1 && !dogLost) seatDog(d.id(), r);
@@ -1251,9 +1283,9 @@ public final class BusModule extends EcoModule {
             d.world().playSound(d.location(), Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 2f);
             HudModule.flash(p, Lang.mm("bus.transfer", "type", typeTag(w.type), "dest", destName), 2000);
         } else {
-            HudModule.flash(p, Lang.mm("bus.boarded", "type", typeTag(w.type), "dest", destName, "km", km(r.road)), 2000);
+            HudModule.flash(p, Lang.mm("bus.boarded", "type", typeTag(w.type, w.shiny), "dest", destName, "km", km(r.road)), 2000);
         }
-        talk(run, r.m, r.type, w.transfer ? "transfer" : mood <= start - 5 ? "waited" : "board", mood <= start - 5);
+        talk(run, r.m, r.type, w.transfer ? "transfer" : w.shiny || mood > start - 5 ? "board" : "waited", w.shiny || mood <= start - 5);
         if (w.type.announce()) Bukkit.broadcast(Lang.msg("bus.vip", "player", p.getName(), "dest", destName));
         return true;
     }
@@ -1325,7 +1357,12 @@ public final class BusModule extends EcoModule {
     private void noRide(Player p, Rider r, BusStop here) {
         p.sendMessage(Lang.mm("bus.no-ride", "type", typeTag(r.type)));
         if (r.from == here.id() && r.team == 0 && r.special == null && !r.transfer) {
-            waiting.merge(here.id(), 1.0, (a, b) -> Math.max(a, Math.min(here.size(), a + b)));
+            double before = waiting.getOrDefault(here.id(), 0.0);
+            double after = waiting.merge(here.id(), 1.0, (a, b) -> Math.max(a, Math.min(here.size(), a + b)));
+            if (Math.floor(after) > Math.floor(before)) {
+                comeBack.merge(here.id(), 1, Integer::sum);   // back in the line, not a newcomer
+                if (r.shiny && !r.half) forced.computeIfAbsent(here.id(), k -> new ArrayDeque<>()).addLast(Forced.shinyOne(r.type.id()));
+            }
         }
     }
 
@@ -1516,7 +1553,7 @@ public final class BusModule extends EcoModule {
                         : net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().serialize(item.effectiveName()), "n", g.amount()));
             });
             talk(null, r.m, r.type, "thanks", true);
-        } else if (r.mood >= 80 && ThreadLocalRandom.current().nextDouble() < 0.3) {
+        } else if (!r.shiny && r.mood >= 80 && ThreadLocalRandom.current().nextDouble() < 0.3) {   // (a shiny one always thanks: atStops)
             talk(run, r.m, r.type, "thanks", false);
         }
         return onTime;
@@ -1672,7 +1709,9 @@ public final class BusModule extends EcoModule {
         boolean giveUps = ticks % (spec.patience().every() * 20L) < 20;
         for (BusStop s : stops.values()) {
             StopQueue q = queues.computeIfAbsent(s.id(), k -> new StopQueue());
-            q.sync((int) Math.floor(waiting.getOrDefault(s.id(), 0.0)), now);
+            int count = (int) Math.floor(waiting.getOrDefault(s.id(), 0.0));
+            shinyCame(s.id(), count - q.since.size(), count);
+            q.sync(count, now);
             if (giveUps) giveUp(s, q, now);
         }
         if (giveUps) rescueScan(now);
@@ -1710,8 +1749,9 @@ public final class BusModule extends EcoModule {
                     sh.waiters.add(x);
                     sh.dirty = true;
                     if (x.type.pair() && x.team == 0 && x.special == null && sh.waiters.size() < want + 1) {   // a couple: the other half beside them
-                        Waiter y = spawnWaiter(w, s, sh.waiters.size(), want + 1, nearDriver.getUniqueId(), x.type);
+                        Waiter y = spawnWaiter(w, s, sh.waiters.size(), want + 1, nearDriver.getUniqueId(), x.type, x.shiny);
                         if (y != null) {
+                            y.half = true;
                             x.partner = y;
                             y.partner = x;
                             sh.waiters.add(y);
@@ -2693,6 +2733,31 @@ public final class BusModule extends EcoModule {
         preview.admin(s, args);
     }
 
+    /** /관리자 버스 별난 [종류]: the next passenger at the nearest stop comes 별난 (of that kind, else any). */
+    public void shinyAdmin(org.bukkit.command.CommandSender s, String[] args) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.mm("bus.preview-player-only"));
+            return;
+        }
+        BusSpec.Type t = null;
+        if (args.length > 1) {
+            t = spec.types().get(args[1]);
+            if (t == null || !spec.shiny().eligible(t)) {
+                List<String> ok = spec.types().values().stream().filter(spec.shiny()::eligible).map(BusSpec.Type::id).toList();
+                s.sendMessage(Lang.mm("bus.shiny-admin-no-type", "type", args[1], "types", String.join(", ", ok)));
+                return;
+            }
+        }
+        BusStop at = forceShiny(p, t);
+        if (at == null) s.sendMessage(Lang.mm("bus.shiny-admin-no-stop"));
+        else s.sendMessage(Lang.mm("bus.shiny-admin-done", "stop", at.name(), "type", t == null ? Lang.raw("bus.shiny-admin-any") : typeTag(t)));
+    }
+
+    public List<String> shinyComplete(String[] args) {
+        if (args.length != 2) return List.of();
+        return spec.types().values().stream().filter(spec.shiny()::eligible).map(BusSpec.Type::id).filter(k -> k.startsWith(args[1])).toList();
+    }
+
     /** /관리자 버스 바둑이 [플레이어] | 상태 [플레이어] | 끝 [플레이어] (LostDog) */
     public void dogAdmin(org.bukkit.command.CommandSender s, String[] args) {
         lostDog.admin(s, args);
@@ -2913,6 +2978,10 @@ public final class BusModule extends EcoModule {
         // 바둑아 어디 가: the 강아지 할아버지 without his dog laments instead (his usual lines all speak to the dog)
         String lament = lostDog == null ? null : lostDog.lamentFor(m);
         List<String> lines = lament != null ? List.of(lament) : spec.lines(type, situation);
+        if (lament == null && isShiny(m)) {   // 별난 손님: their own lines getting on and off
+            List<String> own = spec.shiny().lines(type, situation);
+            if (own != null) lines = own;
+        }
         if (lines == null) return;
         if (run != null) run.talkAt = ticks;
         String line = lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
@@ -3027,7 +3096,8 @@ public final class BusModule extends EcoModule {
             double left = timeLeft(x, now);
             Team tm = x.team == 0 ? null : teams.get(x.team);
             String color = x.special != null ? "#ffcf40" : x.type.color();
-            String name = x.special != null ? x.special.name() : tm != null ? x.type.name() + " " + Lang.raw("bus.overlay-team", "no", tm.no) : x.type.name();
+            String name = x.special != null ? x.special.name() : tm != null ? x.type.name() + " " + Lang.raw("bus.overlay-team", "no", tm.no)
+                    : x.shiny ? BusSpec.Shiny.MARK + " " + x.type.name() : x.type.name();
             String mood = x.mood >= 90 ? "mood_great" : x.mood >= 70 ? "mood_good" : x.mood >= 40 ? "mood_meh" : "mood_bad";
             if (x.said != null && now < x.saidUntil) {
                 out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-talk", "color", color,
@@ -3058,7 +3128,13 @@ public final class BusModule extends EcoModule {
      * scale, see-through and glowing for a ghost. `more` sets the name tag and the rest before it appears.
      */
     Mannequin spawnGuest(Location at, BusSpec.Type type, String skin, java.util.function.Consumer<Mannequin> more) {
+        return spawnGuest(at, type, skin, false, more);
+    }
+
+    /** The same; a 별난 손님 is marked (SHINY) and a shiny ghost is a perfectly ordinary, visible person. */
+    Mannequin spawnGuest(Location at, BusSpec.Type type, String skin, boolean shiny, java.util.function.Consumer<Mannequin> more) {
         return at.getWorld().spawn(at, Mannequin.class, x -> {
+            if (shiny) x.getPersistentDataContainer().set(SHINY, PersistentDataType.BYTE, (byte) 1);
             x.setPersistent(false);
             x.setInvulnerable(true);
             x.setGravity(false);
@@ -3082,7 +3158,7 @@ public final class BusModule extends EcoModule {
                 AttributeInstance sc = x.getAttribute(Attribute.SCALE);
                 if (sc != null) sc.setBaseValue(type.scale());
             }
-            if (type.x().ghost()) {   // 유령 손님: see-through, only a pale glowing outline (and the name) shows
+            if (type.x().ghost() && !shiny) {   // 유령 손님: see-through, only a pale glowing outline (and the name) shows
                 x.setInvisible(true);
                 x.setGlowing(true);
             }
@@ -3113,19 +3189,24 @@ public final class BusModule extends EcoModule {
     }
 
     private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver) {
-        return spawnWaiter(w, s, i, n, driver, null);
+        return spawnWaiter(w, s, i, n, driver, null, false);
     }
 
-    private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver, BusSpec.Type only) {
+    private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver, BusSpec.Type only, boolean partnerShiny) {
         Net net = nets.get(s.world());
         if (net == null) return null;
         if (net.linesOf(s.id()).isEmpty()) return null;
         Deque<Forced> queue = forced.get(s.id());
         Forced f = queue == null ? null : queue.peekFirst();
         if (only != null) f = null;
-        BusSpec.Type type = only != null ? only : f != null ? spec.types().get(f.type()) : pickType(s);
+        BusSpec.Type type = only != null ? only : f != null && f.type() != null ? spec.types().get(f.type()) : pickType(s);
+        if (f != null && f.shiny() && !spec.shiny().eligible(type)) type = pickType(s);   // (a kind taken out since)
         if (f != null) queue.pollFirst();
         if (type == null) return null;
+        // 별난 손님: one who came shiny (a ticket of the stop), one kept from before (hidden, set down), the other half of a pair
+        boolean shiny = only != null ? partnerShiny : f != null ? f.shiny() && spec.shiny().eligible(type)
+                : spec.shiny().eligible(type) && takeTicket(s.id());
+        if (f != null && f.shiny()) f = null;   // nothing else of its own
         Team team = f != null && f.team() != 0 ? teams.get(f.team()) : null;
         BusEvents.Kind kind = f != null && f.special() != null ? spec.events().special().kinds().get(f.special()) : null;
         boolean stale = f != null && f.team() != 0 && team == null;   // its team is over: an ordinary passenger
@@ -3134,10 +3215,11 @@ public final class BusModule extends EcoModule {
         Location at = new Location(w, spot[0], s.y() + 1, spot[1], s.facingRoad(), 0);
         if (!w.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
         String lineNos = lineNumbers(s);
-        String skin = pickSkin(type, only != null);
-        Mannequin m = spawnGuest(at, type, skin, x -> {
+        String skin = shiny && spec.shiny().skin(type) != null ? spec.shiny().skin(type) : pickSkin(type, only != null);
+        boolean shown = shiny;
+        Mannequin m = spawnGuest(at, type, skin, shiny, x -> {
             x.customName(dev.stsv.core.util.Text.mm(kind != null ? Lang.raw("bus.special-tag", "name", kind.name())
-                    : team != null ? typeTag(type) + " " + Lang.raw("bus.team-tag", "color", team.color, "no", team.no) : typeTag(type)));
+                    : team != null ? typeTag(type) + " " + Lang.raw("bus.team-tag", "color", team.color, "no", team.no) : typeTag(type, shown)));
             x.setCustomNameVisible(true);
             x.setDescription(team != null ? Lang.mm("bus.waiter-team", "color", team.color, "no", team.no, "n", team.size,
                     "dest", teamDest == null ? lineNos : teamDest.name()) : Lang.mm("bus.waiter-tag", "lines", lineNos));
@@ -3148,6 +3230,8 @@ public final class BusModule extends EcoModule {
             face = key.substring(key.lastIndexOf('/') + 1);
         }
         Waiter out = new Waiter(m, type, face);
+        out.shiny = shiny;
+        if (shiny) sparkle(m, true);
         if (f != null && !stale) {
             out.forcedLine = f.line();
             out.forcedDest = f.dest();
@@ -3372,6 +3456,10 @@ public final class BusModule extends EcoModule {
                 }
                 idleBeat(x.m, spec.queue().idleOf(x.type.id()), face, up, x.seat == null ? x.home : null, rnd);
             }
+            for (Waiter x : sh.waiters) {   // 별난 손님: a glimmer now and then, for anyone passing ("저기 별난 손님 있다")
+                if (x.shiny && x.m.isValid() && rnd.nextDouble() < 0.6)
+                    x.m.getWorld().spawnParticle(Particle.END_ROD, x.m.getLocation().add(0, 1.2, 0), 2, 0.3, 0.5, 0.3, 0.01);
+            }
         }
     }
 
@@ -3545,6 +3633,10 @@ public final class BusModule extends EcoModule {
 
     /** A waiting passenger with something of their own (a transfer, an event team, a 특급 손님) back in the stop's queue, at the front. */
     private void requeue(int stop, Waiter w) {
+        if (w.shiny && !w.half && w.forcedLine == null && w.forcedDest == null && w.team == 0 && w.special == null) {
+            forced.computeIfAbsent(stop, k -> new ArrayDeque<>()).addFirst(Forced.shinyOne(w.type.id()));   // the same one comes back
+            return;
+        }
         if (w.forcedLine == null && w.forcedDest == null && w.team == 0 && w.special == null) return;
         forced.computeIfAbsent(stop, k -> new ArrayDeque<>()).addFirst(new Forced(w.type.id(), w.forcedLine, w.forcedDest, w.transfer, w.team, w.special));
     }
@@ -3637,6 +3729,75 @@ public final class BusModule extends EcoModule {
 
     String typeTag(BusSpec.Type t) {
         return "<" + t.color() + ">[" + t.name() + "]</" + t.color() + ">";
+    }
+
+    /** The same with a ✦ before it for a 별난 손님. */
+    String typeTag(BusSpec.Type t, boolean shiny) {
+        return shiny ? Lang.raw("bus.shiny-tag", "mark", BusSpec.Shiny.MARK) + typeTag(t) : typeTag(t);
+    }
+
+    /** Whether this mannequin is a 별난 손님 (spawnGuest marked it). */
+    static boolean isShiny(Entity m) {
+        return m != null && m.getPersistentDataContainer().has(SHINY, PersistentDataType.BYTE);
+    }
+
+    /** A 별난 손님 shows itself: a sparkle round them and a soft chime (everyone near hears it), louder when they appear. */
+    static void sparkle(Entity m, boolean appear) {
+        if (m == null || !m.isValid()) return;
+        Location at = m.getLocation().add(0, 1.1, 0);
+        m.getWorld().spawnParticle(Particle.END_ROD, at, appear ? 14 : 8, 0.35, 0.6, 0.35, 0.02);
+        m.getWorld().spawnParticle(Particle.WAX_ON, at, appear ? 10 : 6, 0.4, 0.7, 0.4, 0.5);
+        m.getWorld().playSound(at, Sound.BLOCK_AMETHYST_BLOCK_CHIME, appear ? 1.0f : 0.8f, appear ? 1.2f : 1.5f);
+        if (appear) m.getWorld().playSound(at, Sound.BLOCK_NOTE_BLOCK_CHIME, 0.5f, 1.8f);
+    }
+
+    /**
+     * 별난 손님: `newcomers` came to this stop just now (its count went up); those set down where they got on come back and
+     * roll nothing. Each of the rest is shiny with shiny.chance; the stop never holds more unseen shiny ones than its count.
+     */
+    private void shinyCame(int stop, int newcomers, int count) {
+        if (newcomers > 0) {
+            int back = Math.min(newcomers, comeBack.getOrDefault(stop, 0));
+            if (back > 0) comeBack.merge(stop, -back, Integer::sum);
+            int n = spec.shiny().arrivals(newcomers - back, ThreadLocalRandom.current()::nextDouble);
+            if (n > 0) shinyTickets.merge(stop, n, Integer::sum);
+        }
+        int t = shinyTickets.getOrDefault(stop, 0);
+        if (t > count) shinyTickets.put(stop, Math.max(0, count));
+        if (count <= 0) comeBack.remove(stop);
+    }
+
+    /** Takes one of a stop's unseen shiny arrivals (the passenger appearing now is it), or false when it has none. */
+    private boolean takeTicket(int stop) {
+        int t = shinyTickets.getOrDefault(stop, 0);
+        if (t <= 0) return false;
+        if (t == 1) shinyTickets.remove(stop);
+        else shinyTickets.put(stop, t - 1);
+        return true;
+    }
+
+    /**
+     * /관리자 버스 별난 [종류]: the next passenger to appear at the stop nearest the admin comes shiny (of this kind, else any
+     * kind), and the stop gets one more waiting for them. Returns the stop, or null when there is none in their world.
+     */
+    BusStop forceShiny(Player p, BusSpec.Type type) {
+        BusStop best = null;
+        double bd = Double.MAX_VALUE;
+        for (BusStop s : stops.values()) {
+            if (!s.world().equals(p.getWorld().getName())) continue;
+            double dd = Math.hypot(s.x() - p.getX(), s.z() - p.getZ());
+            if (dd < bd) {
+                bd = dd;
+                best = s;
+            }
+        }
+        if (best == null) return null;
+        forced.computeIfAbsent(best.id(), k -> new ArrayDeque<>()).addFirst(Forced.shinyOne(type == null ? null : type.id()));
+        waiting.merge(best.id(), 1.0, Double::sum);
+        comeBack.merge(best.id(), 1, Integer::sum);   // the one added: no roll of its own
+        Shown sh = shown.get(best.id());
+        if (sh != null) sh.dirty = true;
+        return best;
     }
 
     static String km(double blocks) {

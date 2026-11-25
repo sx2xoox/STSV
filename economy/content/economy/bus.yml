@@ -482,6 +482,22 @@ secret:
     final-done: ["자네, 쓸모 있군.", "…이제 자네도 우리 쪽이군.", "…잘했네. 이건 자네 몫이야."]
     weekly: ["이걸 {stop}까지. 흔들리면 곤란해.", "{stop}. 조심히.", "{stop}. 흔들림 없이.", "…{stop}까지. 조용히, 부드럽게."]
 
+# 별난 손님 (README "마을버스" 별난 손님): 손님이 정류장에 새로 올 때 chance 확률로 그 종류의 "별난" 모습으로 옴.
+# 운임 · 기분 · 팁 · 선물 · 이벤트 보상은 보통 손님과 똑같음 (돈은 하나도 안 바뀜). 다른 것은 겉모습(스킨 <종류>_s1, 종류마다
+# shiny-skin 으로 바꿀 수 있음) · 나타날 때와 탈 때의 반짝임과 소리 · 이름 앞 ✦ · 탈 때와 내릴 때의 대사(types.*.shiny-talk,
+# 없으면 아래 talk) · 인물 도감 칸. 정류장에 온 순간 정해지고 기사가 바꿀 수 없음 (버스가 멀어졌다 다시 와도, 탔다가 그 자리에서
+# 내려져도 그대로; 다시 굴리지 않음). 누구에게나 보이고, 목적지까지 태워 준 사람이 도감에 등록.
+# 이벤트 단체 · 특급 손님 · 환승 손님 · weight 0 인 종류(??? 등) · never 의 종류는 별난 모습이 없음. 길라잡이 체험 버스에도 없음.
+# chance: 꾸준히 모는 기사가 2~3시간에 한 명꼴. 정류장은 700칸마다, 버스 6칸/초 = 정류장 사이 약 2분, 한 시간에 정류장 25~30곳,
+#   정류장마다 2분에 한 명씩 최대 6명이 차 있어 한 곳에 평균 4명쯤 태움 → 시간당 약 100명 (기획안의 시간당 4~7만 G 와 맞음:
+#   운임 약 420 G × 100~160명). 0.004 × 100명 = 시간당 0.4명 = 2.5시간에 한 명.
+shiny:
+  chance: 0.004
+  never: []
+  talk:
+    board: ["오늘은 왠지 반짝반짝한 날이에요~", "어머, 저 오늘 좀 달라 보이죠?", "오늘 같은 날 버스를 만나다니!"]
+    thanks: ["오늘 만난 거, 우리 둘만의 비밀이에요~", "기사님 오늘 운 좋으신 거예요!", "반짝반짝한 하루 되세요!"]
+
 # 손님 종류: weight 비율, fare 운임 배수, mood 감점 배수, slow 타고 내리는 시간 배수,
 # far 먼 곳만 감(블록), tip-mood 이 기분 아래면 팁 없음, rush 출퇴근 시간 가중치 배수, late 늦으면 기분 감점(분당)
 # tags: 정류장 특성별 비율 배수 (여러 특성이면 가장 큰 것), hours: [from, to] 이 시간(한국 시각)에만 나옴,
@@ -495,6 +511,7 @@ types:
     color: "#9fd36b"
     weight: 24
     skins: ["economy:entity/bus/resident_1", "economy:entity/bus/resident_2 slim", "economy:entity/bus/resident_3"]
+    shiny-talk: {board: ["오늘은 좀 꾸며 봤어요~ 반짝반짝하죠?"], thanks: ["오늘 같은 날 태워 주셔서 고마워요!"]}
   student:
     name: 학생
     color: "#7cc4ff"
@@ -520,6 +537,7 @@ types:
       bell: ["저 내려요!", "여기요 여기!", "내릴게요~", "벨 눌렀어요!"]
       thanks: ["감사합니다!", "안녕히 가세요~", "기사님 수고하세요!", "땡큐요~", "내일 또 봬요!"]
     skins: ["economy:entity/bus/student_1", "economy:entity/bus/student_2 slim", "economy:entity/bus/student_3"]
+    shiny-talk: {board: ["오늘 사진 찍는 날이라 꾸미고 왔어요!"], thanks: ["기사님 오늘 운 좋으신 거예요~"]}
   grandma:
     name: 할머니
     color: "#e0a8ff"
@@ -548,6 +566,7 @@ types:
       bell: ["여 내려요~", "기사양반 여기 세워 줘", "다 왔다, 내리자", "여기여 여기~"]
       thanks: ["고마워요~ 이거 먹어요", "수고해요 기사양반", "복 많이 받어~", "밥 꼭 챙겨 묵어요", "다음에 떡 갖고 올게", "아이고 고마워라"]
     skins: ["economy:entity/bus/grandma_1 slim", "economy:entity/bus/grandma_2 slim", "economy:entity/bus/grandma_3 slim"]
+    shiny-talk: {board: ["손주가 이 옷 입으라고 혔어~ 곱제?"], thanks: ["기사양반, 오늘 날 본 거 복이여~"]}
   office:
     name: 회사원
     color: "#c9d2dc"
@@ -568,6 +587,7 @@ types:
       bell: ["내립니다, 출근합니다", "여기서 내릴게요", "자, 전쟁터로…", "벨 눌렀어요~"]
       thanks: ["수고하세요…", "덕분에 안 늦었어요", "퇴근길에 또 봬요", "기사님도 힘내세요", "오늘도 버텨 봅시다"]
     skins: ["economy:entity/bus/office_1", "economy:entity/bus/office_2 slim", "economy:entity/bus/office_3"]
+    shiny-talk: {board: ["오늘 회사 창립 기념일이라… 좀 튀나요?"], thanks: ["오늘은 칼퇴 각이에요, 감사합니다!"]}
   tourist:
     name: 관광객
     color: "#ffd166"
@@ -585,6 +605,7 @@ types:
       missed: ["Stop, please!", "어? 지나갔어요!", "거기 내려야 되는데~!", "Wait wait!"]
       thanks: ["감사합니다~ Thank you!", "좋은 여행 됐어요~", "기사님 사진 한 장만요!", "또 놀러 올게요~", "Merci~ 아니 감사합니다!"]
     skins: ["economy:entity/bus/tourist_1", "economy:entity/bus/tourist_2 slim", "economy:entity/bus/tourist_3"]
+    shiny-talk: {board: ["여행 기념 옷이에요~ 사진 같이 찍어요!"], thanks: ["이 버스 후기에 별 다섯 개!"]}
   vip:
     name: VIP
     color: "#ffcf40"
@@ -604,6 +625,7 @@ types:
       bell: ["여기서 세우게.", "내리겠네.", "문 열게.", "여기일세."]
       thanks: ["수고했네. 팁은 넉넉히.", "기억해 두지.", "다음에도 부탁하지.", "흠, 괜찮은 여정이었네.", "명함 줄까?"]
     skins: ["economy:entity/bus/vip_1", "economy:entity/bus/vip_2", "economy:entity/bus/vip_3 slim"]
+    shiny-talk: {board: ["오늘은 특별히 금박 정장으로 왔지."], thanks: ["자네, 오늘 아주 귀한 손님을 태운 걸세."]}
   farmer:
     name: 농부
     color: "#c9a26b"
@@ -612,6 +634,7 @@ types:
     luggage: 100
     tags: {field: 4, village: 1.5, mountain: 0.5, sea: 0.3}
     skins: ["economy:entity/bus/farmer_1", "economy:entity/bus/farmer_2 slim", "economy:entity/bus/farmer_3"]
+    shiny-talk: {board: ["오늘 농산물 품평회 나가는 길이여~"], thanks: ["올해 일등 하면 기사 양반 덕이여!"]}
     talk:
       board: ["보따리 좀 실을게요", "올해 농사가 잘 됐어~", "장에 고추 팔러 가요", "흙 좀 묻어도 봐줘요", "이거 다 우리 밭 거여", "씨감자 사러 가요"]
       jolt: ["어허, 채소 상해요!", "아이고 계란 깨진다!", "배추 굴러간다!", "살살 좀 가요, 잉?", "고구마 다 쏟아지겄네"]
@@ -630,6 +653,7 @@ types:
     tags: {mountain: 6, forest: 3, sea: 0.3, village: 0.5}
     hours: [5, 17]
     skins: ["economy:entity/bus/hiker_1", "economy:entity/bus/hiker_2 slim", "economy:entity/bus/hiker_3"]
+    shiny-talk: {board: ["오늘 정상에서 일출 보고 왔어요, 반짝!"], thanks: ["산신령님이 기사님 복 주실 거예요!"]}
     talk:
       board: ["정상 찍고 왔어요!", "야호~", "오늘 천 미터 찍었어요", "다리가 후들후들…", "막걸리 한잔하러 가요", "흙 털고 탈게요~"]
       view: ["저 산 멋지다~", "단풍 예술이네", "아까 저 꼭대기 갔었어요!", "다음엔 저 봉우리다", "공기 맑다~"]
@@ -647,6 +671,7 @@ types:
     tags: {sea: 6, port: 4, field: 0.3, mountain: 0.3}
     hours: [3, 20]
     skins: ["economy:entity/bus/fisher_1", "economy:entity/bus/fisher_2", "economy:entity/bus/fisher_3 slim"]
+    shiny-talk: {board: ["황금 잉어 낚으러 가요!"], thanks: ["오늘은 대물 예감이에요, 고마워요!"]}
     talk:
       board: ["오늘 대어 낚았어요!", "물때 맞춰 가야 돼요", "이만한 놈 잡았다니까요", "비린내 좀 나도 봐줘요", "오늘은 꽝이에요…", "갯바위 가요~"]
       jolt: ["아이스박스 엎어져요!", "낚싯대 부러진다!", "우럭 탈출한다!", "떡밥 쏟아졌네…"]
@@ -664,6 +689,7 @@ types:
     to-end: true
     tip: 2.0
     skins: ["economy:entity/bus/soldier_1", "economy:entity/bus/soldier_2", "economy:entity/bus/soldier_3"]
+    shiny-talk: {board: ["휴가 기념으로 멋 좀 부렸습니다!"], thanks: ["충성! 이 버스 꼭 기억하겠습니다!"]}
     talk:
       board: ["충성! 휴가 나왔습니다!", "엄마 보러 갑니다!", "실례하겠습니다!", "이병… 아니 일병입니다!", "사회 공기, 좋습니다!", "자리 감사합니다!"]
       jolt: ["괜찮습니다!", "이 정도는 아무것도 아닙니다!", "훈련보다 편합니다!", "이상 무!", "행군보다 낫습니다!"]
@@ -683,6 +709,7 @@ types:
     pair: true
     hours: [11, 23]
     skins: ["economy:entity/bus/couple_1", "economy:entity/bus/couple_2 slim", "economy:entity/bus/couple_3 slim"]
+    shiny-talk: {board: ["오늘 우리 100일이에요~♥"], thanks: ["기사님 덕분에 기념일 완벽해요♥"]}
     talk:
       board: ["자기야 여기 앉자~", "우리 어디 갈까?", "손 잡고 타자~", "오늘 100일이에요~", "자기 먼저 타~", "창가는 자기 자리♥"]
       view: ["노을 예쁘다~", "자기만큼 예쁘다~", "우리 저기서 사진 찍자!", "바다 보러 가자~", "별 진짜 많다~"]
@@ -703,6 +730,7 @@ types:
     turn: 2.0
     doze: 0.8
     skins: ["economy:entity/bus/drunk_1", "economy:entity/bus/drunk_2", "economy:entity/bus/drunk_3"]
+    shiny-talk: {board: ["허허, 오늘은 기분이 반짝반짝하구먼~"], thanks: ["기사 양반, 자네 별처럼 빛나네…"]}
     talk:
       board: ["기사 양반~ 집에 가자~", "딸꾹!", "우리 집… 어디더라?", "내가 안 취했어, 딸꾹", "기사님 사랑합니당~", "한 잔만 더 했어야 했는디~"]
       jolt: ["어어어~ 세상이 돈다~", "누가 땅을 흔드는겨~", "딸꾹! 놀래라", "내 술병… 아 없지"]
@@ -727,6 +755,7 @@ types:
     hours: [8, 21]
     tags: {village: 2}
     skins: ["economy:entity/bus/courier_1", "economy:entity/bus/courier_2 slim", "economy:entity/bus/courier_3"]
+    shiny-talk: {board: ["오늘 마지막 배송이 특별 배송이라서요!"], thanks: ["배송 완료! 오늘은 기사님 차례예요~"]}
     talk:
       board: ["택배… 아 아니 저 타요", "오늘 물량 터졌어요…", "박스 좀 실을게요!", "배송 120개 남았어요", "점심도 못 먹었네", "상자 조심히 둘게요"]
       late: ["배송 밀린다 밀려…", "고객님 죄송합니다…", "문 앞 배송 늦겠다", "오늘 안에 다 못 돌겠는데", "아 시간 지정 배송인데!"]
@@ -750,6 +779,7 @@ types:
     hours: [9, 16]
     tags: {village: 2}
     skins: ["economy:entity/bus/kinder_1", "economy:entity/bus/kinder_2 slim", "economy:entity/bus/kinder_3"]
+    shiny-talk: {board: ["나 오늘 공주님이야! 반짝반짝!"], thanks: ["기사 아저씨 고마워요! 뿅!"]}
     talk:
       board: ["버스다아!", "기사 아저씨 안녕하세요!", "내가 먼저 탈래!", "손 꼭 잡고 타요~", "선생님이 줄 서랬어요", "나 버스 처음 아니다?"]
       jolt: ["으앙!", "무서워~", "우와 재밌다! 또 해요!", "쿵 했어!", "엄마아~"]
@@ -771,6 +801,7 @@ types:
     weekend: 4
     tags: {forest: 4, sea: 2, mountain: 2}
     skins: ["economy:entity/bus/camper_1", "economy:entity/bus/camper_2 slim", "economy:entity/bus/camper_3"]
+    shiny-talk: {board: ["별 보러 캠핑 가요, 오늘 유성우래요!"], thanks: ["소원 빌 때 기사님 것도 빌게요!"]}
     talk:
       board: ["캠핑 가요! 장비가 좀 많아서…", "불멍하러 갑니다~", "텐트, 의자, 버너… 다 챙겼나?", "이번 주말은 자연인!", "고기 5kg 챙겼어요", "장비병 말기입니다"]
       view: ["여기 텐트 치면 딱이겠다", "계곡 좋다~", "별 보기 좋은 곳이네", "장작 줍기 좋은 숲이다", "바다 뷰 사이트다!"]
@@ -790,6 +821,7 @@ types:
     hours: [5, 17]
     tags: {sea: 8, port: 3}
     skins: ["economy:entity/bus/haenyeo_1 slim", "economy:entity/bus/haenyeo_2 slim", "economy:entity/bus/haenyeo_3 slim"]
+    shiny-talk: {board: ["오늘 진주를 하나 건졌지~"], thanks: ["고생했수다, 기사 양반한테 행운이 갈 거여~"]}
     talk:
       board: ["물질하러 가요~", "오늘 물때가 좋수다", "테왁 좀 실으쿠다", "숨비소리 내러 가요~", "전복 따러 감수다", "아이고 바쁘다 바빠"]
       jolt: ["아이고 기사양반", "망사리 쏟아지쿠다!", "아이고, 소라 굴러간다", "살살 가게마씸"]
@@ -807,6 +839,7 @@ types:
     weekend: 3
     hours: [12, 23]
     skins: ["economy:entity/bus/fan_1", "economy:entity/bus/fan_2 slim", "economy:entity/bus/fan_3"]
+    shiny-talk: {board: ["오늘 우승 기념 한정판 유니폼이에요!"], thanks: ["최강! 기사님도 MVP!"]}
     talk:
       board: ["오늘은 무조건 이긴다!", "직관 가요~ 최강!", "유니폼 입고 출동!", "응원봉 챙겼다!", "오늘 선발 에이스예요!", "치킨 사 들고 가야지"]
       jolt: ["홈런인 줄!", "아 파울~!", "응원봉 떨어졌다!", "이건 빈볼이다!"]
@@ -826,6 +859,7 @@ types:
     doze: 0.6
     hours: [6, 10]
     skins: ["economy:entity/bus/nurse_1 slim", "economy:entity/bus/nurse_2", "economy:entity/bus/nurse_3 slim"]
+    shiny-talk: {board: ["오늘 시상식 있어서 차려입었어요~"], thanks: ["건강하세요, 기사님! 오늘 행운 처방이에요~"]}
     talk:
       board: ["나이트 끝… 집에 가요", "삼교대 너무 힘들어…", "16시간 근무 끝…", "밥보다 잠이요…", "인계 겨우 끝냈다", "오늘도 무사히…"]
       jolt: ["으… 깼다", "놀라서 심박수 올라갔어요", "아 졸다가 깜짝…", "커피 쏟을 뻔…"]
@@ -856,6 +890,7 @@ types:
     mood-floor: 80
     tags: {village: 2, field: 1.5}
     skins: ["economy:entity/bus/chatty_1 slim", "economy:entity/bus/chatty_2 slim", "economy:entity/bus/chatty_3 slim"]
+    shiny-talk: {board: ["어머 기사님, 나 오늘 좀 달라 보이죠? 호호"], thanks: ["오늘 기사님 얘기 동네방네 다 할 거야~"]}
     talk:
       board: ["어머 기사님~ 오늘 날씨 좋죠~?", "아유 자리 있네~ 다행이다~", "어머 기사님 머리 하셨네~", "아유 이 버스 오랜만이다~", "저기 저 사람 아는 사람인데~",
               "자, 오늘은 무슨 얘기 할까~"]
@@ -879,6 +914,7 @@ types:
     sick-at: 20
     doze: 0.1
     skins: ["economy:entity/bus/motionsick_1", "economy:entity/bus/motionsick_2", "economy:entity/bus/motionsick_3"]
+    shiny-talk: {board: ["오늘은… 이상하게 하나도 안 어지러워요!"], thanks: ["기적이에요… 멀미가 하나도 없었어요!"]}
     talk:
       board: ["살살… 살살 부탁해요…", "버스만 타면 속이…", "멀미약 먹었는데…", "창문 좀 열어도 될까요…", "앞자리… 앞자리 앉을게요", "오늘은 괜찮겠지…"]
       jolt: ["윽… 속이…", "으읍…!", "아이고 올라온다…", "제발… 브레이크 살살…", "꾸웩… 아니 참았다"]
@@ -898,6 +934,7 @@ types:
     baby-smile: 2
     tags: {village: 2}
     skins: ["economy:entity/bus/mom_1 slim", "economy:entity/bus/mom_2 slim", "economy:entity/bus/mom_3 slim"]
+    shiny-talk: {board: ["아기 돌잔치 가는 길이에요~"], thanks: ["아기가 기사님 보고 웃었어요!"]}
     talk:
       board: ["쉿… 아기 자요", "자리 있어요? 감사해요~", "유모차 접을게요, 잠시만요", "아기랑 타요~ 천천히 가 주세요", "우리 아기 버스 처음 타요", "기저귀 가방 무겁다…"]
       cry: ["응애~ 응애~ (아기가 울어요)", "으아앙~! 아이고 우리 아기 놀랐어?", "쉬~ 쉬~ 괜찮아 괜찮아~", "아이고 배고파? 맘마 줄게~", "응애애앵~! (아기가 울어요)",
@@ -919,6 +956,7 @@ types:
     slow: 1.5
     tags: {village: 1.5, field: 1.5}
     skins: ["economy:entity/bus/dogwalker_1", "economy:entity/bus/dogwalker_2", "economy:entity/bus/dogwalker_3"]
+    shiny-talk: {board: ["바둑이랑 커플룩 맞춰 입었다네, 허허"], thanks: ["고맙네, 오늘 같은 날 또 있을랑가 몰러~"]}
     talk:
       board: ["우리 바둑이도 같이 타요~ 차비는 반 낼게", "옳지, 얌전히 앉아", "바둑아 기사님께 인사해야지", "산책 가는 길이여~", "자리 두 개 쓸게, 미안허이", "이 녀석이 버스를 좋아혀"]
       jolt: ["어이쿠, 바둑아 괜찮냐?", "옳지 옳지, 놀랐냐?", "허허, 꼬리 밟힐 뻔했네", "바둑아 엎드려!"]
@@ -941,6 +979,7 @@ types:
     gifts: [{item: minecraft:cookie, amount: 6}, {item: minecraft:cake, amount: 1}, {item: minecraft:pumpkin_pie, amount: 2},
             {item: minecraft:firework_rocket, amount: 4}, {item: minecraft:snowball, amount: 8}]
     skins: ["economy:entity/bus/santa_1", "economy:entity/bus/santa_2", "economy:entity/bus/santa_3"]
+    shiny-talk: {board: ["호호호! 오늘은 특별한 썰매를 탔구나!"], thanks: ["호호호! 기사님 선물 목록 맨 위에 적어 둘게요!"]}
     talk:
       board: ["허허허! 메리 크리스마스!", "썰매가 고장 나서 말이지, 허허", "루돌프가 감기에 걸렸단다", "호호호, 착한 기사님이구나", "선물 보따리 좀 실으마", "굴뚝까지 데려다주겠니?"]
       jolt: ["호호호! 썰매보다 거칠구먼!", "어이쿠, 선물 쏟아질라!", "허허, 루돌프도 이렇겐 안 달려", "내 배가 출렁출렁!"]
@@ -962,6 +1001,7 @@ types:
     ghost: true
     token: 1
     skins: ["economy:entity/bus/ghost_1 slim", "economy:entity/bus/ghost_2", "economy:entity/bus/ghost_3"]
+    shiny-talk: {board: ["…어라? 오늘은 내가 왜 이렇게 멀쩡하지?"], thanks: ["…살아 있는 기분이었어요. 고마워요."]}
     talk:
       board: ["……", "…태워 줘서… 고마워…", "…오랜만에… 버스네…", "…자리… 있지…?", "(스산한 바람이 분다)"]
       jolt: ["……", "…놀랐어…", "…흐으…", "…살살…"]
@@ -981,6 +1021,7 @@ types:
     late-hit: -20
     tags: {village: 2}
     skins: ["economy:entity/bus/rider_1", "economy:entity/bus/rider_2 slim", "economy:entity/bus/rider_3"]
+    shiny-talk: {board: ["오늘 배달왕 뽑혔어요! 반짝반짝!"], thanks: ["별점 다섯 개 드릴게요, 기사님!"]}
     talk:
       board: ["기사님 빨리요! 콜 밀렸어요!", "오토바이 퍼져서… 급해요!", "배달 3건 들고 탔어요!", "국물 있어요, 살살요!", "10분 안에 가야 돼요!", "앱 알림 미쳤다…"]
       late: ["아 별점 깎인다…!", "고객님 화나셨다…", "면 불겠다 면…!", "도착 예정 시간 지났다…", "리뷰 테러 당하겠다ㅠ"]
@@ -1005,6 +1046,7 @@ types:
     slow: 1.3
     doze: 0.05
     skins: ["economy:entity/bus/monk_1", "economy:entity/bus/monk_2", "economy:entity/bus/monk_3 slim"]
+    shiny-talk: {board: ["오늘은 연등처럼 환하게 나섰습니다."], thanks: ["기사님께 부처님의 빛이 함께하길…"]}
     talk:
       board: ["나무아미타불", "수고가 많으십니다", "인연이 닿아 이 버스를 탑니다", "산사로 돌아가는 길입니다", "합장. 신세 좀 지겠습니다"]
       jolt: ["허허, 모든 것은 지나갑니다", "흔들림도 수행이지요", "마음은 흔들리지 않습니다", "허허, 괜찮습니다"]
@@ -1022,6 +1064,7 @@ types:
     chatter: 20
     review: 90
     skins: ["economy:entity/bus/youtuber_1", "economy:entity/bus/youtuber_2 slim", "economy:entity/bus/youtuber_3"]
+    shiny-talk: {board: ["오늘 구독자 100만 기념 의상이에요!"], thanks: ["기사님 이 영상 떡상할 거예요!"]}
     talk:
       board: ["여러분 안녕하세요~ 오늘은 시골 버스 타 봅니다!", "라이브 켰어요~ 기사님 손 한번 흔들어 주세요!", "자 브이로그 시작합니다~", "오늘 콘텐츠는 버스 일주!", "마이크 잘 들리세요?",
               "기사님 출연료는 없어요~"]
@@ -1052,6 +1095,7 @@ types:
     gift-chance: 0.2
     gifts: [{item: economy:injeolmi, amount: 1}, {item: economy:corn_bread, amount: 1}, {item: economy:hotteok, amount: 1}]
     skins: ["economy:entity/bus/market_1 slim", "economy:entity/bus/market_2 slim", "economy:entity/bus/market_3 slim"]
+    shiny-talk: {board: ["오늘 장사가 대박이라 한 벌 샀지~"], thanks: ["기사님, 다음 장날에 덤 많이 줄게요!"]}
     talk:
       board: ["아유 짐이 많아서~ 기사님 미안해요", "장 보러 가요~ 오늘 배추가 싸대", "끙차, 보따리부터 올리고~", "기사님 오늘도 수고 많아요~", "아이고 자리 있네, 고마워라"]
       jolt: ["아이고 내 계란!", "어머 보따리 쏟아진다!", "기사님 살살~ 두부 깨져요", "아유 깜짝이야~"]
@@ -1065,6 +1109,7 @@ types:
     chatter: 25
     tags: {village: 1.5}
     skins: ["economy:entity/bus/uncle_1", "economy:entity/bus/uncle_2", "economy:entity/bus/uncle_3"]
+    shiny-talk: {board: ["어이 기사 양반, 오늘 나 좀 멋있지?"], thanks: ["동네에 소문 쫙 내 줄게, 허허!"]}
     talk:
       board: ["어이 기사 양반, 잘 지내지?", "오늘 덥네 더워", "읍내 좀 가세", "허허 자리 많네"]
       chat: ["아랫마을 김씨네 소가 새끼를 낳았대", "올해 고추 농사는 영 글렀어", "이장이 또 회의를 한다더만", "저 길 언제 포장한대?", "요즘 젊은 사람들이 동네에 많이 와",
@@ -1079,6 +1124,7 @@ types:
     rush: 1.5
     doze: 0.45
     skins: ["economy:entity/bus/univ_1", "economy:entity/bus/univ_2 slim", "economy:entity/bus/univ_3"]
+    shiny-talk: {board: ["오늘 축제 날이라 다들 이렇게 입어요!"], thanks: ["기사님 오늘 버스 짱이었어요~"]}
     talk:
       board: ["안녕하세요…", "(이어폰을 꽂는다)", "1교시 망했다…", "과제 마감 오늘인데…", "공강이라 집 가요"]
       jolt: ["앗 이어폰 빠졌다", "아 깜짝이야…", "폰 떨굴 뻔"]
@@ -1094,6 +1140,7 @@ types:
     jolt: 0.5
     tags: {village: 1.3}
     skins: ["economy:entity/bus/worker_1", "economy:entity/bus/worker_2", "economy:entity/bus/worker_3"]
+    shiny-talk: {board: ["오늘 준공식이라 새 옷 입고 왔수다!"], thanks: ["덕분에 무사히 왔수다, 반짝!"]}
     talk:
       board: ["현장 가요~", "오늘도 일당 벌러 갑니다", "흙 좀 털고 탈게요", "아이고 허리야", "새벽부터 고생이네 다들"]
       jolt: ["허허, 이 정도야 뭐", "현장보다 낫네", "괜찮아요 괜찮아"]
@@ -1110,6 +1157,7 @@ types:
     chatter-mood: -0.5
     tags: {village: 1.5}
     skins: ["economy:entity/bus/kid_1", "economy:entity/bus/kid_2 slim", "economy:entity/bus/kid_3"]
+    shiny-talk: {board: ["나 오늘 반장 됐어요! 반짝반짝!"], thanks: ["기사 아저씨 최고! 하이파이브!"]}
     talk:
       board: ["안녕하세요오!", "기사 아저씨 안녕하세요!", "버스 탔다!", "학교 가요!", "엄마가 카드 줬어요!"]
       chat: ["나 오늘 받아쓰기 백 점 맞았다!", "어제 게임 레벨 올렸다~", "쟤가 먼저 그랬어!", "우와 저기 강아지다!", "급식 뭐야? 돈가스래!", "숙제 안 했다…"]
@@ -1126,6 +1174,7 @@ types:
     baby-cry: -2
     tags: {field: 2, village: 1.3}
     skins: ["economy:entity/bus/chicken_1 slim", "economy:entity/bus/chicken_2 slim", "economy:entity/bus/chicken_3 slim"]
+    shiny-talk: {board: ["우리 꼬꼬가 품평회서 일등 했어~"], thanks: ["꼬꼬댁! 꼬꼬도 고맙다고 허네~"]}
     talk:
       board: ["아이고 닭 좀 데리고 타도 되제?", "장에 팔러 가는 닭이여~", "얌전히 있으래이, 꼬꼬야", "끙차, 닭이 무겁네"]
       cry: ["꼬꼬댁!! 꼬꼬댁!!", "(닭이 버스 안을 날아다닌다)", "꼬꼬오오!", "아이고 닭 잡아라 닭!"]
@@ -1142,6 +1191,7 @@ types:
     late-hit: -15
     tip: 2.5
     skins: ["economy:entity/bus/tardy_1", "economy:entity/bus/tardy_2 slim", "economy:entity/bus/tardy_3"]
+    shiny-talk: {board: ["오늘은 일찍 나왔어요! 기적이죠?!"], thanks: ["처음으로 지각 안 했어요! 기사님 덕분!"]}
     talk:
       board: ["기사님 빨리요 빨리!!", "(토스트를 입에 물고) 흡흡!", "늦었다 늦었다!!", "제발 제시간에만…!", "교문 닫히기 전에요!!"]
       late: ["으아아 망했다!!", "선생님한테 죽었다…", "벌점이다…", "기사님 왜 이렇게 늦어요ㅠㅠ"]
@@ -1156,6 +1206,7 @@ types:
     tip: 2.0
     hours: [7, 17]
     skins: ["economy:entity/bus/interview_1", "economy:entity/bus/interview_2 slim", "economy:entity/bus/interview_3"]
+    shiny-talk: {board: ["오늘 최종 면접이에요, 행운의 옷!"], thanks: ["붙으면 기사님 덕이에요, 진짜로요!"]}
     talk:
       board: ["(넥타이를 고쳐 맨다)", "안녕하십니까!", "오늘 면접 보러 갑니다", "(작게) 저는 성실한 인재로서…"]
       jolt: ["아 서류 구겨지면 안 되는데…", "넥타이 삐뚤어졌다…", "헉, 머리 망가졌나"]
@@ -1171,6 +1222,7 @@ types:
     market: 2
     tags: {village: 1.5}
     skins: ["economy:entity/bus/yeot_1", "economy:entity/bus/yeot_2", "economy:entity/bus/yeot_3"]
+    shiny-talk: {board: ["오늘은 황금 엿이여~ 철컥철컥!"], thanks: ["기사 양반, 황금 엿 한 가락 받으소~"]}
     talk:
       board: ["찰칵찰칵~ 엿 사려~", "기사 양반 엿 하나 드시오~", "울릉도 호박엿이 왔어요~"]
       chat: ["(가위 소리) 찰칵 찰칵~", "엿 먹고 기운 내요~ 허허", "엿장수 마음대로~", "고물 받아요 엿 바꿔 줘요~", "달달한 엿 한 가락 하소~"]
@@ -1185,6 +1237,7 @@ types:
     review: 85
     tags: {sea: 2, mountain: 1.5}
     skins: ["economy:entity/bus/traveler_1", "economy:entity/bus/traveler_2 slim", "economy:entity/bus/traveler_3"]
+    shiny-talk: {board: ["Today is special! 반짝반짝 옷!"], thanks: ["Thank you! 최고의 버스예요!"]}
     talk:
       board: ["안녕하세요! 이 버스… 바다… 가요?", "감사합니다! (꾸벅)", "한국 버스 처음이에요!", "지도… 여기… 맞아요?"]
       view: ["우와! 너무 아름다워요!", "사진! 사진!", "한국 정말 예뻐요!", "원더풀~"]
@@ -1200,6 +1253,7 @@ types:
     chatter: 7
     chatter-mood: -1.5
     skins: ["economy:entity/bus/phone_1", "economy:entity/bus/phone_2", "economy:entity/bus/phone_3"]
+    shiny-talk: {board: ["(통화 중) 어 나 오늘 좀 빛나거든? 하하"], thanks: ["(전화를 끊으며) 기사님, 오늘 조용히 와서 감사합니다!"]}
     talk:
       board: ["(전화 중) 어어 나 지금 버스야!!", "여보세요? 여보세요!! 잘 안 들려!!", "(통화하며 카드 찍는다)"]
       chat: ["어 그래서 내가 그 새끼한테 뭐라 그랬냐면!!", "아 진짜?! 대박이네!! 하하하하!!", "뭐라고?! 안 들려!! 크게 말해!!", "그거 내가 해 준다니까!!",
@@ -1216,6 +1270,7 @@ types:
     haggle-at: 50
     haggle: 0.5
     skins: ["economy:entity/bus/rude_1", "economy:entity/bus/rude_2", "economy:entity/bus/rude_3"]
+    shiny-talk: {board: ["…오늘은 기분이 좋아서 말이야, 허험."], thanks: ["…운전 잘하는구먼. 오늘만 칭찬해 주지."]}
     talk:
       board: ["어이, 빨리 가자", "버스가 왜 이렇게 늦어", "(이쑤시개를 문다)", "자리 없어? 쯧"]
       jolt: ["야! 똑바로 운전 안 해?!", "운전 그따위로 할 거야?", "어이 기사!"]
@@ -1229,6 +1284,7 @@ types:
     weight: 3.4
     dodge: 0.35
     skins: ["economy:entity/bus/dodger_1", "economy:entity/bus/dodger_2", "economy:entity/bus/dodger_3"]
+    shiny-talk: {board: ["오늘은… 요금 제대로 낼게요, 진짜로요!"], thanks: ["오늘은 앞문으로 내려 볼게요, 헤헤."]}
     talk:
       board: ["(카드를 찍는 척한다)", "…", "(모자를 깊게 눌러쓴다)", "아 카드 어디 갔지…"]
       dodge: ["(뒷문으로 슬쩍) 헤헤", "다음에 낼게요~!", "(후다닥 뛰어간다)"]
@@ -1242,6 +1298,7 @@ types:
     scale: 0.8
     prank: 0.5
     skins: ["economy:entity/bus/prankster_1", "economy:entity/bus/prankster_2", "economy:entity/bus/prankster_3 slim"]
+    shiny-talk: {board: ["오늘은 장난 안 쳐요! 반짝 약속!"], thanks: ["벨 한 번도 안 눌렀죠? 칭찬해 주세요!"]}
     talk:
       board: ["히히 버스 탔다~", "아저씨 안녕~ 히히", "(벨을 만지작거린다)"]
       prank: ["(띵동!) 히히히 눌러 봤지롱~", "내리는 사람 없는데~ 메롱~", "(벨 누르고 딴청) 휘~휘~"]
@@ -1254,6 +1311,7 @@ types:
     chatter: 15
     chatter-mood: -1
     skins: ["economy:entity/bus/spread_1", "economy:entity/bus/spread_2", "economy:entity/bus/spread_3"]
+    shiny-talk: {board: ["오늘은 다리 모으고 앉을게요, 하하."], thanks: ["자리 하나만 썼어요! 대단하죠?"]}
     talk:
       board: ["(다리를 쫙 벌리고 앉는다)", "아 좁네 이 버스", "(두 자리를 차지한다)"]
       chat: ["(옆 사람 쪽으로 다리를 더 벌린다)", "아 다리가 저려서 그래", "(무릎이 옆 사람을 툭툭 친다)", "좁으면 다른 데 앉든가"]
@@ -1268,6 +1326,7 @@ types:
     haggle: 0.5
     tags: {village: 1.5}
     skins: ["economy:entity/bus/complainer_1 slim", "economy:entity/bus/complainer_2 slim", "economy:entity/bus/complainer_3 slim"]
+    shiny-talk: {board: ["어머, 오늘은 불만이 하나도 없네?"], thanks: ["기사님, 칭찬 민원 넣어 드릴게요!"]}
     talk:
       board: ["기사님 이 버스 몇 분이나 늦은 줄 알아요?", "에어컨 좀 세게 틀어요", "의자가 왜 이렇게 더러워", "내가 이 노선 몇 년 탄 줄 알아요?"]
       jolt: ["어머! 지금 뭐 하는 거예요?!", "번호 적었어요, 민원 넣을 거예요", "사람 다치면 책임질 거예요?!"]
@@ -1283,6 +1342,7 @@ types:
     scale: 0.9
     litter: -6
     skins: ["economy:entity/bus/crumbs_1", "economy:entity/bus/crumbs_2 slim", "economy:entity/bus/crumbs_3"]
+    shiny-talk: {board: ["오늘은 과자 안 흘려요! 금박 과자거든요!"], thanks: ["자리 깨끗하죠? 오늘은 진짜예요!"]}
     talk:
       board: ["(바스락) 과자 먹으면서 가야지~", "(와작와작)", "(봉지를 뜯는다)"]
       jolt: ["앗 과자 쏟았다", "(부스러기가 흩날린다)", "아 내 과자!"]
@@ -1296,6 +1356,7 @@ types:
     tip: 1.5
     treat: 0.5
     skins: ["economy:entity/bus/gentleman_1", "economy:entity/bus/gentleman_2", "economy:entity/bus/gentleman_3"]
+    shiny-talk: {board: ["오늘은 특별한 모임이 있어 차려입었지요."], thanks: ["훌륭한 운전이었소. 오늘 운임은 내가 쏘리다."]}
     talk:
       board: ["안녕하십니까, 기사님. 오늘도 고생이 많으십니다", "천천히 가셔도 괜찮습니다", "(모자를 살짝 들어 인사한다)"]
       jolt: ["허허, 괜찮습니다. 다들 괜찮으신가요?", "조심하십시오, 여러분", "길이 험하지요"]
@@ -1309,6 +1370,7 @@ types:
     bless-tip: 1.3
     hours: [18, 4]
     skins: ["economy:entity/bus/shaman_1 slim", "economy:entity/bus/shaman_2 slim", "economy:entity/bus/shaman_3 slim"]
+    shiny-talk: {board: ["오늘은 신령님이 반짝이는 옷을 입혀 주셨네."], thanks: ["기사님, 앞으로 석 달은 대길이여!"]}
     talk:
       board: ["…이 버스에 기운이 좋구먼", "기사 양반 사주에 물이 많네", "(방울을 흔든다) 딸랑…"]
       jolt: ["어허, 액이 끼었구먼", "잡귀가 붙었나…", "딸랑딸랑…"]
@@ -1322,6 +1384,7 @@ types:
     mood: 0.5
     hours: [8, 18]
     skins: ["economy:entity/bus/mailman_1", "economy:entity/bus/mailman_2 slim", "economy:entity/bus/mailman_3"]
+    shiny-talk: {board: ["오늘은 특별한 편지를 배달하러 가요!"], thanks: ["기사님께도 좋은 소식이 올 거예요!"]}
     talk:
       board: ["우편이요~ 아니 손님이요~ 하하", "배달 가는 길입니다!", "편지 한가득이네요"]
       jolt: ["편지 날아간다!", "어이쿠 소포!"]
@@ -1337,6 +1400,7 @@ types:
     gift-mood: 70
     gifts: [{item: economy:hotteok, amount: 1}]
     skins: ["economy:entity/bus/bungeo_1", "economy:entity/bus/bungeo_2 slim", "economy:entity/bus/bungeo_3"]
+    shiny-talk: {board: ["오늘은 황금 붕어빵 굽는 날이여~"], thanks: ["따끈할 때 하나 들어요, 오늘만 특별!"]}
     talk:
       board: ["아이고 춥다 추워~", "장사하러 가요~ 오늘 반죽 넉넉히 했어", "(손을 호호 분다)"]
       jolt: ["반죽 쏟아질라!", "어이쿠, 팥 앙금!"]
@@ -1351,6 +1415,7 @@ types:
     tip: 2.0
     tags: {sea: 2, mountain: 1.5}
     skins: ["economy:entity/bus/bride_1 slim", "economy:entity/bus/bride_2", "economy:entity/bus/bride_3 slim"]
+    shiny-talk: {board: ["오늘 우리 결혼 1주년이에요!"], thanks: ["기사님 덕분에 오늘 하루 꿈같았어요♥"]}
     talk:
       board: ["저희 어제 결혼했어요!", "신혼여행 가요~♥", "여보 여기 앉자~", "(손을 꼭 잡고 탄다)"]
       view: ["여보 저기 봐!", "여기서 사진 찍자~", "평생 기억할 거야♥"]
@@ -1365,6 +1430,7 @@ types:
     chatter: 30
     chatter-mood: 0.5
     skins: ["economy:entity/bus/police_1", "economy:entity/bus/police_2 slim", "economy:entity/bus/police_3"]
+    shiny-talk: {board: ["오늘은 표창 받으러 가는 길입니다!"], thanks: ["안전 운전 표창감입니다, 기사님!"]}
     talk:
       board: ["수고 많으십니다", "순찰 교대하러 갑니다", "(모자를 고쳐 쓴다)"]
       chat: ["(주변을 둘러본다) 다들 안전벨트… 아 버스지", "이 동네 참 조용하고 좋습니다", "기사님 안전 운전 감사합니다", "(진상 손님 쪽을 슬쩍 본다)"]
@@ -1378,6 +1444,7 @@ types:
     chatter-mood: 1.5
     tip: 1.5
     skins: ["economy:entity/bus/magician_1", "economy:entity/bus/magician_2", "economy:entity/bus/magician_3"]
+    shiny-talk: {board: ["오늘 무대는 금빛 마술이죠! 짜잔!"], thanks: ["기사님을 위한 마지막 마술… 행운이 생겼습니다!"]}
     talk:
       board: ["(모자에서 비둘기가 나온다)", "자, 여러분 주목~", "기사님, 카드 한 장 뽑아 보시겠어요?"]
       chat: ["짠! 동전이 사라졌습니다~", "(손수건이 끝없이 나온다)", "이 카드가… 기사님 주머니에!", "수리수리 마수리~", "(꽃을 꺼내 옆 손님에게 준다)"]
@@ -1391,6 +1458,7 @@ types:
     jolt: 0.2
     tags: {field: 1.5, village: 1.3}
     skins: ["economy:entity/bus/wrestler_1", "economy:entity/bus/wrestler_2", "economy:entity/bus/wrestler_3"]
+    shiny-talk: {board: ["오늘 천하장사 결승입니다! 반짝!"], thanks: ["이기면 꽃가마 태워 드릴게요, 하하!"]}
     talk:
       board: ["(버스가 살짝 기운다) 허허, 미안합니다", "대회 나가러 갑니다!", "끙차, 문이 좁네"]
       jolt: ["(끄떡없다)", "허허, 이 정도야", "흔들린 거 맞습니까?"]
