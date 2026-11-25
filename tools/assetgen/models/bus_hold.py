@@ -691,18 +691,21 @@ def cane():
     return displays(m, held)
 
 
+POLE_Z = 16
+
+
 def trekking_pole():
-    """등산객: a trekking pole, the grip in the fist (a black handle, a wrist strap), the shaft down to the floor with a
-    little basket and a carbide tip."""
+    """등산객: a trekking pole, the grip in the fist (a black handle, a red wrist strap), the shaft slanting down and out to
+    the floor beside the boot with a little basket and a carbide tip."""
     m = BModel("bus_hold_pole", floor=None)
-    m.box("grip", (6.75, 4, 6.75), (9.25, 12, 9.25), _plain("rubber", 2, kind="speckle"))
-    m.box("cap", (6.5, 12, 6.5), (9.5, 13, 9.5), _plain("tomato", 2))
-    m.box("strap", (9.25, 6, 7.5), (10.5, 12, 8.5), _plain("tomato", 1))
-    m.box("shaft", (7.4, -12, 7.4), (8.6, 4, 8.6), _plain("blade", 2, kind="metal", rim=1.4))
-    m.box("shaft", (7.6, -16, 7.6), (8.4, -12, 8.4), _plain("blade", 1, kind="metal"))
-    m.box("lock", (7.1, -2, 7.1), (8.9, -1, 8.9), _plain("tomato", 2))
-    m.box("basket", (5.5, -14, 5.5), (10.5, -13.25, 10.5), _plain("rubber", 1))
-    held = hold_transform(grip=(8, 8, 8), at=fist(), turn=turn(x=-10, z=-6))
+    m.box("grip", (6.5, 4, 6.5), (9.5, 12, 9.5), _plain("rubber", 2, kind="speckle"))
+    m.box("cap", (6.25, 12, 6.25), (9.75, 13, 9.75), _plain("tomato", 2))
+    m.box("strap", (9.5, 5, 7.5), (11, 12.5, 8.5), _plain("tomato", 1))
+    m.box("shaft", (7, -10, 7), (9, 4, 9), _plain("tomato", 2, kind="metal", rim=1.4))
+    m.box("shaft", (7.25, -16, 7.25), (8.75, -10, 8.75), _plain("blade", 2, kind="metal"))
+    m.box("lock", (6.75, -10.5, 6.75), (9.25, -9.5, 9.25), _plain("rubber", 1))
+    m.box("basket", (5.25, -14, 5.25), (10.75, -13, 10.75), _plain("rubber", 1))
+    held = hold_transform(grip=(8, 8, 8), at=fist(), turn=turn(x=-14, z=POLE_Z))
     return displays(m, held)
 
 
@@ -757,58 +760,58 @@ def parcel():
 
 
 def bungeo_bag():
-    """붕어빵 장수: a brown paper bag of 붕어빵, its top rolled open, two golden fish-breads poking out (a tail, a head with
-    its eye), a grease spot, a little fish stamped on the bag."""
+    """붕어빵 장수: a brown paper bag of 붕어빵, its top rolled open, two golden fish-breads standing in it (one head up with
+    its eye and gills, one tail up), a grease spot, a little fish stamped on the bag."""
     m = BModel("bus_hold_bungeo_bag", floor=None)
     cells = {}
-    for x in range(4, 12):
+    for x in range(3, 13):
         for y in range(0, 11):
             for z in range(5, 11):
-                if x in (4, 11) and z in (5, 10):
+                if x in (3, 12) and z in (5, 10):
                     continue
                 cells[(x, y, z)] = "bag"
-    for x in range(4, 12):
+    for x in range(3, 13):
         for z in range(5, 11):
-            if x in (4, 11) or z in (5, 10):
+            if x in (3, 12) or z in (5, 10):
                 cells[(x, 11, z)] = "rim"                     # the rolled top
-    # two fish-breads standing in it: one head up, one tail up
-    for (x0, up) in ((5, "head"), (8, "tail")):
-        for y in range(9, 15):
-            for x in range(x0, x0 + 3):
-                if up == "head" and y == 14 and x != x0 + 1:
-                    continue
-                if up == "tail" and y == 13 and x == x0 + 1:
-                    continue                                  # the tail's fork
-                if up == "tail" and y == 14 and x == x0 + 1:
-                    continue
-                cells[(x, y, 7)] = "fish"
-                cells[(x, y, 8)] = "fish"
+    # the fish-breads in profile (x across, y up), 2 thick: a round head (up) and a forked tail (up)
+    head_up = ["..##..", ".####.", "######", "######", "######", "######", "######"]
+    tail_up = ["##..##", "##..##", ".####.", "..##..", ".####.", "######", "######"]
+    for x0, z0, prof in ((3, 6, head_up), (7, 8, tail_up)):
+        for row, line in enumerate(prof):
+            y = 16 - row
+            for i, ch in enumerate(line):
+                if ch == "#":
+                    for z in (z0, z0 + 1):
+                        cells[(x0 + i, y, z)] = "fish"
 
     def bag(c):
         x, y, z = c.p
-        if c.face == "north" and math.hypot(x - 9.5, y - 3) < 1.3:
+        if c.face == "north" and math.hypot(x - 10, y - 3) < 1.3:
             return ("doenjang", 1)                            # a grease spot
-        if c.face == "north" and 5.5 <= x <= 8.5 and 5 <= y <= 7 and not (x > 8 and abs(y - 6) < 0.5):
+        if c.face == "north" and 4.5 <= x <= 8.5 and 5 <= y <= 7.5 and not (x > 8 and abs(y - 6.25) < 0.5):
             return ("fox", 2)                                 # the stamped fish
         return None
 
     def fish(c):
         x, y, z = c.p
-        if c.face in ("north", "south") and abs(y - 13) < 0.5 and 5.5 <= x <= 6.5:
+        if c.face in ("north", "south") and 13.75 <= y <= 14.75 and 6 <= x <= 7 and z < 8:
             return ("raw", (60, 34, 20, 255))                 # the eye
-        if c.face in ("north", "south") and int(y) == 11:
-            return ("corn", 1)                                # the scales' ridge
+        if c.face in ("north", "south") and 12.25 <= y <= 12.75 and z < 8:
+            return ("corn", 0)                                # the gills
+        if c.face in ("north", "south") and int(y) % 2 == 0 and y < 12 and (int(x) + int(y)) % 3 == 0:
+            return ("corn", 1)                                # the scales
         return None
     paints = {"bag": _plain("doenjang", 3, kind="paper", rim=1.2, decal=bag), "rim": _plain("doenjang", 2, kind="paper"),
-              "fish": _plain("corn", 2, rim=1.3, decal=fish)}
+              "fish": _plain("corn", 2, rim=1.4, decal=fish)}
     voxels(m, "bag", cells, lambda lab: paints[lab])
     held = hold_transform(grip=(8, 4, 8), at=fist(), turn=turn(x=-8))
     return displays(m, held)
 
 
 def bundle():
-    """시장 아줌마: a 보따리, a square cloth bundle tied at the top, held by the knot: a pink cloth with white flowers, its two
-    knotted ears standing up."""
+    """시장 아줌마: a 보따리, a square cloth bundle tied at the top, held by the knot: its two
+    knotted ears standing up (a blue cloth with little white flowers, so it never melts into her flowery 몸빼)."""
     m = BModel("bus_hold_bundle", floor=None)
     cells = {}
     for x in range(1, 16):
@@ -834,7 +837,7 @@ def bundle():
         if k < 0.55 and ((fx == 1) != (fy == 1)) and (fx == 1 or fy == 1) and (fz == 1 or c.face in ("north", "south")):
             return ("porcelain", 2)
         return None
-    paints = {"cloth": _plain("pink", 2, kind="weave", rim=0.9, decal=flowers), "knot": _plain("pink", 1, kind="weave", decal=flowers)}
+    paints = {"cloth": _plain("sapphire", 1, kind="weave", rim=0.9, decal=flowers), "knot": _plain("sapphire", 0, kind="weave", decal=flowers)}
     voxels(m, "bundle", cells, lambda lab: paints[lab])
     held = hold_transform(grip=(8, 5, 8), at=fist(0, 0, 0), turn=turn())
     return displays(m, held)
