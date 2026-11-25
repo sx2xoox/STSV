@@ -29,7 +29,9 @@ public final class TripStore {
                         + "status VARCHAR(12) NOT NULL, ended BIGINT NOT NULL)",
                 "CREATE INDEX stsv_eco_cargo_trip_status ON stsv_eco_cargo_trip (status)"),
                 // 2: the dock's ratio at seal time (docks have prices of their own); 0 = sealed before that
-                List.of("ALTER TABLE stsv_eco_cargo_trip ADD COLUMN ratio DOUBLE NOT NULL DEFAULT 0")));
+                List.of("ALTER TABLE stsv_eco_cargo_trip ADD COLUMN ratio DOUBLE NOT NULL DEFAULT 0"),
+                // 3: the events on its goods at seal time (품귀 · 폭락 · 고가 매입상: CargoTrip.boost); NULL = none
+                List.of("ALTER TABLE stsv_eco_cargo_trip ADD COLUMN boost " + text)));
     }
 
     /** A new sealed trip: stored, with its id (waits for the database: tests; the plugin uses {@link #openAsync}). */
@@ -41,9 +43,9 @@ public final class TripStore {
     public CompletableFuture<CargoTrip> openAsync(CargoTrip t) {
         return db.async(c -> {
             try (var st = c.prepareStatement("INSERT INTO stsv_eco_cargo_trip (vehicle, owner, terminal, dock, manifest, total, changed, odometer, "
-                    + "straight, sealed, status, ended, ratio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
+                    + "straight, sealed, status, ended, ratio, boost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", java.sql.Statement.RETURN_GENERATED_KEYS)) {
                 Object[] v = {t.vehicle(), t.owner().toString(), t.terminal(), t.dock(), t.manifest(), t.total(), t.changed(), t.odometer(),
-                        t.straight(), t.sealed(), t.status().name(), t.ended(), t.ratio()};
+                        t.straight(), t.sealed(), t.status().name(), t.ended(), t.ratio(), t.boost() == null ? "" : t.boost()};
                 for (int i = 0; i < v.length; i++) st.setObject(i + 1, v[i]);
                 st.executeUpdate();
                 try (var rs = st.getGeneratedKeys()) {
@@ -58,12 +60,12 @@ public final class TripStore {
         return db.execute("UPDATE stsv_eco_cargo_trip SET status = ?, ended = ? WHERE id = ?", t.status().name(), t.ended(), t.id());
     }
 
-    private static final String COLS = "id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, ratio";
+    private static final String COLS = "id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, ratio, boost";
 
     private static CargoTrip row(java.sql.ResultSet rs) throws java.sql.SQLException {
         return new CargoTrip(rs.getLong(1), rs.getLong(2), UUID.fromString(rs.getString(3)), rs.getString(4), rs.getString(5), rs.getString(6),
                 rs.getLong(7), rs.getLong(8), rs.getDouble(9), rs.getDouble(10), rs.getLong(11), CargoTrip.Status.valueOf(rs.getString(12)),
-                rs.getLong(13), rs.getDouble(14));
+                rs.getLong(13), rs.getDouble(14), rs.getString(15) == null ? "" : rs.getString(15));
     }
 
     /** Every trip still sealed. */

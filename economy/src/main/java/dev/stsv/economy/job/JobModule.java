@@ -149,13 +149,12 @@ public final class JobModule extends EcoModule {
         return spec.levelFor(store.xp(player, job));
     }
 
-    /** An event that names jobs (풍년: farmer, fisher; 광산 호황: miner, blacksmith) multiplies their effects while it runs. */
+    /**
+     * An event that names jobs and a job-effect (events.yml) multiplies their effects while it runs. None does now: 풍년 and
+     * 광산 호황 speed up the jobs' machines instead (MachineModule, machine-speed), which a player sees.
+     */
     private double boost(String job) {
-        double v = 1;
-        for (dev.stsv.economy.event.ActiveEvent e : eco.events().active()) {
-            if (e.runningAt(now()) && dev.stsv.economy.event.EventSpec.list(e.param("jobs")).contains(job)) v *= e.number("multiplier", 2);
-        }
-        return v;
+        return dev.stsv.economy.event.EventNews.product(eco.events().active(), now(), "job-effect", job);
     }
 
     /** A growing effect ("extra", "save") of a job for a player who has it now; 0 otherwise. */

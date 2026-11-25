@@ -258,7 +258,7 @@ public final class MarketModule extends EcoModule {
                 all.add(l);
             }
             shown = all;
-            boolean crash = eco.events().isActive("crash");
+            boolean crash = eco.events().active("crash").stream().anyMatch(e -> e.param("item") != null);   // an old item 폭락 (the 하역장 one does not touch the 거래소)
             List<ItemStack> out = new ArrayList<>();
             for (MarketStore.Listing l : all) {
                 ItemStack it = Items.fromBytes(l.item());

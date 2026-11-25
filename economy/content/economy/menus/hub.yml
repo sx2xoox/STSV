@@ -331,14 +331,14 @@ hub_work:
       name: "<white>땅"
       lore: ["<gray>내 땅 <white>{land}", "<gray>처음 {free}청크 무료", "<yellow>우클릭: 경계 보기"]
     N:
-      action: "hub:run:납품|suggest:기부"
+      action: "hub:run:소식|run:납품"
       icon: stsv:gui/blank
       material: BELL
       art: hub:event
       label: "사건"
       accent: "#7ec85c"
       name: "<white>사건"
-      lore: ["<gray>진행 중 <white>{events}", "<yellow>클릭: 긴급 납품", "<yellow>우클릭: 세무 조사 기부"]
+      lore: ["<gray>진행 중 <white>{events}", "<yellow>클릭: 마을 소식 (/소식)", "<yellow>우클릭: 긴급 납품 (/납품)"]
     H:
       action: "hub:run:주식|run:주식 뉴스"
       icon: stsv:gui/blank
@@ -349,14 +349,14 @@ hub_work:
       name: "<white>주식"
       lore: ["<gray>회사 주식 사고팔기", "<yellow>우클릭: 뉴스"]
     O:
-      action: "command:기념비"
+      action: "hub:run:기념비|suggest:기부"
       icon: stsv:gui/blank
       material: LODESTONE
       art: hub:monument
       label: "기념비"
       accent: "#7ec85c"
       name: "<white>기념비"
-      lore: ["<gray>주간 1위 건립권"]
+      lore: ["<gray>주간 1위 건립권", "<yellow>우클릭: 기부 <gray>(세무 조사 중 5,000G 이상이면 칭호)"]
     B:
       action: "command:건축월드"
       icon: stsv:gui/blank

@@ -18,7 +18,8 @@ import java.util.Set;
  * nor anything the shop does not buy. Generic: a new recipe whose output the shop buys is a finished good at once.
  *
  * <p><b>Price</b> = the item's shop base price (기준가) x the dock's ratio: its own (/관리자 하역장 가격, {@link Dock#ratio}),
- * else the global docks.price-ratio ({@link #ratio()}). Fixed otherwise: no 수요 고시, no events, no seller's own curve, no
+ * else the global docks.price-ratio ({@link #ratio()}), x the running dock events on its category ({@link DockBoost}: 품귀 ·
+ * 폭락 · 고가 매입상, one dock and one category each, about +-10%). Otherwise fixed: no 수요 고시, no seller's own curve, no
  * income tax. A dock sale never touches the shop's record of what anyone sold, so it moves neither the seller's own shop
  * price nor the market price. A sealed trip ({@link CargoTrip}) keeps the total at the ratio it was sealed with.
  */
@@ -27,11 +28,32 @@ public final class DockGoods {
     private final Set<String> finished;
     private final Map<String, Double> base;
     private final double ratio;
+    /** finished good -> the machine that makes it (the first in machines.yml): its category for the events (품귀 · 폭락) */
+    private final Map<String, String> made;
 
     public DockGoods(Set<String> finished, Map<String, Double> base, double ratio) {
+        this(finished, base, ratio, Map.of());
+    }
+
+    public DockGoods(Set<String> finished, Map<String, Double> base, double ratio, Map<String, String> made) {
         this.finished = Set.copyOf(finished);
         this.base = Map.copyOf(base);
         this.ratio = ratio;
+        this.made = Map.copyOf(made);
+    }
+
+    /** The category of a finished good (the machine id that makes it: kitchen, still, forge...), or null. */
+    public String category(String id) {
+        return made.get(id);
+    }
+
+    /** Which machine makes each recipe output first (machines.yml order). */
+    public static Map<String, String> made(Map<String, MachineSpec> machines) {
+        Map<String, String> out = new LinkedHashMap<>();
+        for (Map.Entry<String, MachineSpec> m : machines.entrySet()) {
+            for (MachineSpec.Recipe r : m.getValue().recipes()) out.putIfAbsent(r.output(), m.getKey());
+        }
+        return out;
     }
 
     /** Recipe outputs of every machine that the shop buys, in the shop's order. */
@@ -46,7 +68,10 @@ public final class DockGoods {
     public static DockGoods of(Map<String, MachineSpec> machines, ShopCatalog shop, double ratio) {
         Map<String, Double> base = new LinkedHashMap<>();
         for (ShopCatalog.SellEntry e : shop.sell().values()) base.put(e.id(), e.base());
-        return new DockGoods(finished(machines, shop), base, ratio);
+        Set<String> fin = finished(machines, shop);
+        Map<String, String> made = new LinkedHashMap<>();
+        for (Map.Entry<String, String> e : made(machines).entrySet()) if (fin.contains(e.getKey())) made.put(e.getKey(), e.getValue());
+        return new DockGoods(fin, base, ratio, made);
     }
 
     public boolean buys(String id) {
@@ -75,8 +100,15 @@ public final class DockGoods {
     /** One slot of a vehicle's bed: its index, item id, count, and whether it is plain (no shop mark, no rename...). */
     public record Slot(int index, String id, int amount, boolean plain) {}
 
-    /** One kind of goods in a sale: how many, what one pays, what they pay together (gold, before rounding). */
-    public record Line(String id, int count, double unit, double total) {}
+    /**
+     * One kind of goods in a sale: how many, what one pays, what they pay together (gold, before rounding), and the events on
+     * it (품귀 · 폭락 · 고가 매입상: already in unit).
+     */
+    public record Line(String id, int count, double unit, double total, DockBoost.Hit hit) {
+        public Line(String id, int count, double unit, double total) {
+            this(id, count, unit, total, DockBoost.Hit.NONE);
+        }
+    }
 
     /**
      * A sale: the lines (by kind, in the bed's order), which slots go, the total paid (whole gold, rounded down), and how many
@@ -103,6 +135,14 @@ public final class DockGoods {
      * on the ratio, only what they fetch.
      */
     public Plan plan(List<Slot> bed, double atRatio) {
+        return plan(bed, atRatio, id -> DockBoost.Hit.NONE);
+    }
+
+    /**
+     * The same with the running events on each good (its factor on top of the ratio). The slots and the manifest do not
+     * depend on either.
+     */
+    public Plan plan(List<Slot> bed, double atRatio, java.util.function.Function<String, DockBoost.Hit> boost) {
         Map<String, int[]> counts = new LinkedHashMap<>();
         Set<Integer> slots = new LinkedHashSet<>();
         int kept = 0;
@@ -118,8 +158,10 @@ public final class DockGoods {
         List<Line> lines = new ArrayList<>();
         double sum = 0;
         for (Map.Entry<String, int[]> e : counts.entrySet()) {
-            double u = unit(e.getKey(), atRatio), t = u * e.getValue()[0];
-            lines.add(new Line(e.getKey(), e.getValue()[0], u, t));
+            DockBoost.Hit hit = boost.apply(e.getKey());
+            if (hit == null) hit = DockBoost.Hit.NONE;
+            double u = unit(e.getKey(), atRatio) * hit.factor(), t = u * e.getValue()[0];
+            lines.add(new Line(e.getKey(), e.getValue()[0], u, t, hit));
             sum += t;
         }
         return new Plan(List.copyOf(lines), Set.copyOf(slots), (long) Math.floor(sum + 1e-6), kept);

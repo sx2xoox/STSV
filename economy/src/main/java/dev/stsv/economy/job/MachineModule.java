@@ -434,6 +434,7 @@ public final class MachineModule extends EcoModule {
         if (r.aging()) t *= eco.jobs().bonus(op, job, "aging");
         t *= eco.jobs().milestone(op, job, "time");   // 승급 Lv40
         if (eco.accessories() != null) t *= Math.max(0.2, 1 - eco.accessories().value(op, "machine_haste"));   // 장신구 기계 가속
+        t /= eco.events().machineSpeed(job);   // 풍년 · 광산 호황: that job's machines, whoever runs them
         return Math.max(1, t);
     }
 
@@ -787,10 +788,15 @@ public final class MachineModule extends EcoModule {
         MachineSpec.Settings settings = settings(m);
         String jc = j == null ? "white" : j.color(), jn = j == null ? "-" : j.name();
         m.inv.setItem(BOOK, icon(Material.BOOK, "economy:gui/ledger", Lang.item("machine.book"), Lang.items("machine.book-lore")));
+        List<Component> infoLore = new ArrayList<>(Lang.items(j == null ? "machine.info-lore-common" : "machine.info-lore", "owner",
+                m.owner == null ? "-" : Players.name(m.owner), "lanes", m.open(), "speed", Math.round(settings.speed(m.tier) * 100), "color", jc, "job", jn));
+        // 풍년 · 광산 호황: a band on the info icon of the machines it speeds up
+        for (dev.stsv.economy.event.ActiveEvent e : eco.events().machineEvents(m.spec.job())) {
+            infoLore.add(Lang.item("machine.event-band", "event", eco.events().name(e.type()), "pct", Math.round((e.number("machine-speed", 1) - 1) * 100),
+                    "left", dev.stsv.economy.event.EventModule.hoursText(e.ends() - System.currentTimeMillis())));
+        }
         m.inv.setItem(INFO, icon(Material.CRAFTING_TABLE, "stsv:gui/info",
-                Lang.item("machine.info", "machine", m.spec.name(), "tier", tierName(m.tier)),
-                Lang.items(j == null ? "machine.info-lore-common" : "machine.info-lore", "owner", m.owner == null ? "-" : Players.name(m.owner), "lanes", m.open(),
-                        "speed", Math.round(settings.speed(m.tier) * 100), "color", jc, "job", jn)));
+                Lang.item("machine.info", "machine", m.spec.name(), "tier", tierName(m.tier)), infoLore));
         int next = m.tier + 1;
         if (next > settings.maxTier()) {
             m.inv.setItem(UPGRADE, icon(Material.NETHER_STAR, "economy:gui/crown", Lang.item("machine.upgrade-max"), null));
@@ -880,6 +886,20 @@ public final class MachineModule extends EcoModule {
             return;
         }
         MachineSpec.Settings settings = settings(m);
+        // 풍년 · 광산 호황: a band on the info icon of the machines it speeds up
+        List<dev.stsv.economy.event.ActiveEvent> fast = eco.events().machineEvents(m.spec.job());
+        if (!fast.isEmpty()) {
+            ItemStack info = m.inv.getItem(INFO);
+            if (info != null) info.editMeta(meta -> {
+                List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
+                for (dev.stsv.economy.event.ActiveEvent e : fast) {
+                    lore.add(Lang.item("machine.event-band", "event", eco.events().name(e.type()),
+                            "pct", Math.round((e.number("machine-speed", 1) - 1) * 100),
+                            "left", dev.stsv.economy.event.EventModule.hoursText(e.ends() - System.currentTimeMillis())));
+                }
+                meta.lore(lore);
+            });
+        }
         int next = m.tier + 1;
         if (next > settings.maxTier()) {
             HudModule.flash(p, Lang.mm("machine.upgrade-max"));

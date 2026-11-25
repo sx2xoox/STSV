@@ -166,7 +166,8 @@ public final class SchoolModule extends EcoModule {
         for (World w : Bukkit.getWorlds()) {
             if (w.getPlayers().isEmpty()) continue;
             List<School> here = schools.computeIfAbsent(w.getName(), k -> new ArrayList<>());
-            if (here.size() < spec.maxPerWorld() && now - lastSpawn.getOrDefault(w.getName(), 0L) >= spec.spawnEvery() * 1000L) {
+            // 태풍 (사건): no new schools while it blows (SeaEvents.stormy); the ones out there stay till they end
+            if (!SeaEvents.stormy() && here.size() < spec.maxPerWorld() && now - lastSpawn.getOrDefault(w.getName(), 0L) >= spec.spawnEvery() * 1000L) {
                 lastSpawn.put(w.getName(), now);
                 spawn(w, null);
             }

@@ -121,6 +121,7 @@ public final class FishingModule extends EcoModule {
      * fish auction) were more than a fishing boat needs, and are no longer hauled; the ones still in a hold sell as before.
      */
     private ItemStack netHaul(Player p, Block water, dev.stsv.core.vehicle.NetHaul.Boat boat) {
+        if (SeaEvents.stormy()) return null;   // 태풍: no net hauls at sea (README "사건")
         SchoolModule schools = eco.schools();
         ItemStack school = schools == null ? null : schools.haul(p, water, boat);   // 어군 조업: in a school, its fish
         if (school != null) return school;

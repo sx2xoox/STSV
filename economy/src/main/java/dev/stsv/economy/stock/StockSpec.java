@@ -15,7 +15,7 @@ public record StockSpec(Settings settings, Map<String, Industry> industries, Map
 
     public record Settings(int tickMinutes, double limit, double holdingCap, double fee, int sellWaitMinutes, double newsPerDay,
                            double activityCap, double activityScale, double reversionDays, double baseReversionDays,
-                           double dividendShare, long minInvested, List<Double> alerts, double eventShock) {
+                           double dividendShare, long minInvested, List<Double> alerts, double eventShock, double earningsDays) {
 
         public int ticksPerDay() {
             return Math.max(1, 1440 / Math.max(1, tickMinutes));
@@ -46,7 +46,7 @@ public record StockSpec(Settings settings, Map<String, Industry> industries, Map
                 s.getDouble("fee", 0.01), s.getInt("sell-wait-minutes", 10), s.getDouble("news-per-day", 5), s.getDouble("activity-cap", 0.03),
                 s.getDouble("activity-scale", 0.03), s.getDouble("reversion-days", 3), s.getDouble("base-reversion-days", 30),
                 s.getDouble("dividend-share", 0.15), s.getLong("min-invested", 1000), alerts.isEmpty() ? List.of(0.1, 0.2) : alerts,
-                s.getDouble("event-shock", 0.02));
+                s.getDouble("event-shock", 0.02), s.getDouble("earnings-days", 8));
         Map<String, Industry> industries = new LinkedHashMap<>();
         ConfigurationSection is = c.getConfigurationSection("industries");
         if (is != null) {

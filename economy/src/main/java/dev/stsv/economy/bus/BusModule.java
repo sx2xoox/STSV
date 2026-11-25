@@ -271,6 +271,9 @@ public final class BusModule extends EcoModule {
      * come back, not anew: no new roll).
      */
     private final Map<Integer, Integer> shinyTickets = new HashMap<>(), comeBack = new HashMap<>();
+    /** stop id -> when its unseen shiny arrivals were last added (they lapse after SHINY_UNSEEN_MS unseen: nobody came by) */
+    private final Map<Integer, Long> shinySince = new HashMap<>();
+    static final long SHINY_UNSEEN_MS = 30 * 60_000L;
     /** marks a 별난 손님's mannequin (its lines, its sparkle) */
     static final NamespacedKey SHINY = new NamespacedKey("economy", "bus_shiny");
     private int marketSaidDay = -1;
@@ -3757,11 +3760,20 @@ public final class BusModule extends EcoModule {
      * roll nothing. Each of the rest is shiny with shiny.chance; the stop never holds more unseen shiny ones than its count.
      */
     private void shinyCame(int stop, int newcomers, int count) {
+        long now = System.currentTimeMillis();
+        Long since = shinySince.get(stop);
+        if (since != null && now - since > SHINY_UNSEEN_MS) {   // nobody came by for half an hour: they went home
+            shinyTickets.remove(stop);
+            shinySince.remove(stop);
+        }
         if (newcomers > 0) {
             int back = Math.min(newcomers, comeBack.getOrDefault(stop, 0));
             if (back > 0) comeBack.merge(stop, -back, Integer::sum);
             int n = spec.shiny().arrivals(newcomers - back, ThreadLocalRandom.current()::nextDouble);
-            if (n > 0) shinyTickets.merge(stop, n, Integer::sum);
+            if (n > 0) {
+                shinyTickets.merge(stop, n, Integer::sum);
+                shinySince.put(stop, now);
+            }
         }
         int t = shinyTickets.getOrDefault(stop, 0);
         if (t > count) shinyTickets.put(stop, Math.max(0, count));
@@ -3772,7 +3784,10 @@ public final class BusModule extends EcoModule {
     private boolean takeTicket(int stop) {
         int t = shinyTickets.getOrDefault(stop, 0);
         if (t <= 0) return false;
-        if (t == 1) shinyTickets.remove(stop);
+        if (t == 1) {
+            shinyTickets.remove(stop);
+            shinySince.remove(stop);
+        }
         else shinyTickets.put(stop, t - 1);
         return true;
     }

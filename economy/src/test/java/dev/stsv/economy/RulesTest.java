@@ -102,8 +102,27 @@ class RulesTest {
             seen.merge(next.id(), 1, Integer::sum);
             last = next.id();
         }
-        assertEquals(10, seen.size(), "every chained kind comes up: " + seen);
-        assertTrue(seen.get("urgent_order") > seen.get("tax_audit"), "weights count: " + seen);
+        assertEquals(java.util.Set.of("shortage", "crash", "harvest", "mining_boom", "tax_audit", "typhoon"), seen.keySet(),
+                "every chained background kind comes up, never a gathering, a 덤 or 만선 (only after a 태풍): " + seen);
+        assertTrue(seen.get("shortage") > seen.get("tax_audit"), "weights count: " + seen);
+        // the 행사 line: its own kinds, its own chain
+        Map<String, Integer> gathered = new java.util.HashMap<>();
+        String lastG = "";
+        for (int i = 0; i < 1000; i++) {
+            EventSpec next = chain.pick(events, lastG, false, EventSpec.GATHERING, r);
+            assertNotEquals(lastG, next.id());
+            gathered.merge(next.id(), 1, Integer::sum);
+            lastG = next.id();
+        }
+        assertEquals(java.util.Set.of("merchant", "urgent_order", "premium_buyer"), gathered.keySet());
+        assertEquals(EventSpec.BONUS, events.get("fee_free").line());
+        assertFalse(events.get("fee_free").chained(), "수수료 면제 is never drawn alone");
+        assertTrue(events.get("fee_free").number("bonus-chance", 0) > 0, "it comes with a background event");
+        EventChain.Gatherings g = EventChain.Gatherings.parse(y.getConfigurationSection("gatherings"));
+        assertEquals(4 * 3_600_000L, g.gapMillis());
+        assertTrue(g.open(t(2026, 11, 6, 20, 0), java.time.ZoneId.of("Asia/Seoul")), "an evening gathering");
+        assertFalse(g.open(t(2026, 11, 6, 3, 0), java.time.ZoneId.of("Asia/Seoul")), "none in the small hours");
+        assertFalse(g.open(t(2026, 11, 6, 10, 0), java.time.ZoneId.of("Asia/Seoul")), "none in the morning");
         // in the small hours only the long ones (24 hours)
         for (EventSpec e : chain.candidates(events, "harvest", true)) assertTrue(e.hours() >= 24, e.id());
         assertEquals(List.of("shortage", "crash", "tax_audit"), chain.candidates(events, "harvest", true).stream().map(EventSpec::id).toList());
@@ -139,12 +158,38 @@ class RulesTest {
         List<String> problems = new ArrayList<>();
         Map<String, EventSpec> events = EventSpec.parse(ContentTest.yaml("events.yml"), problems);
         assertTrue(problems.isEmpty(), problems.toString());
-        assertEquals(List.of("shortage", "crash", "harvest", "mining_boom", "tax_audit", "merchant", "urgent_order", "premium_buyer", "fee_free",
-                "earnings"), List.copyOf(events.keySet()));
-        assertEquals(0, events.get("earnings").hours(), "실적 발표 happens at once");
+        assertEquals(List.of("shortage", "crash", "harvest", "mining_boom", "tax_audit", "typhoon", "full_catch", "merchant", "urgent_order",
+                "premium_buyer", "fee_free"), List.copyOf(events.keySet()));
+        assertFalse(events.containsKey("earnings"), "실적 발표 is the stock market's own schedule now (stocks.yml earnings-days)");
         assertEquals(List.of("miner", "blacksmith"), EventSpec.list(events.get("mining_boom").params().get("jobs")));
         assertEquals(24, events.get("shortage").hours(), "품귀 lasts a day");
-        assertEquals(3.0, events.get("shortage").number("multiplier", 0));
+        // the owner's rule (3차 결정): what touches the docks is small, one dock and one category
+        for (EventSpec e : events.values()) {
+            if (!e.params().containsKey("dock-factor")) continue;
+            double f = e.number("dock-factor", 1);
+            assertTrue(f >= 0.85 && f <= 1.15, e.id() + ": within +-15% (" + f + ")");
+        }
+        assertEquals(1.12, events.get("shortage").number("dock-factor", 0), 1e-9);
+        assertEquals("least", events.get("shortage").params().get("dock-pick"));
+        assertEquals(0.9, events.get("crash").number("dock-factor", 0), 1e-9);
+        assertEquals("most", events.get("crash").params().get("dock-pick"));
+        assertEquals(1.1, events.get("premium_buyer").number("dock-factor", 0), 1e-9);
+        assertEquals("all", events.get("premium_buyer").params().get("category"), "고가 매입상: everything, at one dock");
+        assertEquals(2, events.get("premium_buyer").hours());
+        for (String k : List.of("harvest", "mining_boom")) {
+            double sp = events.get(k).number("machine-speed", 0);
+            assertTrue(sp >= 1.3 && sp <= 1.5, k + ": machines +30~50%");
+            assertFalse(events.get(k).params().containsKey("multiplier"), k + ": no more 효과 2배");
+        }
+        assertEquals(2.0, events.get("tax_audit").number("tax-multiplier", 0), "세무 조사 as it was: 재산세 2배");
+        assertEquals("full_catch", events.get("typhoon").params().get("then"), "태풍 -> 만선");
+        assertEquals(0, events.get("typhoon").number("school-factor", 1));
+        assertEquals(2, events.get("full_catch").number("school-factor", 1));
+        assertFalse(events.get("full_catch").chained());
+        // every dock category is a machine
+        YamlConfiguration ev = ContentTest.yaml("events.yml");
+        var machines = dev.stsv.economy.job.MachineSpec.parse(ContentTest.yaml("machines.yml"), problems);
+        for (String c : ev.getConfigurationSection("dock.categories").getKeys(false)) assertTrue(machines.containsKey(c), "dock category " + c);
         assertFalse(events.containsKey("lawless"), "무법 지대 is gone");
         ShopCatalog shop = ShopCatalog.parse(ContentTest.yaml("shop.yml"), problems);
         assertEquals(new ShopCatalog.DemandNotice(DayOfWeek.MONDAY, 3, 1.5), shop.demand());

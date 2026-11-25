@@ -117,4 +117,11 @@ public final class DockStore {
                 rs -> new Sale(rs.getLong(1), rs.getString(2), rs.getLong(3), UUID.fromString(rs.getString(4)), UUID.fromString(rs.getString(5)),
                         rs.getString(6), rs.getLong(7), rs.getDouble(8), rs.getDouble(9)), dock == null ? new Object[0] : new Object[]{dock}));
     }
+
+    /** Every sale since a time (the events' pick of what was sold least / most lately). */
+    public CompletableFuture<List<Sale>> salesSince(long at) {
+        return db.async(c -> Db.query(c, "SELECT at, dock, vehicle, owner, seller, items, paid, distance, odometer FROM stsv_eco_dock_sale WHERE at >= ?",
+                rs -> new Sale(rs.getLong(1), rs.getString(2), rs.getLong(3), UUID.fromString(rs.getString(4)), UUID.fromString(rs.getString(5)),
+                        rs.getString(6), rs.getLong(7), rs.getDouble(8), rs.getDouble(9)), at));
+    }
 }

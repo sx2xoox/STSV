@@ -112,11 +112,17 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         eco.calendar().onDaily(this);
         eco.calendar().onWeekly(this);
         double shock = spec.settings().eventShock();
-        eco.events().onStart("shortage", e -> shock(industryOf(e.param("item")), shock, e));
-        eco.events().onStart("crash", e -> shock(industryOf(e.param("item")), -shock, e));
+        // 품귀 · 폭락 name the job of the dock goods they are about (the dock picks them first); an older one named an item
+        eco.events().onStart("shortage", e -> {
+            if (e.param("item") != null) shock(industryOf(e.param("item")), shock, e);
+            else shockJobs(e, shock);
+        });
+        eco.events().onStart("crash", e -> {
+            if (e.param("item") != null) shock(industryOf(e.param("item")), -shock, e);
+            else shockJobs(e, -shock);
+        });
         eco.events().onStart("harvest", e -> shockJobs(e, shock));
         eco.events().onStart("mining_boom", e -> shockJobs(e, shock));
-        eco.events().onStart("earnings", e -> earnings());
         eco.onReset(() -> {
             store.reset();
             drift.clear();
@@ -304,7 +310,30 @@ public final class StockModule extends EcoModule implements DailyListener, Weekl
         return (c.price / before - 1) * 100;
     }
 
+    /** When the next 실적 발표 comes (stocks.yml earnings-days apart; 0 = off). */
+    public long nextEarnings() {
+        return spec.settings().earningsDays() <= 0 ? 0 : eco.kv().getLong(EARNINGS_NEXT, 0);
+    }
+
+    private static final String EARNINGS_NEXT = "stock.earnings-next";
+
+    /** 실적 발표 on its own schedule (it used to be an event of the chain): every earnings-days, at a tick. */
+    private void earningsClock() {
+        double days = spec.settings().earningsDays();
+        if (days <= 0) return;
+        long next = eco.kv().getLong(EARNINGS_NEXT, 0);
+        long every = (long) (days * 86_400_000L);
+        if (next <= 0) {
+            eco.kv().set(EARNINGS_NEXT, now() + every);
+            return;
+        }
+        if (now() < next) return;
+        eco.kv().set(EARNINGS_NEXT, now() + every);
+        earnings();
+    }
+
     private void tick() {
+        earningsClock();
         StockSpec.Settings s = spec.settings();
         int perDay = s.ticksPerDay();
         for (StockStore.Co c : listed()) {

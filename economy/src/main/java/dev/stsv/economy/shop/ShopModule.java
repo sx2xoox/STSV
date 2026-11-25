@@ -79,8 +79,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         store.init();
         load();
         eco.calendar().onDaily(this);
-        eco.events().onStart("shortage", this::startShortage);
-        eco.events().onStart("crash", this::startCrash);
+        // 품귀 · 시장 폭락 · 고가 매입상 are the 하역장's now (DockModule, README "사건"); one started before still works here
         eco.events().onStart("merchant", e -> {
             // the hook sees a draft (id 0, the stored id comes later): the pick is kept in the event, so the news and the stall agree
             e.params().put(RARE, String.valueOf(java.util.concurrent.ThreadLocalRandom.current().nextInt(Integer.MAX_VALUE)));
@@ -89,7 +88,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
                     : Lang.raw("shop.merchant-detail-rare", "item", Items.mmName(rare.id())));
         });
         eco.events().onStart("urgent_order", this::startOrder);
-        eco.events().onStart("premium_buyer", this::startPremium);
         every(1200L, this::minute);
     }
 
@@ -526,25 +524,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
         }
     }
 
-    // ------------------------------------------------------------------------------------------
-    // 고가 매입상: a few things bought at double the market price, while its stock lasts
-    // ------------------------------------------------------------------------------------------
-
-    private void startPremium(ActiveEvent e) {
-        List<ShopCatalog.SellEntry> pool = gathered();
-        java.util.Collections.shuffle(pool, ThreadLocalRandom.current());
-        int count = Math.min(pool.size(), ThreadLocalRandom.current().nextInt((int) e.number("min-items", 2), (int) e.number("max-items", 3) + 1));
-        int stock = (int) e.number("stock", 64);
-        List<String> ids = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            ids.add(pool.get(i).id());
-            e.params().put("left." + pool.get(i).id(), String.valueOf(stock));
-        }
-        e.params().put("items", String.join(",", ids));
-        e.params().put("detail", Lang.raw("shop.premium-detail", "items", String.join(", ", ids.stream().map(this::itemName).toList()),
-                "mult", trim(e.number("multiplier", 2)), "stock", stock));
-    }
-
     /** Picks this week's 수요 고시: not last week's items, not an item of a running 품귀/폭락. Lasts until the next notice weekday. */
     public List<String> announceNotice(long from) {
         var d = catalog.demand();
@@ -569,36 +548,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
     /** For a {item} placeholder (MiniMessage, each player's language). */
     public String itemName(String id) {
         return Items.mmName(id);
-    }
-
-    private void startShortage(ActiveEvent e) {
-        String item = e.param("item");
-        if (item == null || !catalog.sell().containsKey(ShopCatalog.norm(item))) {
-            // a mid-priced item: something worth stocking up on, not the cheapest dirt (and not one the 수요 고시 already raises)
-            List<ShopCatalog.SellEntry> pool = new ArrayList<>(catalog.sell().values());
-            pool.removeIf(x -> noticed().contains(x.id()) || eventItems().contains(x.id()));
-            if (pool.isEmpty()) pool.addAll(catalog.sell().values());
-            pool.sort(Comparator.comparingDouble(ShopCatalog.SellEntry::base));
-            List<ShopCatalog.SellEntry> mid = pool.subList(pool.size() / 4, Math.max(pool.size() / 4 + 1, pool.size() * 3 / 4));
-            item = mid.get(ThreadLocalRandom.current().nextInt(mid.size())).id();
-        }
-        item = ShopCatalog.norm(item);
-        e.params().put("item", item);
-        e.params().put("detail", Lang.raw("shop.shortage-detail", "item", itemName(item), "mult", trim(e.number("multiplier", 3))));
-    }
-
-    private void startCrash(ActiveEvent e) {
-        // the item the server sold most of lately, everybody's S added up (the one everybody farms)
-        String item = e.param("item");
-        if (item == null) {
-            item = catalog.sell().keySet().stream()
-                    .filter(i -> !noticed().contains(i) && !eventItems().contains(i))
-                    .max(Comparator.comparingDouble(i -> store.soldTotal(i) * catalog.sell().get(i).base()))
-                    .orElse(catalog.sell().keySet().iterator().next());
-        }
-        item = ShopCatalog.norm(item);
-        e.params().put("item", item);
-        e.params().put("detail", Lang.raw("shop.crash-detail", "item", itemName(item), "mult", trim(e.number("multiplier", 0.5))));
     }
 
     // ------------------------------------------------------------------------------------------

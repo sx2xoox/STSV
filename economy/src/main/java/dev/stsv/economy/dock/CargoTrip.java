@@ -23,9 +23,17 @@ import java.util.UUID;
  * @param odometer  the load's trip odometer at inspection (what it drives after counts from there)
  * @param straight  the straight way from the terminal to the dock (blocks)
  * @param ratio     the dock's ratio when it was sealed (0: a trip sealed before docks had prices of their own)
+ * @param boost     the events on its goods when it was sealed ({@link DockBoost#encode}: 품귀 · 폭락 · 고가 매입상), already in
+ *                  total; "" = none. An event that starts or ends later does not touch it.
  */
 public record CargoTrip(long id, long vehicle, UUID owner, String terminal, String dock, String manifest, long total, long changed,
-                        double odometer, double straight, long sealed, Status status, long ended, double ratio) {
+                        double odometer, double straight, long sealed, Status status, long ended, double ratio, String boost) {
+
+    /** A trip sealed with no event on its goods. */
+    public CargoTrip(long id, long vehicle, UUID owner, String terminal, String dock, String manifest, long total, long changed,
+                     double odometer, double straight, long sealed, Status status, long ended, double ratio) {
+        this(id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, ratio, "");
+    }
 
     /** A trip whose ratio is not on record. */
     public CargoTrip(long id, long vehicle, UUID owner, String terminal, String dock, String manifest, long total, long changed,
@@ -39,10 +47,23 @@ public record CargoTrip(long id, long vehicle, UUID owner, String terminal, Stri
      */
     public static CargoTrip seal(long vehicle, UUID owner, String terminal, Dock dock, DockGoods goods, List<DockGoods.Slot> bed, long changed,
                                  double odometer, double straight, long at) {
+        return seal(vehicle, owner, terminal, dock, goods, bed, changed, odometer, straight, at, id -> DockBoost.Hit.NONE);
+    }
+
+    /** The same with the events running now on the dock's goods (their factors go into the promised total, kept with it). */
+    public static CargoTrip seal(long vehicle, UUID owner, String terminal, Dock dock, DockGoods goods, List<DockGoods.Slot> bed, long changed,
+                                 double odometer, double straight, long at, java.util.function.Function<String, DockBoost.Hit> events) {
         double r = dock.ratio(goods.ratio());
-        DockGoods.Plan plan = goods.plan(bed, r);
+        DockGoods.Plan plan = goods.plan(bed, r, events);
+        Map<String, DockBoost.Hit> hits = new TreeMap<>();
+        for (DockGoods.Line l : plan.lines()) hits.put(l.id(), l.hit());
         return new CargoTrip(0, vehicle, owner, terminal, dock.name(), manifest(plan.lines()), plan.total(), changed, odometer, straight, at,
-                Status.SEALED, 0, r);
+                Status.SEALED, 0, r, DockBoost.encode(hits));
+    }
+
+    /** The events on each good when it was sealed (id -> its factor and kinds; goods without one are not there). */
+    public Map<String, DockBoost.Hit> hits() {
+        return DockBoost.decode(boost);
     }
 
     public enum Status { SEALED, DONE, VOID, CANCELLED }
@@ -110,12 +131,12 @@ public record CargoTrip(long id, long vehicle, UUID owner, String terminal, Stri
 
     /** The trip ended (sold, voided, cancelled) at a time. */
     public CargoTrip end(Status s, long at) {
-        return new CargoTrip(id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, s, at, ratio);
+        return new CargoTrip(id, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, s, at, ratio, boost);
     }
 
     /** With the id the store gave it. */
     public CargoTrip withId(long newId) {
-        return new CargoTrip(newId, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, ratio);
+        return new CargoTrip(newId, vehicle, owner, terminal, dock, manifest, total, changed, odometer, straight, sealed, status, ended, ratio, boost);
     }
 
     @Override

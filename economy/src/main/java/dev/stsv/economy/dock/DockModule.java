@@ -161,6 +161,99 @@ public final class DockModule extends EcoModule {
         every(1L, () -> {
             if (scout != null) scout.tick();
         });
+        // 품귀 · 시장 폭락 · 고가 매입상 (README "사건"): the dock and the category, picked from what was sold lately
+        eco.events().onPrepare(this::prepareEvent);
+        refreshSold();
+        every(12_000L, this::refreshSold);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Events at the docks (README "사건")
+    // ------------------------------------------------------------------------------------------
+
+    /** What the docks bought lately (dock -> category -> base gold), read every 10 minutes off the main thread. */
+    private volatile Map<String, Map<String, Double>> soldLately = Map.of();
+
+    private void refreshSold() {
+        long since = now() - (long) (eco.events().recentDays() * 86_400_000L);
+        store.salesSince(since).thenAccept(sales -> {
+            Map<String, Map<String, Double>> m = DockBoost.sold(sales, goods);
+            soldLately = m;
+        });
+    }
+
+    /**
+     * An event with a dock-factor (events.yml) starting: picks its dock and category unless given (dock-pick least: of what was
+     * sold least lately, most: most, any: a dock at random; category all = every good), names the job behind the category
+     * (the stock market moves that industry) and writes what it means for people.
+     */
+    private void prepareEvent(dev.stsv.economy.event.ActiveEvent e) {
+        Map<String, String> p = e.params();
+        if (p.get("dock-factor") == null) return;
+        java.util.Random r = java.util.concurrent.ThreadLocalRandom.current();
+        List<String> names = new ArrayList<>();
+        for (Dock d : docks.values()) names.add(d.name());
+        boolean all = DockBoost.ALL.equals(p.get("category"));
+        List<String> cats = new ArrayList<>();
+        for (String c : eco.events().categories().keySet()) if (goods.finished().stream().anyMatch(id -> c.equals(goods.category(id)))) cats.add(c);
+        if (p.get("dock") == null) {
+            String how = p.getOrDefault("dock-pick", "any");
+            String[] pick = names.isEmpty() ? null
+                    : how.equals("any") || all ? new String[]{names.get(r.nextInt(names.size())), all ? DockBoost.ALL : cats.isEmpty() ? DockBoost.ALL : cats.get(r.nextInt(cats.size()))}
+                    : DockBoost.pick(soldLately, names, cats, how.equals("least"), eco.events().pickFrom(), r);
+            if (pick == null) {
+                p.put("detail", Lang.raw("event.dock-none"));
+                return;
+            }
+            p.put("dock", pick[0]);
+            if (!all) p.put("category", pick[1]);
+        }
+        String cat = p.getOrDefault("category", DockBoost.ALL);
+        if (!cat.equals(DockBoost.ALL) && p.get("jobs") == null) {
+            var m = eco.machines().specs().get(cat);
+            if (m != null && m.job() != null) p.put("jobs", m.job());
+        }
+        double f = e.number("dock-factor", 1);
+        String pct = new DockBoost.Hit(f, List.of(e.type())).pct();
+        String catName = eco.events().categoryName(cat);
+        p.put("detail", Lang.raw("event.dock-detail", "dock", p.get("dock"), "category", catName, "pct", pct));
+        p.put("hint", Lang.raw(f >= 1 ? "event.dock-hint-up" : "event.dock-hint-down", "dock", p.get("dock"), "category", catName, "pct", pct));
+    }
+
+    /** The running events' effects at the docks. */
+    List<DockBoost> boosts() {
+        return DockBoost.of(eco.events().active(), now());
+    }
+
+    /** The events on each good at this dock now. */
+    java.util.function.Function<String, DockBoost.Hit> boostAt(Dock d) {
+        List<DockBoost> b = boosts();
+        return id -> DockBoost.at(b, d.name(), goods.category(id));
+    }
+
+    /** The bands of the events running at this dock ("품귀: 서해 하역장 요리 +12%"), for its screens. */
+    List<Component> bands(Dock d) {
+        List<Component> out = new ArrayList<>();
+        for (dev.stsv.economy.event.ActiveEvent e : eco.events().active()) {
+            DockBoost b = DockBoost.of(e);
+            if (b == null || (b.dock() != null && !b.dock().equalsIgnoreCase(d.name()))) continue;
+            out.add(Lang.item("dock.event-band", "event", eco.events().name(e.type()), "detail", e.params().getOrDefault("detail", ""),
+                    "left", dev.stsv.economy.event.EventModule.hoursText(e.ends() - now())));
+        }
+        return out;
+    }
+
+    /** A sale line's lore: count x unit = total, and the events on it (품귀!). */
+    private List<Component> lineLore(DockGoods.Line l) {
+        List<Component> lore = new ArrayList<>();
+        lore.add(Lang.item("dock.line", "count", l.count(), "unit", String.format(Locale.ROOT, "%.1f", l.unit()),
+                "total", EconomyModule.format((long) Math.floor(l.total()))));
+        if (!l.hit().none()) {
+            List<String> names = l.hit().types().stream().map(t -> eco.events().name(t)).toList();
+            lore.add(Lang.item(l.hit().factor() > 1 ? "dock.line-event-up" : "dock.line-event-down", "event", String.join(" · ", names),
+                    "pct", l.hit().pct()));
+        }
+        return lore;
     }
 
     @Override
@@ -536,7 +629,10 @@ public final class DockModule extends EcoModule {
         CargoTrip trip = sealed.get(h.id());
         // the lines at the ratio this load was sealed with for this dock (its promised value), else at the dock's ratio now
         boolean promised = trip != null && trip.ratio() > 0 && trip.dock().equalsIgnoreCase(d.name());
-        DockGoods.Plan plan = goods.plan(bed(h), promised ? trip.ratio() : ratio(d));
+        // the events: the ones on it when it was sealed (its promised value), else the ones at this dock now
+        Map<String, DockBoost.Hit> sealedHits = promised ? trip.hits() : Map.of();
+        DockGoods.Plan plan = promised ? goods.plan(bed(h), trip.ratio(), id -> sealedHits.getOrDefault(id, DockBoost.Hit.NONE))
+                : goods.plan(bed(h), ratio(d), boostAt(d));
         boolean ok = why == null && !plan.empty();
         Sale s = new Sale(d, h, plan, ok);
         Inventory inv = Bukkit.createInventory(s, 54, Lang.mm("dock.title"));
@@ -546,10 +642,9 @@ public final class DockModule extends EcoModule {
             if (slot >= LIST) break;
             ItemStack icon = Items.create(l.id(), 1).orElse(new ItemStack(Material.PAPER));
             icon.setAmount(Math.clamp(l.count(), 1, icon.getMaxStackSize()));
-            List<Component> lore = new ArrayList<>();
-            lore.add(Lang.item("dock.line", "count", l.count(), "unit", String.format(Locale.ROOT, "%.1f", l.unit()),
-                    "total", EconomyModule.format((long) Math.floor(l.total()))));
+            List<Component> lore = lineLore(l);
             icon.editMeta(m -> m.lore(lore));
+            if (!l.hit().none()) icon.editMeta(m -> m.setEnchantmentGlintOverride(true));
             inv.setItem(slot++, icon);
         }
         for (int i = LIST; i < 54; i++) inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE, " "));
@@ -563,6 +658,11 @@ public final class DockModule extends EcoModule {
                 Lang.item("dock.info-kept", "kept", plan.kept()),
                 Lang.item("dock.info-price", "price", priceWords(d))));
         if (trip != null) infoLore.add(Lang.item("dock.info-promised", "total", EconomyModule.format(trip.total())));
+        List<Component> bands = bands(d);
+        if (!bands.isEmpty()) {
+            infoLore.addAll(bands);
+            infoLore.add(Lang.item("dock.event-sealed-only"));
+        }
         info.editMeta(m -> m.lore(infoLore));
         inv.setItem(INFO, info);
         inv.setItem(CANCEL, pane(Material.BARRIER, Lang.raw("dock.cancel")));
@@ -962,12 +1062,18 @@ public final class DockModule extends EcoModule {
      * that dock's ratio now (its own price, else the global one). Pure (unit-tested).
      */
     static List<Offer> offers(DockGoods goods, List<DockGoods.Slot> bed, Dock terminal, java.util.Collection<Dock> docks) {
+        return offers(goods, bed, terminal, docks, d -> id -> DockBoost.Hit.NONE);
+    }
+
+    /** The same with the events running at each dock (품귀 · 폭락 · 고가 매입상) in what the load fetches there. */
+    static List<Offer> offers(DockGoods goods, List<DockGoods.Slot> bed, Dock terminal, java.util.Collection<Dock> docks,
+                              java.util.function.Function<Dock, java.util.function.Function<String, DockBoost.Hit>> events) {
         List<Offer> out = new ArrayList<>();
         for (Dock d : docks) {
             double far = straight(terminal, d);
             if (!Double.isFinite(far)) continue;
             double r = d.ratio(goods.ratio());
-            out.add(new Offer(d, far, r, goods.plan(bed, r)));
+            out.add(new Offer(d, far, r, goods.plan(bed, r, events.apply(d))));
         }
         out.sort(Comparator.comparingDouble(Offer::far));
         return out;
@@ -1011,7 +1117,7 @@ public final class DockModule extends EcoModule {
         }
         List<DockGoods.Slot> bed = bed(h);
         Inspect in = new Inspect(t, h, bed, goods.plan(bed));
-        in.choices.addAll(offers(goods, bed, t, docks.values()));
+        in.choices.addAll(offers(goods, bed, t, docks.values(), this::boostAt));
         if (in.choices.size() == 1) in.chosen = in.choices.getFirst();
         Inventory inv = Bukkit.createInventory(in, 54, Lang.mm("terminal.title"));
         in.inventory = inv;
@@ -1029,10 +1135,9 @@ public final class DockModule extends EcoModule {
             if (slot >= I_LIST) break;
             ItemStack icon = Items.create(l.id(), 1).orElse(new ItemStack(Material.PAPER));
             icon.setAmount(Math.clamp(l.count(), 1, icon.getMaxStackSize()));
-            List<Component> lore = new ArrayList<>();
-            lore.add(Lang.item("dock.line", "count", l.count(), "unit", String.format(Locale.ROOT, "%.1f", l.unit()),
-                    "total", EconomyModule.format((long) Math.floor(l.total()))));
+            List<Component> lore = lineLore(l);
             icon.editMeta(m -> m.lore(lore));
+            if (!l.hit().none()) icon.editMeta(m -> m.setEnchantmentGlintOverride(true));
             inv.setItem(slot++, icon);
         }
         for (int i = I_DOCKS; i < 54; i++) inv.setItem(i, pane(Material.GRAY_STAINED_GLASS_PANE, " "));
@@ -1046,6 +1151,7 @@ public final class DockModule extends EcoModule {
                 List<Component> lore = new ArrayList<>();
                 lore.add(Lang.item("terminal.dock-price", "price", priceWords(d), "total", EconomyModule.format(o.total())));
                 lore.add(Lang.item("terminal.dock-far", "far", Math.round(far), "needed", Math.round(far * CargoTrip.MIN_DRIVEN)));
+                lore.addAll(bands(d));
                 if (far < rules.minDistance()) lore.add(Lang.item("terminal.dock-near", "min", Math.round(rules.minDistance())));
                 lore.add(Lang.item(on ? "terminal.dock-on" : "terminal.dock-pick"));
                 m.lore(lore);
@@ -1060,6 +1166,14 @@ public final class DockModule extends EcoModule {
                 Lang.item("terminal.info-kept", "kept", in.plan.kept()),
                 Lang.item("terminal.info-seal"),
                 Lang.item("terminal.info-price"))));
+        List<Component> bandsAll = new ArrayList<>();
+        for (Dock d : docks.values()) for (Component c : bands(d)) if (!bandsAll.contains(c)) bandsAll.add(c);
+        if (!bandsAll.isEmpty()) info.editMeta(m -> {
+            List<Component> lore = new ArrayList<>(m.lore());
+            lore.addAll(bandsAll);
+            lore.add(Lang.item("dock.event-sealed-only"));
+            m.lore(lore);
+        });
         inv.setItem(INFO, info);
         inv.setItem(CANCEL, pane(Material.BARRIER, Lang.raw("dock.cancel")));
         inv.setItem(BED, pane(Material.CHEST, Lang.raw("terminal.open-bed")));
@@ -1099,7 +1213,7 @@ public final class DockModule extends EcoModule {
         }
         // the value at the dock's ratio now, fixed from here on: a later price change does not touch this trip
         CargoTrip draft = CargoTrip.seal(h.id(), h.owner(), in.terminal.name(), to, goods, bed, h.trip().changed(), h.trip().odometer(),
-                straight(in.terminal, to), now());
+                straight(in.terminal, to), now(), boostAt(to));
         if (draft.total() != in.chosen.total()) {   // its price was set while the menu was open: never seal another value than shown
             p.sendMessage(Lang.msg("terminal.price-changed", "dock", to.name(), "price", priceWords(to), "total", EconomyModule.format(draft.total())));
             return;

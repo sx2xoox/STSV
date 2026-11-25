@@ -16,6 +16,34 @@ event:
   bar: "<gold>{event}</gold> <white>{detail}</white> <gray>· 남은 시간 {left}"
   sidebar: "<gray>사건\t<gold>{event} <dark_gray>{left}"
   sidebar-detail: "<white>{detail}"
+  sidebar-gather: "<gray>행사\t<light_purple>{event} <dark_gray>{left}"
+  start-gathering: "<light_purple><b>행사: {event}</b></light_purple> <white>{detail}</white> <gray>({hours})"
+  start-bonus: "<aqua><b>덤: {event}</b></aqua> <white>{detail}</white> <gray>({hours})"
+  hint: "<yellow>▶ {hint}"
+  all-goods: "모든 물건"
+  # 하역장 사건 (품귀 · 시장 폭락 · 고가 매입상): 봉인할 때 값에 들어감
+  dock-detail: "{dock} 하역장 {category} {pct}%"
+  dock-hint-up: "{dock} 하역장으로 {category} 실어 가면 {pct}% (사건 중에 화물 검사·봉인한 짐만)"
+  dock-hint-down: "{dock} 하역장의 {category} {pct}%: 다른 하역장으로 가는 편이 나아요 (사건 중에 봉인한 짐만)"
+  dock-none: "하역장이 아직 없어요"
+  log-line: "<gray>{when}</gray> <white>{event}</white> <dark_gray>{detail}"
+  log-line-top: "<gray>{when}</gray> <white>{event}</white> <dark_gray>{detail}</dark_gray> <gold>최다: {top}"
+  news-header: "<gold><b>마을 소식</b> <gray>(/소식)"
+  news-none: "<gray> 지금 진행 중인 사건·행사가 없어요"
+  news-now: "<gray> 사건 <gold>{event}</gold> <white>{detail}</white> <dark_gray>· 남은 시간 {left}"
+  news-now-gathering: "<gray> 행사 <light_purple>{event}</light_purple> <white>{detail}</white> <dark_gray>· 남은 시간 {left}"
+  news-market-today: "<gray> 행사 <light_purple>장날(5일장)</light_purple> <white>오늘 시골·마을 정류장에 장이 섰어요: 버스 손님이 몰려요"
+  news-next-header: "<gold>다음 일정"
+  news-next: "<gray> 다음 사건: <white>{left} 뒤</white> <dark_gray>(무엇일지는 그때)"
+  news-next-gathering: "<gray> 다음 행사: <white>빠르면 {left} 뒤</white> <dark_gray>({from}~{to}시 사이에만)"
+  news-tournament: "<gray> 낚시대회: <white>매시 정각, 다음 {at}</white> <dark_gray>({minutes}분, 낚싯대로)"
+  news-tournament-on: "<gray> 낚시대회: <green>지금 진행 중!</green> <dark_gray>(다음 {at}, {minutes}분)"
+  news-festival: "<gray> 버스 대축제: <white>{at} ~ {to}시"
+  news-festival-on: "<gray> 버스 대축제: <green>지금 진행 중!</green> <dark_gray>({to}시까지)"
+  news-market: "<gray> 장날(5일장): <white>{days}일 뒤"
+  news-earnings: "<gray> 실적 발표(주식): <white>{left} 뒤"
+  news-log-header: "<gold>지난 결과"
+  news-log: " {line}"
 
 time:
   hours: "{h}시간 {m}분"
@@ -329,6 +357,7 @@ job:
   all: "전체"
 
 machine:
+  event-band: "<gold>{event}</gold> <white>이 기계 {pct}% 빨리</white> <gray>· 남은 시간 {left}"
   # 레시피 창 (기계의 레시피 목록 버튼 = 보기만, 줄의 상태 칸 = 그 줄에 고정)
   recipes-lane: " <#b9a6d6>· {lane}번 줄"
   recipes-tab-lore: "<gray>레시피 <white>{count}개"
@@ -890,6 +919,10 @@ codex:
 
 # 하역장 (README "하역장")
 dock:
+  event-band: "<gold>{event}</gold> <white>{detail}</white> <gray>· 남은 시간 {left}"
+  event-sealed-only: "<dark_gray>사건 값은 사건 중에 화물 검사·봉인한 짐만 (봉인 때 값 그대로)"
+  line-event-up: "<color:#ff5f57><b>{event}!</b> {pct}%"
+  line-event-down: "<color:#4d9bff><b>{event}!</b> {pct}%"
   title: "<dark_gray>하역장 판매"
   line: "<gray>{count}개 × <white>{unit} G</white> = <gold>{total}"
   info-title: "<gold>{vehicle} <gray>(주인 {owner})"

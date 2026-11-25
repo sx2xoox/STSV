@@ -1,14 +1,41 @@
-# 사건. 한 번에 하나만 일어나고, 끝나고 chain.gap-hours 시간 뒤에 다음 사건이 저절로 일어남.
-# 다음 사건은 weight 에 따라 뽑고, 바로 전과 같은 종류는 뽑지 않음.
-# 다음 사건이 새벽(night-from ~ night-to 시)에 시작하게 되면 long-hours 시간 이상인 사건만 뽑음.
+# 사건. 두 줄이 같이 돌 수 있음 (README "사건").
+#  배경 사건 (line: background, 기본): 몇 시간 동안 값·효과가 바뀜. 한 번에 하나, 끝나고 chain.gap-hours 시간 뒤에 다음 것이 저절로.
+#    다음 것은 weight 에 따라 뽑고 바로 전과 같은 종류는 뽑지 않음. 새벽(night-from ~ night-to 시)에 시작하게 되면 long-hours 시간 이상인 것만.
+#  행사 (line: gathering): 짧게 모여서 하는 것. 배경 사건과 따로 한 번에 하나, 끝나고 gatherings.gap-hours 뒤, gatherings.from ~ to 시 사이에만 시작.
+#  덤 (line: bonus): 혼자 뽑히지 않음. 배경 사건이 저절로 시작할 때 bonus-chance 확률로 같이 시작.
+#  낚시대회(매시 정각, config.yml fishing-tournament) · 버스 대축제(bus.yml festival) · 장날(bus.yml market) 은 따로 돌고 /소식 에 같이 보임.
 # chain: false 인 사건은 저절로 일어나지 않음 (/관리자 사건 시작 으로만).
-# hours = 지속 시간, color = 보스바 색 (pink, blue, red, green, yellow, purple, white), detail = 보스바 설명
-# jobs = 이 사건 동안 그 직업들의 효과가 multiplier 배
+# hours = 지속 시간, color = 예전 보스바 색 (안 씀), detail = 사이드바 · /소식 설명, hint = 시작할 때 채팅 한 줄 (무엇을 하면 되는지)
+# then: <사건> = 이 사건이 시간을 다 채우고 끝나면 바로 그 사건이 시작 (태풍 → 만선)
+#
+# 하역장 사건 (dock-factor): 봉인할 때 그 하역장 · 그 분류 물건의 매입가 × dock-factor. 사건 중에 화물 검사·봉인한 운송만
+#   (봉인 때 값 그대로, 사건이 끝나도 그 값). 하역장 매입가가 이미 높아서 작게: 한 하역장 · 한 분류 ±10~15%.
+#   dock-pick: least = 최근 dock.recent-days 일 동안 하역장에서 가장 덜 팔린 (하역장, 분류) 중 dock.pick-from 개 중 하나,
+#              most = 가장 많이 팔린 쪽, any = 아무 하역장. category: all = 모든 물건.
+# jobs + machine-speed: 그 직업 기계(누가 돌리든)의 속도 배수 (1.4 = 같은 시간에 1.4배). 여러 사건은 곱함.
+# school-factor: 바다의 어군 (0 = 태풍: 그물이 아무것도 안 올림, 2 = 만선: 떼가 평소만큼 더, 평소만큼 자주 더)
 chain:
   gap-hours: 6
   night-from: 1
   night-to: 9
   long-hours: 24
+
+gatherings:
+  gap-hours: 4
+  from: 12
+  to: 23
+
+dock:
+  recent-days: 3
+  pick-from: 3
+  categories:          # 하역장 분류 = 그 물건을 만드는 기계 (machines.yml): 분류 이름. 여기 없는 기계의 물건은 품귀·폭락이 고르지 않음
+    kitchen: "요리"
+    still: "술·향"
+    forge: "금속"
+    gem_bench: "보석"
+    mill: "식재료"
+    fish_bench: "수산 가공"
+    press: "생활용품"
 
 events:
   shortage:
@@ -16,29 +43,33 @@ events:
     hours: 24
     color: green
     weight: 3
-    multiplier: 3.0      # 중간 가격대 품목 하나의 매입가 배수 (수요 고시·다른 사건 품목은 고르지 않음)
+    dock-factor: 1.12    # 최근 덜 팔린 (하역장, 분류) 의 매입가 +12%
+    dock-pick: least
   crash:
     name: "시장 폭락"
     hours: 24
     color: red
     weight: 2
-    multiplier: 0.5      # 최근 가장 많이 팔린 품목의 매입가 배수 (수요 고시·다른 사건 품목은 고르지 않음)
+    dock-factor: 0.9     # 최근 가장 많이 팔린 (하역장, 분류) 의 매입가 -10%
+    dock-pick: most
   harvest:
     name: "풍년"
     hours: 24
     color: green
     weight: 3
     jobs: [farmer, fisher]
-    multiplier: 2
-    detail: "농부·어부 효과 2배"
+    machine-speed: 1.3   # 하루 내내라 광산 호황(6시간)보다 작게
+    detail: "가공대·손질대 30% 빨리 (농부·어부 기계)"
+    hint: "가공대·손질대가 30% 빨리 돌아요: 지금 재료를 넣어 두세요"
   mining_boom:
     name: "광산 호황"
     hours: 6
     color: blue
     weight: 3
     jobs: [miner, blacksmith]
-    multiplier: 2
-    detail: "광부·대장장이 효과 2배"
+    machine-speed: 1.4
+    detail: "세공대·대장간 40% 빨리 (광부·대장장이 기계)"
+    hint: "세공대·대장간이 40% 빨리 돌아요: 6시간 동안"
   tax_audit:
     name: "세무 조사"
     hours: 24
@@ -48,13 +79,34 @@ events:
     donation-min: 5000
     donation-title: economy:patron
     detail: "오늘 재산세 2배 · /기부 5,000G 이상이면 칭호"
+    hint: "/기부 로 5,000G 이상 내면 [기부왕] 칭호"
+  typhoon:
+    name: "태풍"
+    hours: 6
+    color: white
+    weight: 2
+    school-factor: 0
+    then: full_catch
+    detail: "바다 조업 중단: 어선 그물이 아무것도 안 올려요"
+    hint: "6시간 동안 어선 그물이 멈춰요. 태풍이 지나가면 만선!"
+  full_catch:
+    name: "만선"
+    hours: 3
+    color: blue
+    chain: false         # 태풍이 끝나면 저절로 (then)
+    school-factor: 2
+    detail: "바다에 어군이 두 배"
+    hint: "태풍이 지나갔어요: 3시간 동안 어군이 두 배로 떠요. 어선을 띄우세요"
   merchant:
     name: "상인 행렬"
+    line: gathering
     hours: 2
     color: purple
     weight: 2            # 상점의 상인 행렬 칸에 shop.yml merchant 상품
+    hint: "/상점 의 상인 행렬 칸: 한정 상품, 선착순"
   urgent_order:
     name: "긴급 납품"
+    line: gathering
     hours: 3
     color: pink
     weight: 3
@@ -63,23 +115,21 @@ events:
     max: 512
     top: 2.0             # 첫 납품은 기준가 2배, 마지막은 1배: 빨리 낼수록 비쌈. /납품
     bottom: 1.0
+    hint: "/납품 으로 인벤토리의 그 물건을 내요: 빨리 낼수록 비싸요"
   premium_buyer:
     name: "고가 매입상"
+    line: gathering
     hours: 2
     color: pink
     weight: 3
-    min-items: 2         # 품목 2~3개를 시세의 multiplier 배로, 품목마다 stock 개까지
-    max-items: 3
-    multiplier: 2
-    stock: 64
+    dock-factor: 1.1     # 하역장 한 곳이 모든 물건을 +10%
+    dock-pick: any
+    category: all
   fee_free:
     name: "수수료 면제"
+    line: bonus          # 혼자 뽑히지 않음: 배경 사건이 저절로 시작할 때 bonus-chance 로 덤
     hours: 6
     color: white
-    weight: 2
+    bonus-chance: 0.25
     detail: "거래소·경매·송금 수수료 0%"
-  earnings:
-    name: "실적 발표"
-    hours: 0             # 바로 끝나는 사건: 주식 산업 하나를 골라 그 회사들이 회사마다 따로 5~15% 오르거나 내림
-    color: blue
-    weight: 2
+# 실적 발표는 주식 쪽 일정으로 옮김: stocks.yml settings.earnings-days
