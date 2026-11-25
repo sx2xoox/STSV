@@ -188,6 +188,7 @@ public final class CodexModule extends EcoModule {
         if (Items.trial(taken)) return "codex.trial";   // 길라잡이: a trial thing registers nothing
         taken.subtract(1);
         put(p.getUniqueId(), item, System.currentTimeMillis());
+        core.profiles().add(p.getUniqueId(), "codex_new", 1);   // missions: a new codex entry (README "미션")
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
         HudModule.flash(p, Lang.mm("codex.registered", "item", Items.mmName(item), "tab", c.name(),
                 "have", count(p.getUniqueId(), c.id()), "all", c.items().size()));

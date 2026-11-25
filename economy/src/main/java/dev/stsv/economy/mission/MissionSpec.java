@@ -56,20 +56,55 @@ public record MissionSpec(Kind daily, Kind weekly) {
 
     public record ItemReward(String id, int amount) {}
 
-    public record Reward(long gold, double xp, List<ItemReward> items) {
-        public static final Reward NONE = new Reward(0, 0, List.of());
+    /** gold, job XP, items, and 도장 (stamps.yml: never traded, fill the month's board). */
+    public record Reward(long gold, double xp, List<ItemReward> items, int stamps) {
+        public static final Reward NONE = new Reward(0, 0, List.of(), 0);
+
+        public Reward(long gold, double xp, List<ItemReward> items) {
+            this(gold, xp, items, 0);
+        }
 
         public boolean isEmpty() {
-            return gold <= 0 && xp <= 0 && items.isEmpty();
+            return gold <= 0 && xp <= 0 && items.isEmpty() && stamps <= 0;
         }
     }
 
+    /** minLevel: drawn only for players whose highest job level is at least this (0: anyone; things a beginner cannot do yet). */
     public record Mission(String id, String name, String stat, double goal, String job, String group, String unit,
-                          String icon, int weight, Reward reward) {}
+                          String icon, int weight, Reward reward, int minLevel) {
+        public Mission(String id, String name, String stat, double goal, String job, String group, String unit, String icon, int weight,
+                       Reward reward) {
+            this(id, name, stat, goal, job, group, unit, icon, weight, reward, 0);
+        }
+    }
 
-    public record Kind(int count, int rerolls, Reward bonus, Map<String, Mission> missions) {
+    /**
+     * A job level band (missions.yml bands): from this level of the mission's job, its goal is multiplied by goal and its gold
+     * and XP by reward, so a job mission is 10~15 minutes of that player's work at any level (stamps stay the same).
+     */
+    public record Band(int from, double goal, double reward) {
+        public static final Band NONE = new Band(0, 1, 1);
+    }
+
+    public record Kind(int count, int rerolls, Reward bonus, Map<String, Mission> missions, List<Band> bands) {
         public Kind {
             missions = Map.copyOf(missions);
+            bands = List.copyOf(bands);
+        }
+
+        public Kind(int count, int rerolls, Reward bonus, Map<String, Mission> missions) {
+            this(count, rerolls, bonus, missions, List.of());
+        }
+
+        /** The band (index into bands, -1: none) of a job level. */
+        public int band(int level) {
+            int out = -1;
+            for (int i = 0; i < bands.size(); i++) if (level >= bands.get(i).from()) out = i;
+            return out;
+        }
+
+        public Band bandAt(int index) {
+            return index < 0 || index >= bands.size() ? Band.NONE : bands.get(index);
         }
 
         /** Missions for everyone. */
@@ -99,6 +134,7 @@ public record MissionSpec(Kind daily, Kind weekly) {
             problems.add(where + ": 없음");
             return new Kind(0, 0, Reward.NONE, Map.of());
         }
+        int defStamps = s.getInt("stamps", 0);
         Map<String, Mission> out = new LinkedHashMap<>();
         ConfigurationSection list = s.getConfigurationSection("missions");
         if (list == null) problems.add(where + ".missions: 없음");
@@ -122,21 +158,37 @@ public record MissionSpec(Kind daily, Kind weekly) {
             int weight = m.getInt("weight", 10);
             if (weight <= 0) problems.add(at + ": weight 는 1 이상");
             String job = m.getString("job");
+            Reward rw = reward(m, at, problems);
+            if (!m.contains("stamps")) rw = new Reward(rw.gold(), rw.xp(), rw.items(), defStamps);
             out.put(key, new Mission(key, m.getString("name", key), stat.trim(), goal, job == null || job.isBlank() ? null : job.trim(),
                     m.getString("group", stat).trim(), m.getString("unit", ""), normId(m.getString("icon", "minecraft:paper")),
-                    Math.max(1, weight), reward(m, at, problems)));
+                    Math.max(1, weight), rw, Math.max(0, m.getInt("min-level", 0))));
         }
         int count = s.getInt("count", 3);
         if (count < 1) problems.add(where + ".count: 1 이상");
         int rerolls = s.getInt("rerolls", 0);
         if (rerolls < 0) problems.add(where + ".rerolls: 0 이상");
         ConfigurationSection bonus = s.getConfigurationSection("bonus");
-        return new Kind(Math.max(1, count), Math.max(0, rerolls), bonus == null ? Reward.NONE : reward(bonus, where + ".bonus", problems), out);
+        List<Band> bands = new ArrayList<>();
+        int last = -1;
+        for (Map<?, ?> b : s.getMapList("bands")) {
+            int from = b.get("from") instanceof Number n ? n.intValue() : -1;
+            double g = b.get("goal") instanceof Number n ? n.doubleValue() : 1, rw = b.get("reward") instanceof Number n ? n.doubleValue() : 1;
+            if (from <= last || g <= 0 || rw < 0) {
+                problems.add(where + ".bands: from 은 커지는 순서, goal 은 0보다 크게 (" + b + ")");
+                continue;
+            }
+            last = from;
+            bands.add(new Band(from, g, rw));
+        }
+        return new Kind(Math.max(1, count), Math.max(0, rerolls), bonus == null ? Reward.NONE : reward(bonus, where + ".bonus", problems), out, bands);
     }
 
     private static Reward reward(ConfigurationSection s, String at, List<String> problems) {
         long gold = s.getLong("gold", 0);
         double xp = s.getDouble("xp", 0);
+        int stamps = s.getInt("stamps", 0);
+        if (stamps < 0) problems.add(at + ": stamps 는 0 이상");
         if (gold < 0) problems.add(at + ": gold 는 0 이상");
         if (xp < 0) problems.add(at + ": xp 는 0 이상");
         List<ItemReward> items = new ArrayList<>();
@@ -145,7 +197,7 @@ public record MissionSpec(Kind daily, Kind weekly) {
             if (r == null) problems.add(at + ": items '" + i + "' (형식: 아이디 또는 '아이디 x개수')");
             else items.add(r);
         }
-        return new Reward(Math.max(0, gold), Math.max(0, xp), List.copyOf(items));
+        return new Reward(Math.max(0, gold), Math.max(0, xp), List.copyOf(items), Math.max(0, stamps));
     }
 
     /** "minecraft:diamond x3" / "diamond" / "economy:ruby x2" */
@@ -181,6 +233,11 @@ public record MissionSpec(Kind daily, Kind weekly) {
      * for everyone, no two of the same group. Fewer than count if the pool runs out.
      */
     public static List<Mission> draw(Kind k, String job, Random r) {
+        return draw(k, job, Integer.MAX_VALUE, r);
+    }
+
+    /** As {@link #draw(Kind, String, Random)} for a player whose highest job level is `level` (missions above it are left out). */
+    public static List<Mission> draw(Kind k, String job, int level, Random r) {
         List<Mission> out = new ArrayList<>();
         Set<String> groups = new HashSet<>();
         Mission first = pick(k.ofJob(job), groups, Set.of(), r);
@@ -188,8 +245,9 @@ public record MissionSpec(Kind daily, Kind weekly) {
             out.add(first);
             groups.add(first.group());
         }
+        List<Mission> general = open(k.general(), level);
         while (out.size() < k.count()) {
-            Mission m = pick(k.general(), groups, Set.of(), r);
+            Mission m = pick(general, groups, Set.of(), r);
             if (m == null) break;
             out.add(m);
             groups.add(m.group());
@@ -203,6 +261,10 @@ public record MissionSpec(Kind daily, Kind weekly) {
      * set, never one of a group the other missions have. Null if there is none.
      */
     public static Mission reroll(Kind k, List<Mission> set, int index, Random r) {
+        return reroll(k, set, index, Integer.MAX_VALUE, r);
+    }
+
+    public static Mission reroll(Kind k, List<Mission> set, int index, int level, Random r) {
         Mission old = set.get(index);
         Set<String> groups = new HashSet<>();
         Set<String> ids = new HashSet<>();
@@ -211,7 +273,50 @@ public record MissionSpec(Kind daily, Kind weekly) {
             if (i != index) groups.add(set.get(i).group());
         }
         Mission m = old.job() == null ? null : pick(k.ofJob(old.job()), groups, ids, r);
-        return m != null ? m : pick(k.general(), groups, ids, r);
+        return m != null ? m : pick(open(k.general(), level), groups, ids, r);
+    }
+
+    private static List<Mission> open(List<Mission> l, int level) {
+        return l.stream().filter(m -> m.minLevel() <= level).toList();
+    }
+
+    // ------------------------------------------------------------------------------------------ bands
+
+    /** A job mission at a band: goal x band.goal (rounded up to a whole number), gold and XP x band.reward. */
+    public static Mission scaled(Mission m, Band b) {
+        if (b == null || (b.goal() == 1 && b.reward() == 1)) return m;
+        double goal = Math.ceil(m.goal() * b.goal() - 1e-9);
+        Reward r = m.reward();
+        Reward scaled = new Reward(Math.round(r.gold() * b.reward()), Math.round(r.xp() * b.reward()), r.items(), r.stamps());
+        return new Mission(m.id(), m.name(), m.stat(), goal, m.job(), m.group(), m.unit(), m.icon(), m.weight(), scaled, m.minLevel());
+    }
+
+    /** How a slot stores its mission: "ores" (no band) or "ores@2" (band index 2). */
+    public static String slotKey(String id, int band) {
+        return band < 0 ? id : id + "@" + band;
+    }
+
+    /** The mission id of a stored slot key. */
+    public static String slotMission(String key) {
+        int at = key.indexOf('@');
+        return at < 0 ? key : key.substring(0, at);
+    }
+
+    /** The band index of a stored slot key (-1: none). */
+    public static int slotBand(String key) {
+        int at = key.indexOf('@');
+        if (at < 0) return -1;
+        try {
+            return Integer.parseInt(key.substring(at + 1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    /** "{goal}" in a name becomes the (scaled) goal: "광석 {goal}개 캐기". */
+    public static String name(Mission m) {
+        if (!m.name().contains("{goal}")) return m.name();
+        return m.name().replace("{goal}", String.format(java.util.Locale.ROOT, "%,d", (long) Math.ceil(m.goal() - 1e-9)));
     }
 
     private static Mission pick(List<Mission> from, Set<String> groups, Set<String> ids, Random r) {

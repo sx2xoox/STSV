@@ -1,0 +1,46 @@
+# 도장 /도장 (README "도장"). 사람마다 따로 모이고 거래할 수 없음. 돈으로 못 사는 것(칭호 · 한정 치장 · 미션 다시 뽑기권)만 삼.
+# 도장을 주는 곳: 미션(missions.yml 의 stamps) · 주민의 부탁 · 명인 의뢰 · 이어지는 주간 의뢰(requests.yml) · 아래 earn.
+# 모은 도장 하나 = 이달의 도장판 한 칸 (가게에서 써도 판은 그대로). 달이 바뀌면 새 판. 못 채운 판은 그냥 닫힘(잃는 것 없음).
+
+earn:
+  community: 3          # 주간 공동 의뢰 달성: 최소량 이상 낸 사람 모두 (골드와 함께)
+  tournament: 1         # 낚시대회에서 한 마리 이상 낚음 (대회가 끝날 때)
+  tournament-daily: 1   # 낚시대회 도장은 하루 이만큼까지 (대회는 매시 열림)
+  event: 1              # 행사(긴급 납품)에 처음 납품
+  event-daily: 1        # 행사 도장은 하루 이만큼까지
+
+# 도장 가게: 칭호 · 치장은 한 번만 (가지고 있으면 못 삼). 치장은 코어 명령 '관리자 치장 지급' 으로 줌
+# (별(후원)로 파는 치장은 넣지 않음. 여기 전설 치장은 원래 주간 순위 1위 · 상인 행렬로만 나오던 것)
+shop:
+  reroll:      { rerolls: 1, price: 3, icon: minecraft:paper, name: "<#ffd166>미션 다시 뽑기권" }
+  regular:     { title: economy:stamp_regular, price: 20 }
+  neighbor:    { title: economy:stamp_good_neighbor, price: 60 }
+  fixer:       { title: economy:stamp_fixer, price: 120 }
+  collector:   { title: economy:stamp_collector, price: 250 }
+  halo:        { cosmetic: stsv:halo, price: 400 }
+  haetae:      { cosmetic: stsv:haetae, price: 500 }
+  gumiho:      { cosmetic: stsv:gumiho, price: 500 }
+  crown:       { cosmetic: stsv:crown, price: 600 }
+
+# 이달의 도장판: 30칸. rewards = 그 칸을 채우면 받는 작은 선물, 마지막 칸 = 그달의 칭호 (months)
+board:
+  cells: 30
+  rewards:
+    5:  { items: ["minecraft:cake x1"] }
+    10: { rerolls: 1 }
+    15: { items: ["minecraft:firework_rocket x16"] }
+    20: { rerolls: 1 }
+    25: { items: ["minecraft:experience_bottle x16"] }
+  months:
+    1:  { title: economy:stamp_month_01 }
+    2:  { title: economy:stamp_month_02 }
+    3:  { title: economy:stamp_month_03 }
+    4:  { title: economy:stamp_month_04 }
+    5:  { title: economy:stamp_month_05 }
+    6:  { title: economy:stamp_month_06 }
+    7:  { title: economy:stamp_month_07 }
+    8:  { title: economy:stamp_month_08 }
+    9:  { title: economy:stamp_month_09 }
+    10: { title: economy:stamp_month_10 }
+    11: { title: economy:stamp_month_11 }
+    12: { title: economy:stamp_month_12 }

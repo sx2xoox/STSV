@@ -508,6 +508,7 @@ public final class ShopModule extends EcoModule implements DailyListener {
         if (paid > 0) core.economy().move(null, p.getUniqueId(), paid, EconomyStore.Kind.FAUCET, "urgent_order", id + " x" + removed);
         java.util.Map<String, String> params = new java.util.LinkedHashMap<>(e.params());
         String by = "by." + p.getUniqueId();
+        if (!params.containsKey(by) && eco.stamps() != null) eco.stamps().event(p.getUniqueId());   // 도장: the first delivery to this 행사
         params.put(by, String.valueOf(Integer.parseInt(params.getOrDefault(by, "0")) + removed));
         params.put("delivered", String.valueOf(done + removed));
         params.put("detail", orderDetail(params));

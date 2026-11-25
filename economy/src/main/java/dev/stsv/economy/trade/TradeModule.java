@@ -331,6 +331,13 @@ public final class TradeModule extends EcoModule {
             if (mb > 0) core.economy().transfer(b.getUniqueId(), a.getUniqueId(), mb, "trade");
             for (ItemStack it : fromA) eco.mail().deliver(b.getUniqueId(), it, "trade");
             for (ItemStack it : fromB) eco.mail().deliver(a.getUniqueId(), it, "trade");
+            // missions (README "미션"): a direct trade where at least credit.min-price changed hands, once a day per pair (TradeCredit)
+            UUID lo = a.getUniqueId().compareTo(b.getUniqueId()) < 0 ? a.getUniqueId() : b.getUniqueId();
+            if (eco.credit().credit("trade", lo, lo.equals(a.getUniqueId()) ? b.getUniqueId() : a.getUniqueId(), Math.max(ma, mb), 0, eco.rules(),
+                    System.currentTimeMillis())) {
+                core.profiles().add(a.getUniqueId(), "trades_direct", 1);
+                core.profiles().add(b.getUniqueId(), "trades_direct", 1);
+            }
             end();
             for (Player p : List.of(a, b)) {
                 p.sendMessage(Lang.msg("trade.done", "player", Names.mini(p.equals(a) ? b : a)));

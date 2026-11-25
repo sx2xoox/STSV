@@ -775,6 +775,7 @@ public final class DockModule extends EcoModule {
             items.append(l.id()).append(" x").append(l.count());
         }
         if (paid > 0) core.economy().move(null, owner, paid, EconomyStore.Kind.FAUCET, "dock_sell", s.dock.name() + ": " + items);
+        if (paid > 0) core.profiles().add(p.getUniqueId(), "dock_sales", 1);   // missions: a sale at a dock (README "미션")
         store.log(new DockStore.Sale(now(), s.dock.name(), h.id(), owner, p.getUniqueId(), items.toString(), paid, straight, odometer));
         eco.getLogger().info("[하역장] " + s.dock.name() + ": " + p.getName() + " 님이 " + h.name() + " #" + Math.abs(h.id()) + " (주인 "
                 + h.ownerName() + ") 의 짐을 " + paid + " G 에 팜 (거리 " + Math.round(straight) + ", 주행 " + Math.round(odometer) + "): " + items);

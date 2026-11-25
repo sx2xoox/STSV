@@ -398,6 +398,7 @@ public final class TournamentModule extends EcoModule {
         out.add(Lang.mm("tournament.result-next", "time", time(TournamentRules.nextStart(now + 1, zone))));
         for (Component c : out) Bukkit.broadcast(c);
         for (var a : awards) pay(a, r);
+        if (eco.stamps() != null) eco.stamps().tournament(r.entries.values().stream().filter(e -> e.catches > 0).map(e -> e.id).toList());   // 도장
         history(r, rank, prizes, false);
     }
 

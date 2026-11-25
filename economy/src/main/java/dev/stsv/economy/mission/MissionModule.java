@@ -121,9 +121,18 @@ public final class MissionModule extends EcoModule implements DailyListener {
         return p == Period.DAILY ? s.daily() : s.weekly();
     }
 
-    /** The mission of a slot (null if the pool no longer has it). */
+    /** The mission of a slot at the band it was given at (null if the pool no longer has it). */
     private Mission mission(Period p, Slot s) {
-        return spec.kind(p).missions().get(s.mission);
+        Kind k = spec.kind(p);
+        Mission m = k.missions().get(MissionSpec.slotMission(s.mission));
+        int band = MissionSpec.slotBand(s.mission);
+        return m == null || band < 0 ? m : MissionSpec.scaled(m, k.bandAt(band));
+    }
+
+    /** How a newly given mission is stored: a job mission with its band at the player's level in that job. */
+    private String slotKey(UUID u, Kind k, Mission m) {
+        if (m.job() == null || k.bands().isEmpty()) return m.id();
+        return MissionSpec.slotKey(m.id(), k.band(eco.jobs().level(u, m.job())));
     }
 
     /** How far the player is: the stat's growth since the mission was given. */
@@ -167,11 +176,13 @@ public final class MissionModule extends EcoModule implements DailyListener {
 
     /** The player's first visit in the period: draws their set, counting from now. */
     private void give(Player p, Period period, MissionStore.Set set) {
-        List<Mission> drawn = MissionSpec.draw(spec.kind(period), eco.jobs().job(p.getUniqueId()), ThreadLocalRandom.current());
+        UUID u = p.getUniqueId();
+        Kind k = spec.kind(period);
+        List<Mission> drawn = MissionSpec.draw(k, eco.jobs().job(u), eco.jobs().topLevel(u), ThreadLocalRandom.current());
         if (drawn.isEmpty()) return;
         for (int i = 0; i < drawn.size(); i++) {
             Mission m = drawn.get(i);
-            store.put(p.getUniqueId(), set, i, m.id(), core.profiles().stat(p.getUniqueId(), m.stat()));
+            store.put(u, set, i, slotKey(u, k, m), core.profiles().stat(u, m.stat()));
         }
         p.sendMessage(Lang.msg(period == Period.DAILY ? "mission.new-daily" : "mission.new-weekly", "count", drawn.size())
                 .clickEvent(ClickEvent.runCommand("/미션")));
@@ -195,8 +206,8 @@ public final class MissionModule extends EcoModule implements DailyListener {
         core.profiles().add(u, period == Period.DAILY ? "missions_daily" : "missions_weekly", 1);
         List<String> got = pay(p, m.reward(), "mission");
         p.sendMessage(Lang.msg("mission.done", "kind", Lang.raw(period == Period.DAILY ? "mission.daily" : "mission.weekly"),
-                "name", m.name(), "rewards", String.join("<gray>, </gray>", got), "done", set.doneCount(), "count", set.slots.size()));
-        HudModule.flash(p, Lang.mm("mission.done-flash", "name", m.name()));
+                "name", MissionSpec.name(m), "rewards", String.join("<gray>, </gray>", got), "done", set.doneCount(), "count", set.slots.size()));
+        HudModule.flash(p, Lang.mm("mission.done-flash", "name", MissionSpec.name(m)));
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.4f);
     }
 
@@ -221,6 +232,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
         String job = eco.jobs().job(u);
         if (r.xp() > 0 && job != null) eco.jobs().addXp(u, job, r.xp(), false);
         for (MissionSpec.ItemReward i : r.items()) Items.create(i.id(), i.amount()).ifPresent(it -> eco.mail().deliver(u, it, reason));
+        if (r.stamps() > 0 && eco.stamps() != null) eco.stamps().give(u, r.stamps(), reason.equals("mission") ? "stamp.why-mission" : "stamp.why-mission-bonus");
         return rewardLines(r, job);
     }
 
@@ -234,6 +246,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
                     : Lang.raw("mission.reward-xp", "color", j.color(), "job", j.name(), "xp", fmt(r.xp())));
         }
         for (MissionSpec.ItemReward i : r.items()) out.add("<white>" + Items.mmName(i.id()) + " ×" + i.amount());
+        if (r.stamps() > 0) out.add(Lang.raw("mission.reward-stamps", "n", r.stamps()));
         return out;
     }
 
@@ -261,20 +274,26 @@ public final class MissionModule extends EcoModule implements DailyListener {
         Slot s = set.slots.get(index);
         if (s.done()) return "mission.reroll-done";
         Kind k = spec.kind(period);
-        if (set.rerolls >= k.rerolls()) return "mission.reroll-none";
+        boolean free = set.rerolls < k.rerolls();
+        if (!free && (eco.stamps() == null || eco.stamps().rerolls(u) <= 0)) return "mission.reroll-none";
         List<Mission> current = new ArrayList<>();
         for (Slot x : set.slots) {
             Mission m = mission(period, x);
             // a mission the pool no longer has: stands in as itself so nothing else takes its place by accident
             current.add(m != null ? m : new Mission(x.mission, x.mission, "", 1, null, x.mission, "", "minecraft:paper", 1, MissionSpec.Reward.NONE));
         }
-        Mission next = MissionSpec.reroll(k, current, index, ThreadLocalRandom.current());
+        Mission next = MissionSpec.reroll(k, current, index, eco.jobs().topLevel(u), ThreadLocalRandom.current());
         if (next == null) return "mission.reroll-empty";
         Mission old = current.get(index);
-        set.rerolls++;
-        store.saveSet(u, set);
-        store.put(u, set, index, next.id(), core.profiles().stat(u, next.stat()));
-        p.sendMessage(Lang.msg("mission.rerolled", "old", old.name(), "new", next.name(), "left", k.rerolls() - set.rerolls));
+        if (free) {
+            set.rerolls++;
+            store.saveSet(u, set);
+        } else if (!eco.stamps().takeReroll(u)) return "mission.reroll-none";
+        String key = slotKey(u, k, next);
+        store.put(u, set, index, key, core.profiles().stat(u, next.stat()));
+        Mission shown = mission(period, set.slots.get(index));
+        p.sendMessage(Lang.msg(free ? "mission.rerolled" : "mission.rerolled-ticket", "old", MissionSpec.name(old),
+                "new", MissionSpec.name(shown == null ? next : shown), "left", free ? k.rerolls() - set.rerolls : eco.stamps().rerolls(u)));
         p.playSound(p.getLocation(), Sound.UI_CARTOGRAPHY_TABLE_TAKE_RESULT, 0.7f, 1.2f);
         return null;
     }
@@ -351,7 +370,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
             double have = slot.done() ? m.goal() : Math.min(m.goal(), progress(u, m, slot));
             String job = eco.jobs().job(u);
             it.editMeta(meta -> {
-                meta.itemName(Lang.item(slot.done() ? "mission.name-done" : "mission.name", "name", m.name()));
+                meta.itemName(Lang.item(slot.done() ? "mission.name-done" : "mission.name", "name", MissionSpec.name(m)));
                 List<Component> lore = new ArrayList<>();
                 if (m.job() != null) {
                     JobSpec.Job j = eco.jobs().spec().jobs().get(m.job());
@@ -365,7 +384,9 @@ public final class MissionModule extends EcoModule implements DailyListener {
                 if (slot.done()) lore.add(Lang.item("mission.lore-done"));
                 else {
                     int left = spec.kind(period).rerolls() - set.rerolls;
-                    lore.add(Lang.item(left > 0 ? "mission.lore-reroll" : "mission.lore-reroll-none", "left", Math.max(0, left)));
+                    int tickets = eco.stamps() == null ? 0 : eco.stamps().rerolls(u);
+                    lore.add(Lang.item(left > 0 ? "mission.lore-reroll" : tickets > 0 ? "mission.lore-reroll-ticket" : "mission.lore-reroll-none",
+                            "left", Math.max(0, left), "tickets", tickets));
                 }
                 meta.lore(lore);
                 meta.setEnchantmentGlintOverride(slot.done());
@@ -452,7 +473,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
                     for (Slot x : set.slots) {
                         Mission m = mission(period, x);
                         s.sendMessage(Text.msg(" <gray>" + (x.index + 1) + ". " + (m == null ? x.mission + " (없음)"
-                                : m.name() + " <white>" + amount(m, Math.min(m.goal(), progress(u, m, x))) + " / " + amount(m, m.goal()))
+                                : MissionSpec.name(m) + " <white>" + amount(m, Math.min(m.goal(), progress(u, m, x))) + " / " + amount(m, m.goal()))
                                 + (x.done() ? " <green>완료" : "")));
                     }
                 }
@@ -473,7 +494,7 @@ public final class MissionModule extends EcoModule implements DailyListener {
                 }
                 complete(p, period, set, x, m);
                 if (set.allDone() && set.bonusAt <= 0) bonus(p, period, set);
-                s.sendMessage(Text.msg("<green>완료 처리: " + m.name()));
+                s.sendMessage(Text.msg("<green>완료 처리: " + MissionSpec.name(m)));
             }
             case "새로뽑기" -> {
                 // nothing is read or given until the rows are gone (the database may run writes side by side)

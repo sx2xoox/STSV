@@ -1,0 +1,65 @@
+# 도장 칭호 (stamps.yml): stamp_* = 도장 가게, stamp_month_* = 그달 도장판 30칸을 다 채움 (돈으로 못 삼)
+stamp_regular:
+  name: "<#ffb37a>[동네 단골]"
+  description: "도장 가게에서 도장으로 바꾼 칭호"
+  category: shop
+stamp_good_neighbor:
+  name: "<#ffd166>[좋은 이웃]"
+  description: "도장 가게에서 도장으로 바꾼 칭호"
+  category: shop
+stamp_fixer:
+  name: "<#8fd16a>[마을 해결사]"
+  description: "도장 가게에서 도장으로 바꾼 칭호"
+  category: shop
+stamp_collector:
+  name: "<gradient:#ff8a8a:#ffd166>[도장 수집가]</gradient>"
+  description: "도장 가게에서 도장으로 바꾼 칭호"
+  category: shop
+stamp_month_01:
+  name: "<#ffe6a8>[새해 첫 도장]"
+  description: "1월 도장판을 다 채움"
+  category: event
+stamp_month_02:
+  name: "<#ff9e9e>[설날 덕담꾼]"
+  description: "2월 도장판을 다 채움"
+  category: event
+stamp_month_03:
+  name: "<#a8e6a1>[봄맞이 일꾼]"
+  description: "3월 도장판을 다 채움"
+  category: event
+stamp_month_04:
+  name: "<#ffc4dd>[벚꽃 길잡이]"
+  description: "4월 도장판을 다 채움"
+  category: event
+stamp_month_05:
+  name: "<#9fe0c8>[오월의 이웃]"
+  description: "5월 도장판을 다 채움"
+  category: event
+stamp_month_06:
+  name: "<#8fd3ff>[초여름 나그네]"
+  description: "6월 도장판을 다 채움"
+  category: event
+stamp_month_07:
+  name: "<#6fd0ff>[한여름 개근]"
+  description: "7월 도장판을 다 채움"
+  category: event
+stamp_month_08:
+  name: "<#d8f27a>[여름밤 반딧불]"
+  description: "8월 도장판을 다 채움"
+  category: event
+stamp_month_09:
+  name: "<#ffd27a>[한가위 손님]"
+  description: "9월 도장판을 다 채움"
+  category: event
+stamp_month_10:
+  name: "<#ff9f5a>[단풍 마실꾼]"
+  description: "10월 도장판을 다 채움"
+  category: event
+stamp_month_11:
+  name: "<#ff7a6a>[김장 도우미]"
+  description: "11월 도장판을 다 채움"
+  category: event
+stamp_month_12:
+  name: "<#e8f6ff>[눈 오는 날 배달부]"
+  description: "12월 도장판을 다 채움"
+  category: event

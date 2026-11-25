@@ -1,0 +1,50 @@
+# /도장: 위 = 내 도장 · 가게/도장판 바꾸기, 가운데 = 이달의 도장판 30칸 (가게를 누르면 도장 가게 물건), 아래 = 미션 · 의뢰로
+# (배경은 인물 도감 것을 그대로 씀: 같은 칸 배치)
+stamps:
+  title: "<#f0e2b0>도장판 · 도장 가게 <#b9a6d6>· 도장 {count}개"
+  rows: 6
+  background: economy:gui/people
+  layout:
+    - "I.......S"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "M.X...R.Q"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>도장 <#ffd166>{balance}개"
+      lore:
+        - "<gray>{month}월 도장판 <white>{filled} / {cells}"
+        - "<gray>미션 다시 뽑기권 <white>{rerolls}장"
+        - ""
+        - "<gray>미션 · 주민의 부탁 · 명인 의뢰 · 이어지는 의뢰"
+        - "<gray>공동 의뢰 · 낚시대회 · 행사에서 모여요."
+        - "<gray>모은 도장 하나가 도장판 한 칸을 채워요."
+        - "<dark_gray>거래할 수 없고, 가게에서 써도 판은 그대로."
+    S:
+      action: "stamp:toggle"
+      material: EMERALD
+      name: "<#ffd166>도장 가게"
+    M:
+      action: "command:미션"
+      material: CLOCK
+      name: "<yellow>미션으로"
+    R:
+      action: "command:의뢰"
+      material: WRITABLE_BOOK
+      name: "<yellow>주민의 부탁으로"
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
+    Q:
+      action: ""
+      material: PAPER
+      name: "<gray>달이 바뀌면 새 도장판"
+      lore: ["<dark_gray>못 채운 판은 그냥 닫혀요 (잃는 것 없음)"]

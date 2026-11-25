@@ -144,6 +144,13 @@ public final class JobModule extends EcoModule {
         return job == null ? 0 : level(player, job);
     }
 
+    /** The highest level of any job (a player's progress: mission bands, 주민의 부탁 tiers). */
+    public int topLevel(UUID player) {
+        int top = 1;
+        for (String j : spec.jobs().keySet()) top = Math.max(top, level(player, j));
+        return top;
+    }
+
     /** Level in a job, whether or not they have it now (Lv1 if never worked; levels stay with the job). */
     public int level(UUID player, String job) {
         return spec.levelFor(store.xp(player, job));

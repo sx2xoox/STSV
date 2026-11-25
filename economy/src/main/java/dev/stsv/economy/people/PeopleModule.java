@@ -170,6 +170,9 @@ public final class PeopleModule extends EcoModule {
         boolean hadNormal = e.normal > 0;
         PeopleSpec.Meet m = e.meet(spec, System.currentTimeMillis(), shiny, place);
         dirty.add(u + "|" + person);
+        // missions (README "미션"): passengers carried where they were going, and new people in the codex
+        core.profiles().add(u, "people_met", 1);
+        if (m.first()) core.profiles().add(u, "people_new", 1);
         List<String> all = people();
         String name = nameOf(t);
         if (m.firstShiny()) {
@@ -299,6 +302,8 @@ public final class PeopleModule extends EcoModule {
                     lore.add(Lang.item("people.lore-hint", "hint", hint(bus, t)));
                     lore.add(Lang.item("people.lore-how"));
                 }
+                // 주민의 부탁 (README "주민의 부탁"): 친밀도, and the 명인 의뢰's regulars
+                if (eco.requests() != null) lore.addAll(eco.requests().peopleLines(p.getUniqueId(), id));
                 boolean glint = known && showShiny;
                 String name = known ? (e.shiny > 0 ? Lang.raw("people.name-shiny", "name", nameOf(t)) : nameOf(t)) : Lang.raw("people.unknown-name");
                 it.editMeta(meta -> {

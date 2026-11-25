@@ -326,6 +326,10 @@ final class Commands {
         }));
         eco.command("의뢰", new Simple(player((p, a) -> eco.requests().open(p)), null));
         eco.command("미션", new Simple(player((p, a) -> eco.missions().open(p)), null));
+        eco.command("도장", new Simple(player((p, a) -> {
+            if (a.length > 0 && a[0].equals("가게")) eco.stamps().openShop(p);
+            else eco.stamps().open(p);
+        }), null));
         eco.command("순위", new Simple((s, a) -> {
             java.util.UUID me = s instanceof org.bukkit.entity.Player p ? p.getUniqueId() : null;
             if (a.length > 0 && a[0].equals("장신구")) eco.accessories().rankingLines(me).forEach(s::sendMessage);

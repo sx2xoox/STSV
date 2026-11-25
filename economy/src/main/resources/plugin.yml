@@ -78,6 +78,10 @@ commands:
     description: 일일·주간 미션 (사람마다 따로, 다 깨면 보너스)
     aliases: [mission, missions]
     permission: stsv.economy.play
+  도장:
+    description: 도장 - 이달의 도장판과 도장 가게 (/도장 가게)
+    aliases: [stamp, stamps]
+    permission: stsv.economy.play
   순위:
     description: 이번 주에 번 돈 순위 (/순위 자산 = 순자산 순위)
     aliases: [rank]
