@@ -40,8 +40,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Every compared ratio and G per minute is rounded half up to 2 decimals first, as a player reads it. Values: an item is worth its
  * shop sell base; an item the shop does not buy is worth {@link #SHADOW}; a group input ("#economy:x") its median member (lo / hi =
  * the cheapest / dearest member); a vanilla tag {@link #TAG_VALUE}. A scenario ({@link World#valued}) values a recipe again with every
- * group at its typical, cheapest or dearest member, and every sized fish (rare, legend: it keeps its size and the shop pays base x
- * {@link FishSpec#priceFactor}) at the mean price factor of a typical catch ({@link #SIZE_CASES}).
+ * group at its typical, cheapest or dearest member. A fish has no size since 2026-11 (it sold for 0.7 - 1.5x base by its size
+ * before): every fish is worth its base; a Lv20 fisher's old size bonus is now more rare bites ({@link FishSpec#FISHER_RARE_BONUS},
+ * in the parity model).
  * <p>
  * Glossary: ratio = output base x amount / input value; class = how many input kinds any machine makes (R = 0, C1 = 1, C2 = 2 or
  * more); G/min = (output value - input value) per minute at base speed (no upgrade, no job); main input = the input with the most
@@ -78,15 +79,8 @@ class BalanceTest {
             "minecraft:clay_ball", 0.5, "minecraft:stick", 0.1, "minecraft:wheat_seeds", 0.05, "minecraft:beetroot_seeds", 0.05);
     static final Map<String, Double> TAG_VALUE = Map.of("#small_flowers", 0.2, "#saplings", 0.2, "#leaves", 0.05, "#logs", 1.0,
             "#stone_crafting_materials", 0.0);
-    /** fish.yml rarities whose catch keeps its size (FishingModule). */
+    /** fish.yml rarities of the rare and legend fish (they kept their size until 2026-11; R5b still looks at their recipes). */
     static final Set<String> SIZED_RARITIES = Set.of("rare", "legend");
-    /** A typical catch: the mean price factor over u = (i + 0.5) / SIZE_SAMPLES. */
-    static final int SIZE_SAMPLES = 1000;
-
-    /** The size bonus of a case. */
-    static final Map<String, Double> SIZE_CASES = Map.of(
-            "lv1", 0.0,                                    // any player: no fisher bonus
-            "lv20", FishSpec.FISHER_SIZE_BONUS);           // a Lv20 fisher's catch: +17% size (R5b)
     static final List<String> JOB_MACHINES = List.of("gem_bench", "mill", "fish_bench", "forge", "kitchen", "still");
     /** The top good of each machine (full-chain multiple). */
     static final Map<String, String> CAPSTONE = linked(
@@ -128,18 +122,14 @@ class BalanceTest {
     static final double AGE_RAW_FLOOR = 1.61;
     // ------------------------------------------------------------------------------------------ R5 .. R9
     static final double WORST_MEMBER = 1.20;
-    /** R5b: sized fish at a Lv20 fisher's typical size. */
-    static final String FISHER_CASE = "lv20";
-
-    /** A group input at its typical (median) or cheapest member ("typ" / "lo"), sized fish at base (null) or in a SIZE_CASES case. */
+    /** A group input at its typical (median) or cheapest member ("typ" / "lo"); sizeCase is always null now (no fish has a size). */
     record Scenario(String pick, String sizeCase) {}
 
     /**
-     * R9a / R9b: the beating recipe at its typical or cheapest group member, every sized fish at base, at any player's typical size
-     * and at a Lv20 fisher's; the beaten (upgraded / harder) recipe at its typical member in the same case.
+     * R9a / R9b: the beating recipe at its typical or cheapest group member (every fish at base: no sizes since 2026-11); the beaten
+     * (upgraded / harder) recipe at its typical member.
      */
-    static final List<Scenario> SCENARIOS = List.of(new Scenario("typ", null), new Scenario("lo", null), new Scenario("typ", "lv1"),
-            new Scenario("lo", "lv1"), new Scenario("typ", "lv20"), new Scenario("lo", "lv20"));
+    static final List<Scenario> SCENARIOS = List.of(new Scenario("typ", null), new Scenario("lo", null));
     /** R7: share of a recipe's input value another recipe also takes. */
     static final double SHARE = 0.80;
     // ------------------------------------------------------------------------------------------ R10 q ladder
@@ -634,17 +624,16 @@ class BalanceTest {
     }
 
     /**
-     * R5b: a job recipe that takes sized fish (rare, legend: they keep their size and sell by it) stays >= 1.20 for its dearest member
-     * caught at a Lv20 fisher's typical size (+17% size), so the fishers who supply them do not lose by cooking a
-     * typical catch.
+     * R5b: a job recipe that takes rare or legend fish stays >= 1.20 for its dearest member (at base: fish have no size since 2026-11;
+     * until then this was at a Lv20 fisher's typical size, +17%), so the fishers who supply them do not lose by cooking them.
      */
     @Test
     void r5bSizedFish() {
         List<String> bad = new ArrayList<>();
         for (Row r : jobRows()) {
             if (r.ins.keySet().stream().noneMatch(k -> w.groupOr(k).stream().anyMatch(w::sized))) continue;
-            Valued v = w.valued(r, "hi", FISHER_CASE);
-            if (r2(v.ratio()) < WORST_MEMBER) bad.add(r.m + " " + r.name + " dearest sized member at a fisher's size: ratio " + py(r2(v.ratio())));
+            Valued v = w.valued(r, "hi", null);
+            if (r2(v.ratio()) < WORST_MEMBER) bad.add(r.m + " " + r.name + " dearest rare / legend member: ratio " + py(r2(v.ratio())));
         }
         rule("R5b", bad);
     }
@@ -769,8 +758,6 @@ class BalanceTest {
     static String scenarioText(Scenario s) {
         List<String> parts = new ArrayList<>();
         if (s.pick().equals("lo")) parts.add("cheapest member");
-        if ("lv1".equals(s.sizeCase())) parts.add("sized fish at any player's typical size");
-        if ("lv20".equals(s.sizeCase())) parts.add("sized fish at a Lv20 fisher's size");
         return parts.isEmpty() ? "" : " [" + String.join(", ", parts) + "]";
     }
 
@@ -1572,25 +1559,15 @@ class BalanceTest {
             return out.isEmpty() ? List.of(new Num(0.0, false)) : out;
         }
 
-        /** A rare or legend fish: it keeps its size and sells by it. */
+        /** A rare or legend fish (it kept its size until 2026-11). */
         boolean sized(String item) {
             FishSpec.Species s = species.get(item);
             return s != null && SIZED_RARITIES.contains(s.rarity());
         }
 
-        /** The size price factor an item is worth in a case: 1.0 for anything unsized or case null. */
+        /** The price factor an item is worth: 1.0 (no fish has a size since 2026-11; a sized one sold for 0.7 - 1.5x before). */
         double factor(String item, String sizeCase) {
-            if (sizeCase == null || !sized(item)) return 1.0;
-            return factors.computeIfAbsent(item + "/" + sizeCase, k -> meanFactor(species.get(item), SIZE_CASES.get(sizeCase)));
-        }
-
-        /** Mean FishSpec.priceFactor of a typical catch of a species: FishSpec.size over u = (i + 0.5) / SIZE_SAMPLES. */
-        static double meanFactor(FishSpec.Species s, double bonus) {
-            List<Num> f = new ArrayList<>();
-            for (int i = 0; i < SIZE_SAMPLES; i++) {
-                f.add(new Num(FishSpec.priceFactor(s, FishSpec.size(s, (i + 0.5) / SIZE_SAMPLES, bonus)), false));
-            }
-            return sum(f) / SIZE_SAMPLES;
+            return 1.0;
         }
 
         /** Values of everything an input key takes, each sized fish at its typical size in the case. */
