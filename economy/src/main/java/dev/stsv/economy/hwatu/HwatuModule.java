@@ -372,6 +372,47 @@ public final class HwatuModule extends EcoModule {
     // /화투방: the lobby
     // ------------------------------------------------------------------------------------------
 
+    /** /화투방 [사기 &lt;칩&gt; | 바꾸기 &lt;칩|전부&gt; | 나가기 | 방] */
+    public void command(Player p, String[] a) {
+        if (a.length == 0) {
+            open(p);
+            return;
+        }
+        switch (a[0]) {
+            case "사기", "바꾸기" -> {
+                if (a.length < 2) {
+                    p.sendMessage(Lang.msg("hwatu.usage"));
+                    return;
+                }
+                long n = a[1].equals("전부") && a[0].equals("바꾸기") ? -1 : number(a[1]);
+                if (n == 0 || n < -1) {
+                    p.sendMessage(Lang.msg("hwatu.bad-amount"));
+                    return;
+                }
+                String why = a[0].equals("사기") ? buy(p, n) : cash(p, n);
+                if (why != null) {
+                    ChipStore.Account acc = store.account(p.getUniqueId(), today());
+                    p.sendMessage(Lang.msg(why, "hours", spec.minAgeMs() / 3_600_000L, "left", fmt(HwatuRules.buyLeft(acc.bought, spec.dailyBuy())),
+                            "daily", fmt(spec.dailyBuy()), "need", "0", "cap", fmt(spec.lossCap())));
+                }
+            }
+            case "나가기" -> {
+                if (!seated.containsKey(p.getUniqueId())) p.sendMessage(Lang.msg("hwatu.not-seated"));
+                else leave(p.getUniqueId());
+            }
+            case "방" -> openLobby(p);
+            default -> p.sendMessage(Lang.msg("hwatu.usage"));
+        }
+    }
+
+    private static long number(String s) {
+        try {
+            return Long.parseLong(s.replace(",", "").replace("_", ""));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     public void open(Player p) {
         if (seated.containsKey(p.getUniqueId())) openTable(p);
         else openLobby(p);

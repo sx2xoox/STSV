@@ -275,8 +275,8 @@ class ContentTest {
         // 연마 진주 and its 북어포 among them), 21 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 98 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 98 + 4 + 1 + 12 + 1 + 18, ours.size(),
-                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 98 fish (6 떼물고기) + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지)");
+        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 98 + 4 + 1 + 12 + 1 + 18 + 21, ours.size(),
+                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 98 fish (6 떼물고기) + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지) + 21 화투방 (섯다 패 20장 + 뒷면)");
         assertEquals(7, machines.size());
         assertEquals(149 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
@@ -342,6 +342,11 @@ class ContentTest {
         for (var g : shop.goods()) for (var z : net.zones()) if (g.id().equals(z.item())) problems.add("the shop must not trade a crate of catch: " + g.id());
         // 장신구 (items/accessories.yml): the box (the shop sells it) gives them, the 용궁 상자 the fragments; the chest comes from fishing
         for (String id : ours) if (id.startsWith("economy:acc_") || id.equals("economy:accessory") || id.equals("economy:dragon_chest")) makeable.add(id);
+        // 화투방 (items/hwatu.yml): the 섯다 cards are only drawn in the table screen, nobody is ever given one, the shop never trades them
+        for (String id : ours) if (id.startsWith("economy:hwatu_")) {
+            if (shop.sell().containsKey(id)) problems.add("the shop buys a hwatu card: " + id);
+            makeable.add(id);
+        }
         // 마을버스 분실물 (items/bus.yml): passengers leave them on the bus (bus.yml events.lost.kinds), nothing else makes them, the shop never trades them
         var lost = dev.stsv.economy.bus.BusSpec.parse(yaml("bus.yml"), problems).events().lost();
         for (var k : lost.kinds().values()) {
@@ -418,7 +423,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(37, menus.size());   // 도장 (the people background); 버스 내비 and 길라잡이 share the mail background; the hub is 7 menus (the first screen, 4 category pages, 2 minigame pages); 장신구 3 (칸 · 공방 · 효과); 인물 도감
+        assertEquals(39, menus.size());   // 화투방 2 (방 목록 · 판, the mail background); 도장 (the people background); 버스 내비 and 길라잡이 share the mail background; the hub is 7 menus (the first screen, 4 category pages, 2 minigame pages); 장신구 3 (칸 · 공방 · 효과); 인물 도감
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)

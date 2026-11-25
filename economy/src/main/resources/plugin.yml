@@ -82,6 +82,10 @@ commands:
     description: 도장 - 이달의 도장판과 도장 가게 (/도장 가게)
     aliases: [stamp, stamps]
     permission: stsv.economy.play
+  화투방:
+    description: 화투방 - 칩 환전(골드로만), 플레이어끼리 홀짝 · 주사위 · 섯다 (/화투방 사기 <칩> · 바꾸기 <칩|전부> · 나가기)
+    aliases: [hwatu]
+    permission: stsv.economy.play
   순위:
     description: 이번 주에 번 돈 순위 (/순위 자산 = 순자산 순위)
     aliases: [rank]

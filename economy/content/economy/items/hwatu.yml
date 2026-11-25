@@ -1,0 +1,128 @@
+# 화투방 섯다 패 20장과 뒷면 (README "화투방"). 판 화면에만 보이고 아무도 가질 수 없음 (아이템으로 주지 않음, 상점이 사지 않음).
+# 이름은 판 화면이 hwatu.card-* 문구로 바꿔 씀. 아이콘: tools/assetgen/hwatu_icons.py
+
+hwatu_1a:
+  material: paper
+  name: "<white>1월 송학 광"
+  texture: hwatu_1a
+  max-stack: 1
+
+hwatu_1b:
+  material: paper
+  name: "<white>1월 송학 띠"
+  texture: hwatu_1b
+  max-stack: 1
+
+hwatu_2a:
+  material: paper
+  name: "<white>2월 매조 열끗"
+  texture: hwatu_2a
+  max-stack: 1
+
+hwatu_2b:
+  material: paper
+  name: "<white>2월 매조 띠"
+  texture: hwatu_2b
+  max-stack: 1
+
+hwatu_3a:
+  material: paper
+  name: "<white>3월 벚꽃 광"
+  texture: hwatu_3a
+  max-stack: 1
+
+hwatu_3b:
+  material: paper
+  name: "<white>3월 벚꽃 띠"
+  texture: hwatu_3b
+  max-stack: 1
+
+hwatu_4a:
+  material: paper
+  name: "<white>4월 흑싸리 열끗"
+  texture: hwatu_4a
+  max-stack: 1
+
+hwatu_4b:
+  material: paper
+  name: "<white>4월 흑싸리 띠"
+  texture: hwatu_4b
+  max-stack: 1
+
+hwatu_5a:
+  material: paper
+  name: "<white>5월 난초 열끗"
+  texture: hwatu_5a
+  max-stack: 1
+
+hwatu_5b:
+  material: paper
+  name: "<white>5월 난초 띠"
+  texture: hwatu_5b
+  max-stack: 1
+
+hwatu_6a:
+  material: paper
+  name: "<white>6월 모란 열끗"
+  texture: hwatu_6a
+  max-stack: 1
+
+hwatu_6b:
+  material: paper
+  name: "<white>6월 모란 띠"
+  texture: hwatu_6b
+  max-stack: 1
+
+hwatu_7a:
+  material: paper
+  name: "<white>7월 홍싸리 열끗"
+  texture: hwatu_7a
+  max-stack: 1
+
+hwatu_7b:
+  material: paper
+  name: "<white>7월 홍싸리 띠"
+  texture: hwatu_7b
+  max-stack: 1
+
+hwatu_8a:
+  material: paper
+  name: "<white>8월 공산 광"
+  texture: hwatu_8a
+  max-stack: 1
+
+hwatu_8b:
+  material: paper
+  name: "<white>8월 공산 열끗"
+  texture: hwatu_8b
+  max-stack: 1
+
+hwatu_9a:
+  material: paper
+  name: "<white>9월 국화 열끗"
+  texture: hwatu_9a
+  max-stack: 1
+
+hwatu_9b:
+  material: paper
+  name: "<white>9월 국화 띠"
+  texture: hwatu_9b
+  max-stack: 1
+
+hwatu_10a:
+  material: paper
+  name: "<white>10월 단풍 열끗"
+  texture: hwatu_10a
+  max-stack: 1
+
+hwatu_10b:
+  material: paper
+  name: "<white>10월 단풍 띠"
+  texture: hwatu_10b
+  max-stack: 1
+
+hwatu_back:
+  material: paper
+  name: "<gray>화투 뒷면"
+  texture: hwatu_back
+  max-stack: 1

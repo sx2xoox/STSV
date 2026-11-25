@@ -94,3 +94,7 @@ ITEMS.update(_LOST_ICONS)
 from secret_icons import ICONS as _SECRET_ICONS   # noqa: E402
 
 ITEMS.update(_SECRET_ICONS)
+# 화투방: the 섯다 cards and their back (economy:hwatu_<month><a|b>, economy:hwatu_back, items/hwatu.yml)
+from hwatu_icons import ICONS as _HWATU_ICONS   # noqa: E402
+
+ITEMS.update(_HWATU_ICONS)

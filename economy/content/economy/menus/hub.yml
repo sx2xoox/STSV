@@ -197,14 +197,14 @@ hub_trade:
       name: "<white>송금"
       lore: ["<gray>잔액 {balance}", "<gray>수수료 {fee}%", "<dark_gray>/송금 <플레이어> <금액>"]
     W:
-      action: "hub:suggest:수표"
+      action: "hub:suggest:수표|run:화투방"
       icon: stsv:gui/blank
       material: PAPER
       art: hub:cheque
       label: "수표"
       accent: "#f2c24c"
       name: "<white>수표"
-      lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>"]
+      lore: ["<gray>돈을 수표로 꺼내기", "<dark_gray>/수표 <금액>", "<yellow>우클릭: 화투방 <gray>(칩 환전 · 홀짝 · 주사위 · 섯다)"]
     B:
       action: "command:건축월드"
       icon: stsv:gui/blank
