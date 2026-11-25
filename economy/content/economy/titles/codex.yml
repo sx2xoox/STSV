@@ -38,5 +38,5 @@ people_all:
   category: codex
 people_shiny_all:
   name: "<gradient:#fff3a0:#ff9ed8><b>[✦ 별난 사람 수집가]</b></gradient>"
-  description: "인물 도감: 모든 인물의 별난 모습 등록"
+  description: "인물 도감: 별난 인물을 모두 등록"
   category: codex

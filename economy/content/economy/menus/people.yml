@@ -1,7 +1,8 @@
 # /도감 인물: 인물 도감 (people.yml). 가운데 = 인물 한 명에 한 칸 (버스 손님 종류마다). 안 만난 사람은 ??? 그림자와 만날 곳 귀띔.
-# 위 오른쪽 = 별난 모습으로 보기 (별난 모습을 등록한 사람만 바뀜), 아래 = 물건 도감으로
+# 일반 인물 · 별난 인물은 따로 모으는 두 도감 (탭). 위 오른쪽 S = 탭 바꾸기 (이름 · 설명은 messages.yml people.switch-*), 아래 = 물건 도감으로
+# 자리표시자: {have} 일반 인물 수 · {shiny} 별난 인물 수 · {all} 인물 수 · {tab} 지금 탭 이름 · {tab_have} 지금 탭의 수
 people:
-  title: "<#f0e2b0>인물 도감 <#b9a6d6>· {have}/{all}"
+  title: "<#f0e2b0>인물 도감 <#b9a6d6>· {tab} <#b9a6d6>{tab_have}/{all}"
   rows: 6
   background: economy:gui/people
   layout:
@@ -17,12 +18,12 @@ people:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>인물 도감 <gray>{have}/{all} <#ffe08a>✦{shiny}"
+      name: "<white>인물 도감 <gray>{have}/{all} <#ffe08a>✦{shiny}/{all}"
     S:
       action: "people:shiny"
       material: AMETHYST_SHARD
-      name: "<#ffe08a>✦ 별난 모습으로 보기"
-      lore: ["<gray>별난 모습을 등록한 사람은", "<gray>별난 모습으로 보여요 <dark_gray>(다시 누르면 보통)"]
+      name: "<#ffe08a>✦ 별난 인물 보기"
+      lore: ["<gray>일반 인물 · 별난 인물 탭 바꾸기"]
     M:
       action: "people:items"
       material: CHEST

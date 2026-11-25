@@ -149,7 +149,7 @@ class MenuActionsTest {
     /** Long but possible values for the placeholders of the titles. */
     static final Map<String, String> SAMPLES = Map.ofEntries(
             Map.entry("world", "야생 지옥"), Map.entry("mode", "검색: 다이아몬드곡괭이…"), Map.entry("count", "999"),
-            Map.entry("tab", "원목·전리품"), Map.entry("have", "100"), Map.entry("all", "100"),
+            Map.entry("tab", "원목·전리품"), Map.entry("tab_have", "52"), Map.entry("have", "100"), Map.entry("all", "100"),
             Map.entry("machine", "가공대"), Map.entry("lane_text", " · 4번 줄"),
             Map.entry("daily_done", "3"), Map.entry("daily_count", "3"), Map.entry("weekly_done", "3"), Map.entry("weekly_count", "3"),
             Map.entry("day", "1234"), Map.entry("category", "보석·금속"), Map.entry("sort", "등락률순"),

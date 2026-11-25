@@ -33,6 +33,7 @@ class HudEditTest {
         HudSheets bundled = HudSheets.load();
         sheets = HudLayout.panelSheets(bundled, bundled.panelLetters());
         layout = new HudLayout(sheets, HudLayout.Settings.defaults());
+        sheets = layout.sheets();
         client = new HudClient(sheets, layout.fonts());
         rows = List.of(
                 new HudLayout.Row("coin", mm("<gray>잔액\t<gold>12,345 G"), false),

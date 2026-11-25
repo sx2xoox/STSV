@@ -361,13 +361,13 @@ hud:
   board-preview: "<gray>화면 오른쪽 아래에 보드 견본을 10초 동안 띄웁니다."
   board-preview-usage: "<gray>/관리자 사이드바 보드시험 <dark_gray>(화면 오른쪽 아래 보드 견본 10초)"
   board-preview-off: "<gray>보드를 쓰지 않습니다. <dark_gray>(config.yml hud.board.enabled, hud.mode: pack)"
-  board-sample-title: "<gold>낚시 대회 <gray>12:34"
-  board-sample-1: "<yellow>1위 <white>민들레\t<aqua>52.3cm"
-  board-sample-2: "<gray>2위 <white>Steve\t<aqua>48.0cm"
-  board-sample-3: "<gold>3위 <white>바닷가재\t<aqua>41.7cm"
-  board-sample-4: "<gray>4위 <white>Alex\t<aqua>39.2cm"
-  board-sample-5: "<gray>5위 <white>낚시왕\t<aqua>35.5cm"
-  board-sample-footer: "<gray>내 기록\t<white>31.0cm <gray>(7위)"
+  board-sample-title: "<aqua>가장 큰 한 마리\t<white>12:34"
+  board-sample-1: "<gray>1 <white>민들레\t<aqua>52.3cm"
+  board-sample-2: "<gray>2 <white>Steve\t<aqua>48.0cm"
+  board-sample-3: "<gray>3 <white>바닷가재\t<aqua>41.7cm"
+  board-sample-4: "<gray>4 <white>Alex\t<aqua>39.2cm"
+  board-sample-5: "<gray>5 <white>낚시왕\t<aqua>35.5cm"
+  board-sample-me: "<yellow>내 순위 8\t<aqua>31.0cm"
 
 economy:
   # 금액 표시 형식: {amount} = 1,234

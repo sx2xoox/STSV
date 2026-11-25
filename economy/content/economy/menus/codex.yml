@@ -50,7 +50,7 @@ codex:
       action: "codex:people"
       material: PLAYER_HEAD
       name: "<#ffb37a>인물 도감"
-      lore: ["<gray>버스로 태워 준 마을 사람들", "<gray>만난 사람 <white>{people_have}<gray>/{people_all} <#ffe08a>✦{people_shiny}"]
+      lore: ["<gray>버스로 태워 준 마을 사람들", "<gray>일반 인물 <white>{people_have}<gray>/{people_all}", "<#ffe08a>✦ 별난 인물 {people_shiny}<gray>/{people_all}"]
     X:
       action: close
       icon: stsv:gui/exit

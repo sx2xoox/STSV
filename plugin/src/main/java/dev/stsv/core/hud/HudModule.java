@@ -92,13 +92,14 @@ import java.util.function.Function;
  * ones are joined left to right by their order. A one-off action-bar message must go through {@link #flash} so the
  * status line steps aside for a few seconds instead of overwriting it (and, in pack mode, so the health bars stay).
  *
- * Board ({@link #board}, pack mode): a second, smaller panel against the bottom right of the screen (a fishing
- * tournament's ranking), shown to every online player with the pack while a producer has one: the first registered
- * producer that answers a board for that player wins. It is drawn in the same boss bar title as the sidebar and the
- * overlay (each piece has zero net advance), not on the action bar (the bars and messages) nor a title (other
- * plugins' announcements): see HudLayout for why the bottom-anchored action bar cannot carry it. Producers are
- * asked on the sidebar's refresh (hud.refresh-ticks, once a second by default) and on {@link #refreshBoard}; between
- * them nothing is asked. /관리자 사이드바 보드시험 shows a sample for 10 seconds.
+ * Board ({@link #board}, pack mode): rows of a face and text without a background in the bottom right corner of
+ * the screen (a fishing tournament's ranking), shown to every online player with the pack while a producer has one:
+ * the first registered producer that answers a board for that player wins. It is drawn on the action bar with the
+ * bars (each piece has zero net advance; the action bar is the only line the game anchors to the bottom of the
+ * screen, see HudLayout), so while a player has a board the HUD draws their action bar even without the bars
+ * (creative, hud.health off) and messages go above it through {@link #flash} as usual. Producers are asked on the
+ * sidebar's refresh (hud.refresh-ticks, once a second by default) and on {@link #refreshBoard}; between them
+ * nothing is asked. /관리자 사이드바 보드시험 shows a sample for 10 seconds.
  *
  * Edit mode (/사이드바 위치, HudEdit): the player stands still (walk and fly speed 0, no jumping; nothing else about
  * them changes: no protection, no other movement) while turning the view moves the panel, drawn every tick with
@@ -113,7 +114,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
 
     private record Flash(Component message, long until) {}
 
-    private record Sent(HudLayout.Health health, Component message, long tick) {}
+    private record Sent(HudLayout.Health health, Component message, Component board, long tick) {}
 
     public enum Mode { PACK, SCOREBOARD }
 
@@ -249,7 +250,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         HudLayout.Settings d = HudLayout.Settings.defaults();
         return new HudLayout.Settings(cfg.getInt("hud.sidebar.right", d.sidebarRight()), cfg.getInt("hud.sidebar.y", d.sidebarY()),
                 cfg.getInt("hud.sidebar.max-width", d.sidebarMaxWidth()), cfg.getInt("hud.sidebar.max-rows", d.sidebarRows()),
-                cfg.getBoolean("hud.health.armor", d.armor()), cfg.getBoolean("hud.board.enabled"), cfg.getInt("hud.board.bottom"),
+                cfg.getBoolean("hud.health.armor", d.armor()), cfg.getBoolean("hud.board.enabled"), cfg.getInt("hud.board.margin"),
                 cfg.getInt("hud.board.right"), cfg.getInt("hud.board.max-width"));
     }
 
@@ -397,7 +398,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
      */
     public static void flash(Player player, Component message, long millis) {
         HudModule hud = instance;
-        if (hud != null && hud.healthFor(player) != null) {
+        if (hud != null && hud.drawsActionBar(player)) {
             hud.flashes.put(player.getUniqueId(), new Flash(message, System.currentTimeMillis() + millis));
             hud.sendBars(player, true);
             return;
@@ -448,7 +449,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         if (lines.isEmpty()) return;
         long now = System.currentTimeMillis();
         for (Player p : Bukkit.getOnlinePlayers()) {
-            if (healthFor(p) != null) continue;   // drawn with the health bars (refreshBars)
+            if (drawsActionBar(p)) continue;   // drawn with the health bars and the board (refreshBars)
             Long until = pausedUntil.get(p.getUniqueId());
             if (until != null) {
                 if (until > now) continue;
@@ -540,11 +541,20 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         }
     }
 
-    /** Sends the bars (and the message above them) when they changed, or again before the game fades them out. */
+    /** Does the HUD draw this player's action bar (the bars, or the board: messages then go above them)? */
+    boolean drawsActionBar(Player p) {
+        return healthFor(p) != null || boardShown.containsKey(p.getUniqueId());
+    }
+
+    /**
+     * Sends the bars and the board (and the message above them) when they changed, or again before the game fades
+     * them out.
+     */
     private void sendBars(Player p, boolean now) {
         UUID u = p.getUniqueId();
         HudLayout.Health h = healthFor(p);
-        if (h == null) {
+        Component board = boardShown.get(u);
+        if (h == null && board == null) {
             if (sent.remove(u) != null && flashes.remove(u) == null) p.sendActionBar(Component.empty());
             return;
         }
@@ -555,10 +565,10 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         }
         Component message = f != null ? f.message() : statusLine(p);
         Sent last = sent.get(u);
-        if (!now && last != null && last.health().equals(h) && java.util.Objects.equals(last.message(), message)
-                && tick - last.tick() < resendTicks) return;
-        p.sendActionBar(layout.actionBar(h, message));
-        sent.put(u, new Sent(h, message, tick));
+        if (!now && last != null && java.util.Objects.equals(last.health(), h) && java.util.Objects.equals(last.message(), message)
+                && java.util.Objects.equals(last.board(), board) && tick - last.tick() < resendTicks) return;
+        p.sendActionBar(layout.actionBar(h, message, board));
+        sent.put(u, new Sent(h, message, board, tick));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -810,12 +820,10 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         });
     }
 
-    /** The board drawn again alone (the sidebar as it was last drawn), if it changed. */
+    /** The board asked again and, if it changed, sent now with the bars. */
     private void redrawBoard(Player p) {
         if (!packFor(p) || !updateBoard(p)) return;
-        Editing ed = editing.get(p.getUniqueId());
-        if (ed != null) drawEdit(p, ed);
-        else showComposite(p);
+        sendBars(p, true);
     }
 
     /** Asks for this player's board and keeps it; true if it changed. */
@@ -832,7 +840,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         HudLayout.Board b = null;
         Long until = previews.get(u);
         if (until != null) {
-            if (until > System.currentTimeMillis()) b = sampleBoard();
+            if (until > System.currentTimeMillis()) b = sampleBoard(p);
             else previews.remove(u);
         }
         if (b == null) {
@@ -858,26 +866,26 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         return pdc.has(placeKey, PersistentDataType.INTEGER_ARRAY) || pdc.has(positionKey, PersistentDataType.INTEGER);
     }
 
-    /** The first boss bar's title: the sidebar and overlay as last drawn, then the board. */
+    /** The first boss bar's title: the sidebar and overlay as last drawn. */
     private void showComposite(Player p) {
-        Component all = join(panelShown.get(p.getUniqueId()), boardShown.get(p.getUniqueId()));
+        Component all = panelShown.get(p.getUniqueId());
         if (all == null) hidePanel(p);
         else showPanel(p, all);
     }
 
-    private static Component join(Component a, Component b) {
-        if (a == null) return b;
-        if (b == null) return a;
-        return Component.text().append(a).append(b).build();
-    }
-
-    /** The sample of /관리자 사이드바 보드시험 (a fishing tournament's ranking). */
-    private static HudLayout.Board sampleBoard() {
-        List<Component> lines = new ArrayList<>();
+    /**
+     * The sample of /관리자 사이드바 보드시험 (a fishing tournament's ranking): five made-up players (each a face of
+     * their own, as any player gets), then the viewer's own row with their face.
+     */
+    private static HudLayout.Board sampleBoard(Player viewer) {
+        List<HudLayout.Board.Row> rows = new ArrayList<>();
+        int i = 0;
         for (String key : List.of("hud.board-sample-1", "hud.board-sample-2", "hud.board-sample-3", "hud.board-sample-4", "hud.board-sample-5")) {
-            lines.add(Lang.mm(key));
+            UUID someone = UUID.nameUUIDFromBytes(("stsv-board-sample-" + i++).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            rows.add(new HudLayout.Board.Row(someone, Lang.mm(key)));
         }
-        return new HudLayout.Board(Lang.mm("hud.board-sample-title"), lines, Lang.mm("hud.board-sample-footer"));
+        rows.add(new HudLayout.Board.Row(viewer.getUniqueId(), Lang.mm("hud.board-sample-me")));
+        return new HudLayout.Board(Lang.mm("hud.board-sample-title"), rows);
     }
 
     /** /관리자 사이드바 보드시험: the sample board on the sender's screen for 10 seconds. */
@@ -1042,7 +1050,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     }
 
     private void drawEdit(Player p, Editing e) {
-        Component panel = join(layout.panel(e.rows, e.edit.current(), true), boardShown.get(p.getUniqueId()));
+        Component panel = layout.panel(e.rows, e.edit.current(), true);
         if (panel == null) hidePanel(p);
         else showPanel(p, panel);
     }

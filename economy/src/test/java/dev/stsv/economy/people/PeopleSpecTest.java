@@ -71,40 +71,59 @@ class PeopleSpecTest {
     }
 
     @Test
-    void aMeetingRecordsCountDateLooksAndPlaces() {
+    void aMeetingRecordsCountDateAndPlaces() {
         PeopleSpec s = spec();
         PeopleSpec.Entry e = new PeopleSpec.Entry();
         assertFalse(e.registered());
         PeopleSpec.Meet m = e.meet(s, 1000, false, "bus");
         assertTrue(m.first());
-        assertFalse(m.firstShiny());
+        assertTrue(e.registered());
         assertEquals(0, m.opened(), "the first intro line");
         assertTrue(m.newPlace());
         assertEquals(1, e.met);
         assertEquals(1000, e.first);
-        assertEquals(1000, e.normal);
-        assertEquals(0, e.shiny);
         for (int i = 2; i <= 9; i++) assertEquals(-1, e.meet(s, 1000 + i, false, "bus").opened());
-        m = e.meet(s, 5000, true, "bus");
+        m = e.meet(s, 5000, false, "bus");
         assertEquals(1, m.opened(), "the tenth meeting opens the second line");
-        assertTrue(m.firstShiny());
         assertFalse(m.first());
         assertFalse(m.newPlace());
-        assertEquals(5000, e.shiny);
         assertEquals(1000, e.first, "first met stays");
-        assertFalse(e.meet(s, 6000, true, "bus").firstShiny(), "once");
-        assertEquals(5000, e.shiny);
         // the places, saved and read again (a set: later systems add theirs)
         e.meet(s, 7000, false, "restaurant");
         assertEquals("bus,restaurant", e.placesText());
         assertEquals(e.places, PeopleSpec.Entry.places("bus,restaurant"));
         assertTrue(PeopleSpec.Entry.places("").isEmpty());
         assertTrue(PeopleSpec.Entry.places(null).isEmpty());
-        // a shiny first: registered with no normal look yet
-        PeopleSpec.Entry f = new PeopleSpec.Entry();
-        f.meet(s, 1, true, "bus");
-        assertTrue(f.registered());
-        assertEquals(0, f.normal);
+    }
+
+    @Test
+    void aShinyEntryHasItsOwnLineThenTheNormalIntro() {
+        PeopleSpec s = spec();
+        for (String id : s.intros().keySet()) {
+            String own = s.shinyIntros().get(id);
+            assertNotNull(own, id);
+            assertFalse(own.isBlank(), id);
+            List<String> shiny = s.intro(id, true);
+            assertEquals(own, shiny.getFirst());
+            assertEquals(s.intros().get(id), shiny.subList(1, shiny.size()));
+            assertEquals(s.intros().get(id), s.intro(id, false));
+        }
+        assertEquals(0, s.introsOpen(0, true));
+        assertEquals(2, s.introsOpen(1, true), "the shiny line and the first normal one");
+        assertEquals(3, s.introsOpen(10, true));
+        assertEquals(4, s.introsOpen(50, true));
+        // a shiny entry is its own: its own count, date and intro progress
+        PeopleSpec.Entry e = new PeopleSpec.Entry();
+        PeopleSpec.Meet m = e.meet(s, 42, true, "bus");
+        assertTrue(m.first());
+        assertEquals(1, m.opened(), "two lines open at once: the last one opened is index 1");
+        assertEquals(42, e.first);
+        // a bad file: a person without a shiny line is reported
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(new File("content/economy/people.yml"));
+        y.set("people.grandma.shiny", null);
+        List<String> problems = new ArrayList<>();
+        PeopleSpec.parse(y, problems);
+        assertTrue(problems.stream().anyMatch(p -> p.contains("grandma.shiny")), problems.toString());
     }
 
     @Test
@@ -116,25 +135,73 @@ class PeopleSpecTest {
     }
 
     @Test
-    void completionsNeedEveryPerson() {
+    void completionsNeedEveryPersonInThatCollection() {
         List<String> people = List.of("a", "b");
-        Map<String, PeopleSpec.Entry> mine = new HashMap<>();
+        Map<String, PeopleSpec.Entry> normal = new HashMap<>(), shiny = new HashMap<>();
         PeopleSpec s = spec();
-        assertFalse(PeopleSpec.complete(people, mine, false));
-        PeopleSpec.Entry a = new PeopleSpec.Entry(), b = new PeopleSpec.Entry();
+        assertFalse(PeopleSpec.complete(people, normal));
+        PeopleSpec.Entry a = new PeopleSpec.Entry(), b = new PeopleSpec.Entry(), bs = new PeopleSpec.Entry();
         a.meet(s, 1, false, "bus");
-        mine.put("a", a);
-        b.meet(s, 1, true, "bus");
-        mine.put("b", b);
-        assertFalse(PeopleSpec.complete(people, mine, false), "b only shiny");
-        assertEquals(1, PeopleSpec.count(people, mine, false));
-        assertEquals(1, PeopleSpec.count(people, mine, true));
+        normal.put("a", a);
+        bs.meet(s, 1, true, "bus");   // b met only as 별난: counts for the 별난 collection only
+        shiny.put("b", bs);
+        assertFalse(PeopleSpec.complete(people, normal));
+        assertEquals(1, PeopleSpec.count(people, normal));
+        assertEquals(1, PeopleSpec.count(people, shiny));
         b.meet(s, 2, false, "bus");
-        assertTrue(PeopleSpec.complete(people, mine, false));
-        assertFalse(PeopleSpec.complete(people, mine, true));
-        a.meet(s, 3, true, "bus");
-        assertTrue(PeopleSpec.complete(people, mine, true));
-        assertFalse(PeopleSpec.complete(List.of(), mine, false));
+        normal.put("b", b);
+        assertTrue(PeopleSpec.complete(people, normal));
+        assertFalse(PeopleSpec.complete(people, shiny));
+        normal.put("c", new PeopleSpec.Entry());   // not listed, never met: changes nothing
+        assertEquals(2, PeopleSpec.count(people, normal));
+        assertFalse(PeopleSpec.complete(List.of(), normal));
+    }
+
+    /** The one-time split of the old store (one row a person with a shiny flag) into the two collections. */
+    @Test
+    void oldShinyFlagsBecomeShinyEntries(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        dev.stsv.core.data.Db db = dev.stsv.core.data.DatabaseModule.sqlite(dir.resolve("stsv.db"), java.util.logging.Logger.getLogger("test"));
+        String create = "CREATE TABLE IF NOT EXISTS eco_people (player CHAR(36) NOT NULL, person VARCHAR(64) NOT NULL, met INT NOT NULL, "
+                + "first_at BIGINT NOT NULL, normal_at BIGINT NOT NULL, shiny_at BIGINT NOT NULL, places VARCHAR(255) NOT NULL, PRIMARY KEY (player, person))";
+        db.migrate("eco_people", List.of(List.of(create)));
+        String p = "00000000-0000-0000-0000-000000000001";
+        String ins = "INSERT INTO eco_people (player, person, met, first_at, normal_at, shiny_at, places) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        db.sync(c -> {
+            dev.stsv.core.data.Db.update(c, ins, p, "grandma", 12, 100, 100, 500, "bus");    // normal first, a shiny later
+            dev.stsv.core.data.Db.update(c, ins, p, "santa", 3, 200, 0, 200, "bus");         // only ever met shiny
+            dev.stsv.core.data.Db.update(c, ins, p, "monk", 5, 300, 400, 300, "bus");         // shiny first, normal later
+            dev.stsv.core.data.Db.update(c, ins, p, "farmer", 7, 50, 50, 0, "bus");           // never shiny
+            return null;
+        });
+        List<List<String>> steps = List.of(List.of(create), PeopleSpec.splitShinyMigration());
+        db.migrate("eco_people", steps);
+        db.migrate("eco_people", steps);   // a second start: nothing moves again
+        // and the steps themselves are safe to run twice
+        db.sync(c -> {
+            for (String sql : PeopleSpec.splitShinyMigration()) dev.stsv.core.data.Db.update(c, sql);
+            return null;
+        });
+        Map<String, long[]> normal = new HashMap<>(), shiny = new HashMap<>();
+        db.sync(c -> {
+            for (Object[] r : dev.stsv.core.data.Db.query(c, "SELECT person, met, first_at, shiny_at FROM eco_people",
+                    rs -> new Object[]{rs.getString(1), rs.getLong(2), rs.getLong(3), rs.getLong(4)}))
+                normal.put((String) r[0], new long[]{(Long) r[1], (Long) r[2], (Long) r[3]});
+            for (Object[] r : dev.stsv.core.data.Db.query(c, "SELECT person, met, first_at, places FROM eco_people_shiny",
+                    rs -> new Object[]{rs.getString(1), rs.getLong(2), rs.getLong(3), rs.getString(4)})) {
+                shiny.put((String) r[0], new long[]{(Long) r[1], (Long) r[2]});
+                assertEquals("bus", r[3]);
+            }
+            return null;
+        });
+        assertEquals(java.util.Set.of("grandma", "monk", "farmer"), normal.keySet(), "santa was only ever shiny: no 일반 entry");
+        assertEquals(java.util.Set.of("grandma", "santa", "monk"), shiny.keySet());
+        assertArrayEquals(new long[]{11, 100, 0}, normal.get("grandma"), "one meeting moved to the shiny entry");
+        assertArrayEquals(new long[]{1, 500}, shiny.get("grandma"));
+        assertArrayEquals(new long[]{3, 200}, shiny.get("santa"), "every meeting was shiny");
+        assertArrayEquals(new long[]{4, 400, 0}, normal.get("monk"), "first met (일반) = when the normal look was first met");
+        assertArrayEquals(new long[]{1, 300}, shiny.get("monk"));
+        assertArrayEquals(new long[]{7, 50, 0}, normal.get("farmer"));
+        db.close();
     }
 
     @Test

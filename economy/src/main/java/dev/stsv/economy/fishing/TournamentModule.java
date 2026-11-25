@@ -40,7 +40,8 @@ import java.util.UUID;
  * 낚시대회 (README "낚시대회"): every hour on the hour (config.yml time.zone), {@link TournamentRules.Settings#minutes} minutes,
  * one event ({@link Kind}) noticed a minute before. Only a rod's catch counts (FishingModule calls {@link #caught}; never a
  * trap, pen or net, never a 길라잡이 trial fish); it gets a size in its message only. While one runs every online player sees
- * the standings on the core's board (bottom right): the event, the top 5, their own place, the time left. At the end the
+ * the standings on the core's board (bottom right corner, no background, a face per player): the event and the time left,
+ * the top 5, their own place. At the end the
  * results go to chat and the prizes are paid (config.yml fishing-tournament: stars through the core's DonationModule under
  * the actor {@value #STAR_ACTOR}, capped a day; gold as a faucet "fishing_tournament").
  * <p>
@@ -297,28 +298,33 @@ public final class TournamentModule extends EcoModule {
     // The board (core HUD, bottom right) and the texts
     // ------------------------------------------------------------------------------------------
 
+    /**
+     * The board: no background, in the bottom right corner (the core draws it on the action bar). A header (the event
+     * and the time left), the top 5 with a face each (place, name, record), then the viewer's own place when it is
+     * outside them, or how to join. Names that do not fit end in "…" (the core cuts them; the record stays whole).
+     */
     private HudLayout.Board board(Player viewer) {
         Running r = cur;
         if (r == null) return null;
-        List<Component> lines = new ArrayList<>();
+        List<HudLayout.Board.Row> rows = new ArrayList<>();
         List<Entry> rank = r.ranking;
+        UUID me = viewer.getUniqueId();
         for (int i = 0; i < Math.min(TOP, rank.size()); i++) {
             Entry e = rank.get(i);
-            lines.add(Lang.mm(e.id.equals(viewer.getUniqueId()) ? "tournament.board-me-line" : "tournament.board-line",
-                    "place", i + 1, "name", shortName(Names.plain(e.id)), "score", score(r.kind, e.score)));
+            rows.add(new HudLayout.Board.Row(e.id, Lang.mm(e.id.equals(me) ? "tournament.board-me-line" : "tournament.board-line",
+                    "place", i + 1, "name", shortName(Names.plain(e.id)), "score", score(r.kind, e.score))));
         }
-        if (rank.isEmpty()) lines.add(Lang.mm("tournament.board-empty"));
-        Entry mine = r.entries.get(viewer.getUniqueId());
+        if (rank.isEmpty()) rows.add(new HudLayout.Board.Row(null, Lang.mm("tournament.board-empty")));
+        Entry mine = r.entries.get(me);
         int place = mine == null ? 0 : rank.indexOf(mine) + 1;
-        if (mine == null) lines.addAll(Lang.items("tournament.board-join"));
-        else if (place == 0) lines.add(Lang.mm("tournament.board-me-none", "catches", mine.catches));
-        else if (place > TOP) lines.add(Lang.mm("tournament.board-me", "place", place, "score", score(r.kind, mine.score)));
-        return new HudLayout.Board(Lang.mm("tournament.board-title", "title", title(r.kind, r.target)), lines,
-                Lang.mm("tournament.board-footer", "time", clock(r.end - now())));
+        if (mine == null) rows.add(new HudLayout.Board.Row(null, Lang.mm("tournament.board-join")));
+        else if (place == 0) rows.add(new HudLayout.Board.Row(me, Lang.mm("tournament.board-me-none", "catches", mine.catches)));
+        else if (place > TOP) rows.add(new HudLayout.Board.Row(me, Lang.mm("tournament.board-me", "place", place, "score", score(r.kind, mine.score))));
+        return new HudLayout.Board(Lang.mm("tournament.board-title", "title", title(r.kind, r.target), "time", clock(r.end - now())), rows);
     }
 
-    /** The board is narrow (about 12 Hangul letters): a name longer than NAME_MAX ends in "…". */
-    static final int NAME_MAX = 6;
+    /** A first cut of a long name (the board cuts it again to its width): longer than NAME_MAX ends in "…". */
+    static final int NAME_MAX = 10;
 
     static String shortName(String name) {
         if (name == null) return "?";

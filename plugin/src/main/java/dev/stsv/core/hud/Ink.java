@@ -69,6 +69,13 @@ final class Ink {
         return this;
     }
 
+    /** A finished piece whose pen starts at the pen here and ends where it started (zero net advance). */
+    Ink raw(Component piece) {
+        flush();
+        parts.add(piece);
+        return this;
+    }
+
     private void append(String s, Style style) {
         if (runStyle != null && !runStyle.equals(style)) flush();
         runStyle = style;

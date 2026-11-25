@@ -128,6 +128,53 @@ public final class HudSheets {
         return new HudSheets(out, panelLetters);
     }
 
+    /**
+     * These sheets and one more: `name`, the named cells of `base` (in the given order, those it has; at least its
+     * first), same cell size, all in one row.
+     */
+    public HudSheets pick(String base, String name, List<String> cells) {
+        Sheet b = sheet(base);
+        List<Integer> keep = new ArrayList<>();
+        for (String c : cells) if (b.has(c)) keep.add(b.index(c));
+        if (keep.isEmpty()) keep.add(0);
+        return copy(b, name, keep, keep.size(), 0);
+    }
+
+    /**
+     * These sheets and one more: `name`, `base` with `extra` see-through pixel rows under every cell. A font may
+     * lift a glyph at most its own height above its line (the game refuses an ascent over the height), so a glyph
+     * drawn high over the action bar's line needs a taller cell; the picture stays at the cell's top, where the
+     * ascent puts it. The base must be drawn at its own size (height = cell height).
+     */
+    public HudSheets pad(String base, String name, int extra) {
+        Sheet b = sheet(base);
+        if (b.height() != b.cellH()) throw new IllegalArgumentException("HUD sheet " + base + " is not drawn at its own size");
+        List<Integer> all = new ArrayList<>();
+        for (int k = 0; k < b.names().size(); k++) all.add(k);
+        return copy(b, name, all, b.cols(), Math.max(0, extra));
+    }
+
+    private HudSheets copy(Sheet b, String name, List<Integer> keep, int cols, int extra) {
+        int rows = (keep.size() + cols - 1) / cols, ch = b.cellH() + extra;
+        BufferedImage from = image(b.png());
+        BufferedImage to = new BufferedImage(cols * b.cellW(), rows * ch, BufferedImage.TYPE_INT_ARGB);
+        List<String> names = new ArrayList<>();
+        int[] widths = new int[keep.size()];
+        for (int i = 0; i < keep.size(); i++) {
+            int k = keep.get(i);
+            int sx = (k % b.cols()) * b.cellW(), sy = (k / b.cols()) * b.cellH();
+            int dx = (i % cols) * b.cellW(), dy = (i / cols) * ch;
+            for (int y = 0; y < b.cellH(); y++) {
+                for (int x = 0; x < b.cellW(); x++) to.setRGB(dx + x, dy + y, from.getRGB(sx + x, sy + y));
+            }
+            names.add(b.names().get(k));
+            widths[i] = b.widths()[k];
+        }
+        Map<String, Sheet> out = new LinkedHashMap<>(sheets);
+        out.put(name, new Sheet(name, b.cellW(), ch, cols, b.height() + extra, List.copyOf(names), widths, b.space(), png(to)));
+        return new HudSheets(out, panelLetters);
+    }
+
     /** The sheets bundled in the plugin jar. */
     public static HudSheets load() throws IOException {
         JsonObject manifest;

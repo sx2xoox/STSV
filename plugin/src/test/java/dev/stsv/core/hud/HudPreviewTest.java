@@ -51,7 +51,7 @@ class HudPreviewTest {
         HudSheets bundled = HudSheets.load();
         HudSheets sheets = HudLayout.panelSheets(bundled, bundled.panelLetters());
         HudLayout layout = new HudLayout(sheets, HudLayout.Settings.defaults());
-        HudClient client = new HudClient(sheets, layout.fonts());
+        HudClient client = new HudClient(layout.sheets(), layout.fonts());
 
         List<HudLayout.Row> rows = List.of(
                 new HudLayout.Row("coin", Lang.mm("economy.hud", "balance", Lang.raw("economy.amount", "amount", "12,345")), false),

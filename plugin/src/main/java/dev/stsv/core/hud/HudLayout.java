@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Where the resource-pack HUD draws everything, in the game's GUI pixels, and the fonts that put it there.
@@ -22,22 +23,26 @@ import java.util.Map;
  *       level the game draws there.</li>
  *   <li>boss bar title (the first boss bar): centred, pen line at y 3 from the top; a glyph top at y gets ascent
  *       10 - y. The sidebar panel lives there, its right edge {@code right} pixels right of the screen's
- *       middle, its top {@code top} pixels below the top of the screen. So do the overlay and the board (below),
- *       each with zero net advance after the other.</li>
+ *       middle, its top {@code top} pixels below the top of the screen. So does the overlay, with zero net
+ *       advance after it.</li>
  * </ul>
- * The board ({@link Board}: a title, up to 8 lines and a footer, a fishing tournament's ranking) is the sidebar's
- * small panel drawn against the bottom right of the screen. It goes in the boss bar title too, not on the action
- * bar, although only the action bar is anchored to the bottom: a glyph can rise at most its own height above its
- * line (the game refuses an ascent above a font's height), so a 120 px tall panel on the action bar needs letter
- * sheets padded to some 60 px, several MB of client memory. Its bottom edge is hud.board.bottom below the top of
- * the screen instead: 4 px above the bottom of a GUI 240 high, the least the automatic GUI scale ever gives (720p,
- * 1440p, 4K; 1080p is 270 high, so there it sits 34 px up). Its right edge is the sidebar's (the player's own
- * place, the screen's edge as for the overlay) or hud.board.right; it is never wider than reaches x 106, past the
- * hotbar (91) and the bars' numbers (105), so it cannot cover them on a screen of any height; chat is on the left.
+ * The board ({@link Board}: a header and up to 6 rows of a face and text, a fishing tournament's ranking) has no
+ * background, like the overlay, and sits in the bottom right corner of the screen. It goes on the action bar, the
+ * only line the game anchors to the bottom of the screen: the boss bar title is anchored to the top and the server
+ * is never told the screen's height, so a board there (as before) sat at a fixed distance from the top, at the
+ * bottom of a GUI 240 high only. On the action bar its lowest row is hud.board.margin (2) px above the bottom at
+ * every GUI scale and window size. A glyph can rise at most its own height above the action bar's line (65 px up;
+ * the game refuses an ascent over a font's height), so the rows above it (the top two) draw from copies of their
+ * sheets with see-through rows under the cells (HudSheets.pad): with 11 px rows and no panel that is a few pixels,
+ * not the 60 a 120 px panel would need. Each row has its own fonts at its own height. Its right edge is the
+ * sidebar's (the player's own place, the screen's edge as for the overlay) or hud.board.right; it is never wider
+ * than reaches x 106, past the hotbar (91) and the bars' numbers (105) beside the same bottom rows, so it cannot
+ * cover them; chat is on the left (its default 320 px width ends about x 118 on a GUI 427 wide, so only a board
+ * wider than about 94 px there can reach under the chat's background while the chat shows).
  * Nothing in the game anchors a server's text to the right edge of the screen, and the server is never told the
- * window size or GUI scale, so the panel is placed from the middle: by default where the right edge of a 16:9
+ * window size or GUI scale, so the board is placed from the middle: by default where the right edge of a 16:9
  * window at its automatic GUI scale is (720p, 1440p and 4K all give a GUI width of 427: 213 px right of the
- * middle), below the status effect icons, and per player wherever they move it with the mouse (HudEdit).
+ * middle), and per player against the edge they put their sidebar at (HudEdit).
  *
  * The panel comes in three sizes ({@link Size}): Galmuri7 (small), Galmuri9 (normal) and Galmuri7 drawn twice as
  * big (large), every pixel a whole number of GUI pixels, so all three are as crisp as the game's own text. A
@@ -55,29 +60,29 @@ public final class HudLayout {
 
     /**
      * Positions and sizes from config.yml (hud.sidebar, hud.health, hud.board). board: whether the board's fonts are
-     * made at all; boardBottom: the board's bottom edge, px below the top of the screen; boardRight: its right edge
-     * (px right of the middle) for players who never moved their sidebar; boardMaxWidth: its widest.
+     * made at all; boardMargin: px between the bottom of the screen and the board's lowest row (0 .. 40); boardRight:
+     * its right edge (px right of the middle) for players who never moved their sidebar; boardMaxWidth: its widest.
      */
     public record Settings(int sidebarRight, int sidebarY, int sidebarMaxWidth, int sidebarRows, boolean armor,
-                           boolean board, int boardBottom, int boardRight, int boardMaxWidth) {
+                           boolean board, int boardMargin, int boardRight, int boardMaxWidth) {
 
         public Settings {
             sidebarMaxWidth = Math.max(80, Math.min(260, sidebarMaxWidth));
             sidebarRows = Math.max(1, Math.min(12, sidebarRows));
             sidebarY = Math.max(MIN_TOP, Math.min(300, sidebarY));
             sidebarRight = clampPanelRight(sidebarRight);
-            boardBottom = Math.max(BOARD_MIN_BOTTOM, Math.min(600, boardBottom));
+            boardMargin = Math.max(0, Math.min(BOARD_MAX_MARGIN, boardMargin));
             boardRight = Math.max(BOARD_CLEAR_X + MIN_WIDTH, Math.min(MAX_RIGHT, boardRight));
             boardMaxWidth = Math.max(MIN_WIDTH, Math.min(260, boardMaxWidth));
         }
 
         /** Without the board (its defaults, off). */
         public Settings(int sidebarRight, int sidebarY, int sidebarMaxWidth, int sidebarRows, boolean armor) {
-            this(sidebarRight, sidebarY, sidebarMaxWidth, sidebarRows, armor, false, BOARD_BOTTOM, DEFAULT_RIGHT, 132);
+            this(sidebarRight, sidebarY, sidebarMaxWidth, sidebarRows, armor, false, BOARD_MARGIN, DEFAULT_RIGHT, 132);
         }
 
         public static Settings defaults() {
-            return new Settings(DEFAULT_RIGHT, 54, 132, 7, true, true, BOARD_BOTTOM, DEFAULT_RIGHT, 132);
+            return new Settings(DEFAULT_RIGHT, 54, 132, 7, true, true, BOARD_MARGIN, DEFAULT_RIGHT, 132);
         }
     }
 
@@ -159,14 +164,6 @@ public final class HudLayout {
     static final int[] SEGMENTS = {16, 8, 4, 2, 1};
     /** The highest a panel's top may go, and how far sideways its right edge may go (GUI px from the middle). */
     static final int MIN_TOP = 2, MAX_RIGHT = 960, MIN_RIGHT = -900;
-    /**
-     * The board: at most BOARD_LINES lines (and a footer); its bottom edge by default 4 px above the bottom of a GUI
-     * 240 high; never left of BOARD_CLEAR_X (the hotbar ends at 91, the bars' numbers at 105); its title's letters
-     * BOARD_TITLE_DY below the top of its title strip (their foot on the server mark's); the lowest bottom that
-     * keeps the tallest board's top on the screen.
-     */
-    static final int BOARD_LINES = 8, BOARD_BOTTOM = 236, BOARD_CLEAR_X = 106, BOARD_TITLE_DY = 5;
-    static final int BOARD_MIN_BOTTOM = MIN_TOP + BOARD_TITLE_DY - 1 + 11 * (BOARD_LINES + 2) + 3;
     /** The corner brackets of a panel being moved: cells of 8 x 12 (art 8 x 8), 3 px out from the panel. */
     static final int EDIT_OUT = 3, EDIT_CELL_H = 12;
 
@@ -271,9 +268,14 @@ public final class HudLayout {
     private final HudFont bar = new HudFont("bar");
     private final HudFont line = new HudFont("line");
     private final Map<Size, Column> columns = new java.util.EnumMap<>(Size.class);
-    /** The board's picture font and a letter font per slot, from the bottom (slot 0) up (null: hud.board off). */
+    /**
+     * The board's picture font (null: hud.board off), the faces sheet each slot draws from, a letter font per slot
+     * from the bottom (slot 0) up (empty: off), and the faces a player can get.
+     */
     private final HudFont boardPictures;
+    private final List<String> boardFaceSheets;
     private final List<HudFont> boardRows;
+    private final List<String> boardFaces;
 
     /**
      * One size's column of slots: the top of the highest place (top0; the rest are ROW apart), the number of slots,
@@ -289,8 +291,9 @@ public final class HudLayout {
     /** sheets: with the panel's letter subsets ({@link #panelSheets}). */
     public HudLayout(HudSheets sheets, Settings settings) {
         if (!sheets.has(PANEL_HANGUL) || !sheets.has(PANEL_HANGUL7)) throw new IllegalArgumentException("no panel letter sheets");
-        this.sheets = sheets;
         this.settings = settings;
+        if (settings.board()) sheets = boardSheets(sheets, settings.boardMargin());
+        this.sheets = sheets;
         for (int d : new int[]{ROW1, ROW2}) {
             bar.add(sheets.sheet("icons"), action(d));
             bar.add(sheets.sheet("frame"), action(d));
@@ -303,29 +306,58 @@ public final class HudLayout {
         line.fallback();
         for (Size size : Size.values()) columns.put(size, column(size));
         if (settings.board()) {
+            // the action bar's line is 65 px above the bottom: rows over it need cells as tall as they rise (boardSheets)
             boardPictures = new HudFont("board");
+            List<String> faceSheets = new ArrayList<>();
             List<HudFont> rows = new ArrayList<>();
-            Style st = BOARD_STYLE;
-            int bottom = settings.boardBottom();
-            // slots 0 .. BOARD_LINES hold the lines and the footer; the title takes the slot above the top line
-            for (int s = 0; s <= BOARD_LINES + 1; s++) {
-                int row = boardRowTop(bottom, s);
-                boardPictures.add(sheets.sheet("panel_head" + st.suffix), boss(boardHeadTop(bottom, s)));
-                boardPictures.add(sheets.sheet("panel_mark"), boss(boardHeadTop(bottom, s) + st.gold));
-                if (s <= BOARD_LINES) {
-                    boardPictures.add(sheets.sheet("panel_row" + st.suffix), boss(row));
-                    boardPictures.add(sheets.sheet("panel_div"), boss(row + st.divider));
+            int margin = settings.boardMargin();
+            for (int s = 0; s < BOARD_SLOTS; s++) {
+                int face = action(boardTop(margin, s)), letters = action(boardTop(margin, s) - BOARD_LETTER_DY);
+                if (sheets.has(BOARD_FACE_SHEET)) {
+                    String fs = padded(BOARD_FACE_SHEET, boardPad(face, BOARD_FACE));
+                    boardPictures.add(sheets.sheet(fs), face);
+                    faceSheets.add(fs);
                 }
                 HudFont f = new HudFont("board_" + s);
-                f.text(sheets, Size.SMALL.textSheet, Size.SMALL.hangulSheet, boss(row + st.textDy), 1);
+                f.text(sheets, padded(Size.SMALL.textSheet, boardPad(letters, sheets.sheet(Size.SMALL.textSheet).height())),
+                        padded(Size.SMALL.hangulSheet, boardPad(letters, sheets.sheet(Size.SMALL.hangulSheet).height())), letters, 1);
                 rows.add(f);
             }
-            boardPictures.add(sheets.sheet("panel_foot" + st.suffix), boss(bottom - st.foot));
+            boardFaceSheets = List.copyOf(faceSheets);
             boardRows = List.copyOf(rows);
+            boardFaces = sheets.has(BOARD_FACE_SHEET) ? sheets.sheet(BOARD_FACE_SHEET).names() : List.of();
         } else {
             boardPictures = null;
+            boardFaceSheets = List.of();
             boardRows = List.of();
+            boardFaces = List.of();
         }
+    }
+
+    /** A sheet's name with `pad` see-through rows under its cells (itself for 0). */
+    private static String padded(String sheet, int pad) {
+        return pad <= 0 ? sheet : sheet + "_p" + pad;
+    }
+
+    /**
+     * The sheets the board draws from: the players' faces (BOARD_FACES of the faces sheet) and, for the rows whose
+     * glyphs rise above the action bar's line, the faces and the small letters with see-through rows under them.
+     */
+    static HudSheets boardSheets(HudSheets sheets, int margin) {
+        if (sheets.has("faces")) sheets = sheets.pick("faces", BOARD_FACE_SHEET, BOARD_FACES);
+        for (int s = 0; s < BOARD_SLOTS; s++) {
+            int face = action(boardTop(margin, s)), letters = action(boardTop(margin, s) - BOARD_LETTER_DY);
+            if (sheets.has(BOARD_FACE_SHEET)) sheets = padOnce(sheets, BOARD_FACE_SHEET, boardPad(face, BOARD_FACE));
+            for (String l : new String[]{Size.SMALL.textSheet, Size.SMALL.hangulSheet}) {
+                sheets = padOnce(sheets, l, boardPad(letters, sheets.sheet(l).height()));
+            }
+        }
+        return sheets;
+    }
+
+    private static HudSheets padOnce(HudSheets sheets, String base, int pad) {
+        String name = padded(base, pad);
+        return pad <= 0 || sheets.has(name) ? sheets : sheets.pad(base, name, pad);
     }
 
     private Column column(Size size) {
@@ -391,10 +423,8 @@ public final class HudLayout {
             all.add(c.pictures());
             all.addAll(c.rows());
         }
-        if (boardPictures != null) {
-            all.add(boardPictures);
-            all.addAll(boardRows);
-        }
+        if (boardPictures != null) all.add(boardPictures);
+        all.addAll(boardRows);
         for (HudFont f : all) out.put(f.path(), f.json());
         return out;
     }
@@ -413,6 +443,14 @@ public final class HudLayout {
      * absolute x with zero net advance, so the game still centres the message by its own width.
      */
     public Component actionBar(Health h, Component message) {
+        return actionBar(h, message, null);
+    }
+
+    /**
+     * The action bar with the board ({@link #board}, null for none) too: the bars (or none), the message, the board,
+     * each by absolute x, the net advance still the message's own.
+     */
+    public Component actionBar(Health h, Component message, Component board) {
         List<HudText.Cell> text = message == null ? List.of() : HudText.untab(HudText.cells(message));
         int w = HudText.width(line, text);
         Ink ink = new Ink(-(w / 2));
@@ -424,8 +462,12 @@ public final class HudLayout {
             else foodBar(ink, h);
             if ((h.armor() > 0 || h.anim().armor() > 0) && settings.armor()) armorBar(ink, h);
             if (h.air() != null) airBar(ink, h.air());
-            ink.to(bar, end);
         }
+        if (board != null) {
+            ink.to(bar, 0);
+            ink.raw(board);
+        }
+        if (ink.pen() != end) ink.to(bar, end);
         return ink.build();
     }
 
@@ -786,38 +828,81 @@ public final class HudLayout {
     }
 
     // ------------------------------------------------------------------------------------------
-    // Board: a small panel against the bottom right (the first boss bar's title, see the class comment)
+    // Board: rows of a face and text against the bottom right, on the action bar (see the class comment)
     // ------------------------------------------------------------------------------------------
 
     /**
-     * What the board shows: a title, up to {@value #BOARD_LINES} lines (more are dropped) and an optional footer
-     * (null: none) under a divider. A tab in a line or the footer puts what follows against the right edge, as in the
-     * sidebar; a line too long ends in an ellipsis. Component.empty() is an empty line.
+     * What the board shows: a header line (no face) over at most {@value #BOARD_SLOTS} - 1 rows (more are dropped),
+     * the first row the highest, the last just above the bottom of the screen. A row of a player shows a face before
+     * its text (null player: none, the text in the same column). A tab in the header or a row puts what follows
+     * against the board's right edge and keeps it whole: what is before it ends in an ellipsis when the row is too
+     * long (a name), as a row without a tab does. Component.empty() is an empty row.
      */
-    public record Board(Component title, List<Component> lines, Component footer) {
+    public record Board(Component title, List<Row> rows) {
+
+        /** One row: whose face (null: none) and the text. */
+        public record Row(UUID player, Component text) {
+            public Row {
+                if (text == null) text = Component.empty();
+            }
+        }
 
         public Board {
             if (title == null) title = Component.empty();
-            List<Component> kept = new ArrayList<>();
-            if (lines != null) for (Component c : lines) if (kept.size() < BOARD_LINES) kept.add(c == null ? Component.empty() : c);
-            lines = List.copyOf(kept);
+            List<Row> kept = new ArrayList<>();
+            if (rows != null) for (Row r : rows) if (r != null && kept.size() < BOARD_SLOTS - 1) kept.add(r);
+            rows = List.copyOf(kept);
+        }
+
+        /** The earlier form: a title, lines without faces and an optional footer (null: none) as the last row. */
+        public Board(Component title, List<Component> lines, Component footer) {
+            this(title, legacy(lines, footer));
+        }
+
+        private static List<Row> legacy(List<Component> lines, Component footer) {
+            List<Row> out = new ArrayList<>();
+            if (lines != null) for (Component c : lines) out.add(new Row(null, c));
+            if (footer != null) out.add(new Row(null, footer));
+            return out;
         }
     }
 
-    /** The board's look: the sidebar's small size (Galmuri7, the small strips), at scale 1. */
-    static final Style BOARD_STYLE = Style.S;
+    /**
+     * The board's grid, in GUI px above the bottom of the screen: slots BOARD_PITCH apart from hud.board.margin up,
+     * a face BOARD_FACE high at the top of its slot, the letters (Galmuri7) BOARD_LETTER_DY below the face's top and
+     * the text BOARD_TEXT_X right of the face's left edge.
+     */
+    static final int BOARD_SLOTS = 7, BOARD_PITCH = 11, BOARD_FACE = 10, BOARD_LETTER_DY = 2, BOARD_TEXT_X = 13;
+    /** The default and the highest margin under the lowest row (higher costs taller letter cells: see Settings). */
+    static final int BOARD_MARGIN = 2, BOARD_MAX_MARGIN = 40;
+    /**
+     * The board's left edge never comes nearer the middle than x BOARD_CLEAR_X (the hotbar ends at 91, the bars'
+     * numbers at 105), so at any screen height it cannot cover them.
+     */
+    static final int BOARD_CLEAR_X = 106;
+    /**
+     * The faces a player gets (one picked by their UUID, always the same): the passengers' plain faces. A player's
+     * own skin cannot be drawn here: the game draws a player head text object (1.21.9) only at its line's own
+     * height, so on the action bar it could sit in one row at most, and a pack cannot hold every player's skin.
+     */
+    static final List<String> BOARD_FACES = List.of("fisher_1", "camper_1", "farmer_1", "hiker_1", "kid_1", "resident_1",
+            "student_1", "worker_1", "haenyeo_1", "tourist_1", "office_1", "univ_1", "traveler_1", "uncle_1", "grandma_1", "mom_1");
+    static final String BOARD_FACE_SHEET = "board_faces";
 
-    /** The top of the board's row slot s (0: the lowest, just over the foot strip), px below the top of the screen. */
-    static int boardRowTop(int bottom, int s) {
-        return bottom - BOARD_STYLE.foot - (s + 1) * BOARD_STYLE.row;
+    /** The top of slot s's face (0: the lowest), px above the bottom of the screen. */
+    static int boardTop(int margin, int s) {
+        return margin + s * BOARD_PITCH + BOARD_FACE;
     }
 
-    /**
-     * The top of the title strip over n rows: its letters share the letter font of slot n (the slot over the top
-     * row), BOARD_TITLE_DY below its top, so the strip overlaps the top row by a pixel (both are the panel's body there).
-     */
-    static int boardHeadTop(int bottom, int n) {
-        return boardRowTop(bottom, n) + BOARD_STYLE.textDy - BOARD_TITLE_DY;
+    /** Extra see-through rows a sheet `height` px high needs to be drawn with its top at an action-bar ascent. */
+    static int boardPad(int ascent, int height) {
+        return Math.max(0, ascent - height);
+    }
+
+    /** The face a player gets on the board (null: no faces in the pack). */
+    String boardFace(UUID player) {
+        if (player == null || boardFaces.isEmpty()) return null;
+        return boardFaces.get(Math.floorMod(player.hashCode(), boardFaces.size()));
     }
 
     /** The board's widest at a right edge: hud.board.max-width, and never left of BOARD_CLEAR_X (but at least MIN_WIDTH). */
@@ -838,39 +923,50 @@ public final class HudLayout {
         return Math.max(BOARD_CLEAR_X + MIN_WIDTH, Math.min(MAX_RIGHT, edge));
     }
 
-    /** A board laid out: its title, its rows (the footer last, with a divider), its width. */
-    private record BoardLaid(List<HudText.Cell> title, List<Line> rows, int width) {}
+    /** A board line laid out: its face (or null), where its text starts (px from the left edge), its text, its value (or null). */
+    private record BoardLine(String face, int textX, List<HudText.Cell> text, List<HudText.Cell> value) {}
+
+    /** A board laid out: the header first, then the rows; its width. */
+    private record BoardLaid(List<BoardLine> lines, int width) {}
 
     private BoardLaid layBoard(Board b, int right) {
         HudFont measure = boardRows.getFirst();
-        int pad = PAD, gap = VALUE_GAP;
-        List<HudText.Cell> title = HudText.untab(HudText.onPanel(HudText.supported(measure, HudText.cells(b.title()))));
+        boolean faces = false;
+        for (Board.Row r : b.rows()) faces |= boardFace(r.player()) != null;
         List<List<HudText.Cell>> texts = new ArrayList<>();
-        for (Component c : b.lines()) texts.add(HudText.onPanel(HudText.supported(measure, HudText.cells(c))));
-        if (b.footer() != null) texts.add(HudText.onPanel(HudText.supported(measure, HudText.cells(b.footer()))));
-        int widest = HudText.width(measure, title);
-        for (List<HudText.Cell> t : texts) {
-            List<List<HudText.Cell>> parts = HudText.split(t);
-            int w = parts == null ? HudText.width(measure, HudText.untab(t))
-                    : HudText.width(measure, parts.get(0)) + (parts.get(1).isEmpty() ? 0 : gap + HudText.width(measure, parts.get(1)));
-            widest = Math.max(widest, w);
+        List<Integer> xs = new ArrayList<>();
+        List<String> faceOf = new ArrayList<>();
+        texts.add(HudText.onPanel(HudText.supported(measure, HudText.cells(b.title()))));
+        xs.add(0);
+        faceOf.add(null);
+        for (Board.Row r : b.rows()) {
+            texts.add(HudText.onPanel(HudText.supported(measure, HudText.cells(r.text()))));
+            xs.add(faces ? BOARD_TEXT_X : 0);
+            faceOf.add(boardFace(r.player()));
         }
-        int width = Math.max(MIN_WIDTH, Math.min(boardCap(right, settings.boardMaxWidth()), pad + widest + pad));
-        int textMax = width - 2 * pad;
-        title = fitLine(measure, title, textMax);
-        List<Line> rows = new ArrayList<>();
+        int widest = 0;
         for (int i = 0; i < texts.size(); i++) {
+            List<List<HudText.Cell>> parts = HudText.split(texts.get(i));
+            int w = parts == null ? HudText.width(measure, HudText.untab(texts.get(i)))
+                    : HudText.width(measure, parts.get(0)) + (parts.get(1).isEmpty() ? 0 : VALUE_GAP + HudText.width(measure, parts.get(1)));
+            widest = Math.max(widest, xs.get(i) + w);
+        }
+        int width = Math.min(boardCap(right, settings.boardMaxWidth()), widest);
+        List<BoardLine> lines = new ArrayList<>();
+        for (int i = 0; i < texts.size(); i++) {
+            int avail = width - xs.get(i);
             List<HudText.Cell> t = texts.get(i);
-            boolean footer = b.footer() != null && i == texts.size() - 1;
             List<List<HudText.Cell>> parts = HudText.split(t);
-            if (parts != null && !parts.get(1).isEmpty()
-                    && HudText.width(measure, parts.get(0)) + gap + HudText.width(measure, parts.get(1)) <= textMax) {
-                rows.add(new Line(null, parts.get(0), parts.get(1), footer));
+            if (parts != null && !parts.get(1).isEmpty() && HudText.width(measure, parts.get(1)) <= avail) {
+                // the value stays whole against the right edge; the label gives way
+                int room = avail - HudText.width(measure, parts.get(1)) - VALUE_GAP;
+                List<HudText.Cell> label = room <= 0 ? List.of() : fitLine(measure, parts.get(0), room);
+                lines.add(new BoardLine(faceOf.get(i), xs.get(i), label, parts.get(1)));
             } else {
-                rows.add(new Line(null, fitLine(measure, t, textMax), null, footer));
+                lines.add(new BoardLine(faceOf.get(i), xs.get(i), fitLine(measure, HudText.untab(t), avail), null));
             }
         }
-        return new BoardLaid(title, rows, width);
+        return new BoardLaid(lines, width);
     }
 
     /** One line of at most max px (an ellipsis at the end of what does not fit). */
@@ -881,39 +977,30 @@ public final class HudLayout {
 
     /** How wide the board is at a right edge (0 when the board is off or there is none). */
     public int boardWidth(Board b, int right) {
-        if (b == null || boardPictures == null) return 0;
+        if (b == null || boardRows.isEmpty()) return 0;
         return layBoard(b, right).width();
     }
 
     /**
-     * The board against its right edge (px right of the screen's middle), its bottom at hud.board.bottom; null when
-     * there is none or the board is off. Zero net advance (it follows the panel and the overlay in one title).
+     * The board against its right edge (px right of the screen's middle), its lowest row hud.board.margin above the
+     * bottom of the screen; null when there is none or the board is off. For the action bar ({@link #actionBar}):
+     * its pen starts at the middle (0) and ends there (zero net advance).
      */
     public Component board(Board b, int right) {
-        if (b == null || boardPictures == null) return null;
+        if (b == null || boardRows.isEmpty()) return null;
         BoardLaid laid = layBoard(b, right);
-        Style st = BOARD_STYLE;
-        HudFont pic = boardPictures;
-        int bottom = settings.boardBottom(), n = laid.rows().size();
-        int width = laid.width(), x = right - width, head = boardHeadTop(bottom, n);
+        int n = laid.lines().size(), x = right - laid.width();
         Ink ink = new Ink(0);
-        strip(ink, pic, "panel_head" + st.suffix, boss(head), x, width, 1);
-        for (int s = 0; s < n; s++) strip(ink, pic, "panel_row" + st.suffix, boss(boardRowTop(bottom, s)), x, width, 1);
-        strip(ink, pic, "panel_foot" + st.suffix, boss(bottom - st.foot), x, width, 1);
-        ink.to(pic, x + MARK_X).glyph(pic, pic.glyph("panel_mark", "accent", boss(head + st.gold)));
         for (int i = 0; i < n; i++) {
-            int s = n - 1 - i;   // the first row is the highest
-            if (laid.rows().get(i).divider() && i > 0) segments(ink, pic, "panel_div", boss(boardRowTop(bottom, s) + st.divider), x + PAD, width - 2 * PAD, 1);
+            BoardLine l = laid.lines().get(i);
+            int s = n - 1 - i;   // the header the highest, the last row in slot 0
+            int top = boardTop(settings.boardMargin(), s);
+            if (l.face() != null) ink.to(boardPictures, x).glyph(boardPictures, boardPictures.glyph(boardFaceSheets.get(s), l.face(), action(top), 1));
+            HudFont f = boardRows.get(s);
+            ink.to(f, x + l.textX()).text(f, l.text());
+            if (l.value() != null) ink.to(f, right - HudText.width(f, l.value())).text(f, l.value());
         }
-        HudFont titleFont = boardRows.get(n);
-        ink.to(titleFont, x + PAD).text(titleFont, laid.title());
-        for (int i = 0; i < n; i++) {
-            Line l = laid.rows().get(i);
-            HudFont f = boardRows.get(n - 1 - i);
-            ink.to(f, x + PAD).text(f, l.text());
-            if (l.value() != null) ink.to(f, x + width - PAD - HudText.width(f, l.value())).text(f, l.value());
-        }
-        ink.to(pic, 0);
+        ink.to(boardRows.getFirst(), 0);
         return ink.build();
     }
 
