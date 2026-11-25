@@ -177,9 +177,11 @@ public final class CodexModule extends EcoModule {
             if (at != null && item.equals(Items.key(at))) taken = at;
         }
         if (taken == null) {
-            // the cheapest of them: a sized fish only when there is no smaller one (a trophy is never given before a small one)
             for (ItemStack it : p.getInventory().getStorageContents()) {
-                if (it != null && !it.isEmpty() && item.equals(Items.key(it)) && (taken == null || Items.sizeFactor(it) < Items.sizeFactor(taken))) taken = it;
+                if (it != null && !it.isEmpty() && item.equals(Items.key(it))) {
+                    taken = it;
+                    break;
+                }
             }
         }
         if (taken == null) return "codex.missing";
@@ -342,7 +344,7 @@ public final class CodexModule extends EcoModule {
             FishStore.Entry e = eco.fishing().store().of(u).get(s.id());
             return Lang.items(e == null ? "codex.fish-lore" : "codex.fish-lore-caught", "where", where, "when", when,
                     "color", r.color(), "rarity", r.name(), "min", fmt(s.min()), "max", fmt(s.max()),
-                    "count", e == null ? 0 : e.count, "best", e == null ? "-" : String.format("%.1f", e.best));
+                    "count", e == null ? 0 : e.count, "colour", s.colour() == null ? "-" : spec.colours().getOrDefault(s.colour(), s.colour()));
         }
 
         @Override

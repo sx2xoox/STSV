@@ -1,15 +1,11 @@
 package dev.stsv.economy.fishing;
 
-import dev.stsv.core.nickname.Names;
 import dev.stsv.core.util.Lang;
 import dev.stsv.core.util.Text;
 import dev.stsv.economy.EcoModule;
 import dev.stsv.economy.EcoPlugin;
-import dev.stsv.economy.calendar.WeeklyListener;
 import dev.stsv.economy.job.JobSpec;
 import dev.stsv.economy.util.Items;
-import dev.stsv.economy.util.Players;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.title.Title;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -41,14 +37,13 @@ import java.util.UUID;
 /**
  * 낚시: as in vanilla, right click while the float is pulled under to reel in (too late and the fish is gone). What
  * comes up is one of 98 fish by habitat, time and weather, its rarity rolled by the job (rare and legend: the fisher's
- * finds chance, more from a boat); rare and legend fish carry their size (the shop pays 0.7 - 1.5x by it). Every catch
- * goes in the /도감 codex; a full habitat gives a title, all fish [강태공]. The week's biggest catch is announced.
- * Treasure and junk stay vanilla.
+ * finds chance, more from a boat, x{@link FishSpec#FISHER_RARE_BONUS} for a fisher from Lv20). A fish has no size (2026-11):
+ * they all stack and sell alike; the 낚시대회 ({@link TournamentModule}) gives a catch a size in its message only. Fish caught
+ * before carry their old size: {@link #tidy} turns them into the plain fish (when the owner joins, opens a container, picks
+ * one up or takes it out of the mailbox) and pays once what the size was worth above base. Every catch goes in the /도감
+ * codex; a full habitat gives a title, all fish [강태공]. Treasure and junk stay vanilla.
  */
-public final class FishingModule extends EcoModule implements WeeklyListener {
-
-    public static final NamespacedKey SIZE = new NamespacedKey("economy", "fish_size");
-    public static final NamespacedKey FACTOR = new NamespacedKey("economy", "fish_factor");
+public final class FishingModule extends EcoModule {
     private static final Set<Material> FISH = Set.of(Material.COD, Material.SALMON, Material.PUFFERFISH, Material.TROPICAL_FISH);
 
     /** the boat (its vehicle number) a crate of catch was hauled by: only that boat's hold sells it at a harbour */
@@ -79,11 +74,8 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         store = new FishStore(core.db());
         store.init();
         load();
-        eco.calendar().onWeekly(this);
-        eco.onReset(() -> {
-            store.reset();
-            eco.kv().remove("fish.week");
-        });
+        eco.kv().remove("fish.week");   // the week's biggest catch (until 2026-11): no longer kept
+        eco.onReset(store::reset);
         if (core.vehicles() != null) core.vehicles().netHaul(this::netHaul);   // 배의 그물 (코어 작업기): 어획 상자, 없으면 낱마리
     }
 
@@ -219,7 +211,9 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         FishSpec.Moment m = new FishSpec.Moment(w.getTime(), w.hasStorm(), w.isThundering(), (int) ((w.getFullTime() / 24000) % 8));
         // a fisher fishing from a boat (sitting in a 통통배) gets the job's boat-rare on top
         boolean onBoat = core.vehicles() != null && core.vehicles().ridingBoat(p);
-        double rare = rareChance(eco.jobs().findChance(u, "fisher"), eco.jobs().effect(u, "fisher", "boat-rare"), onBoat);
+        boolean lv20 = "fisher".equals(eco.jobs().job(u)) && eco.jobs().level(u) >= FISHER_RARE_LEVEL;
+        double rare = rareChance(eco.jobs().findChance(u, "fisher"), eco.jobs().effect(u, "fisher", "boat-rare"), onBoat,
+                lv20 ? FishSpec.FISHER_RARE_BONUS : 1);
         FishSpec.Rarity tier = spec.tier(rare, rnd);
         FishSpec.Species s;
         if (force != null) {
@@ -239,13 +233,13 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         caught.remove();
         e.getHook().remove();
         EquipmentSlot hand = e.getHand() == EquipmentSlot.OFF_HAND ? EquipmentSlot.OFF_HAND : EquipmentSlot.HAND;
-        land(p, s, hand);
+        land(p, s, hand, true);
         var acc = eco.accessories();
         if (acc != null) {
             acc.activity(u, "fish", 1);
             acc.drop(p, "fish");
             // 장신구 만선: a common or uncommon fish comes up twice
-            if (spec.rarities().get(s.rarity()).index() <= 1 && !s.id().equals("pearl") && acc.roll(u, "full_net")) land(p, s, hand);
+            if (spec.rarities().get(s.rarity()).index() <= 1 && !s.id().equals("pearl") && acc.roll(u, "full_net")) land(p, s, hand, false);
             // 장신구 용궁 보물: a 용궁 상자 with the catch
             if (acc.roll(u, "dragon_treasure")) Items.create(acc.spec().chestItem(), 1).ifPresent(c -> {
                 for (ItemStack left : p.getInventory().addItem(c).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
@@ -283,19 +277,19 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
     // The catch
     // ------------------------------------------------------------------------------------------
 
-    /** The fish on the line comes up: into the inventory, with what vanilla gives for a catch, the codex and the week's record. */
-    private void land(Player p, FishSpec.Species s, EquipmentSlot hand) {
+    /**
+     * The fish on the line comes up: into the inventory, with what vanilla gives for a catch, and the codex. rod = the bite itself
+     * (not the 장신구 만선's second fish): only that one counts in a 낚시대회.
+     */
+    private void land(Player p, FishSpec.Species s, EquipmentSlot hand, boolean rod) {
         UUID u = p.getUniqueId();
         FishSpec.Rarity r = spec.rarities().get(s.rarity());
         boolean fisher = "fisher".equals(eco.jobs().job(u));
         int level = fisher ? eco.jobs().level(u) : 0;
         boolean pearl = s.id().equals("pearl");
-        double size = pearl ? 0 : FishSpec.size(s, rnd.nextDouble(), fisher && level >= 20 ? FishSpec.FISHER_SIZE_BONUS : 0);
         JobSpec.Job fj = eco.jobs().spec().jobs().get("fisher");
         int count = fisher && fj != null && fj.finds() != null && level >= fj.finds().doubleLevel() && fj.finds().doubleItems().contains(s.item()) ? 2 : 1;
         ItemStack it = Items.create(s.item(), count).orElse(new ItemStack(Material.COD, count));
-        double factor = FishSpec.priceFactor(s, size);
-        if (!pearl && r.index() >= 2) markSize(it, size, factor);   // rare and legend fish keep their size (they do not stack, the shop pays by it)
         boolean trial = eco.guide() != null && eco.guide().active(p);   // 길라잡이: a trial fish, and no records
         if (trial) Items.markTrial(it);
         for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
@@ -307,58 +301,134 @@ public final class FishingModule extends EcoModule implements WeeklyListener {
         eco.jobs().rewardAction(p, "catch", s.item(), 1);
         if (r.index() >= 2) eco.jobs().rewardAction(p, "find", s.item(), 1);
         eco.jobs().rollSpecials(p, "catch", null);
-        // the title: the fish's picture and name, its size below
+        // a 낚시대회 running: a rod's catch scores (a trial fish never), and gets a size in its message only
+        TournamentModule.Scored scored = !pearl && rod && !trial && eco.tournament() != null ? eco.tournament().caught(p, s) : null;
+        // the title: the fish's picture and name, its rarity below (and the tournament's size grade)
         int idx = order.indexOf(s.id());
         String head = (idx >= 0 ? FishSpec.icon(idx) + " " : "") + "<" + r.color() + ">" + s.name();
-        String sub = pearl ? "" : Lang.raw("fishing.result", "size", String.format("%.1f", size));
+        String sub = pearl ? "" : scored != null ? Lang.raw("fishing.result-tournament", "color", r.color(), "rarity", r.name(), "grade", scored.grade())
+                : Lang.raw("fishing.result", "color", r.color(), "rarity", r.name());
         p.showTitle(Title.title(Text.mm(head), Text.mm(sub), Title.Times.times(Duration.ofMillis(150), Duration.ofMillis(2500), Duration.ofMillis(600))));
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f + r.index() * 0.1f);
         p.sendMessage(Lang.msg(pearl ? "fishing.caught-pearl" : "fishing.caught",
-                "color", r.color(), "fish", s.name(), "size", String.format("%.1f", size), "count", count > 1 ? " ×" + count : ""));
+                "color", r.color(), "fish", s.name(), "rarity", r.name(), "count", count > 1 ? " ×" + count : ""));
+        if (scored != null) p.sendMessage(Lang.msg("tournament.size", "size", String.format("%.1f", scored.size()),
+                "grade", scored.grade(), "weight", TournamentRules.weightText(scored.weight()), "points", scored.pointsText()));
         if (pearl || trial) return;
-        boolean first = store.record(u, s.id(), size, now());
+        boolean first = store.record(u, s.id(), 0, now());   // no size: the codex's biggest catch stays what it was
         // the codex takes one of the fish to register it (/도감)
         if (first && !eco.codex().registered(u).contains(dev.stsv.economy.shop.ShopCatalog.norm(s.item()))) {
             p.sendMessage(Lang.msg("fishing.new-species", "fish", s.name()));
         }
-        weeklyRecord(p, s, size);
     }
 
-    /** A rare or legend fish's size on its item: the lore line and the size and price factor the shop reads. */
-    public static void markSize(ItemStack it, double size, double factor) {
-        it.editMeta(meta -> {
-            List<Component> lore = meta.hasLore() ? new ArrayList<>(meta.lore()) : new ArrayList<>();
-            lore.add(Lang.item("fishing.size-lore", "size", String.format("%.1f", size), "pct", Math.round(factor * 100)));
-            meta.lore(lore);
-            meta.getPersistentDataContainer().set(SIZE, PersistentDataType.DOUBLE, size);
-            meta.getPersistentDataContainer().set(FACTOR, PersistentDataType.DOUBLE, factor);
-        });
-    }
+    /** The fisher's level from which rare and legend bites are {@link FishSpec#FISHER_RARE_BONUS} times as likely. */
+    public static final int FISHER_RARE_LEVEL = 20;
 
     /**
      * The chance of a rare or legend bite: the job's finds chance (anyone else: the outsider chance) and, while riding a boat
      * (통통배), the job's boat-rare on top (0 for anyone but a fisher: it is the fisher's effect).
      */
     public static double rareChance(double finds, double boatBonus, boolean onBoat) {
-        return Math.clamp(finds + (onBoat ? Math.max(0, boatBonus) : 0), 0, 1);
+        return rareChance(finds, boatBonus, onBoat, 1);
     }
 
-    /** kv fish.week = "week;player;species;size" of the week's biggest catch (by length). */
-    private void weeklyRecord(Player p, FishSpec.Species s, double size) {
-        int week = eco.calendar().week();
-        String[] cur = eco.kv().get("fish.week", "").split(";");
-        double best = cur.length == 4 && cur[0].equals(String.valueOf(week)) ? Double.parseDouble(cur[3]) : 0;
-        if (size <= best) return;
-        eco.kv().set("fish.week", week + ";" + p.getUniqueId() + ";" + s.id() + ";" + size);
-        if (best > 0) Bukkit.broadcast(Lang.msg("fishing.week-record", "player", Names.mini(p), "fish", s.name(), "size", String.format("%.1f", size)));
+    /** The same, times multiplier (a fisher from Lv20: {@link FishSpec#FISHER_RARE_BONUS}; anyone else 1), at most 1. */
+    public static double rareChance(double finds, double boatBonus, boolean onBoat, double multiplier) {
+        return Math.clamp((finds + (onBoat ? Math.max(0, boatBonus) : 0)) * Math.max(0, multiplier), 0, 1);
     }
 
-    @Override
-    public void newWeek(int week, long weekStart) {
-        String[] cur = eco.kv().get("fish.week", "").split(";");
-        if (cur.length != 4 || !cur[0].equals(String.valueOf(week - 1))) return;
-        FishSpec.Species s = spec.species().get(cur[2]);
-        Bukkit.broadcast(Lang.msg("fishing.week-winner", "player", Players.name(UUID.fromString(cur[1])),
-                "fish", s == null ? cur[2] : s.name(), "size", cur[3]));
+    // ------------------------------------------------------------------------------------------
+    // Fish caught before 2026-11 still carry their size: turned into the plain fish, the size's worth paid once
+    // ------------------------------------------------------------------------------------------
+
+    /** What one tidy-up turned and owes: fish = how many, owed = G (not rounded). */
+    private static final class Tally {
+        int fish;
+        double owed;
+    }
+
+    /** The plain fish for a sized stack (the same stack otherwise), adding what it owes to t. */
+    private ItemStack plain(ItemStack it, Tally t) {
+        if (!Items.sized(it)) return it;
+        ItemStack plain = Items.stripSize(it);
+        if (plain == it) return it;
+        double base = 0;
+        if (!Items.trial(it) && !Items.shopBought(it) && eco.shop() != null) {
+            var e = eco.shop().catalog().sell().get(dev.stsv.economy.shop.ShopCatalog.norm(Items.key(it)));
+            if (e != null) base = e.base();
+        }
+        t.fish += it.getAmount();
+        t.owed += OldSizes.refund(Items.oldSizeFactor(it), base, it.getAmount());
+        return plain;
+    }
+
+    /** Every sized stack of these inventories replaced in place by its plain fish; p is paid and told (once for all of them). */
+    public void tidy(Player p, org.bukkit.inventory.Inventory... invs) {
+        Tally t = new Tally();
+        for (org.bukkit.inventory.Inventory inv : invs) {
+            if (inv == null) continue;
+            ItemStack[] c = inv.getContents();
+            for (int i = 0; i < c.length; i++) {
+                if (!Items.sized(c[i])) continue;
+                inv.setItem(i, plain(c[i], t));
+            }
+        }
+        settle(p, t);
+    }
+
+    /** The same for a list of stacks (a 통발's catch), replaced in place. */
+    public void tidy(Player p, List<ItemStack> items) {
+        Tally t = new Tally();
+        items.replaceAll(it -> plain(it, t));
+        settle(p, t);
+    }
+
+    /** One stack on its way to p (out of the mailbox): the plain fish if it was sized, p paid and told. */
+    public ItemStack tidy(Player p, ItemStack it) {
+        Tally t = new Tally();
+        ItemStack out = plain(it, t);
+        settle(p, t);
+        return out;
+    }
+
+    private void settle(Player p, Tally t) {
+        if (t.fish <= 0) return;
+        long pay = OldSizes.payout(t.owed);
+        if (pay > 0) core.economy().move(null, p.getUniqueId(), pay, dev.stsv.core.economy.EconomyStore.Kind.FAUCET, "fish_size_refund",
+                t.fish + " fish");
+        p.sendMessage(pay > 0 ? Lang.msg("fishing.tidied-paid", "count", t.fish, "amount", dev.stsv.core.economy.EconomyModule.format(pay))
+                : Lang.msg("fishing.tidied", "count", t.fish));
+    }
+
+    /** A real container the opener may take from (a chest, barrel, shulker box, a minecart's or a donkey's, their own ender chest): never a menu. */
+    private static boolean storage(org.bukkit.inventory.Inventory top, Player p) {
+        org.bukkit.inventory.InventoryHolder h = top.getHolder(false);
+        if (top.getType() == org.bukkit.event.inventory.InventoryType.ENDER_CHEST) return h == p;
+        if (h instanceof Player) return false;
+        return h instanceof org.bukkit.block.Container || h instanceof org.bukkit.block.DoubleChest || h instanceof org.bukkit.entity.Entity;
+    }
+
+    @EventHandler
+    public void onJoinTidy(org.bukkit.event.player.PlayerJoinEvent e) {
+        Player p = e.getPlayer();
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (p.isOnline()) tidy(p, p.getInventory(), p.getEnderChest());
+        }, 40L);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onOpenTidy(org.bukkit.event.inventory.InventoryOpenEvent e) {
+        if (!(e.getPlayer() instanceof Player p)) return;
+        org.bukkit.inventory.Inventory top = e.getView().getTopInventory();
+        tidy(p, p.getInventory(), storage(top, p) ? top : null);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPickupTidy(org.bukkit.event.entity.EntityPickupItemEvent e) {
+        if (!(e.getEntity() instanceof Player p) || !Items.sized(e.getItem().getItemStack())) return;
+        Bukkit.getScheduler().runTask(eco, () -> {   // once it is in the inventory
+            if (p.isOnline()) tidy(p, p.getInventory());
+        });
     }
 }

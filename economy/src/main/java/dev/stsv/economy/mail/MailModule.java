@@ -62,11 +62,16 @@ public final class MailModule extends EcoModule {
         // (their things are put away, and everything there turns into a trial thing) -> mailbox
         boolean guide = p != null && eco.guide() != null && eco.guide().inGuide(p);
         if (p != null && !p.isDead() && !guide && Items.room(p.getInventory(), item) >= item.getAmount()) {
-            p.getInventory().addItem(item.clone());
+            p.getInventory().addItem(tidy(p, item.clone()));
             return;
         }
         store.send(player, Items.bytes(item), reason, now());
         if (p != null) p.sendMessage(Lang.msg("mail.arrived", "item", Items.mmName(item)));
+    }
+
+    /** A fish caught before 2026-11 (a 거래소 · 경매 buy, a returned listing) arrives as the plain fish; its old size is paid (FishingModule#tidy). */
+    private ItemStack tidy(Player p, ItemStack item) {
+        return eco.fishing() == null ? item : eco.fishing().tidy(p, item);
     }
 
     @EventHandler
@@ -137,7 +142,7 @@ public final class MailModule extends EcoModule {
             store.take(m.id(), p.getUniqueId()).thenAccept(ok -> sync(() -> {
                 if (ok && !p.isOnline()) store.send(p.getUniqueId(), Items.bytes(item), m.reason(), now());   // left meanwhile: back in
                 else if (ok) {
-                    for (ItemStack left : p.getInventory().addItem(item).values()) store.send(p.getUniqueId(), Items.bytes(left), m.reason(), now());
+                    for (ItemStack left : p.getInventory().addItem(tidy(p, item)).values()) store.send(p.getUniqueId(), Items.bytes(left), m.reason(), now());
                     p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.2f);
                 }
                 v.refresh();
@@ -161,7 +166,7 @@ public final class MailModule extends EcoModule {
                 taken++;
                 store.take(m.id(), p.getUniqueId()).thenAccept(ok -> sync(() -> {
                     if (ok && !p.isOnline()) store.send(p.getUniqueId(), Items.bytes(item), m.reason(), now());
-                    else if (ok) for (ItemStack left : p.getInventory().addItem(item).values()) store.send(p.getUniqueId(), Items.bytes(left), m.reason(), now());
+                    else if (ok) for (ItemStack left : p.getInventory().addItem(tidy(p, item)).values()) store.send(p.getUniqueId(), Items.bytes(left), m.reason(), now());
                 }));
             }
             if (taken > 0) p.playSound(p.getLocation(), Sound.ENTITY_ITEM_PICKUP, 0.6f, 1.2f);

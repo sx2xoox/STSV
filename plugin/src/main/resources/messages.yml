@@ -357,6 +357,17 @@ hud:
   edit-unavailable: "<gray>리소스팩을 받은 뒤에 쓸 수 있습니다."
   edit-off: "<gray>이 서버는 사이드바를 쓰지 않습니다."
   edit-busy: "<gray>지금은 편집할 수 없습니다. <dark_gray>(탈것을 타거나 겉날개로 날거나 자는 중)"
+  # /관리자 사이드바 보드시험: 화면 오른쪽 아래 보드의 견본 (탭 문자 뒤는 오른쪽 끝에 붙음)
+  board-preview: "<gray>화면 오른쪽 아래에 보드 견본을 10초 동안 띄웁니다."
+  board-preview-usage: "<gray>/관리자 사이드바 보드시험 <dark_gray>(화면 오른쪽 아래 보드 견본 10초)"
+  board-preview-off: "<gray>보드를 쓰지 않습니다. <dark_gray>(config.yml hud.board.enabled, hud.mode: pack)"
+  board-sample-title: "<gold>낚시 대회 <gray>12:34"
+  board-sample-1: "<yellow>1위 <white>민들레\t<aqua>52.3cm"
+  board-sample-2: "<gray>2위 <white>Steve\t<aqua>48.0cm"
+  board-sample-3: "<gold>3위 <white>바닷가재\t<aqua>41.7cm"
+  board-sample-4: "<gray>4위 <white>Alex\t<aqua>39.2cm"
+  board-sample-5: "<gray>5위 <white>낚시왕\t<aqua>35.5cm"
+  board-sample-footer: "<gray>내 기록\t<white>31.0cm <gray>(7위)"
 
 economy:
   # 금액 표시 형식: {amount} = 1,234

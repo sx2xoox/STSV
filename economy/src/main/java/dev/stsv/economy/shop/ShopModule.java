@@ -258,8 +258,6 @@ public final class ShopModule extends EcoModule implements DailyListener {
             eco.events().update(premium, params);
             if (left - high <= 0) Bukkit.broadcast(Lang.msg("shop.premium-sold-out", "item", itemName(id), "player", Names.mini(p)));
         }
-        // rare and legend fish: by their size (0.7 - 1.5x)
-        total *= Items.sizeFactor(p.getInventory(), same, n, first);
         String rk = p.getUniqueId() + "|" + id;
         total += remainder.getOrDefault(rk, 0.0);
         long paid = (long) Math.floor(total);

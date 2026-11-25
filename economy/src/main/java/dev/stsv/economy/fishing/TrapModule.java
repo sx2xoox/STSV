@@ -212,11 +212,7 @@ public final class TrapModule extends EcoModule {
             if (s == null) continue;
             ItemStack it = Items.create(s.item(), 1).orElse(null);
             if (it == null) continue;
-            if (fish().rarities().get(s.rarity()).index() >= 2) {
-                double size = FishSpec.size(s, rnd.nextDouble(), 0);
-                FishingModule.markSize(it, size, FishSpec.priceFactor(s, size));
-            }
-            stack(t.stored, it);
+            stack(t.stored, it);   // no size (2026-11): a rare one stacks like the rest
         }
     }
 
@@ -246,6 +242,7 @@ public final class TrapModule extends EcoModule {
     private void openTrap(Player p, TrapStore.Trap t) {
         long now = now();
         catchUp(t, now);
+        eco.fishing().tidy(p, t.stored);   // a rare fish caught before 2026-11 still had its size: the plain fish now
         int took = 0;
         Map<String, Integer> xp = new HashMap<>();
         for (ItemStack it : List.copyOf(t.stored)) {

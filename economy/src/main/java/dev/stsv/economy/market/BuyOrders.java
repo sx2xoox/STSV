@@ -2,9 +2,6 @@ package dev.stsv.economy.market;
 
 import dev.stsv.economy.TradeRules;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -56,16 +53,5 @@ public final class BuyOrders {
         long gross = escrow(n, unit);
         long fee = TradeRules.fee(gross, feeRate);
         return new Payout(gross, fee, gross - fee);
-    }
-
-    /**
-     * The order in which a fill takes the seller's matching slots: the smallest size factor first (a rare fish's trophy size
-     * goes last, since an order pays the same for any size), then by slot. factor[i] = NaN: slot i does not match.
-     */
-    public static int[] smallestFirst(double[] factor) {
-        List<Integer> slots = new ArrayList<>();
-        for (int i = 0; i < factor.length; i++) if (!Double.isNaN(factor[i])) slots.add(i);
-        slots.sort(Comparator.<Integer>comparingDouble(i -> factor[i]).thenComparingInt(i -> i));
-        return slots.stream().mapToInt(Integer::intValue).toArray();
     }
 }

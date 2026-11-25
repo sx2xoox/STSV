@@ -279,19 +279,15 @@ public final class BuyOrderModule extends EcoModule {
         return Items.create(key, 1).map(ItemStack::getMaxStackSize).orElse(64);
     }
 
-    /** Takes n matching items from the storage slots, the smallest fish first; returns what was taken. */
+    /** Takes n matching items from the storage slots, in slot order; returns what was taken. */
     private static List<ItemStack> take(PlayerInventory inv, Predicate<ItemStack> same, int n) {
         ItemStack[] contents = inv.getStorageContents();
-        double[] factor = new double[contents.length];
-        for (int i = 0; i < contents.length; i++) {
-            ItemStack it = contents[i];
-            factor[i] = it != null && !it.isEmpty() && same.test(it) ? Items.sizeFactor(it) : Double.NaN;
-        }
         List<ItemStack> taken = new ArrayList<>();
         int left = n;
-        for (int i : BuyOrders.smallestFirst(factor)) {
+        for (int i = 0; i < contents.length; i++) {
             if (left <= 0) break;
             ItemStack it = contents[i];
+            if (it == null || it.isEmpty() || !same.test(it)) continue;
             int k = Math.min(left, it.getAmount());
             ItemStack part = it.clone();
             part.setAmount(k);

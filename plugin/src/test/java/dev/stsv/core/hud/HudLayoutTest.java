@@ -511,12 +511,16 @@ class HudLayoutTest {
         // place 7.2 MB; three sizes and a range of heights (30 rows of letters) now, on letter sheets cut to the
         // server's own syllables
         // (+ the overlay's faces and speech bubble in its 8 rows' fonts, about 0.2 MB: 10.5)
-        assertTrue(bytes < 10L * 1024 * 1024 + 512 * 1024, "client memory " + bytes);
+        // (+ the board's ten rows of Galmuri7 letters, about 2.4 MB: 13.5; without the board as before)
+        assertTrue(bytes < 13L * 1024 * 1024 + 512 * 1024, "client memory " + bytes);
+        long off = HudPack.clientMemory(new HudLayout(sheets, new HudLayout.Settings(212, 54, 132, 7, true)));
+        assertTrue(off < 10L * 1024 * 1024 + 512 * 1024, "client memory without the board " + off);
+        assertTrue(bytes - off < 2600L * 1024, "the board costs " + (bytes - off));
         // and with as many syllables as the panel ever keeps
         HudSheets bundled = sheets;
         List<Integer> most = bundled.sheet("hangul").names().stream().map(n -> n.codePointAt(0)).limit(HudModule.MAX_PANEL_LETTERS).toList();
         HudLayout full = new HudLayout(HudLayout.panelSheets(bundled, most), HudLayout.Settings.defaults());
-        assertTrue(HudPack.clientMemory(full) < 11L * 1024 * 1024 + 512 * 1024, "client memory with every letter the panel keeps " + HudPack.clientMemory(full));
+        assertTrue(HudPack.clientMemory(full) < 14L * 1024 * 1024 + 512 * 1024, "client memory with every letter the panel keeps " + HudPack.clientMemory(full));
     }
 
     @Test
@@ -595,5 +599,113 @@ class HudLayoutTest {
         assertEquals(240 - 2 - 260, HudLayout.overlayLeft(-108, 132, 260, 2));
         int left = HudLayout.overlayLeft(-108, 132, 260, 2);
         assertTrue(left + 260 <= 240, "inside the screen");
+    }
+
+    /** Top of a glyph from the top of the screen (the first boss bar's pen line is y 3). */
+    static int fromTop(HudClient.Draw d) {
+        return d.y() + 3;
+    }
+
+    static HudLayout.Board sampleBoard(int lines) {
+        List<Component> ls = new java.util.ArrayList<>();
+        for (int i = 1; i <= lines; i++) ls.add(mm("<yellow>" + i + "위 <white>Steve\t<aqua>" + (60 - i) + ".5cm"));
+        return new HudLayout.Board(mm("<gold>낚시 대회 <gray>12:34"), ls, mm("<gray>내 기록\t<white>31.0cm"));
+    }
+
+    @Test
+    void theBoardSitsBottomRightRightAligned() {
+        int right = 212, bottom = layout.settings().boardBottom();
+        assertEquals(236, bottom, "4 px above the bottom of a GUI 240 high");
+        HudLayout.Board b = sampleBoard(3);
+        HudClient.Laid laid = client.lay(layout.board(b, right));
+        assertEquals(0, laid.width(), "zero net advance: it follows the sidebar in one title");
+        int width = layout.boardWidth(b, right);
+        HudClient.Draw corner = find(laid, "panel_head_s", "l");
+        int x = corner.x();
+        assertEquals(right - width, x, "against its right edge");
+        assertTrue(x >= HudLayout.BOARD_CLEAR_X, "clear of the hotbar (91) and the bars' numbers (105): " + x);
+        // the foot strip ends at the bottom; rows 11 apart over it, the lowest just above the foot
+        HudClient.Draw foot = find(laid, "panel_foot_s", "l");
+        assertEquals(bottom - 3, fromTop(foot));
+        List<Integer> rowTops = laid.draws().stream().filter(d -> d.sheet().equals("panel_row_s") && d.cell().equals("l"))
+                .map(HudLayoutTest::fromTop).sorted().toList();
+        assertEquals(List.of(bottom - 3 - 44, bottom - 3 - 33, bottom - 3 - 22, bottom - 3 - 11), rowTops, "3 lines and the footer");
+        // the title strip just over the top row (one pixel of the same body overlapping), the gold accent in it
+        assertEquals(rowTops.getFirst() - 15, fromTop(corner));
+        assertEquals(fromTop(corner) + 13, fromTop(find(laid, "panel_mark", "accent")));
+        // every strip spans the same width, its right cap ending at the right edge (plus the shadow column)
+        for (String sheet : List.of("panel_head_s", "panel_row_s", "panel_foot_s")) {
+            for (HudClient.Draw d : laid.draws()) {
+                if (!d.sheet().equals(sheet) || !d.cell().equals("r")) continue;
+                assertEquals(right - HudLayout.CAP, d.x(), sheet);
+            }
+        }
+        // letters: the title and five rows of text, labels at PAD, values against the right edge
+        Map<Integer, List<HudClient.Draw>> byRow = laid.draws().stream().filter(HudClient.Draw::shadow)
+                .collect(Collectors.groupingBy(HudLayoutTest::fromTop));
+        assertEquals(5, byRow.size(), "title, three lines, footer");
+        int titleTop = byRow.keySet().stream().min(Integer::compare).orElseThrow();
+        assertEquals(fromTop(corner) + HudLayout.BOARD_TITLE_DY, titleTop, "the title's letters in its strip");
+        for (var e : byRow.entrySet()) {
+            List<HudClient.Draw> line = e.getValue();
+            assertEquals(x + HudLayout.PAD, line.stream().mapToInt(HudClient.Draw::x).min().orElseThrow());
+            if (e.getKey() == titleTop) continue;
+            int end = line.stream().mapToInt(d -> d.x() + sheets.sheet(d.sheet()).advance(d.cell())).max().orElseThrow();
+            assertEquals(right - HudLayout.PAD, end, "value against the right edge");
+            assertTrue(rowTops.contains(e.getKey() - 1), "letters a pixel into their row: " + e.getKey());
+        }
+        assertTrue(drawn(laid, "panel_div", ""), "a divider over the footer");
+        for (HudClient.Draw d : laid.draws()) {
+            assertTrue(d.x() >= x && d.x() <= right, "within the board: " + d);
+            assertTrue(fromTop(d) < bottom, "above its bottom: " + d);
+        }
+        assertNull(layout.board(null, right));
+    }
+
+    @Test
+    void theBoardsWidthAndRightEdge() {
+        // never left of x 106: at the default edge (212) at most 106 wide, against a 480 wide GUI's edge (240) the max width
+        assertEquals(106, HudLayout.boardCap(212, 132));
+        assertEquals(132, HudLayout.boardCap(240, 132));
+        assertEquals(HudLayout.MIN_WIDTH, HudLayout.boardCap(150, 132), "never narrower than the panel's least");
+        // the right edge: the configured one, or the screen's as the player's own sidebar place tells it
+        assertEquals(212, HudLayout.boardRight(212, null, 132));
+        assertEquals(240, HudLayout.boardRight(212, 240, 132), "a sidebar against the right edge of a 480 wide GUI");
+        assertEquals(240, HudLayout.boardRight(212, -108, 132), "a sidebar against the left edge of a 480 wide GUI");
+        assertEquals(HudLayout.BOARD_CLEAR_X + HudLayout.MIN_WIDTH, HudLayout.boardRight(212, 100, 132), "never so far in it covers the hotbar");
+        // as wide as its widest line, between the least and the cap; a line too long ends in an ellipsis
+        HudLayout.Board small = new HudLayout.Board(mm("대회"), List.of(mm("1위")), null);
+        assertEquals(HudLayout.MIN_WIDTH, layout.boardWidth(small, 212));
+        HudLayout.Board wide = new HudLayout.Board(mm("<gold>낚시 대회"), List.of(mm("<white>아주 아주 긴 이름의 물고기를 잡은 사람\t<aqua>123.4cm")), null);
+        assertEquals(106, layout.boardWidth(wide, 212));
+        assertEquals(132, layout.boardWidth(wide, 240));
+        HudClient.Laid laid = client.lay(layout.board(wide, 212));
+        assertTrue(laid.draws().stream().anyMatch(d -> "…".equals(d.cell())), "shortened");
+        for (HudClient.Draw d : laid.draws()) assertTrue(d.x() >= 212 - 106 && d.x() <= 212, "inside: " + d);
+        HudClient.Draw tail = laid.draws().stream().filter(HudClient.Draw::shadow).max(java.util.Comparator.comparingInt(HudClient.Draw::x)).orElseThrow();
+        assertTrue(tail.x() + width(tail) <= 212 - HudLayout.PAD, "letters inside the padding: " + tail);
+    }
+
+    @Test
+    void theTallestBoardStaysOnTheScreenAndExtraLinesAreDropped() {
+        HudLayout.Board b = sampleBoard(12);
+        assertEquals(HudLayout.BOARD_LINES, b.lines().size(), "at most 8 lines");
+        HudClient.Laid laid = client.lay(layout.board(b, 212));
+        assertEquals(HudLayout.BOARD_LINES + 2, laid.draws().stream().filter(HudClient.Draw::shadow).map(HudClient.Draw::y).distinct().count());
+        int top = laid.draws().stream().mapToInt(HudLayoutTest::fromTop).min().orElseThrow();
+        assertTrue(top >= HudLayout.MIN_TOP, "top " + top);
+        // the lowest bottom allowed keeps it there too
+        HudLayout high = new HudLayout(sheets, new HudLayout.Settings(212, 54, 132, 7, true, true, 0, 212, 132));
+        assertEquals(HudLayout.BOARD_MIN_BOTTOM, high.settings().boardBottom());
+        HudClient c = new HudClient(sheets, high.fonts());
+        assertEquals(HudLayout.MIN_TOP, c.lay(high.board(b, 212)).draws().stream().mapToInt(HudLayoutTest::fromTop).min().orElseThrow());
+        // a title alone, an empty line, no footer
+        HudClient.Laid bare = client.lay(layout.board(new HudLayout.Board(mm("제목"), List.of(Component.empty()), null), 212));
+        assertEquals(1, bare.draws().stream().filter(HudClient.Draw::shadow).map(HudClient.Draw::y).distinct().count());
+        assertFalse(drawn(bare, "panel_div", ""));
+        // with the board off (the old settings), no fonts and nothing drawn
+        HudLayout off = new HudLayout(sheets, new HudLayout.Settings(212, 54, 132, 7, true));
+        assertNull(off.board(b, 212));
+        assertTrue(off.fonts().keySet().stream().noneMatch(k -> k.contains("/board")));
     }
 }

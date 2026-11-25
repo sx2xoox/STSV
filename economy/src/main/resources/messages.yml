@@ -696,16 +696,16 @@ report:
 # 낚시: 바닐라처럼 찌가 물에 잠길 때 우클릭으로 낚아 올림
 fishing:
   pearl: "진주"
-  size-lore: "<gray>크기 <white>{size}cm <dark_gray>· 매입가 {pct}%"
-  size-stripped-lore: "<gray>크기 없음 <dark_gray>· 매입가 {pct}%"
-  result: "<white>{size}cm"
-  caught: "<gray>낚았다! <{color}>{fish} <white>{size}cm<gray>{count}"
+  result: "<{color}>{rarity}"
+  result-tournament: "<{color}>{rarity} <dark_gray>· <aqua>{grade}"
+  caught: "<gray>낚았다! <{color}>{fish} <dark_gray>({rarity})<gray>{count}"
   caught-pearl: "<gray>바다 밑에서 <white>진주<gray>를 건졌다!{count}"
   new-species: "<aqua>새 어종! <white>{fish} <gray>· /도감 에 내면 등록"
   group-done: "<gold>{player}<yellow>님이 도감에 <gold>{group}<yellow> 물고기를 모두 등록했습니다!"
   all-done: "<gold><b>{player}님이 도감에 모든 물고기를 등록해 [강태공]이 되었습니다!</b>"
-  week-record: "<aqua>이번 주 최대어 갱신! <white>{player}<gray>님의 <white>{fish} <gold>{size}cm"
-  week-winner: "<gold>지난주 최대어: <white>{player}<gray>님의 <white>{fish} <gold>{size}cm"
+  # 예전(2026-11 전)에 낚아 크기가 붙어 있던 물고기를 크기 없는 물고기로 바꿨을 때 (크기 덕에 더 받던 만큼은 돈으로)
+  tidied: "<gray>물고기 <white>{count}마리</white>의 크기를 정리했어요."
+  tidied-paid: "<gray>물고기 <white>{count}마리</white>의 크기를 정리했어요 <gold>(+{amount} G)"
   # 통발 · 가두리
   trap-water: "<red>물속에만 놓을 수 있습니다."
   trap-land: "<red>내 땅이나 야생월드에만 놓을 수 있습니다."
@@ -742,11 +742,11 @@ codex:
   fish-lore:
     - "<gray>등급 <{color}>{rarity}"
     - "<gray>사는 곳 <white>{where} <dark_gray>· <gray>때 <white>{when}"
-    - "<gray>크기 <white>{min} ~ {max}cm"
+    - "<gray>색 <white>{colour} <dark_gray>· <gray>대회 크기 <white>{min} ~ {max}cm"
   fish-lore-caught:
     - "<gray>등급 <{color}>{rarity}"
     - "<gray>사는 곳 <white>{where} <dark_gray>· <gray>때 <white>{when}"
-    - "<gray>크기 <white>{min} ~ {max}cm <dark_gray>· <gray>낚은 수 <white>{count} <dark_gray>· <gray>최대 <gold>{best}cm"
+    - "<gray>색 <white>{colour} <dark_gray>· <gray>대회 크기 <white>{min} ~ {max}cm <dark_gray>· <gray>낚은 수 <white>{count}"
   lore-registered: "<green>✔ 등록 <dark_gray>({date})"
   lore-missing: "<gray>◇ 미등록"
   lore-click: "<yellow>클릭: 1개 내고 등록 <dark_gray>(가진 수 {have})"

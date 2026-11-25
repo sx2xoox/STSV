@@ -212,9 +212,6 @@ class BuyOrderTest {
         assertTrue(Items.plain("minecraft:wheat", "wheat", false, false));
         assertFalse(Items.plain("minecraft:wheat", "minecraft:wheat", false, true));
         assertFalse(Items.plain("minecraft:wheat", "minecraft:hay_block", false, false));
-        // the smallest fish goes first, the trophy last; slots that do not match are skipped
-        double n = Double.NaN;
-        assertArrayEquals(new int[]{3, 0, 4, 1}, BuyOrders.smallestFirst(new double[]{1.0, 1.4, n, 0.7, 1.0}));
         // a click hands one stack, shift as many as there are; never more than is left
         assertEquals(64, BuyOrders.fillCount(500, 300, false, 64));
         assertEquals(300, BuyOrders.fillCount(500, 300, true, 64));

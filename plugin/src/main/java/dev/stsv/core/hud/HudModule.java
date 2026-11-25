@@ -92,6 +92,14 @@ import java.util.function.Function;
  * ones are joined left to right by their order. A one-off action-bar message must go through {@link #flash} so the
  * status line steps aside for a few seconds instead of overwriting it (and, in pack mode, so the health bars stay).
  *
+ * Board ({@link #board}, pack mode): a second, smaller panel against the bottom right of the screen (a fishing
+ * tournament's ranking), shown to every online player with the pack while a producer has one: the first registered
+ * producer that answers a board for that player wins. It is drawn in the same boss bar title as the sidebar and the
+ * overlay (each piece has zero net advance), not on the action bar (the bars and messages) nor a title (other
+ * plugins' announcements): see HudLayout for why the bottom-anchored action bar cannot carry it. Producers are
+ * asked on the sidebar's refresh (hud.refresh-ticks, once a second by default) and on {@link #refreshBoard}; between
+ * them nothing is asked. /관리자 사이드바 보드시험 shows a sample for 10 seconds.
+ *
  * Edit mode (/사이드바 위치, HudEdit): the player stands still (walk and fly speed 0, no jumping; nothing else about
  * them changes: no protection, no other movement) while turning the view moves the panel, drawn every tick with
  * corner brackets; the wheel changes its size; left click or F saves, sneaking or /사이드바 위치 취소 cancels, a
@@ -142,6 +150,20 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     private final Map<UUID, Sent> sent = new ConcurrentHashMap<>();
     private final Map<UUID, Editing> editing = new ConcurrentHashMap<>();
 
+    // the board (pack mode)
+    private static final String ADMIN_OWNER = "STSV HUD";
+    /** How long /관리자 사이드바 보드시험 shows its sample. */
+    private static final long PREVIEW_MILLIS = 10_000;
+    private final Map<String, Function<Player, HudLayout.Board>> boardMakers = new LinkedHashMap<>();
+    /** What each player's first boss bar title shows besides the board (sidebar and overlay), and the board. */
+    private final Map<UUID, Component> panelShown = new ConcurrentHashMap<>();
+    private final Map<UUID, Component> boardShown = new ConcurrentHashMap<>();
+    /** The width of the sidebar of players who placed it themselves (it tells where their screen's edge is). */
+    private final Map<UUID, Integer> sidebarWidths = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> previews = new ConcurrentHashMap<>();
+    private final java.util.concurrent.atomic.AtomicBoolean boardQueued = new java.util.concurrent.atomic.AtomicBoolean();
+    private boolean boardOn;
+
     @Override
     public String id() {
         return "hud";
@@ -157,6 +179,9 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         frozenKey = new NamespacedKey(plugin, "hud_edit_speeds");
         jumpKey = new NamespacedKey(plugin, "hud_edit");
         Bukkit.getPluginManager().registerEvents(this, plugin);
+        plugin.admin().add(ADMIN_OWNER, "사이드바", "보드시험",
+                "화면 오른쪽 아래 보드(낚시 대회 순위 등)의 견본을 10초 동안 내 화면에 띄워 자리 확인", this::admin,
+                (s, a) -> a.length == 1 ? List.of("보드시험") : List.of());
         // a plugin reload with players online: they already have the pack
         for (Player p : Bukkit.getOnlinePlayers()) {
             packReady.add(p.getUniqueId());
@@ -175,6 +200,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         }
         sidebarOn = cfg.getBoolean("hud.sidebar.enabled", true);
         healthOn = cfg.getBoolean("hud.health.enabled", true);
+        boardOn = cfg.getBoolean("hud.board.enabled");
         resendTicks = Math.max(10, cfg.getInt("hud.health.resend-ticks", 20));
         try {
             panelColour = BossBar.Color.valueOf(cfg.getString("hud.sidebar.boss-bar-color", "white").toUpperCase(Locale.ROOT));
@@ -208,6 +234,8 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         }
         mode = wanted;
         sent.clear();   // positions may have moved: send everything again
+        panelShown.clear();
+        boardShown.clear();
         long every = Math.max(5, cfg.getInt("hud.refresh-ticks"));
         if (ticker != null) ticker.cancel();
         if (barTicker != null) barTicker.cancel();
@@ -221,7 +249,8 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         HudLayout.Settings d = HudLayout.Settings.defaults();
         return new HudLayout.Settings(cfg.getInt("hud.sidebar.right", d.sidebarRight()), cfg.getInt("hud.sidebar.y", d.sidebarY()),
                 cfg.getInt("hud.sidebar.max-width", d.sidebarMaxWidth()), cfg.getInt("hud.sidebar.max-rows", d.sidebarRows()),
-                cfg.getBoolean("hud.health.armor", d.armor()));
+                cfg.getBoolean("hud.health.armor", d.armor()), cfg.getBoolean("hud.board.enabled"), cfg.getInt("hud.board.bottom"),
+                cfg.getInt("hud.board.right"), cfg.getInt("hud.board.max-width"));
     }
 
     /**
@@ -309,6 +338,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     @Override
     public void disable() {
         for (Player p : Bukkit.getOnlinePlayers()) endEdit(p, HudEdit.Outcome.CANCELLED, null, true);
+        if (plugin != null) plugin.admin().removeAll(ADMIN_OWNER);
         if (ticker != null) ticker.cancel();
         if (barTicker != null) barTicker.cancel();
         if (editTicker != null) editTicker.cancel();
@@ -332,7 +362,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
      */
     public Map<String, byte[]> packFiles() {
         if (mode != Mode.PACK || layout == null) return Map.of();
-        Map<String, byte[]> files = HudPack.files(layout, sidebarOn ? panelColour.name() : null, healthOn);
+        Map<String, byte[]> files = HudPack.files(layout, sidebarOn || boardOn ? panelColour.name() : null, healthOn);
         plugin.getLogger().info("HUD 글꼴: 클라이언트 메모리 약 " + (HudPack.clientMemory(layout) * 10 / (1 << 20)) / 10.0 + "MB");
         return files;
     }
@@ -638,6 +668,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         if (ed != null && packFor(p)) {
             clearSidebar(p);
             ed.rows = editRows(p);
+            updateBoard(p);
             drawEdit(p, ed);
             return;
         }
@@ -645,11 +676,16 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         if (packFor(p)) {
             clearSidebar(p);
             List<HudLayout.Row> out = want ? panelRows(entries(p)) : List.of();
-            Component panel = out.isEmpty() ? null : layout.panel(out, placement(p), false);
+            HudLayout.Placement at = placement(p);
+            Component panel = out.isEmpty() ? null : layout.panel(out, at, false);
+            if (boardOn && placed(p)) sidebarWidths.put(p.getUniqueId(), out.isEmpty() ? layout.maxWidth(at.size()) : layout.panelWidth(out, at));
+            else sidebarWidths.remove(p.getUniqueId());
             Component over = overlayFor(p);   // in the same boss bar title: both have zero net advance
             if (over != null) panel = panel == null ? over : Component.text().append(panel).append(over).build();
-            if (panel == null) hidePanel(p);
-            else showPanel(p, panel);
+            if (panel == null) panelShown.remove(p.getUniqueId());
+            else panelShown.put(p.getUniqueId(), panel);
+            updateBoard(p);
+            showComposite(p);
             return;
         }
         hidePanel(p);
@@ -736,6 +772,137 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         shown.remove(u);
         org.bukkit.scoreboard.Scoreboard sb = boards.remove(u);
         if (sb != null && p.getScoreboard() == sb) p.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Board (pack mode): a small panel against the bottom right, for every player
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Adds (or replaces) a board producer, asked for each online player with the pack on every refresh (once a
+     * second) and on {@link #refreshBoard}: null = nothing for that player. Of the producers that answer a board,
+     * the first registered is shown.
+     */
+    public void board(String id, Function<Player, HudLayout.Board> render) {
+        boardMakers.put(id, render);
+        refreshBoard();
+    }
+
+    public void removeBoard(String id) {
+        if (boardMakers.remove(id) != null) refreshBoard();
+    }
+
+    /**
+     * Asks the producers again now (on the next tick, once however often it is called within one), instead of at
+     * the next refresh. Safe from any thread.
+     */
+    public void refreshBoard() {
+        if (plugin == null || !plugin.isEnabled() || !boardQueued.compareAndSet(false, true)) return;
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            boardQueued.set(false);
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                try {
+                    redrawBoard(p);
+                } catch (RuntimeException e) {
+                    plugin.getLogger().warning("보드 오류: " + e.getMessage());
+                }
+            }
+        });
+    }
+
+    /** The board drawn again alone (the sidebar as it was last drawn), if it changed. */
+    private void redrawBoard(Player p) {
+        if (!packFor(p) || !updateBoard(p)) return;
+        Editing ed = editing.get(p.getUniqueId());
+        if (ed != null) drawEdit(p, ed);
+        else showComposite(p);
+    }
+
+    /** Asks for this player's board and keeps it; true if it changed. */
+    private boolean updateBoard(Player p) {
+        UUID u = p.getUniqueId();
+        Component now = boardFor(p);
+        Component before = now == null ? boardShown.remove(u) : boardShown.put(u, now);
+        return !java.util.Objects.equals(before, now);
+    }
+
+    private Component boardFor(Player p) {
+        if (!boardOn || layout == null || !packFor(p)) return null;
+        UUID u = p.getUniqueId();
+        HudLayout.Board b = null;
+        Long until = previews.get(u);
+        if (until != null) {
+            if (until > System.currentTimeMillis()) b = sampleBoard();
+            else previews.remove(u);
+        }
+        if (b == null) {
+            for (var e : boardMakers.entrySet()) {
+                try {
+                    b = e.getValue().apply(p);
+                } catch (RuntimeException ex) {
+                    plugin.getLogger().warning("보드 '" + e.getKey() + "' 오류: " + ex.getMessage());
+                }
+                if (b != null) break;
+            }
+        }
+        if (b == null) return null;
+        Integer placedRight = placed(p) ? placement(p).right() : null;
+        int right = HudLayout.boardRight(layout.settings().boardRight(), placedRight,
+                sidebarWidths.getOrDefault(u, layout.settings().sidebarMaxWidth()));
+        return layout.board(b, right);
+    }
+
+    /** Has the player put their sidebar somewhere themselves (/사이드바 위치)? */
+    private boolean placed(Player p) {
+        var pdc = p.getPersistentDataContainer();
+        return pdc.has(placeKey, PersistentDataType.INTEGER_ARRAY) || pdc.has(positionKey, PersistentDataType.INTEGER);
+    }
+
+    /** The first boss bar's title: the sidebar and overlay as last drawn, then the board. */
+    private void showComposite(Player p) {
+        Component all = join(panelShown.get(p.getUniqueId()), boardShown.get(p.getUniqueId()));
+        if (all == null) hidePanel(p);
+        else showPanel(p, all);
+    }
+
+    private static Component join(Component a, Component b) {
+        if (a == null) return b;
+        if (b == null) return a;
+        return Component.text().append(a).append(b).build();
+    }
+
+    /** The sample of /관리자 사이드바 보드시험 (a fishing tournament's ranking). */
+    private static HudLayout.Board sampleBoard() {
+        List<Component> lines = new ArrayList<>();
+        for (int i = 1; i <= 5; i++) lines.add(Lang.mm("hud.board-sample-" + i));
+        return new HudLayout.Board(Lang.mm("hud.board-sample-title"), lines, Lang.mm("hud.board-sample-footer"));
+    }
+
+    /** /관리자 사이드바 보드시험: the sample board on the sender's screen for 10 seconds. */
+    private void admin(CommandSender s, String[] a) {
+        String sub = a.length == 0 ? "" : a[0];
+        if (!sub.equals("보드시험") && !sub.equalsIgnoreCase("board")) {
+            s.sendMessage(Lang.msg("hud.board-preview-usage"));
+            return;
+        }
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("common.players-only"));
+            return;
+        }
+        if (mode != Mode.PACK || layout == null || !boardOn) {
+            p.sendMessage(Lang.msg("hud.board-preview-off"));
+            return;
+        }
+        if (!packFor(p)) {
+            p.sendMessage(Lang.msg("hud.edit-unavailable"));
+            return;
+        }
+        previews.put(p.getUniqueId(), System.currentTimeMillis() + PREVIEW_MILLIS);
+        refreshSidebar(p);
+        p.sendMessage(Lang.msg("hud.board-preview"));
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (p.isOnline()) redrawBoard(p);
+        }, PREVIEW_MILLIS / 50 + 1);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -873,7 +1040,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     }
 
     private void drawEdit(Player p, Editing e) {
-        Component panel = layout.panel(e.rows, e.edit.current(), true);
+        Component panel = join(layout.panel(e.rows, e.edit.current(), true), boardShown.get(p.getUniqueId()));
         if (panel == null) hidePanel(p);
         else showPanel(p, panel);
     }
@@ -1164,6 +1331,10 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         shown.remove(u);
         boards.remove(u);
         panels.remove(u);
+        panelShown.remove(u);
+        boardShown.remove(u);
+        sidebarWidths.remove(u);
+        previews.remove(u);
         packReady.remove(u);
         packRefused.remove(u);
         flashes.remove(u);
