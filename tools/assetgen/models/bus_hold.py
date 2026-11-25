@@ -299,7 +299,393 @@ def chicken_flap():
     return displays(m, held)
 
 
+
+# ================================================================================================
+# Things held in the fist
+# ================================================================================================
+
+def _plain(ramp, step, **kw):
+    kw.setdefault("noise", 0.0)
+    return Paint(ramp, step, **kw)
+
+
+def folder():
+    """면접 청년: a navy document folder, its top edge in the fist, hanging at his side (the papers' edges showing
+    above its top, a silver clip, a white label)."""
+    m = BModel("bus_hold_folder", floor=None)
+
+    def cover(c):
+        x, y, z = c.p
+        if c.face in ("north", "south") and 5 <= x <= 11 and 4 <= y <= 6.5:
+            return ("paper", 2) if not (5.5 <= x <= 10.5 and y > 5 and y < 5.6) else ("indigo", 3)   # the label
+        if c.face in ("north", "south") and y > 11.5:
+            return ("indigo", 1)                              # the fold at the top
+        return None
+    m.box("cover", (3, 0, 7), (13, 12.5, 9), _plain("indigo", 2, rim=1.2, decal=cover))
+    m.box("papers", (3.5, 12.5, 7.5), (12.5, 13.5, 8.5), _plain("paper", 2, decal=lambda c: ("paper", 1) if c.face in SIDES and int(c.p[1] * 2) % 2 else None))
+    m.box("clip", (9.5, 10.5, 6.5), (11.5, 13, 7), _plain("blade", 2))
+    held = hold_transform(grip=(8, 12, 8), at=fist(0.5), turn=turn(y=-90, x=-36))
+    return displays(m, held)
+
+
+def yeot_scissors():
+    """엿장수: the big iron 엿가위, the handles in the fist, the blades open in a V above it, a rivet where they cross."""
+    m = BModel("bus_hold_yeot_scissors", floor=None)
+    iron = _plain("steel", 2, kind="metal", rim=1.4)
+    edge = _plain("steel", 4, kind="metal")
+    for sgn, z0 in ((1, 7.5), (-1, 8.5)):
+        rot = ("z", 22.5 * sgn, (8, 7, 8))
+        m.box("blade", (7, 7, z0 - 0.5), (8.5, 13, z0 + 0.5), iron, faces={"west": edge}, rotation=rot)
+        m.box("blade", (7.25, 13, z0 - 0.5), (8.25, 17, z0 + 0.5), iron, faces={"west": edge}, rotation=rot)
+        m.box("handle", (7, 0, z0 - 0.5), (9, 7, z0 + 0.5), _plain("wood_dark", 1, kind="grain"), rotation=("z", -22.5 * sgn, (8, 7, 8)))
+    m.box("rivet", (7.25, 6.25, 6.5), (8.75, 7.75, 9.5), _plain("brass", 2))
+    held = hold_transform(grip=(8, 3, 8), at=fist(), turn=turn(x=-15))
+    return displays(m, held)
+
+
+def tourist_map():
+    """외국인 여행객: a folded tourist map held open in the fist, tipped back to read: roads, a river, a park, a red pin
+    (printed on both sides, as maps are)."""
+    m = BModel("bus_hold_map", floor=None)
+
+    def print_(c):
+        x, y, _ = c.p
+        if c.face not in ("north", "south"):
+            return None
+        if abs(x - 6) < 0.3 or abs(x - 10) < 0.3 or abs(y - 5) < 0.3:
+            return ("paper", 0)                               # the folds
+        if abs((y - 1.5) - (x - 2) * 0.6) < 0.6:
+            return ("water", 2)                               # a river
+        if 9 <= x <= 12 and 6.5 <= y <= 9:
+            return ("leaf", 3)                                # a park
+        if abs(y - 7.5) < 0.35 or abs(x - 4.5) < 0.35 or abs(y - 2.5) < 0.3 and x > 8:
+            return ("fox", 3)                                 # roads
+        if math.hypot(x - 7.5, y - 7.8) < 0.7:
+            return ("tomato", 2)                              # the pin
+        return None
+    m.box("sheet", (2, 0, 7.75), (14, 10, 8.25), _plain("paper", 2, decal=print_, light=False))
+    held = hold_transform(grip=(12, 1, 8), at=fist(-0.5, 0, -0.5), turn=turn(x=45, y=-10))
+    return displays(m, held)
+
+
+def selfie():
+    """유튜버: a selfie stick from the fist up to a phone in a little ring light at her face, the screen and the light
+    towards her (the phone's back and the ring's white shell to everyone else)."""
+    m = BModel("bus_hold_selfie", floor=None)
+    m.box("grip", (7, 0, 7), (9, 6, 9), _plain("rubber", 2, kind="speckle"))
+    m.box("pole", (7.5, 6, 7.5), (8.5, 20.5, 8.5), _plain("blade", 1, kind="metal", rim=1.4))
+    m.box("clamp", (6.5, 20.5, 7.5), (9.5, 21.5, 8.75), _plain("rubber", 2))
+    ring = {}
+    for x in range(2, 14):
+        for y in range(19, 32):
+            if 4.0 <= math.hypot(x + 0.5 - 8, y + 0.5 - 25) < 5.6:
+                ring[(x, y, 8)] = "ring"
+    voxels(m, "ring", ring, lambda _l: _plain("porcelain", 2, light=False,
+                                              decal=lambda c: ("raw", (255, 252, 236, 255)) if c.face == "south" else None))
+
+    def screen(c):
+        x, y, _ = c.p
+        if c.face == "south":
+            if 6.5 <= x <= 9.5 and 22.5 <= y <= 27.5:
+                return ("raw", (120, 226, 255, 255)) if (y > 25.5 or x < 7.5) else ("raw", (70, 190, 240, 255))
+            return ("raw", (30, 30, 36, 255))
+        if c.face == "north" and 6.5 <= x <= 7.5 and 26.5 <= y <= 27.5:
+            return ("raw", (10, 10, 14, 255))                 # the camera
+        return None
+    m.box("phone", (6, 22, 8.75), (10, 28, 9.5), _plain("rubber", 3, decal=screen))
+    held = hold_transform(grip=(8, 2, 8), at=fist(), turn=turn(x=-28, y=12))
+    return displays(m, held)
+
+
+def snack():
+    """과자 부스러기 학생: an open crisp packet held round its middle, a crimped silver top torn open, a yellow
+    starburst on a red bag, a crisp peeking out."""
+    m = BModel("bus_hold_snack", floor=None)
+    cells = {}
+    for x in range(4, 12):
+        for y in range(0, 13):
+            for z in range(5, 11):
+                bulge = 3 - 2.2 * (abs(y - 6) / 6.5) ** 2 - 0.6 * (abs(x + 0.5 - 8) / 4) ** 2
+                if abs(z + 0.5 - 8) <= bulge:
+                    cells[(x, y, z)] = "bag"
+    for x in range(4, 12):
+        for z in (7, 8):
+            cells[(x, 13, z)] = "crimp"
+    for (x, y, z) in ((6, 13, 8), (7, 14, 8), (8, 13, 7), (9, 14, 7)):
+        cells[(x, y, z)] = "crisp"
+
+    def face(c):
+        x, y, z = c.i
+        if c.face == "north" and math.hypot(c.p[0] - 8, c.p[1] - 7) < 2.4:
+            a = math.atan2(c.p[1] - 7, c.p[0] - 8)
+            return ("petal_yellow", 1) if math.hypot(c.p[0] - 8, c.p[1] - 7) < 1.6 + 0.6 * math.cos(a * 6) else None
+        if y in (2, 3):
+            return ("petal_yellow", 2)                        # a stripe round the bottom
+        return None
+    paints = {"bag": _plain("tomato", 2, decal=face, rim=1.2), "crimp": _plain("blade", 2, kind="metal",
+              decal=lambda c: ("blade", 1) if int(c.p[0] * 2) % 2 else None), "crisp": _plain("corn", 2)}
+    voxels(m, "bag", cells, lambda lab: paints[lab])
+    held = hold_transform(grip=(8, 5, 8), at=fist(), turn=turn(x=-10))
+    return displays(m, held)
+
+
+OBANG = (("tomato", 2), ("petal_yellow", 1), ("sapphire", 1), ("porcelain", 2), ("leaf", 3))   # 오방색
+
+
+def bells():
+    """무당: 무구 방울 — a cluster of brass bells (a crown of three, a ring of four) on a short red handle, five-colour
+    streamers hanging from its end."""
+    m = BModel("bus_hold_bells", floor=None)
+    m.box("handle", (7, 0, 7), (9, 9, 9), _plain("fabric_red", 2, kind="grain"))
+    m.box("cap", (6.5, 9, 6.5), (9.5, 10, 9.5), _plain("brass", 2))
+    brass = _plain("gold", 2, kind="metal", rim=1.5, decal=lambda c: ("brass", 0) if c.face == "down" else None)
+    spots = [(8, 15.5, 8)] + [(8 + 2.6 * math.cos(a), 13, 8 + 2.6 * math.sin(a)) for a in (0.5, 2.6, 4.7)] \
+        + [(8 + 3.2 * math.cos(a), 10.8, 8 + 3.2 * math.sin(a)) for a in (0.0, 1.57, 3.14, 4.71)]
+    for i, (x, y, z) in enumerate(spots):
+        m.box("bell", (x - 1.25, y - 1, z - 1.25), (x + 1.25, y + 1, z + 1.25), brass)
+        m.box("bell", (x - 0.75, y + 1, z - 0.75), (x + 0.75, y + 1.5, z + 0.75), brass)
+        m.box("slit", (x - 1, y - 1.25, z - 0.25), (x + 1, y - 1, z + 0.25), _plain("brass", 0))
+    for i, (rmp, st) in enumerate(OBANG):
+        x = 6.25 + i * 0.85
+        m.box("streamer", (x, -11 + (i % 2) * 2, 7.75), (x + 0.75, 0, 8.25), _plain(rmp, st))
+    held = hold_transform(grip=(8, 4, 8), at=fist(), turn=turn(x=-12))
+    return displays(m, held)
+
+
+def fan():
+    """무당: a folding fan held open above the fist, its panels in the five colours with a white rim, dark ribs
+    gathering to the rivet at the handle."""
+    m = BModel("bus_hold_fan", floor=None)
+    cells = {}
+    R, piv = 12.5, (8, 3)
+    for x in range(-6, 22):
+        for y in range(0, 17):
+            px, py = x + 0.5 - piv[0], y + 0.5 - piv[1]
+            r, a = math.hypot(px, py), math.degrees(math.atan2(py, px))
+            if 3.5 <= r <= R and 18 <= a <= 162:
+                cells[(x, y, 8)] = int((a - 18) // 18)        # 8 panels
+    cols = OBANG + (("tomato", 2), ("petal_yellow", 1), ("sapphire", 1))
+
+    def pan(lab):
+        rmp, st = cols[lab]
+
+        def d(c):
+            r = math.hypot(c.p[0] - piv[0], c.p[1] - piv[1])
+            a = math.degrees(math.atan2(c.p[1] - piv[1], c.p[0] - piv[0]))
+            if r > R - 1:
+                return ("porcelain", 2)                       # the white rim
+            if abs(((a - 18) % 18) - 0.0) < 1.6:
+                return ("wood_dark", 1)                       # a rib
+            return None
+        return _plain(rmp, st, decal=d, light=False)
+    voxels(m, "panel", cells, pan)
+    m.box("handle", (7.25, -4, 7.5), (8.75, 4, 9.5), _plain("wood_dark", 2, kind="grain"))
+    m.box("rivet", (7, 2.5, 7), (9, 4, 10), _plain("brass", 2))
+    held = hold_transform(grip=(8, 0, 8.5), at=fist(), turn=turn(x=15, z=-10))
+    return displays(m, held)
+
+
+def leash():
+    """강아지 할아버지: a red lead looped round the hand, its end hanging down with a silver clip."""
+    m = BModel("bus_hold_leash", floor=None)
+    red = _plain("tomato", 1, rim=0.8)
+    ring = {}
+    for x in range(2, 14):
+        for z in range(2, 14):
+            if x in (2, 13) or z in (2, 13):
+                ring[(x, 8, z)] = "loop"
+    voxels(m, "loop", ring, lambda _l: red)
+    m.box("lead", (7.5, -3, 1.5), (8.5, 8, 2), red)
+    m.box("lead", (7.5, -9, 0.5), (8.5, -3, 1), red)
+    m.box("lead", (7.5, -3.5, 1), (8.5, -2.5, 1.5), red)
+    m.box("clip", (7, -12, 0), (9, -9, 1.5), _plain("blade", 2, kind="metal"))
+    m.box("clip", (7.5, -13, 0.5), (8.5, -12, 1), _plain("blade", 1))
+    held = hold_transform(grip=(8, 8.5, 8), at=fist(0, 0.5), turn=turn())
+    return displays(m, held)
+
+
+def towel():
+    """멀미하는 아저씨: a pink hand towel bunched in the fist, an end hanging from it (terry loops, a darker hem)."""
+    m = BModel("bus_hold_towel", floor=None)
+    cells = {}
+    for x in range(2, 14):
+        for y in range(-8, 14):
+            for z in range(2, 14):
+                p = (x + 0.5, y + 0.5, z + 0.5)
+                lump = _ell(p, (8, 8, 8), (5, 3.5, 5)) or _ell(p, (6.5, 10.5, 7), (3, 2.5, 3)) or _ell(p, (10, 5.5, 9), (3, 2.5, 3))
+                tail = 5 <= x <= 10 and -7 <= y <= 5 and abs(z + 0.5 - (8 - (5 - y) * 0.25)) <= 0.6
+                if lump or tail:
+                    cells[(x, y, z)] = "towel"
+    voxels(m, "towel", cells, lambda _l: _plain("pink", 2, kind="weave", rim=0.7,
+                                                decal=lambda c: ("pink", 1) if c.p[1] < -6 else None))
+    held = hold_transform(grip=(8, 8, 8), at=fist(), turn=turn())
+    return displays(m, held)
+
+
+def plastic_bag():
+    """멀미하는 아저씨: a black plastic bag hanging from the fist by its handles, just in case (crinkled, a shine)."""
+    m = BModel("bus_hold_plastic_bag", floor=None)
+    cells = {}
+    for x in range(2, 15):
+        for y in range(-8, 12):
+            for z in range(3, 14):
+                p = (x + 0.5, y + 0.5, z + 0.5)
+                if _ell(p, (8, -1.5, 8), (5.5, 6.5, 3.8)) and y < 4:
+                    cells[(x, y, z)] = "bag"
+                elif 4 <= y <= 9 and z in (7, 8) and (abs(x - (8 - (y - 3) * 0.45 - 2.5)) < 0.8 or abs(x - (8 + (y - 3) * 0.45 + 1.5)) < 0.8):
+                    pass
+    for y in range(4, 10):
+        for x in (5 + (y - 4) // 2, 10 - (y - 4) // 2):
+            for z in (7, 8):
+                cells[(x, y, z)] = "bag"
+
+    def shine(c):
+        x, y, z = c.i
+        if (x * 5 + y * 3 + z) % 9 == 0:
+            return ("iron", 4)                                # crinkles catching the light
+        return None
+    voxels(m, "bag", cells, lambda _l: _plain("iron", 2, rim=1.6, decal=shine))
+    held = hold_transform(grip=(8, 9, 8), at=fist(0, -0.5), turn=turn())
+    return displays(m, held)
+
+
+def shoe_bag():
+    """초등학생: a blue drawstring indoor-shoe bag (실내화 주머니) hanging from its cords in the fist, the top gathered,
+    a white patch with a little trainer on it."""
+    m = BModel("bus_hold_shoe_bag", floor=None)
+    cells = {}
+    for x in range(3, 13):
+        for y in range(-10, 4):
+            for z in range(6, 10):
+                if y == 3 and x in (3, 12):
+                    continue
+                if z in (6, 9) and (x in (3, 12) or y == -10):
+                    continue                                  # rounded edges
+                cells[(x, y, z)] = "bag"
+    for x in range(5, 11):
+        for z in (7, 8):
+            cells[(x, 4, z)] = "bag"                          # gathered
+    for y in range(5, 10):
+        cells[(6 + (y - 5) // 3, y, 8)] = "cord"
+        cells[(9 - (y - 5) // 3, y, 7)] = "cord"
+
+    def patch(c):
+        x, y = c.p[0], c.p[1]
+        if c.face == "north" and 5 <= x <= 11 and -7 <= y <= -1:
+            if 6 <= x <= 10 and -5 <= y <= -3 and not (x < 7.5 and y > -3.8):
+                return ("sapphire", 2) if y > -4 else ("porcelain", 1)   # the little shoe
+            return ("porcelain", 2)
+        return None
+    paints = {"bag": _plain("denim", 2, kind="weave", decal=patch), "cord": _plain("porcelain", 2)}
+    voxels(m, "bag", cells, lambda lab: paints[lab])
+    held = hold_transform(grip=(7.5, 8.5, 8), at=fist(0, -0.5), turn=turn())
+    return displays(m, held)
+
+
+def bouquet():
+    """신부: a round bouquet of pink and white roses in a ring of leaves, the stems wrapped in white satin with a bow."""
+    m = BModel("bus_hold_bouquet", floor=None)
+    cells = {}
+    for x in range(1, 16):
+        for y in range(6, 18):
+            for z in range(1, 16):
+                p = (x + 0.5, y + 0.5, z + 0.5)
+                if _ell(p, (8, 10.5, 8), (6, 5.5, 6)) and y >= 10:
+                    cells[(x, y, z)] = "rose"
+                elif y == 9 and _ell(p, (8, 9.5, 8), (7, 1, 7)) and not _ell(p, (8, 9.5, 8), (4.5, 1, 4.5)):
+                    cells[(x, y, z)] = "leaf"
+
+    def roses(c):
+        x, y, z = (math.floor(v / 2) for v in c.p)
+        k = h3(x, y, z, 5)
+        base = ("pink", 2) if k < 0.45 else ("porcelain", 2) if k < 0.8 else ("sakura", 1)
+        fx, fy, fz = (v % 2 for v in c.p)
+        if fx < 1 and fz < 1 and fy < 1:
+            return (base[0], base[1] - 1)                     # each bloom's dark heart
+        return base
+    paints = {"rose": _plain("pink", 2, decal=roses, rim=0.6), "leaf": _plain("leaf", 2)}
+    voxels(m, "bouquet", cells, lambda lab: paints[lab])
+    m.box("wrap", (6.5, 0, 6.5), (9.5, 9, 9.5), _plain("porcelain", 2, kind="lacquer"))
+    m.box("bow", (5, 6, 6), (11, 7.5, 6.5), _plain("sakura", 2))
+    m.box("stems", (7, -1, 7), (9, 0, 9), _plain("leaf", 1))
+    held = hold_transform(grip=(8, 4, 8), at=fist(-0.5), turn=turn(x=-22, y=10))
+    return displays(m, held)
+
+
+def wand():
+    """마술사: a black wand with white tips, held near its end, pointing forward."""
+    m = BModel("bus_hold_wand", floor=None)
+    m.box("wand", (7.5, 2, 7.5), (8.5, 12, 8.5), _plain("rubber", 2, rim=1.5))
+    m.box("tip", (7.5, 12, 7.5), (8.5, 14, 8.5), _plain("porcelain", 2))
+    m.box("tip", (7.5, 0, 7.5), (8.5, 2, 8.5), _plain("porcelain", 2))
+    held = hold_transform(grip=(8, 4, 8), at=fist(), turn=turn(x=-55))
+    return displays(m, held)
+
+
+def cards():
+    """마술사: a fan of five playing cards held at their corner, faces out to the audience (a red heart, a black
+    spade in the middle of each), red backs."""
+    m = BModel("bus_hold_cards", floor=None)
+    for i, ang in enumerate((-45, -22.5, 0, 22.5, 45)):
+        z0 = 7.4 + i * 0.3
+
+        def face(c, i=i):
+            x, y = c.p[0], c.p[1]
+            if c.face == "north":
+                if math.hypot(x - 8, y - 6.5) < 0.9:
+                    return ("tomato", 2) if i % 2 == 0 else ("roe", 1)
+                if (x < 6.6 and y > 8.2):
+                    return ("tomato", 2) if i % 2 == 0 else ("roe", 1)   # the corner index
+                return None
+            if c.face == "south":
+                return ("tomato", 1) if (int(x * 2) + int(y * 2)) % 2 else ("tomato", 2)
+            return None
+        m.box("card", (6, 3, z0), (10, 9, z0 + 0.25), _plain("porcelain", 2, decal=face, light=False), rotation=("z", ang, (8, 2.5, 8)))
+    held = hold_transform(grip=(8, 3, 8), at=fist(), turn=turn(x=-10))
+    return displays(m, held)
+
+
+def rose():
+    """마술사: a single red rose, a green stem with a leaf and the sepals under the bloom."""
+    m = BModel("bus_hold_rose", floor=None)
+    m.box("stem", (7.5, 0, 7.5), (8.5, 11, 8.5), _plain("leaf", 1))
+    m.box("leaf", (8.5, 5, 7.75), (11, 6.5, 8.25), _plain("leaf", 3), rotation=("z", 22.5, (8.5, 5.5, 8)))
+    m.box("sepal", (6.5, 11, 6.5), (9.5, 12, 9.5), _plain("leaf", 2))
+    cells = {}
+    for x in range(5, 11):
+        for y in range(12, 17):
+            for z in range(5, 11):
+                if _ell((x + 0.5, y + 0.5, z + 0.5), (8, 14, 8), (2.9, 2.6, 2.9)):
+                    cells[(x, y, z)] = "bloom"
+
+    def petals(c):
+        if c.face == "up":
+            r = math.hypot(c.p[0] - 8, c.p[2] - 8)
+            return ("fabric_red", 1) if 0.6 < r < 1.4 or r < 0.3 else None   # the spiral's shadow
+        if (c.i[0] + c.i[2] + c.i[1]) % 3 == 0:
+            return ("fabric_red", 1)
+        return None
+    voxels(m, "bloom", cells, lambda _l: _plain("tomato", 1, decal=petals, rim=1.2))
+    held = hold_transform(grip=(8, 4, 8), at=fist(), turn=turn(x=-15, z=-10))
+    return displays(m, held)
+
+
 ALL = {
     "bus_hold_chicken": chicken,
     "bus_hold_chicken_flap": chicken_flap,
+    "bus_hold_folder": folder,
+    "bus_hold_yeot_scissors": yeot_scissors,
+    "bus_hold_map": tourist_map,
+    "bus_hold_selfie": selfie,
+    "bus_hold_snack": snack,
+    "bus_hold_bells": bells,
+    "bus_hold_fan": fan,
+    "bus_hold_leash": leash,
+    "bus_hold_towel": towel,
+    "bus_hold_plastic_bag": plastic_bag,
+    "bus_hold_shoe_bag": shoe_bag,
+    "bus_hold_bouquet": bouquet,
+    "bus_hold_wand": wand,
+    "bus_hold_cards": cards,
+    "bus_hold_rose": rose,
 }
