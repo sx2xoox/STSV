@@ -274,6 +274,8 @@ public final class STSVPlugin extends JavaPlugin {
     public dev.stsv.core.tpa.TpaModule tpa() { return tpa; }
     /** 닉네임 (/닉네임, /닉네임 색). Names of players for messages: {@link dev.stsv.core.nickname.Names}. */
     public dev.stsv.core.nickname.NicknameModule nicknames() { return nicknames; }
+    /** 후원 재화 (/후원 shop, the books): other plugins credit stars with {@link dev.stsv.core.donation.DonationModule#grantStars}. */
+    public dev.stsv.core.donation.DonationModule donation() { return donation; }
     /** What players own for good (title banners, emotes): the donation shop and /관리자 해금 give them. */
     public dev.stsv.core.unlock.UnlockModule unlocks() { return unlocks; }
     /** Title banners (/칭호's banner tab): owned for good, or all of them for admins; null if it failed to start. */

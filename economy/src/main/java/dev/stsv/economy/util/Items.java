@@ -122,60 +122,43 @@ public final class Items {
         return !key.startsWith("minecraft:") || !changed;
     }
 
-    /** A rare or legend fish with its size (and price factor) from the catch. */
+    /**
+     * A fish from before 2026-11 that still carries its size (economy:fish_size) or price factor (economy:fish_factor, also on a
+     * "stripped" one from a machine slot). New catches carry neither; these are turned into the plain fish (FishingModule#tidy).
+     */
     public static boolean sized(ItemStack item) {
-        return item != null && !item.isEmpty() && item.hasItemMeta()
-                && item.getItemMeta().getPersistentDataContainer().has(dev.stsv.economy.fishing.FishingModule.SIZE);
+        if (item == null || item.isEmpty() || !item.hasItemMeta()) return false;
+        var pdc = item.getItemMeta().getPersistentDataContainer();
+        return dev.stsv.economy.fishing.OldSizes.sized(pdc.has(dev.stsv.economy.fishing.OldSizes.SIZE),
+                pdc.has(dev.stsv.economy.fishing.OldSizes.FACTOR));
+    }
+
+    /** The old price factor of a sized fish (1 when it has none: see {@link dev.stsv.economy.fishing.OldSizes#factor}). */
+    public static double oldSizeFactor(ItemStack item) {
+        if (item == null || !item.hasItemMeta()) return 1;
+        Double f = item.getItemMeta().getPersistentDataContainer().get(dev.stsv.economy.fishing.OldSizes.FACTOR,
+                org.bukkit.persistence.PersistentDataType.DOUBLE);
+        return dev.stsv.economy.fishing.OldSizes.factor(f);
     }
 
     /**
-     * The same fish without its size, priced as the smallest of its kind (FishSpec.STRIPPED_FACTOR) with one lore line: every stripped
-     * fish of a species is like every other, so they stack in an input slot, and taking one back out never raises its price.
-     * Anything else comes back as it is.
+     * The same fish without its old size: a new stack of the plain item of that id and amount, keeping the 길라잡이 trial and the
+     * admin-shop marks (an unknown id: the same stack with the size keys taken off). Anything not sized comes back as it is.
      */
     public static ItemStack stripSize(ItemStack item) {
         if (!sized(item)) return item;
-        return create(key(item), item.getAmount()).map(plain -> {
-            plain.editMeta(m -> {
-                java.util.List<Component> lore = m.hasLore() ? new java.util.ArrayList<>(m.lore()) : new java.util.ArrayList<>();
-                lore.add(dev.stsv.core.util.Lang.item("fishing.size-stripped-lore", "pct",
-                        Math.round(dev.stsv.economy.fishing.FishSpec.STRIPPED_FACTOR * 100)));
-                m.lore(lore);
-                m.getPersistentDataContainer().set(dev.stsv.economy.fishing.FishingModule.FACTOR,
-                        org.bukkit.persistence.PersistentDataType.DOUBLE, dev.stsv.economy.fishing.FishSpec.STRIPPED_FACTOR);
+        boolean trial = trial(item), bought = shopBought(item);
+        ItemStack plain = create(key(item), item.getAmount()).orElseGet(() -> {
+            ItemStack c = item.clone();
+            c.editMeta(m -> {
+                m.getPersistentDataContainer().remove(dev.stsv.economy.fishing.OldSizes.SIZE);
+                m.getPersistentDataContainer().remove(dev.stsv.economy.fishing.OldSizes.FACTOR);
             });
-            return plain;
-        }).orElse(item);
-    }
-
-    /** A rare or legend fish's price factor by its size (0.7 - 1.5, set when caught; 0.7 once stripped in a machine); 1 for anything else. */
-    public static double sizeFactor(ItemStack item) {
-        if (item == null || !item.hasItemMeta()) return 1;
-        Double f = item.getItemMeta().getPersistentDataContainer().get(dev.stsv.economy.fishing.FishingModule.FACTOR,
-                org.bukkit.persistence.PersistentDataType.DOUBLE);
-        return f == null ? 1 : f;
-    }
-
-    /** The average size factor of the first amount matching items (in the order {@link #remove} takes them). */
-    public static double sizeFactor(PlayerInventory inv, Predicate<ItemStack> match, int amount) {
-        return sizeFactor(inv, match, amount, -1);
-    }
-
-    /** The same, taking from storage slot first (a clicked slot; -1 = none) before the others. */
-    public static double sizeFactor(PlayerInventory inv, Predicate<ItemStack> match, int amount, int first) {
-        double sum = 0;
-        int left = amount;
-        ItemStack[] contents = inv.getStorageContents();
-        for (int i : order(contents.length, first)) {
-            ItemStack it = contents[i];
-            if (left <= 0) break;
-            if (it == null || !match.test(it)) continue;
-            int take = Math.min(left, it.getAmount());
-            sum += sizeFactor(it) * take;
-            left -= take;
-        }
-        int n = amount - left;
-        return n <= 0 ? 1 : sum / n;
+            return c;
+        });
+        if (trial) markTrial(plain);
+        if (bought) markBought(plain);
+        return plain;
     }
 
     /** Slot indices 0..size-1, with first (if it is one of them) moved to the front. */

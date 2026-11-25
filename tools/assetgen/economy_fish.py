@@ -156,6 +156,19 @@ FISH = {
     "thunder_catfish": ("천둥 메기", "fresh", 3, 100, 250, 780, "l", "#4a4a60", "#f0e04a", "when=thunder whisker"),
     "moon_goldfish": ("달 금붕어", "fresh", 3, 15, 40, 750, "f", "#f8e0a0", "#ffffff", "when=fullmoon glow"),
 }
+COLOUR_GROUPS = {  # 낚시대회 색깔 종목 (fish.yml colors / color): the main colour of each fish's picture
+
+ "red": "red_seabream octopus giant_squid black_rockfish clownfish lionfish snow_crab king_crab taimen guppy discus petal_carp mushroom_puffer sunset_bream salmon",
+ "yellow": "filefish pufferfish butterflyfish dragon_carp arowana golden_crucian moon_goldfish carp bagrid_catfish mandarin_fish yellowfin_tuna",
+ "blue": "mackerel sardine saury yellowtail bluefin_tuna marlin damselfish tang sailfish herring neon_tetra moonlight_ray glow_jellyfish crystal_trout whale_shark",
+ "silver": "horse_mackerel hairtail sunfish sand_lance pale_chub smelt mullet barramundi sweetfish cavefish cave_shrimp cave_crayfish angelfish piranha sturgeon greenland_shark bitterling char pollack tilapia",
+ "brown": "flatfish greenling cod monkfish skate croaker sandfish atka_mackerel crucian_carp lenok dace loach swamp_eel goby spore_goby mycelium_ray",
+ "green": "mahi_mahi kkeokji masu_salmon trout paradise_fish softshell_turtle eel mud_crab moss_minnow rainbow_trout",
+ "dark": "rockfish lantern_angler catfish snakehead giant_snakehead abyssfish arapaima thunder_catfish mudskipper king_mudskipper pike_conger",
+}
+COLOUR = {f: g for g, s in COLOUR_GROUPS.items() for f in s.split()}
+COLOUR_NAMES = {"red": "붉은", "yellow": "노란", "blue": "푸른", "silver": "은빛", "brown": "갈색", "green": "초록", "dark": "검은"}
+
 VANILLA = {"cod": "minecraft:cod", "salmon": "minecraft:salmon", "pufferfish": "minecraft:pufferfish"}
 FINDS = {"red_seabream", "bluefin_tuna", "sturgeon"}   # items of the jobs step (finds, 손질대 inputs): their icons stay
 
@@ -450,11 +463,13 @@ def write_content(pack: Path, icons):
     out = ["# 낚시. 바닐라처럼 찌가 물에 잠길 때 우클릭하면 낚아 올림 (늦으면 놓침). 무엇이 걸릴지는 아래 물고기 중에서:",
            "# 그 물(서식지)과 때(시간·날씨)에 사는 것, 등급은 아래 확률로.",
            "# 희귀·전설이 걸릴 확률은 jobs.yml 어부의 finds.chance (직업이 아니면 outsider), 그중 전설이 legend-share.",
-           "# 크기는 size 범위 안에서 정해지고 희귀·전설은 아이템에 크기가 붙어 매입가가 0.7 ~ 1.5배 (흔함·보통은 쌓이게 크기 없음).",
+           "# 낚은 물고기에는 크기가 없음 (모두 겹쳐지고 값도 같음). size 는 낚시대회에서만 쓰는 글자 크기 (대어·작은 고기·무게 합계 종목).",
+           "# color 는 낚시대회 색깔 종목의 색 묶음 (아래 colors).",
            "# 물고기 그림·이 파일은 tools/assetgen/economy_fish.py 가 만듭니다.",
            "",
            "legend-share: 0.05     # 희귀·전설 입질 중 전설 비율",
            "pearl: 0.15            # 바다에서 희귀가 걸렸을 때 진주가 나올 확률",
+           "pearl-river: 0.15      # 강(차가운 강·얼어붙은 강 포함)에서 희귀가 걸렸을 때 진주(민물 진주)가 나올 확률. 늪·정글·동굴 물은 없음",
            "# 입질까지 기다리는 시간은 바닐라 그대로 (5~30초, 미끼(Lure) 한 단계마다 5초 덜, 그다음 물고기가 찌까지 1~4초).",
            "# 어부는 jobs.yml 어부 bite 만큼 기다리는 시간이 줄어듦.",
            ""] + TRAP_LINES + [""] + NET_LINES + [
@@ -462,6 +477,9 @@ def write_content(pack: Path, icons):
            "rarities:"]
     for (rid, name, colour) in RARITY:
         out.append(f'  {rid}: {{ name: "{name}", color: "{colour}" }}')
+    out += ["", "# 낚시대회 색깔 종목: 물고기 그림의 주된 색으로 묶음 (모든 물고기에 color 가 하나씩)", "colors:"]
+    for cid, cname in COLOUR_NAMES.items():
+        out.append(f'  {cid}: "{cname}"')
     out += ["", "# 도감 묶음: 다 잡으면 칭호", "groups:"]
     for gid, (name, tid, _) in HABITATS.items():
         out.append(f'  {gid}: {{ name: "{name}", title: economy:{tid} }}')
@@ -475,6 +493,7 @@ def write_content(pack: Path, icons):
         w = when(fid)
         if w:
             parts.append(f"when: {w}")
+        parts.append(f"color: {COLOUR[fid]}")
         out.append(f"  {fid}: {{ {', '.join(parts)} }}")
     (pack / "fish.yml").write_text("\n".join(out) + "\n", encoding="utf-8")
 

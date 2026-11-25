@@ -110,6 +110,30 @@ class DonationTest {
     }
 
     @Test
+    void grantsByOneSourceAddUpSinceAMoment(@TempDir Path dir) throws Exception {
+        // what another plugin's daily cap reads (DonationModule.starsGrantedSince): GRANT lines of one actor, from a time on
+        Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
+        DonationStore s = open(db);
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+        assertEquals(0L, s.grantedSince(a, "system:fishing", 0).get(), "nothing yet");
+        s.change(a, "Steve", 30, Kind.GRANT, null, "낚시 대회 1위", "system:fishing", false, 1000).get();
+        s.change(a, "Steve", 20, Kind.GRANT, null, "낚시 대회 2위", "system:fishing", false, 5000).get();
+        s.change(a, "Steve", 500, Kind.GRANT, null, "계좌이체", "admin", false, 6000).get();
+        s.change(b, "Alex", 40, Kind.GRANT, null, null, "system:fishing", false, 6000).get();
+        s.change(a, "Steve", -10, Kind.REVOKE, null, null, "system:fishing", false, 7000).get();
+        assertEquals(50L, s.grantedSince(a, "system:fishing", 0).get(), "only this actor's grants, revokes not subtracted");
+        assertEquals(20L, s.grantedSince(a, "system:fishing", 5000).get(), "from the moment on (inclusive)");
+        assertEquals(0L, s.grantedSince(a, "system:fishing", 5001).get());
+        assertEquals(500L, s.grantedSince(a, "admin", 0).get());
+        assertEquals(40L, s.grantedSince(b, "system:fishing", 0).get());
+        // an actor longer than the column is matched as it was written
+        String longActor = "system:" + "x".repeat(40);
+        s.change(b, "Alex", 7, Kind.GRANT, null, null, longActor, false, 8000).get();
+        assertEquals(7L, s.grantedSince(b, longActor, 0).get());
+        db.close();
+    }
+
+    @Test
     void starNotes(@TempDir Path dir) throws Exception {
         Db db = DatabaseModule.sqlite(dir.resolve("stsv.db"), LOG);
         DonationStore s = open(db);

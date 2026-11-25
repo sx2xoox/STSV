@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
 /**
@@ -73,6 +74,8 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
     private static final String ADMIN_OWNER = "STSV 후원";
     /** Lines of history in chat (admins), in the menu's history tab, and the category tabs the menu has. */
     private static final int HISTORY = 10, MENU_HISTORY = 72, TABS = 7;
+    /** The most one credit or take-back may move (a typo guard). */
+    private static final long MAX_CHANGE = 10_000_000;
     /** The history's tab (no category may be called this: ids have no '#'). */
     private static final String HISTORY_TAB = "#history";
     /** A star note's id on its item (the note itself is in the books: the item only names it). */
@@ -802,6 +805,65 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
         });
     }
 
+    // ------------------------------------------------------------------------------------------
+    // For other plugins: credits by the server itself (a fishing tournament's prize)
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Credits stars to a player exactly as /관리자 후원 지급 does: one GRANT line in the books (the same store call),
+     * the same server log line, and the same message and sound to the player if they are online. For prizes the
+     * server hands out itself; {@code actor} names the source, e.g. "system:fishing" (it is what
+     * {@link #starsGrantedSince} sums by, at most 32 characters are kept).
+     *
+     * @param name   the player's account name (null: looked up)
+     * @param amount 1 .. 10,000,000
+     * @return true when the line went in; false for a refused amount or a failure (logged). Completes on the
+     *         database's thread: go back to the main thread before touching the world.
+     */
+    public CompletableFuture<Boolean> grantStars(UUID player, String name, long amount, String note, String actor) {
+        if (player == null || store == null || amount < 1 || amount > MAX_CHANGE || actor == null || actor.isBlank()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        String who = name == null || name.isBlank() ? Names.real(player) : name;
+        return change(player, who, amount, true, note, actor).handle((r, err) -> {
+            if (err != null) {
+                plugin.getLogger().log(Level.WARNING, "[후원] " + actor + " 지급 실패 (" + who + ", " + amount + ")", err);
+                return false;
+            }
+            return r.outcome() == Outcome.DONE;
+        });
+    }
+
+    /**
+     * The stars credited to a player by one actor (as {@link #grantStars} wrote it) since a moment, from the books:
+     * for a daily cap. Completes on the database's thread.
+     */
+    public CompletableFuture<Long> starsGrantedSince(UUID player, String actor, long sinceMillis) {
+        if (player == null || store == null || actor == null) return CompletableFuture.completedFuture(0L);
+        return store.grantedSince(player, actor, sinceMillis);
+    }
+
+    /**
+     * One credit (give) or take-back in the books; once written, the server log line and, for a credit, the
+     * player's message and sound (on the main thread). The result completes on the database's thread.
+     */
+    private CompletableFuture<DonationStore.Result> change(UUID id, String name, long amount, boolean give, String note, String actor) {
+        return store.change(id, name, give ? amount : -amount, give ? Kind.GRANT : Kind.REVOKE, null, note, actor, false, System.currentTimeMillis())
+                .thenApply(r -> {
+                    if (r.outcome() != Outcome.DONE) return r;
+                    Bukkit.getScheduler().runTask(plugin, () -> {
+                        plugin.getLogger().info("[후원] " + actor + " → " + name + " " + (give ? "지급 " : "회수 ") + shop.amount(amount) + " (#" + r.entry()
+                                + ", 보유 " + shop.amount(r.balance()) + (note == null ? "" : ", " + note) + ")");
+                        Player target = Bukkit.getPlayer(id);
+                        if (target != null && give) {
+                            target.sendMessage(Lang.msg("donation.received", "amount", shop.amount(amount), "balance", shop.amount(r.balance())));
+                            target.playSound(target.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.1f);
+                        }
+                    });
+                    return r;
+                });
+    }
+
     private void admin(CommandSender s, String[] a) {
         String sub = a.length == 0 ? "" : a[0];
         String actor = s instanceof Player p ? p.getName() : "console";
@@ -815,11 +877,10 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                     parsed = 0;
                 }
                 final long amount = parsed;
-                if (amount < 1 || amount > 10_000_000) {
+                if (amount < 1 || amount > MAX_CHANGE) {
                     s.sendMessage(Lang.msg("donation.admin-usage"));
                     return;
                 }
-                long delta = give ? amount : -amount;
                 String note = a.length > 3 ? String.join(" ", java.util.Arrays.copyOfRange(a, 3, a.length)) : null;
                 Names.find(a[1], found -> {
                     if (found.isEmpty()) {
@@ -828,21 +889,14 @@ public final class DonationModule implements StsvModule, Listener, TabExecutor {
                     }
                     UUID id = found.get();
                     String name = Names.real(id);
-                    store.change(id, name, delta, give ? Kind.GRANT : Kind.REVOKE, null, note, actor, false, System.currentTimeMillis())
+                    change(id, name, amount, give, note, actor)
                             .thenAccept(r -> Bukkit.getScheduler().runTask(plugin, () -> {
                                 if (r.outcome() != Outcome.DONE) {
                                     s.sendMessage(Lang.msg("donation.admin-short", "player", name, "balance", shop.amount(r.balance())));
                                     return;
                                 }
-                                plugin.getLogger().info("[후원] " + actor + " → " + name + " " + (give ? "지급 " : "회수 ") + shop.amount(amount) + " (#" + r.entry()
-                                        + ", 보유 " + shop.amount(r.balance()) + (note == null ? "" : ", " + note) + ")");
                                 s.sendMessage(Lang.msg(give ? "donation.admin-given" : "donation.admin-taken", "player", name, "amount", shop.amount(amount),
                                         "balance", shop.amount(r.balance()), "number", r.entry()));
-                                Player target = Bukkit.getPlayer(id);
-                                if (target != null && give) {
-                                    target.sendMessage(Lang.msg("donation.received", "amount", shop.amount(amount), "balance", shop.amount(r.balance())));
-                                    target.playSound(target.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.1f);
-                                }
                             })).exceptionally(err -> {
                                 plugin.getLogger().log(Level.WARNING, "[후원] 지급·회수 실패", err);
                                 Bukkit.getScheduler().runTask(plugin, () -> s.sendMessage(Lang.msg("donation.error")));

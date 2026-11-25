@@ -170,6 +170,15 @@ public final class DonationStore {
                 DonationStore::entry, player.toString()));
     }
 
+    /**
+     * The currency credited to a player by one actor since a moment: the sum of their GRANT lines with that actor
+     * (as written: cut to 32 characters) created at or after {@code since}. Revokes are not subtracted.
+     */
+    public CompletableFuture<Long> grantedSince(UUID player, String actor, long since) {
+        return db.async(c -> Db.query(c, "SELECT COALESCE(SUM(amount), 0) FROM stsv_donation_log WHERE player = ? AND kind = ? AND actor = ? AND created >= ?",
+                rs -> rs.getLong(1), player.toString(), Kind.GRANT.name(), cut(actor, 32), since).getFirst());
+    }
+
     /** A player's purchases that were paid and not yet handed over, oldest first. */
     public CompletableFuture<List<Entry>> undelivered(UUID player) {
         return db.async(c -> Db.query(c, "SELECT " + COLS + " FROM stsv_donation_log WHERE player = ? AND kind = ? AND delivered = 0 ORDER BY id",
