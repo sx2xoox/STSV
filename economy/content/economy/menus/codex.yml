@@ -1,5 +1,6 @@
 # /도감: 위 = 분류 탭 (상점 판매 분류와 같음), 가운데 = 그 분류의 모든 물건 (처음부터 다 보임)
 # 등록: 그 물건 1개를 바쳐야 함. 칸 클릭 = 인벤토리에서 1개 내고 등록, 도감을 연 채 내 물건 클릭 = 그 물건 등록
+# 아래 H = 인물 도감 (menus/people.yml, /도감 인물)
 codex:
   title: "<#f0e2b0>도감 <#b9a6d6>· {tab} {have}/{all}"
   rows: 6
@@ -10,7 +11,7 @@ codex:
     - "LLLLLLLLL"
     - "LLLLLLLLL"
     - "LLLLLLLLL"
-    - "P...X...N"
+    - "P.X...H.N"
   list: L
   buttons:
     I:
@@ -45,6 +46,11 @@ codex:
       name: "<yellow>다음 페이지 ▶"
       lore: ["<gray>{page} / {pages}"]
       off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    H:
+      action: "codex:people"
+      material: PLAYER_HEAD
+      name: "<#ffb37a>인물 도감"
+      lore: ["<gray>버스로 태워 준 마을 사람들", "<gray>만난 사람 <white>{people_have}<gray>/{people_all} <#ffe08a>✦{people_shiny}"]
     X:
       action: close
       icon: stsv:gui/exit

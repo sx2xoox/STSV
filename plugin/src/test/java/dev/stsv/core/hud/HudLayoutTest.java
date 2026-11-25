@@ -512,9 +512,10 @@ class HudLayoutTest {
         // server's own syllables
         // (+ the overlay's faces and speech bubble in its 8 rows' fonts, about 0.2 MB: 10.5)
         // (+ the board's ten rows of Galmuri7 letters, about 2.4 MB: 13.5; without the board as before)
+        // (+ the 별난 손님's 52 faces in the overlay's faces sheet, about 0.15 MB: 10.75 without the board)
         assertTrue(bytes < 13L * 1024 * 1024 + 512 * 1024, "client memory " + bytes);
         long off = HudPack.clientMemory(new HudLayout(sheets, new HudLayout.Settings(212, 54, 132, 7, true)));
-        assertTrue(off < 10L * 1024 * 1024 + 512 * 1024, "client memory without the board " + off);
+        assertTrue(off < 10L * 1024 * 1024 + 768 * 1024, "client memory without the board " + off);
         assertTrue(bytes - off < 2600L * 1024, "the board costs " + (bytes - off));
         // and with as many syllables as the panel ever keeps
         HudSheets bundled = sheets;

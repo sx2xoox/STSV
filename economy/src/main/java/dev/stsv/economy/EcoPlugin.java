@@ -81,6 +81,7 @@ public final class EcoPlugin extends JavaPlugin {
     private dev.stsv.economy.dock.DockModule docks;
     private dev.stsv.economy.road.RoadModule roads;
     private dev.stsv.economy.bus.BusModule bus;
+    private dev.stsv.economy.people.PeopleModule people;
     private dev.stsv.economy.guide.GuideModule guide;
     private dev.stsv.economy.secret.SecretModule secrets;
 
@@ -133,6 +134,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(docks = new dev.stsv.economy.dock.DockModule(this));   // after the shop, machines and land: it reads them
         add(roads = new dev.stsv.economy.road.RoadModule(this));
         add(bus = new dev.stsv.economy.bus.BusModule(this));   // after the roads: its stops stand on them
+        add(people = new dev.stsv.economy.people.PeopleModule(this));   // after the bus: its people are the bus's passengers
         add(guide = new dev.stsv.economy.guide.GuideModule(this));   // after everything it teaches (it reads them all)
         add(secrets = new dev.stsv.economy.secret.SecretModule(this));   // after what the secrets hide in (stocks, mail, machines, guide)
         add(rank = new RankModule(this));
@@ -243,6 +245,8 @@ public final class EcoPlugin extends JavaPlugin {
     public dev.stsv.economy.fishing.TrapModule traps() { return traps; }
     public dev.stsv.economy.fishing.TournamentModule tournament() { return tournament; }
     public dev.stsv.economy.codex.CodexModule codex() { return codex; }
+    /** 인물 도감 (/도감 인물) */
+    public dev.stsv.economy.people.PeopleModule people() { return people; }
     public MarketModule market() { return market; }
     /** 거래소 구매 주문 */
     public dev.stsv.economy.market.BuyOrderModule orders() { return orders; }

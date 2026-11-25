@@ -293,13 +293,13 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
         ConfigurationSection sh = section(c, "shiny");
         Map<String, Map<String, List<String>>> shinyOwn = new LinkedHashMap<>();
         Map<String, String> shinySkins = new LinkedHashMap<>();
-        if (ts != null) for (String id : ts.getKeys(false)) {
-            ConfigurationSection t = ts.getConfigurationSection(id);
+        if (ts != null) for (String kind : ts.getKeys(false)) {
+            ConfigurationSection t = ts.getConfigurationSection(kind);
             if (t == null) continue;
             Map<String, List<String>> own = talk(t.getConfigurationSection("shiny-talk"));
-            if (!own.isEmpty()) shinyOwn.put(id, own);
+            if (!own.isEmpty()) shinyOwn.put(kind, own);
             String sk = t.getString("shiny-skin");
-            if (sk != null) shinySkins.put(id, sk);
+            if (sk != null) shinySkins.put(kind, sk);
         }
         Shiny shiny = new Shiny(Math.clamp(sh.getDouble("chance", 0.004), 0, 1), talk(sh.getConfigurationSection("talk")), shinyOwn, shinySkins,
                 Set.copyOf(sh.getStringList("never")));

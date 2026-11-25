@@ -55,7 +55,7 @@ commands:
     aliases: [bag]
     permission: stsv.economy.play
   도감:
-    description: 도감 (상점에 파는 물건 전부, 1개씩 바쳐 등록)
+    description: 도감 (상점에 파는 물건 전부, 1개씩 바쳐 등록) · /도감 인물 = 인물 도감 (버스 손님)
     aliases: [codex, fishdex]
     permission: stsv.economy.play
   낚시대회:

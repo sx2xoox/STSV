@@ -260,6 +260,10 @@ public final class CodexModule extends EcoModule {
             Set<String> mine = registered(u);
             for (String i : items()) if (!mine.contains(i) && Items.count(v.player().getInventory(), it -> i.equals(Items.key(it))) > 0) ready++;
             m.put("ready", String.valueOf(ready));
+            int[] people = eco.people() == null ? new int[3] : eco.people().counts(u);   // 인물 도감 button
+            m.put("people_have", String.valueOf(people[0]));
+            m.put("people_shiny", String.valueOf(people[1]));
+            m.put("people_all", String.valueOf(people[2]));
             return m;
         }
 
@@ -379,6 +383,8 @@ public final class CodexModule extends EcoModule {
             if (action.startsWith("codex:tab:")) {
                 String id = action.substring("codex:tab:".length());
                 if (!id.equals(tabId)) Bukkit.getScheduler().runTask(eco, () -> open(p, id));
+            } else if (action.equals("codex:people")) {
+                if (eco.people() != null) Bukkit.getScheduler().runTask(eco, () -> eco.people().open(p));
             } else if (action.equals("codex:register_all")) {
                 int n = 0;
                 Set<String> mine = registered(p.getUniqueId());

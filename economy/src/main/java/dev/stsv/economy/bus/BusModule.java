@@ -3217,9 +3217,10 @@ public final class BusModule extends EcoModule {
         String lineNos = lineNumbers(s);
         String skin = shiny && spec.shiny().skin(type) != null ? spec.shiny().skin(type) : pickSkin(type, only != null);
         boolean shown = shiny;
+        BusSpec.Type kindOf = type;
         Mannequin m = spawnGuest(at, type, skin, shiny, x -> {
             x.customName(dev.stsv.core.util.Text.mm(kind != null ? Lang.raw("bus.special-tag", "name", kind.name())
-                    : team != null ? typeTag(type) + " " + Lang.raw("bus.team-tag", "color", team.color, "no", team.no) : typeTag(type, shown)));
+                    : team != null ? typeTag(kindOf) + " " + Lang.raw("bus.team-tag", "color", team.color, "no", team.no) : typeTag(kindOf, shown)));
             x.setCustomNameVisible(true);
             x.setDescription(team != null ? Lang.mm("bus.waiter-team", "color", team.color, "no", team.no, "n", team.size,
                     "dest", teamDest == null ? lineNos : teamDest.name()) : Lang.mm("bus.waiter-tag", "lines", lineNos));

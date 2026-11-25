@@ -218,7 +218,10 @@ final class Commands {
             for (var j : eco.jobs().spec().jobs().values()) out.add(j.name());
             return out;
         }));
-        eco.command("도감", new Simple(player((p, a) -> eco.codex().open(p)), (s, a) -> List.of()));
+        eco.command("도감", new Simple(player((p, a) -> {
+            if (a.length > 0 && a[0].equals("인물")) eco.people().open(p);   // 인물 도감
+            else eco.codex().open(p);
+        }), (s, a) -> a.length == 1 && "인물".startsWith(a[0]) ? List.of("인물") : List.of()));
         eco.command("낚시대회", new Simple((s, a) -> eco.tournament().info(s), (s, a) -> List.of()));
         eco.command("장신구", new Simple(player((p, a) -> {
             if (a.length > 0 && a[0].equals("공방")) eco.accessories().openWorkshop(p);

@@ -1,0 +1,49 @@
+# /도감 인물: 인물 도감 (people.yml). 가운데 = 인물 한 명에 한 칸 (버스 손님 종류마다). 안 만난 사람은 ??? 그림자와 만날 곳 귀띔.
+# 위 오른쪽 = 별난 모습으로 보기 (별난 모습을 등록한 사람만 바뀜), 아래 = 물건 도감으로
+people:
+  title: "<#f0e2b0>인물 도감 <#b9a6d6>· {have}/{all}"
+  rows: 6
+  background: economy:gui/people
+  layout:
+    - "I.......S"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "LLLLLLLLL"
+    - "P.X...M.N"
+  list: L
+  buttons:
+    I:
+      action: ""
+      icon: stsv:gui/info
+      material: BOOK
+      name: "<white>인물 도감 <gray>{have}/{all} <#ffe08a>✦{shiny}"
+    S:
+      action: "people:shiny"
+      material: AMETHYST_SHARD
+      name: "<#ffe08a>✦ 별난 모습으로 보기"
+      lore: ["<gray>별난 모습을 등록한 사람은", "<gray>별난 모습으로 보여요 <dark_gray>(다시 누르면 보통)"]
+    M:
+      action: "people:items"
+      material: CHEST
+      name: "<yellow>물건 도감으로"
+      lore: ["<gray>상점에 파는 물건 도감"]
+    P:
+      action: page:prev
+      icon: stsv:gui/prev
+      material: ARROW
+      name: "<yellow>◀ 이전 페이지"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/prev_off, material: GRAY_DYE, name: "<dark_gray>◀ 첫 페이지" }
+    N:
+      action: page:next
+      icon: stsv:gui/next
+      material: ARROW
+      name: "<yellow>다음 페이지 ▶"
+      lore: ["<gray>{page} / {pages}"]
+      off: { icon: stsv:gui/next_off, material: GRAY_DYE, name: "<dark_gray>마지막 페이지 ▶" }
+    X:
+      action: close
+      icon: stsv:gui/exit
+      material: OAK_DOOR
+      name: "<red>닫기"
