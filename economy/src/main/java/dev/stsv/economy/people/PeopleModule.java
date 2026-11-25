@@ -225,7 +225,7 @@ public final class PeopleModule extends EcoModule {
         boolean slim = skin.endsWith(" slim");
         String key = slim ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
         try {
-            it.setData(DataComponentTypes.PROFILE, ResolvableProfile.resolvableProfile().name("people").skinPatch(sp -> sp.body(Key.key(key))
+            it.setData(DataComponentTypes.PROFILE, ResolvableProfile.resolvableProfile().skinPatch(sp -> sp.body(Key.key(key))
                     .model(slim ? PlayerTextures.SkinModel.SLIM : PlayerTextures.SkinModel.CLASSIC)).build());
         } catch (RuntimeException ignored) {   // a bad key: a plain head
         }
@@ -286,8 +286,8 @@ public final class PeopleModule extends EcoModule {
                 List<Component> lore = new ArrayList<>();
                 if (known) {
                     lore.add(Lang.item("people.lore-met", "met", e.met, "date", day.format(new Date(e.first))));
-                    lore.add(Lang.item("people.lore-looks", "normal", Lang.raw(e.normal > 0 ? "people.yes" : "people.no"),
-                            "shiny", Lang.raw(e.shiny > 0 ? "people.yes-shiny" : "people.no")));
+                    lore.add(Lang.item("people.lore-looks", "normal", Lang.raw(e.normal > 0 ? "people.seen" : "people.unseen"),
+                            "shiny", Lang.raw(e.shiny > 0 ? "people.seen-shiny" : "people.unseen")));
                     List<String> stamps = new ArrayList<>();
                     for (String pl : e.places) stamps.add(Lang.raw("people.stamp", "place", spec.places().getOrDefault(pl, pl)));
                     lore.add(Lang.item("people.lore-places", "stamps", String.join(" ", stamps)));
