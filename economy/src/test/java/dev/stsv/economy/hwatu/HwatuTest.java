@@ -41,10 +41,12 @@ class HwatuTest {
         HwatuSpec s = spec();
         assertEquals(100, s.buyPrice());
         assertEquals(95, s.cashPrice());
-        assertEquals(5000, s.dailyBuy());
+        // "칩이나 게임은 제한 없게": no daily buy limit, no daily loss cap, no account age (each 0 = off, can be set again)
+        assertEquals(0, s.dailyBuy());
         assertEquals(5, s.rakePercent());
-        assertEquals(3000, s.lossCap());
-        assertEquals(24 * 3_600_000L, s.minAgeMs());
+        assertEquals(0, s.lossCap());
+        assertEquals(0, s.minAgeMs());
+        assertEquals(100_000, s.testChips());
         assertEquals(20, s.turnSeconds());
         assertEquals(List.of("초보방", "일반방", "큰손방"), s.rooms().stream().map(HwatuSpec.Room::name).toList());
         assertEquals(List.of(10L, 100L, 500L), s.rooms().stream().map(HwatuSpec.Room::ante).toList());
@@ -95,6 +97,40 @@ class HwatuTest {
         assertNull(HwatuRules.canCash(5, 5));
         assertEquals("hwatu.cash-short", HwatuRules.canCash(6, 5));
         assertEquals("hwatu.bad-amount", HwatuRules.canCash(0, 5));
+    }
+
+    @Test
+    void zeroMeansNoLimit() {
+        assertNull(HwatuRules.canBuy(1_000_000, 50_000_000, 0, 100_000_000_000L, 100), "no daily buy limit");
+        assertEquals("hwatu.buy-gold", HwatuRules.canBuy(1_000_000, 0, 0, 1000, 100), "gold is still needed");
+        assertEquals(Long.MAX_VALUE, HwatuRules.buyLeft(123_456, 0));
+        assertTrue(HwatuRules.oldEnough(0, 1000, 0), "no age rule: even a never-seen account");
+        assertTrue(HwatuRules.oldEnough(999, 1000, 0));
+        assertFalse(HwatuRules.resting(-1_000_000_000L, 0), "no loss cap");
+        assertNull(HwatuRules.canPlay(0, 1000, 0, -1_000_000_000L, 0, 50, 50));
+        assertEquals("hwatu.need-chips", HwatuRules.canPlay(0, 1000, 0, 0, 0, 49, 50), "a hand still has to be covered");
+        // the parsed file accepts 0 and leaves the 섯다 checks against the limits out
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(Path.of(System.getProperty("stsv.content")).resolve("economy/hwatu.yml").toFile());
+        y.set("chips.daily-buy", 0);
+        y.set("daily-loss-cap", 0);
+        y.set("min-account-hours", 0);
+        List<String> problems = new ArrayList<>();
+        HwatuSpec s = HwatuSpec.parse(y, problems);
+        assertEquals(List.of(), problems);
+        assertEquals(0, s.dailyBuy());
+        assertEquals(0, s.lossCap());
+        // and the limits can be turned back on
+        y.set("chips.daily-buy", 5000);
+        y.set("daily-loss-cap", 3000);
+        y.set("min-account-hours", 24);
+        s = HwatuSpec.parse(y, problems);
+        assertEquals(List.of(), problems);
+        assertEquals(5000, s.dailyBuy());
+        assertEquals(3000, s.lossCap());
+        assertEquals(24 * 3_600_000L, s.minAgeMs());
+        y.set("daily-loss-cap", -1);
+        HwatuSpec.parse(y, problems);
+        assertTrue(String.join("\n", problems).contains("daily-loss-cap"));
     }
 
     @Test
