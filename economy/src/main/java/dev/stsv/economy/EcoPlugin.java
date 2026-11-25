@@ -86,6 +86,7 @@ public final class EcoPlugin extends JavaPlugin {
     private dev.stsv.economy.people.PeopleModule people;
     private dev.stsv.economy.guide.GuideModule guide;
     private dev.stsv.economy.secret.SecretModule secrets;
+    private dev.stsv.economy.hwatu.HwatuModule hwatu;
 
     public static EcoPlugin get() {
         return instance;
@@ -141,6 +142,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(people = new dev.stsv.economy.people.PeopleModule(this));   // after the bus: its people are the bus's passengers
         add(guide = new dev.stsv.economy.guide.GuideModule(this));   // after everything it teaches (it reads them all)
         add(secrets = new dev.stsv.economy.secret.SecretModule(this));   // after what the secrets hide in (stocks, mail, machines, guide)
+        add(hwatu = new dev.stsv.economy.hwatu.HwatuModule(this));   // before the ranking: chips are part of net worth
         add(rank = new RankModule(this));
         add(metrics = new MetricsModule(this));   // last: its daily report reads what the others did
         StallRemoval.run(this, core.db());
@@ -281,6 +283,8 @@ public final class EcoPlugin extends JavaPlugin {
     /** 길라잡이 (null before it started) */
     public dev.stsv.economy.guide.GuideModule guide() { return guide; }
     public dev.stsv.economy.secret.SecretModule secrets() { return secrets; }
+    /** 화투방 (null before it started) */
+    public dev.stsv.economy.hwatu.HwatuModule hwatu() { return hwatu; }
     public RequestModule requests() { return requests; }
     public dev.stsv.economy.stamp.StampModule stamps() { return stamps; }
     public dev.stsv.economy.mission.MissionModule missions() { return missions; }

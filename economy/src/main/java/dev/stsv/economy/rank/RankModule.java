@@ -102,6 +102,7 @@ public final class RankModule extends EcoModule implements WeeklyListener {
         if (own != null) w += own.vault;
         if (eco.stocks() != null) w += Math.round(eco.stocks().value(player));
         w += core.economy().store().outstanding(player);
+        if (eco.hwatu() != null) w += eco.hwatu().worth(player);   // 화투방 chips, at the gold they were bought for
         return w;
     }
 
@@ -111,6 +112,14 @@ public final class RankModule extends EcoModule implements WeeklyListener {
      */
     public long ownWorth(UUID player) {
         return Math.max(0, worth(player) - eco.kv().getLong(RECEIVED + player, 0));
+    }
+
+    /**
+     * 화투방: chips won (+) or lost (-) in a hand, as gold. Neither earnings nor a loss: this week's starting point and the
+     * 순자산 achievements' count move with it, so nobody ranks or earns an achievement by gambling (no winnings ranking).
+     */
+    public void gambled(UUID player, long delta) {
+        received(player, delta);
     }
 
     /** Money went from one player to another outside the balances (a member's 금고 deposit, a land handed over). */
