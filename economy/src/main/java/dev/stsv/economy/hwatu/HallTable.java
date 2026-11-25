@@ -322,6 +322,24 @@ final class HallTable implements Table.Listener, Table.Bank {
     }
 
     @Override
+    public long stack(UUID u) {
+        return test != null ? test.chips(u) : mod.available(u);
+    }
+
+    /** What a 섯다 bet was, as MiniMessage: 하프! +120칩, with 올인 when it left them nothing. */
+    static String act(Table.Bet b) {
+        String s = Lang.raw("hwatu.act." + b.action().key(), "n", fmt(b.added()));
+        return b.allIn() ? s + " " + Lang.raw("hwatu.act.allin") : s;
+    }
+
+    @Override
+    public void bet(Table t, Table.Bet b) {
+        String what = act(b);
+        tell(Lang.msg("hwatu.bet", "player", mini(b.player()), "act", what));
+        if (scene != null) scene.bet(b, Lang.mm("hwatu.bet-pop", "player", mini(b.player()), "act", what));
+    }
+
+    @Override
     public void changed(Table t) {
         UUID turn = t.turn();
         if (!java.util.Objects.equals(turn, lastTurn)) {
@@ -423,7 +441,13 @@ final class HallTable implements Table.Listener, Table.Bank {
                 rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-pot", "pot", fmt(t.pot()), "ante", fmt(t.ante()))));
                 if (t.players().contains(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm(t.folded(me) ? "hwatu.board-folded" : "hwatu.board-put", "n", fmt(t.put(me)))));
                 if (game == Table.Game.SUTDA && t.betting() != null) {
-                    rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-raises", "n", t.betting().raises(), "max", mod.spec().game(Table.Game.SUTDA).maxRaises())));
+                    Table.Bet b = t.lastBet();
+                    if (b != null) rows.add(new HudLayout.Board.Row(mod.isBot(b.player()) ? null : b.player(),
+                            Lang.mm("hwatu.board-bet", "player", mini(b.player()), "act", act(b))));
+                    int seat = t.players().indexOf(me);
+                    if (t.allIn(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-allin")));
+                    else if (seat >= 0 && t.inHand(me) && t.betting().toCall(seat) > 0)
+                        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-to-call", "n", fmt(t.betting().toCall(seat)))));
                 }
             }
             case RESULT -> {
@@ -435,7 +459,7 @@ final class HallTable implements Table.Listener, Table.Bank {
                 rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-result", "seconds", left)));
             }
         }
-        rows.add(new HudLayout.Board.Row(null, Lang.mm(test != null ? "hwatu.board-test-chips" : "hwatu.board-chips", "n", fmt(held(me) - t.committed(me)))));
+        rows.add(new HudLayout.Board.Row(null, Lang.mm(test != null ? "hwatu.board-test-chips" : "hwatu.board-chips", "n", fmt(held(me) - (t.phase() == Table.Phase.PLAYING ? t.put(me) : 0)))));
         if (out.contains(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-sitting-out")));
         return new HudLayout.Board(Lang.mm("hwatu.board-title", "game", gameName(), "room", roomName()), rows);
     }
@@ -630,12 +654,8 @@ final class HallTable implements Table.Listener, Table.Bank {
             Card[] c = table.cards(bot);
             Betting b = table.betting();
             int seat = table.players().indexOf(bot);
-            if (c == null || b == null || seat < 0) return Table.Move.CALL;
-            return switch (HwatuBot.sutda(Sutda.of(c[0], c[1]), b.toCall(seat), b.canRaise(), mod.rng().nextDouble())) {
-                case DIE -> Table.Move.DIE;
-                case CALL -> Table.Move.CALL;
-                case RAISE -> Table.Move.RAISE;
-            };
+            if (c == null || b == null || seat < 0 || b.turn() != seat) return null;
+            return Table.move(HwatuBot.sutda(Sutda.of(c[0], c[1]), b, seat, mod.rng().nextDouble()));
         }
 
         /** Only the pretend chips move: nothing is stored, logged, burned or counted. */

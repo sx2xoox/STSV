@@ -667,6 +667,7 @@ public final class AccessoryModule extends EcoModule {
                 if (val != null && val != 0) lore.add(Text.item("<gray>" + e.name() + " <white>" + AccessorySpec.text(e, val)));
             }
             if (lore.isEmpty()) lore.addAll(Lang.items("accessory.info-none"));
+            lore.addAll(Lang.items("accessory.info-click"));
             base.editMeta(meta -> meta.lore(lore));
             return base;
         }

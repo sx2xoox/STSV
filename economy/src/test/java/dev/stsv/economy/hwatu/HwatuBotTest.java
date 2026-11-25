@@ -3,6 +3,7 @@ package dev.stsv.economy.hwatu;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -22,33 +23,51 @@ class HwatuBotTest {
         return Sutda.of(Card.parse(a), Card.parse(b));
     }
 
+    private static final Set<Betting.Action> OPEN = EnumSet.of(Betting.Action.DIE, Betting.Action.CHECK, Betting.Action.PING, Betting.Action.HALF),
+            FACING = EnumSet.of(Betting.Action.DIE, Betting.Action.CALL, Betting.Action.DDADANG, Betting.Action.HALF),
+            CALL_ONLY = EnumSet.of(Betting.Action.DIE, Betting.Action.CALL);
+
     @Test
     void strongHandsRaiseWeakOnesFoldToARaise() {
         Sutda.Hand gwang = hand("3광", "8광"), ttaeng = hand("9열끗", "9띠"), ali = hand("1광", "2열끗"), mangtong = hand("2열끗", "8광");
         for (double roll = 0; roll < 1; roll += 0.05) {
-            assertEquals(Betting.Action.RAISE, HwatuBot.sutda(gwang, 10, true, roll));
-            assertEquals(Betting.Action.CALL, HwatuBot.sutda(gwang, 10, false, roll), "no raise left: call");
-            assertTrue(HwatuBot.sutda(ttaeng, 10, true, roll) != Betting.Action.DIE);
-            assertTrue(HwatuBot.sutda(ali, 10, true, roll) != Betting.Action.DIE);
+            assertTrue(HwatuBot.sutda(gwang, FACING, 10, 40, 0, roll).raises(), "광땡 raises the first time");
+            assertEquals(Betting.Action.CALL, HwatuBot.sutda(gwang, CALL_ONLY, 10, 40, 0, roll), "can't raise: call");
+            assertTrue(HwatuBot.sutda(ttaeng, FACING, 10, 40, 0, roll) != Betting.Action.DIE);
+            assertTrue(HwatuBot.sutda(ali, FACING, 10, 40, 0, roll) != Betting.Action.DIE);
         }
-        assertEquals(Betting.Action.RAISE, HwatuBot.sutda(ttaeng, 0, true, 0.1), "a 땡 usually raises");
-        assertEquals(Betting.Action.DIE, HwatuBot.sutda(mangtong, 10, true, 0.1), "망통 folds to a raise, mostly");
-        assertEquals(Betting.Action.CALL, HwatuBot.sutda(mangtong, 10, true, 0.9), "… not always");
+        assertEquals(Betting.Action.PING, HwatuBot.sutda(ttaeng, OPEN, 0, 40, 0, 0.1), "a 땡 usually opens");
+        assertEquals(Betting.Action.DDADANG, HwatuBot.sutda(ttaeng, FACING, 10, 40, 1, 0.1), "… and doubles a bet");
+        assertEquals(Betting.Action.CALL, HwatuBot.sutda(ttaeng, FACING, 10, 40, 1, 0.5), "less keen once raised");
+        assertEquals(Betting.Action.HALF, HwatuBot.sutda(gwang, OPEN, 0, 40, 0, 0.9), "광땡 opens with 하프 (sometimes a sly 삥)");
+        assertEquals(Betting.Action.CHECK, HwatuBot.sutda(gwang, OPEN, 0, 40, 3, 0.9), "after three raises the urge is an eighth");
+        assertEquals(Betting.Action.DIE, HwatuBot.sutda(mangtong, FACING, 10, 40, 1, 0.1), "망통 folds to a bet, mostly");
+        assertEquals(Betting.Action.CALL, HwatuBot.sutda(mangtong, FACING, 10, 40, 1, 0.9), "… not always");
+        assertEquals(Betting.Action.DIE, HwatuBot.sutda(hand("2열끗", "5띠"), FACING, 500, 40, 1, 0.2), "7끗 asked for more than the pot: often 다이");
+        assertEquals(Betting.Action.CALL, HwatuBot.sutda(hand("2열끗", "5띠"), FACING, 10, 40, 1, 0.5));
     }
 
     @Test
-    void aBotNeverFoldsAFreeCheckNorRaisesPastTheLimit() {
+    void aBotOnlyEverPlaysALegalMoveAndNeverFoldsAFreeCheck() {
         List<Card> d = Card.deck();
         Random r = new Random(3);
+        Set<Betting.Action> freeCall = EnumSet.of(Betting.Action.DIE, Betting.Action.CALL);
         for (int i = 0; i < d.size(); i++) for (int j = i + 1; j < d.size(); j++) {
             Sutda.Hand h = Sutda.of(d.get(i), d.get(j));
             for (int k = 0; k < 5; k++) {
                 double roll = r.nextDouble();
-                assertTrue(HwatuBot.sutda(h, 0, true, roll) != Betting.Action.DIE, h.code());
-                assertTrue(HwatuBot.sutda(h, 10, false, roll) != Betting.Action.RAISE, h.code());
+                int raises = r.nextInt(6);
+                for (Set<Betting.Action> legal : List.of(OPEN, FACING, CALL_ONLY)) {
+                    long toCall = legal == OPEN ? 0 : 10 + r.nextInt(100);
+                    Betting.Action a = HwatuBot.sutda(h, legal, toCall, 50, raises, roll);
+                    assertTrue(legal.contains(a), h.code() + " " + a + " in " + legal);
+                }
+                assertTrue(HwatuBot.sutda(h, OPEN, 0, 50, raises, roll) != Betting.Action.DIE, h.code());
+                assertTrue(HwatuBot.sutda(h, freeCall, 0, 50, raises, roll) != Betting.Action.DIE, "a free 콜: " + h.code());
             }
             if (h.special() != Sutda.Special.NONE) {
-                assertEquals(Betting.Action.CALL, HwatuBot.sutda(h, 10, true, 0), "special hands stay in: " + h.code());
+                assertEquals(Betting.Action.CALL, HwatuBot.sutda(h, FACING, 10, 40, 0, 0), "special hands stay in: " + h.code());
+                assertEquals(Betting.Action.CHECK, HwatuBot.sutda(h, OPEN, 0, 40, 0, 0), "special hands stay in: " + h.code());
             }
         }
     }
@@ -120,7 +139,7 @@ class HwatuBotTest {
             // everyone calls: when the bot's 9땡 is the top hand, the admin's 땡잡이 catches it (a 구사 may replay instead)
             int top = 0;
             for (UUID u : t.players()) if (!u.equals(admin)) top = Math.max(top, Sutda.of(t.cards(u)[0], t.cards(u)[1]).rank());
-            for (int k = 0; k < 4; k++) t.act(t.turn(), Table.Move.CALL, 10_000, log);
+            for (int k = 0; k < 4; k++) assertNull(t.act(t.turn(), Table.Move.CHECK, 10_000, log));
             if (log.replays == 0 && top == Sutda.TTAENG + 9) {
                 assertEquals(List.of(admin), log.results.getFirst().winners(), "땡잡이 catches 9땡, seed " + seed);
                 return;
@@ -138,23 +157,22 @@ class HwatuBotTest {
             Table t = sutda(2 + (int) (seed % 5), seed, who);
             HwatuTest.Log log = new HwatuTest.Log();
             long now = 10_000;
-            t.tick(now, HwatuTest.ALL, log);
+            // short and deep stacks (some below a few antes: they go all-in), like a 시험 판 after some hands
+            java.util.Map<UUID, Long> chips = new java.util.HashMap<>();
+            for (UUID u : who) chips.put(u, r.nextInt(3) == 0 ? 10L + r.nextInt(40) : 100L + r.nextInt(5000));
+            t.tick(now, HwatuTest.stacks(chips), log);
             int steps = 0;
             while (t.phase() == Table.Phase.PLAYING) {
                 UUID u = t.turn();
                 assertNotNull(u);
                 int seat = t.players().indexOf(u);
                 Card[] c = t.cards(u);
-                Betting.Action a = HwatuBot.sutda(Sutda.of(c[0], c[1]), t.betting().toCall(seat), t.betting().canRaise(), r.nextDouble());
-                Table.Move m = switch (a) {
-                    case DIE -> Table.Move.DIE;
-                    case CALL -> Table.Move.CALL;
-                    case RAISE -> Table.Move.RAISE;
-                };
-                assertNull(t.act(u, m, now, log));
-                assertTrue(++steps < 200);
+                Betting.Action a = HwatuBot.sutda(Sutda.of(c[0], c[1]), t.betting(), seat, r.nextDouble());
+                assertNull(t.act(u, Table.move(a), now, log));
+                assertTrue(++steps < 500);
             }
             assertEquals(1, log.results.size());
+            for (UUID u : log.results.getFirst().players()) assertTrue(chips.get(u) + log.results.getFirst().net(u) >= 0, "nobody below 0");
         }
     }
 }

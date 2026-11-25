@@ -565,7 +565,7 @@ public final class Table {
             HwatuRules.Split s = HwatuRules.split(p.amount(), spec.rakePercent(), won.size());
             results.add(new PotResult(p.amount(), List.copyOf(won), s.share(), s.burned()));
         }
-        finish(results, detail, uncontested, now, l);
+        finishPots(results, detail, uncontested, now, l);
     }
 
     private void roll(long now, Listener l) {
@@ -625,10 +625,10 @@ public final class Table {
     private void finish(List<UUID> winners, Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
         long pot = pot();
         HwatuRules.Split s = HwatuRules.split(pot, spec.rakePercent(), winners.size());
-        finish(List.of(new PotResult(pot, List.copyOf(winners), s.share(), s.burned())), detail, uncontested, now, l);
+        finishPots(List.of(new PotResult(pot, List.copyOf(winners), s.share(), s.burned())), detail, uncontested, now, l);
     }
 
-    private void finish(List<PotResult> pots, Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
+    private void finishPots(List<PotResult> pots, Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
         long pot = pot(), burned = 0;
         Map<UUID, Long> payout = new LinkedHashMap<>();
         List<UUID> winners = new ArrayList<>();

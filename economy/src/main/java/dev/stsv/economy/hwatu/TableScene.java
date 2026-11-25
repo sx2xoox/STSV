@@ -258,7 +258,9 @@ final class TableScene {
         String state = switch (t.phase()) {
             case WAITING -> t.seats().size() < 2 ? Lang.raw("hwatu.sign-alone")
                     : Lang.raw("hwatu.sign-starting", "seconds", host.secondsLeft());
-            case PLAYING -> t.step() == Table.Step.ROLL ? Lang.raw("hwatu.sign-rolling") : Lang.raw("hwatu.sign-playing");
+            case PLAYING -> t.step() == Table.Step.ROLL ? Lang.raw("hwatu.sign-rolling")
+                    : t.lastBet() != null ? Lang.raw("hwatu.sign-bet", "player", host.mini(t.lastBet().player()), "act", HallTable.act(t.lastBet()))
+                    : Lang.raw("hwatu.sign-playing");
             case RESULT -> Lang.raw("hwatu.sign-result", "seconds", host.secondsLeft());
         };
         sign.text(Lang.mm("hwatu.sign", "game", host.gameName(), "room", host.roomName(), "ante", HallTable.fmt(t.ante()),
@@ -599,46 +601,63 @@ final class TableScene {
     /** What a viewer's buttons say (a change redraws them): the buttons and the amounts on them. */
     private String key(Table t, UUID u, List<Controls.Button> buttons) {
         StringBuilder b = new StringBuilder();
-        for (Controls.Button x : buttons) b.append(x.key()).append(':').append(amount(t, u, x)).append(';');
+        for (Controls.Button x : buttons) b.append(x.key()).append(':').append(amount(t, u, x)).append(allIn(t, u, x) ? "!" : "").append(';');
         return b.toString();
     }
 
+    /** What a betting button would add for this viewer now (0 for the others). */
     private long amount(Table t, UUID u, Controls.Button b) {
         Betting bet = t.betting();
         int i = t.players().indexOf(u);
-        if (bet == null || i < 0 || t.step() != Table.Step.BET) return 0;
-        return switch (b) {
-            case CALL -> bet.toCall(i);
-            case RAISE -> bet.toRaise(i);
-            default -> 0;
-        };
+        Betting.Action a = b.action();
+        if (bet == null || i < 0 || a == null || t.step() != Table.Step.BET) return 0;
+        return bet.amount(i, a);
+    }
+
+    private boolean allIn(Table t, UUID u, Controls.Button b) {
+        Betting bet = t.betting();
+        int i = t.players().indexOf(u);
+        Betting.Action a = b.action();
+        return bet != null && i >= 0 && a != null && t.step() == Table.Step.BET && bet.allInBy(i, a);
+    }
+
+    /** A button's words: its name, and on a betting button the chips it puts in (+120, or 올인 +80). */
+    private Component label(Table t, UUID u, Controls.Button b) {
+        long n = amount(t, u, b);
+        String name = Lang.raw("hwatu.btn." + b.key() + (b == Controls.Button.CALL && n == 0 ? "-free" : ""), "n", HallTable.fmt(n));
+        if (b.action() == null || n == 0) return Text.mm(name);
+        String chips = Lang.raw(allIn(t, u, b) ? "hwatu.btn-allin" : "hwatu.btn-amount", "n", HallTable.fmt(n));
+        return Lang.mm("hwatu.btn-label", "name", name, "amount", chips);
     }
 
     private Pad pad(Player p, int seat, Table t, List<Controls.Button> buttons) {
         Pad pad = new Pad();
         pad.key = key(t, p.getUniqueId(), buttons);
-        List<Double> row = TableArt.row(buttons.size(), TableArt.BUTTON_GAP);
+        List<TableArt.Slot> slots = TableArt.pad(buttons.size(), reach);
+        double[] at = seat(seat);
+        double dist = Math.max(0.5, Math.hypot(at[0] - center[0], at[1] - center[1]));
         for (int i = 0; i < buttons.size(); i++) {
             Controls.Button b = buttons.get(i);
-            TableArt.Spot s = TableArt.along(center, seat(seat), reach.button(), row.get(i), true);
-            Location l = at(s, BUTTON_HALF + 0.03);
+            TableArt.Slot slot = slots.get(i);
+            float scale = (float) (BUTTON_SCALE * slot.scale());
+            double half = BUTTON_HALF * slot.scale();
+            TableArt.Spot s = TableArt.along(center, at, reach.button() + slot.out() / dist, slot.side(), true);
+            Location l = at(s, half + 0.03);
             Quaternionf rot = TableArt.facing(s.yaw()).rotateX((float) Math.toRadians(BUTTON_TILT));
-            ItemDisplay d = item(l, b.model(), BUTTON_SCALE * 0.2f, rot, null, false);
+            ItemDisplay d = item(l, b.model(), scale * 0.2f, rot, null, false);
             p.showEntity(plugin, d);
             int delay = 1 + i;
-            later(delay, () -> animate(d, pose(BUTTON_SCALE, rot, null), 4));
+            later(delay, () -> animate(d, pose(scale, rot, null), 4));
             Interaction hit = world.spawn(at(s, 0.0), Interaction.class, x -> {
-                x.setInteractionWidth((float) TableArt.BUTTON_GAP - 0.03f);
-                x.setInteractionHeight((float) (2 * BUTTON_HALF + 0.12));
+                x.setInteractionWidth((float) (TableArt.BUTTON_GAP * slot.scale()) - 0.03f);
+                x.setInteractionHeight((float) (2 * half + 0.12));
                 x.setResponsive(true);
                 x.setVisibleByDefault(false);
                 x.getPersistentDataContainer().set(BUTTON, PersistentDataType.STRING, p.getUniqueId() + ";" + b.key());
                 tag(x);
             });
             p.showEntity(plugin, hit);
-            long n = amount(t, p.getUniqueId(), b);
-            TextDisplay label = text(at(s, 2 * BUTTON_HALF + 0.16), Lang.mm("hwatu.btn." + b.key() + (b == Controls.Button.CALL && n == 0 ? "-free" : ""),
-                    "n", HallTable.fmt(n)), 0.4f, false);
+            TextDisplay label = text(at(s, 2 * half + 0.16), label(t, p.getUniqueId(), b), (float) Math.max(0.3, 0.4 * slot.scale()), false);
             p.showEntity(plugin, label);
             pad.entities.add(d);
             pad.entities.add(hit);
@@ -647,6 +666,40 @@ final class TableScene {
         }
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 1.6f);
         return pad;
+    }
+
+    // ------------------------------------------------------------------------------------------ a bet
+
+    /** A 섯다 bet: what it was floats up over the seat (○○ 하프! +120칩, 올인) with its sound. */
+    void bet(Table.Bet b, Component what) {
+        Integer seat = host.seatOf(b.player());
+        if (seat == null) return;
+        TableArt.Spot s = TableArt.along(center, seat(seat), reach.timer(), 0, true);
+        TextDisplay pop = text(at(s, 0.85), what, b.allIn() ? 0.75f : 0.6f, true);
+        Transformation base = pop.getTransformation();
+        later(2, () -> animate(pop, new Transformation(new Vector3f(0, 0.35f, 0), base.getLeftRotation(), base.getScale(), base.getRightRotation()), 30));
+        later(40, () -> kill(pop));
+        Location l = at(s, 0.3);
+        switch (b.action()) {
+            case DIE -> sound(l, Sound.BLOCK_WOOL_PLACE, 0.8f, 0.7f);
+            case CHECK -> {
+                sound(l, Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.8f, 1.0f);
+                later(3, () -> sound(l, Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.8f, 1.1f));
+            }
+            case PING, CALL -> sound(l, Sound.BLOCK_CHAIN_PLACE, 0.8f, b.action() == Betting.Action.PING ? 1.7f : 1.3f);
+            case DDADANG -> {
+                sound(l, Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.2f);
+                later(3, () -> sound(l, Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.6f));
+            }
+            case HALF -> {
+                sound(l, Sound.BLOCK_CHAIN_PLACE, 0.9f, 1.0f);
+                later(2, () -> sound(l, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.6f, 0.9f));
+            }
+        }
+        if (b.allIn()) {
+            later(4, () -> sound(l, Sound.BLOCK_BEACON_POWER_SELECT, 0.7f, 1.4f));
+            world.spawnParticle(Particle.CRIT, at(s, 0.6), 18, 0.2, 0.2, 0.2, 0.15);
+        }
     }
 
     /** A button pressed: it dips and springs back. */

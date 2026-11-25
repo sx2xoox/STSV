@@ -56,6 +56,12 @@ import java.util.concurrent.ThreadLocalRandom;
 public final class BusModule extends EcoModule {
 
     static final NamespacedKey GUEST = new NamespacedKey("economy", "bus_guest");
+    /** the held things fluttering round a bus now (Flutter): landed by stop() when the module goes */
+    private final java.util.Set<Flutter> flutters = new java.util.HashSet<>();
+
+    java.util.Set<Flutter> flutters() {
+        return flutters;
+    }
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private BusSpec spec;
@@ -214,6 +220,8 @@ public final class BusModule extends EcoModule {
         boolean pranked;
         /** 별난 손님; a couple's second half (인물 도감: one meeting a pair) */
         boolean shiny, half;
+        /** what they hold, fluttering round the bus just now (닭 든 할머니's hen: bus.yml hold-fly), or null */
+        Flutter flutter;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -376,6 +384,8 @@ public final class BusModule extends EcoModule {
             secret.stop();
             org.bukkit.event.HandlerList.unregisterAll(secret);
         }
+        for (Flutter f : List.copyOf(flutters)) f.end(false);
+        flutters.clear();
         for (Run r : runs.values()) for (Rider x : r.riders) {
             x.m.remove();
             if (x.dog != null) x.dog.remove();
@@ -392,6 +402,15 @@ public final class BusModule extends EcoModule {
         List<String> problems = new ArrayList<>();
         spec = BusSpec.parse(eco.data("bus.yml"), problems);
         problems.forEach(p -> eco.getLogger().warning("[bus.yml] " + p));
+        // what passengers hold (types.*.hold / hold-off / hold-fly) is an item of the content pack
+        try {
+            var content = dev.stsv.core.STSVPlugin.get().content();
+            for (BusSpec.Type t : spec.types().values()) for (String id : t.hold().ids()) {
+                if (content.item(id).isEmpty()) eco.getLogger().warning("[bus.yml] types." + t.id() + ": 손에 들 물건이 없음 " + id);
+            }
+        } catch (RuntimeException | LinkageError e) {
+            // no content module yet (tests, an early load): ContentTest checks the ids
+        }
     }
 
     public BusSpec spec() {
@@ -991,6 +1010,12 @@ public final class BusModule extends EcoModule {
             }
         }
         HudModule.flash(p, Lang.mm(key, "d", (int) Math.round(by)), 1500);
+        // 닭 든 할머니: the hen leaves her hands and flutters round the bus, then comes back (bus.yml hold-fly)
+        if (!turn) for (Rider r : run.riders) {
+            String fly = r.type.hold().fly();
+            if (fly.isEmpty() || !r.m.isValid() || (r.flutter != null && !r.flutter.done())) continue;
+            r.flutter = Flutter.start(eco, r.m, fly, r.type.scale(), flutters);
+        }
         if (baby != null) {
             sayLine(run, baby, spec.lines(baby.type, "cry"));
             if (baby.m.isValid()) baby.m.getWorld().playSound(baby.m.getLocation(), Sound.ENTITY_VILLAGER_HURT, 0.6f, 1.9f);
@@ -3165,7 +3190,45 @@ public final class BusModule extends EcoModule {
                 x.setInvisible(true);
                 x.setGlowing(true);
             }
+            equip(x, type, shiny ? -1 : type.skins().indexOf(skin));
         });
+    }
+
+    /**
+     * What this look of a kind holds (bus.yml types.*.hold / hold-off; look: the index of its skin, -1 a 별난 손님 = the
+     * first look's): the display items in the mannequin's hands. Never dropped (no drop chance, EntityDeathEvent clears
+     * a guest's drops) and nobody can take them (a mannequin has no equipment interaction; it is invulnerable).
+     */
+    static void equip(Mannequin x, BusSpec.Type type, int look) {
+        BusSpec.Hold h = type.hold();
+        if (!h.any()) return;
+        org.bukkit.inventory.EntityEquipment eq = x.getEquipment();
+        if (eq == null) return;
+        String main = h.main(look), off = h.off(look);
+        if (!main.isEmpty()) eq.setItemInMainHand(prop(main));
+        if (!off.isEmpty()) eq.setItemInOffHand(prop(off));
+        for (org.bukkit.inventory.EquipmentSlot slot : List.of(org.bukkit.inventory.EquipmentSlot.HAND, org.bukkit.inventory.EquipmentSlot.OFF_HAND)) {
+            try {
+                eq.setDropChance(slot, 0f);
+            } catch (RuntimeException ignored) {
+                // only mobs have drop chances (a mannequin is not one): its drops are cleared on death instead
+            }
+        }
+    }
+
+    /** A held thing's stack: the content item, else (before the pack has it) a paper of its model economy:model/<id>. */
+    static org.bukkit.inventory.ItemStack prop(String id) {
+        org.bukkit.inventory.ItemStack it = null;
+        try {
+            it = dev.stsv.economy.util.Items.create(id, 1).orElse(null);
+        } catch (RuntimeException | LinkageError ignored) {
+            // no content module
+        }
+        if (it != null) return it;
+        org.bukkit.inventory.ItemStack paper = new org.bukkit.inventory.ItemStack(org.bukkit.Material.PAPER);
+        NamespacedKey key = NamespacedKey.fromString(id.replace("economy:", "economy:model/"));
+        if (key != null) paper.editMeta(m -> m.setItemModel(key));
+        return paper;
     }
 
     /** An invisible seat (a display, not saved) for someone to sit on at this spot (the bench; the preview's 'sit'). */
@@ -3709,11 +3772,20 @@ public final class BusModule extends EcoModule {
     @EventHandler
     public void onEntitiesLoad(EntitiesLoadEvent e) {
         for (Entity x : e.getEntities()) {
-            if ((x instanceof Mannequin || x instanceof org.bukkit.entity.Wolf) && x.getPersistentDataContainer().has(GUEST)) x.remove();
+            if ((x instanceof Mannequin || x instanceof org.bukkit.entity.Wolf || x instanceof org.bukkit.entity.ItemDisplay)
+                    && x.getPersistentDataContainer().has(GUEST)) x.remove();
             // a route map whose stop is gone (removed while its place was not loaded)
             Integer board = x.getPersistentDataContainer().get(StopBoard.BOARD, PersistentDataType.INTEGER);
             if (board != null && !stops.isEmpty() && !stops.containsKey(board)) x.remove();
         }
+    }
+
+    /** A passenger never drops what it holds (or anything else), whatever killed it (/kill). */
+    @EventHandler
+    public void onGuestDeath(org.bukkit.event.entity.EntityDeathEvent e) {
+        if (!e.getEntity().getPersistentDataContainer().has(GUEST)) return;
+        e.getDrops().clear();
+        e.setDroppedExp(0);
     }
 
     /** No snow on a bay or in a shelter. */

@@ -35,7 +35,7 @@ import java.util.concurrent.ThreadLocalRandom;
 final class Flutter extends BukkitRunnable {
 
     /** how long she flies (ticks), how long a hop takes, how often the runnable looks */
-    static final int TICKS = 60, HOP = 10, STEP = 2;
+    static final int TICKS = 60, HOP = 12, STEP = 2;
     /** where the hands are from the mannequin's passenger point (the top of its head), blocks at scale 1: down, forward */
     static final float HANDS_DOWN = 1.02f, HANDS_FWD = 0.32f;
     /** the display's size (the held models are drawn twice their size; in the hand at 0.6) */

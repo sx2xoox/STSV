@@ -162,9 +162,10 @@ public final class TableArt {
      * How far out (of the way from the middle to a seat) things lie in front of it: the round table's top is 3 blocks
      * across with its seats about 2 blocks out, the duel table's crate 1 block with its two chairs 1 block out.
      */
-    public record Reach(double card, double button, double dice, double timer) {}
+    public record Reach(double card, double button, double dice, double timer, double buttonWidth) {}
 
-    public static final Reach ROUND_REACH = new Reach(0.42, 0.62, 0.32, 0.5), DUEL_REACH = new Reach(0.25, 0.42, 0.22, 0.3);
+    /** buttonWidth: the most a row of buttons spans side to side (blocks), so it stays on the table and off the neighbours. */
+    public static final Reach ROUND_REACH = new Reach(0.42, 0.62, 0.32, 0.5, 1.45), DUEL_REACH = new Reach(0.25, 0.42, 0.22, 0.3, 0.96);
 
     public static Reach reach(TableKind k) {
         return k == TableKind.DUEL ? DUEL_REACH : ROUND_REACH;
@@ -172,4 +173,31 @@ public final class TableArt {
 
     /** Gaps between things side by side (blocks): wider than the things (a card 0.28, a button 0.3, a die 0.15 across). */
     public static final double CARD_GAP = 0.32, BUTTON_GAP = 0.34, DIE_GAP = 0.2;
+
+    /** Buttons in a row before a second row starts; how far (blocks) the next row lies further out towards the seat. */
+    public static final int BUTTONS_A_ROW = 4;
+    public static final double BUTTON_ROW_STEP = 0.24;
+
+    /** Where one button of a seat's pad goes: `side` to the sitter's right, `out` blocks past the reach, drawn at `scale` (≤ 1). */
+    public record Slot(double side, double out, double scale) {}
+
+    /**
+     * A seat's buttons (up to {@link Controls#MOST}): rows of up to {@link #BUTTONS_A_ROW}, centred, the first row at the
+     * reach and the next ones further out; a row wider than the table allows (the duel crate) is drawn closer and smaller.
+     */
+    public static List<Slot> pad(int n, Reach r) {
+        List<Slot> out = new ArrayList<>();
+        int rows = Math.max(1, (n + BUTTONS_A_ROW - 1) / BUTTONS_A_ROW);
+        int perRow = (n + rows - 1) / rows;   // 7 = 4 + 3, 5 = 3 + 2
+        double gap = Math.min(BUTTON_GAP, r.buttonWidth() / Math.max(1, perRow));
+        double scale = gap / BUTTON_GAP;
+        for (int i = 0, row = 0; i < n; row++) {
+            int k = Math.min(perRow, n - i);
+            for (double side : row(k, gap)) {
+                out.add(new Slot(side, row * BUTTON_ROW_STEP * scale, scale));
+                i++;
+            }
+        }
+        return out;
+    }
 }

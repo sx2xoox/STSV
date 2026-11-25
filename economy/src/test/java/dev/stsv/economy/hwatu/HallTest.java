@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
@@ -69,29 +70,38 @@ class HallTest {
 
     // ------------------------------------------------------------------------------------------ buttons
 
-    private static Controls.State state(Table.Game g, Table.Phase p, Table.Step s, boolean in, boolean turn, boolean raise, boolean out) {
-        return new Controls.State(g, p, s, true, in, turn, raise, out);
+    private static final Set<Betting.Action> OPEN = EnumSet.of(Betting.Action.DIE, Betting.Action.CHECK, Betting.Action.PING, Betting.Action.HALF),
+            FACING = EnumSet.of(Betting.Action.DIE, Betting.Action.CALL, Betting.Action.DDADANG, Betting.Action.HALF),
+            SHORT = EnumSet.of(Betting.Action.DIE, Betting.Action.CALL), NONE = EnumSet.noneOf(Betting.Action.class);
+
+    private static Controls.State state(Table.Game g, Table.Phase p, Table.Step s, boolean in, boolean turn, Set<Betting.Action> legal, boolean out) {
+        return new Controls.State(g, p, s, true, in, turn, legal, out);
     }
 
     @Test
     void buttonsForEachState() {
-        Controls.State none = new Controls.State(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, false, false, false, true, false);
+        Controls.State none = new Controls.State(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, false, false, false, OPEN, false);
         assertEquals(List.of(), Controls.buttons(none), "not seated: nothing");
-        assertEquals(List.of(Controls.Button.DIE, Controls.Button.CALL, Controls.Button.RAISE),
-                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, true, true, false)));
+        assertEquals(List.of(Controls.Button.DIE, Controls.Button.CHECK, Controls.Button.PING, Controls.Button.HALF),
+                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, true, OPEN, false)), "nobody bet yet");
+        assertEquals(List.of(Controls.Button.DIE, Controls.Button.CALL, Controls.Button.DDADANG, Controls.Button.HALF),
+                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, true, FACING, false)), "facing a bet");
         assertEquals(List.of(Controls.Button.DIE, Controls.Button.CALL),
-                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, true, false, false)), "no raise left");
-        assertEquals(List.of(), Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, false, true, false)),
+                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, true, SHORT, false)), "short of chips: call all-in or fold");
+        assertEquals(List.of(), Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, false, NONE, false)),
                 "someone else's turn: the timer shows, no buttons");
         assertEquals(List.of(Controls.Button.ODD, Controls.Button.EVEN),
-                Controls.buttons(state(Table.Game.HOLJJAK, Table.Phase.PLAYING, Table.Step.PICK, true, true, false, false)));
-        assertEquals(List.of(), Controls.buttons(state(Table.Game.DICE, Table.Phase.PLAYING, Table.Step.ROLL, true, false, false, false)));
-        assertEquals(List.of(Controls.Button.LEAVE), Controls.buttons(state(Table.Game.DICE, Table.Phase.WAITING, null, false, false, false, false)));
-        assertEquals(List.of(Controls.Button.LEAVE), Controls.buttons(state(Table.Game.SUTDA, Table.Phase.RESULT, null, false, false, false, false)));
+                Controls.buttons(state(Table.Game.HOLJJAK, Table.Phase.PLAYING, Table.Step.PICK, true, true, NONE, false)));
+        assertEquals(List.of(), Controls.buttons(state(Table.Game.DICE, Table.Phase.PLAYING, Table.Step.ROLL, true, false, NONE, false)));
+        assertEquals(List.of(Controls.Button.LEAVE), Controls.buttons(state(Table.Game.DICE, Table.Phase.WAITING, null, false, false, NONE, false)));
+        assertEquals(List.of(Controls.Button.LEAVE), Controls.buttons(state(Table.Game.SUTDA, Table.Phase.RESULT, null, false, false, NONE, false)));
         assertEquals(List.of(Controls.Button.LEAVE),
-                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, false, false, true, false)), "folded / sat down mid-hand");
+                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, false, false, NONE, false)), "folded / sat down mid-hand");
         assertEquals(List.of(Controls.Button.READY, Controls.Button.LEAVE),
-                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.WAITING, null, false, false, false, true)), "sitting out: 준비");
+                Controls.buttons(state(Table.Game.SUTDA, Table.Phase.WAITING, null, false, false, NONE, true)), "sitting out: 준비");
+        // never more than Controls.MOST in front of a seat
+        for (Set<Betting.Action> l : List.of(OPEN, FACING, SHORT, EnumSet.allOf(Betting.Action.class)))
+            assertTrue(Controls.buttons(state(Table.Game.SUTDA, Table.Phase.PLAYING, Table.Step.BET, true, true, l, false)).size() <= Controls.MOST);
     }
 
     @Test
@@ -112,8 +122,13 @@ class HallTest {
         assertEquals(Table.Phase.PLAYING, t.phase());
         UUID turn = t.turn(), other = turn.equals(A) ? B : A;
         seen.addAll(Controls.buttons(Controls.state(t, turn, true, false)));
-        assertEquals(List.of(Controls.Button.DIE, Controls.Button.CALL, Controls.Button.RAISE), seen);
+        assertEquals(List.of(Controls.Button.DIE, Controls.Button.CHECK, Controls.Button.PING, Controls.Button.HALF), seen);
         assertEquals(List.of(), Controls.buttons(Controls.state(t, other, true, false)));
+        assertNull(t.act(turn, Controls.Button.PING.move(), 0, quiet));
+        seen.addAll(Controls.buttons(Controls.state(t, other, true, false)));
+        assertEquals(List.of(Controls.Button.DIE, Controls.Button.CALL, Controls.Button.DDADANG, Controls.Button.HALF),
+                Controls.buttons(Controls.state(t, other, true, false)), "after the 삥");
+        for (Controls.Button b : Controls.buttons(Controls.state(t, other, true, false))) assertEquals(b.action(), Table.action(b.move()));
         for (Controls.Button b : seen) assertNotNull(b.move(), b + " plays a move");
         assertNull(Controls.Button.READY.move());
         assertNull(Controls.Button.LEAVE.move());
@@ -151,7 +166,7 @@ class HallTest {
         // C folds, the others call round
         for (int i = 0; i < 6 && t.phase() == Table.Phase.PLAYING; i++) {
             UUID turn = t.turn();
-            t.act(turn, turn.equals(C) ? Table.Move.DIE : Table.Move.CALL, now, quiet);
+            assertNull(t.act(turn, turn.equals(C) ? Table.Move.DIE : HwatuTest.pass(t, turn), now, quiet));
         }
         assertEquals(Table.Phase.RESULT, t.phase());
         assertTrue(TableArt.revealed(t, A));
@@ -174,7 +189,7 @@ class HallTest {
         long now = spec.startSeconds() * 1000L + 1;
         t.tick(now, (u, n) -> null, quiet);
         UUID first = t.turn(), second = first.equals(A) ? B : A;
-        t.act(first, Table.Move.RAISE, now, quiet);
+        t.act(first, Table.Move.PING, now, quiet);
         t.act(second, Table.Move.DIE, now, quiet);
         assertEquals(Table.Phase.RESULT, t.phase());
         assertTrue(t.last().uncontested());
@@ -292,6 +307,55 @@ class HallTest {
         assertEquals(List.of(-0.1, 0.1), TableArt.row(2, 0.2));
         assertEquals(90, TableArt.yawToward(-1, 0), 1e-3);
         assertEquals(270, TableArt.yawToward(1, 0), 1e-3);
+    }
+
+    @Test
+    void aSeatsButtonsFitInFrontOfIt() {
+        // the real round table (models/gamble.py ROUND_SEATS, cell centres) and the duel table
+        List<double[]> round = new ArrayList<>();
+        for (int[] c : new int[][]{{0, -2}, {2, -1}, {2, 1}, {0, 2}, {-2, 1}, {-2, -1}}) round.add(new double[]{c[0] + 0.5, c[1] + 0.5});
+        double[] rc = TableArt.center(round);
+        for (int n = 1; n <= Controls.MOST; n++) {
+            List<TableArt.Slot> slots = TableArt.pad(n, TableArt.ROUND_REACH);
+            assertEquals(n, slots.size());
+            assertEquals(n <= TableArt.BUTTONS_A_ROW ? 1 : 2, slots.stream().map(TableArt.Slot::out).distinct().count(), n + " buttons: rows");
+            for (int k = 0; k < round.size(); k++) {
+                double dist = Math.hypot(round.get(k)[0] - rc[0], round.get(k)[1] - rc[1]);
+                List<TableArt.Spot> spots = new ArrayList<>();
+                for (TableArt.Slot sl : slots) {
+                    TableArt.Spot s = TableArt.along(rc, round.get(k), TableArt.ROUND_REACH.button() + sl.out() / dist, sl.side(), true);
+                    spots.add(s);
+                    assertTrue(Math.hypot(s.x() - rc[0], s.z() - rc[1]) <= 1.55, "on the round top (r 1.5): seat " + k + " n " + n);
+                    int nearest = -1;
+                    double best = Double.MAX_VALUE;
+                    for (int j = 0; j < round.size(); j++) {
+                        double d = Math.hypot(round.get(j)[0] - s.x(), round.get(j)[1] - s.z());
+                        if (d < best) {
+                            best = d;
+                            nearest = j;
+                        }
+                    }
+                    assertEquals(k, nearest, "a button nearer its own seat: seat " + k + " n " + n);
+                }
+                for (int i = 0; i < spots.size(); i++) for (int j = i + 1; j < spots.size(); j++) {
+                    double d = Math.hypot(spots.get(i).x() - spots.get(j).x(), spots.get(i).z() - spots.get(j).z());
+                    assertTrue(d >= 0.2, "buttons do not overlap: " + d);
+                }
+            }
+        }
+        // the duel crate (1 block): the four betting buttons in one row, smaller, still on the crate
+        List<double[]> duel = List.of(new double[]{0.5, -0.5}, new double[]{0.5, 1.5});
+        double[] dc = TableArt.center(duel);
+        List<TableArt.Slot> four = TableArt.pad(4, TableArt.DUEL_REACH);
+        assertTrue(four.stream().allMatch(sl -> sl.out() == 0 && sl.scale() < 1 && sl.scale() > 0.6));
+        for (int k = 0; k < 2; k++) {
+            for (TableArt.Slot sl : four) {
+                TableArt.Spot s = TableArt.along(dc, duel.get(k), TableArt.DUEL_REACH.button(), sl.side(), true);
+                double half = 0.15 * sl.scale();   // half a plate
+                assertTrue(Math.abs(s.x() - dc[0]) + half <= 0.5 + 1e-9 && Math.abs(s.z() - dc[1]) <= 0.5 + 1e-9, "on the crate: " + s);
+            }
+        }
+        assertTrue(TableArt.pad(4, TableArt.ROUND_REACH).stream().allMatch(sl -> sl.scale() == 1), "the round table has room for four");
     }
 
     // ------------------------------------------------------------------------------------------ the whiteboard

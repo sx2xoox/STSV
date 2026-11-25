@@ -275,8 +275,8 @@ class ContentTest {
         // 연마 진주 and its 북어포 among them), 21 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 98 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 98 + 4 + 1 + 12 + 1 + 18 + 21 + 45, ours.size(),
-                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 98 fish (6 떼물고기) + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지) + 21 화투방 (섯다 패 20장 + 뒷면) + 45 도박장 (items/gamble.yml: 탁자 2, 소품 7, 패 21, 칩 5, 주사위, 사발, 버튼 7, 화이트보드)");
+        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 98 + 4 + 1 + 12 + 1 + 18 + 21 + 45 + 23, ours.size(),
+                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 98 fish (6 떼물고기) + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지) + 21 화투방 (섯다 패 20장 + 뒷면) + 45 도박장 (items/gamble.yml: 탁자 2, 소품 7, 패 21, 칩 5, 주사위, 사발, 버튼 7, 화이트보드) + 23 버스 손님이 든 물건 (items/bus.yml bus_hold_*: 닭과 날개 편 닭, 21가지)");
         assertEquals(7, machines.size());
         assertEquals(149 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");
@@ -378,6 +378,23 @@ class ContentTest {
             }
         }
         if (!makeable.contains("economy:pear")) problems.add("no passenger gives economy:pear");
+        // 마을버스 손님이 든 물건 (items/bus.yml bus_hold_*, bus.yml types.*.hold / hold-off / hold-fly): only a passenger mannequin
+        // holds one, nobody is ever given one, the shop never trades them; every one is held by some kind, and each kind's
+        // are items of ours with their model
+        var busSpec = dev.stsv.economy.bus.BusSpec.parse(busYaml, problems);
+        Set<String> held = new java.util.HashSet<>();
+        for (var t : busSpec.types().values()) for (String id : t.hold().ids()) {
+            if (!exists(id, ours)) problems.add("bus hold of " + t.id() + ": " + id);
+            if (!id.startsWith("economy:bus_hold_")) problems.add("a passenger holds a real item: " + t.id() + " " + id);
+            held.add(id);
+        }
+        for (String id : ours) if (id.startsWith("economy:bus_hold_")) {
+            if (!held.contains(id)) problems.add("no passenger holds " + id);
+            if (shop.sell().containsKey(id)) problems.add("the shop buys a held prop: " + id);
+            for (var g : shop.goods()) if (g.id().equals(id)) problems.add("the shop sells a held prop: " + id);
+            if (!Files.exists(PACK.resolve("models/" + id.substring(8) + ".bbmodel"))) problems.add(id + ": no model");
+            makeable.add(id);
+        }
         // 숨은 비밀 (items/secrets.yml): only the secrets' own code gives them (by id, in secret/), the shop never trades them
         String secretCode;
         try (var files = java.nio.file.Files.walk(java.nio.file.Path.of("src/main/java/dev/stsv/economy/secret"))) {

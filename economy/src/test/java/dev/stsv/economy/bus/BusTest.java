@@ -349,4 +349,68 @@ class BusTest {
         // distances along the way
         assertEquals(900, east.between(east.at(0), east.at(1)), 2);
     }
+
+    @Test
+    void passengersHoldTheirThings() {
+        BusSpec s = spec();
+        // one id: every look holds it; the shiny (-1) too
+        BusSpec.Hold hen = s.types().get("chicken").hold();
+        for (int look = -1; look < 3; look++) assertEquals("economy:bus_hold_chicken", hen.main(look));
+        assertEquals("", hen.off(0));
+        assertEquals("economy:bus_hold_chicken_flap", hen.fly());
+        // a list: per look in the order of skins, "" an empty hand, the shiny holds the first look's
+        BusSpec.Hold shaman = s.types().get("shaman").hold();
+        assertEquals("economy:bus_hold_bells", shaman.main(0));
+        assertEquals("", shaman.main(1));
+        assertEquals("economy:bus_hold_fan", shaman.off(1));
+        assertEquals("economy:bus_hold_fan", shaman.off(2));
+        assertEquals("economy:bus_hold_bells", shaman.main(-1));
+        assertEquals("", shaman.off(-1));
+        BusSpec.Hold dog = s.types().get("dogwalker").hold();
+        assertEquals("economy:bus_hold_cane", dog.main(1));
+        assertEquals("economy:bus_hold_leash", dog.off(1));
+        // nothing in hand: NONE
+        assertSame(BusSpec.Hold.NONE, s.types().get("resident").hold());
+        assertFalse(s.types().get("resident").hold().any());
+        // only the hen flies
+        for (BusSpec.Type t : s.types().values()) if (!t.id().equals("chicken")) assertEquals("", t.hold().fly(), t.id());
+        // every held thing is a bus_hold_ model
+        for (BusSpec.Type t : s.types().values()) for (String id : t.hold().ids()) assertTrue(id.startsWith("economy:bus_hold_"), t.id() + ": " + id);
+    }
+
+    @Test
+    void holdProblemsAreReported() {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(new File("content/economy/bus.yml"));
+        y.set("types.resident.hold", "bus_hold_wand");                         // no namespace: economy's
+        y.set("types.student.hold-off", List.of("economy:bus_hold_snack", ""));   // 3 looks, 2 given
+        y.set("types.grandma.hold", "not an id!");                             // malformed
+        y.set("types.office.hold-fly", "economy:bus_hold_chicken_flap");       // nothing in the main hand to fly
+        y.set("types.vip.hold", List.of("", "", ""));                          // all empty: nothing
+        List<String> problems = new ArrayList<>();
+        BusSpec s = BusSpec.parse(y, problems);
+        assertEquals("economy:bus_hold_wand", s.types().get("resident").hold().main(0));
+        assertTrue(problems.stream().anyMatch(p -> p.startsWith("types.student.hold-off") && p.contains("3")), problems.toString());
+        assertTrue(problems.stream().anyMatch(p -> p.startsWith("types.grandma.hold") && p.contains("잘못된")), problems.toString());
+        assertEquals("", s.types().get("grandma").hold().main(0));
+        assertTrue(problems.stream().anyMatch(p -> p.startsWith("types.office.hold-fly")), problems.toString());
+        assertFalse(s.types().get("vip").hold().any());
+        assertEquals(3, problems.size(), problems.toString());
+    }
+
+    @Test
+    void theHenFlutterStaysInTheBusAndComesBack() {
+        java.util.Random rnd = new java.util.Random(7);
+        for (int i = 0; i < 200; i++) {
+            List<org.joml.Vector3f> path = Flutter.path(1f, rnd);
+            assertEquals(Flutter.TICKS / Flutter.HOP + 1, path.size());
+            assertEquals(path.getFirst(), path.getLast(), "back in her hands");
+            for (org.joml.Vector3f p : path) {
+                assertTrue(Math.abs(p.x) <= 0.85f, "beside the seat: " + p);
+                assertTrue(p.z >= -0.65f && p.z <= 1.35f, "not far along the bus: " + p);
+                assertTrue(p.y <= -0.35f && p.y >= -1.2f, "between the floor and the shoulders: " + p);
+            }
+        }
+        // a hop goes up between its ends
+        assertTrue(Flutter.TICKS % Flutter.HOP == 0 && Flutter.HOP % (2 * Flutter.STEP) == 0);
+    }
 }

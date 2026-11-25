@@ -414,6 +414,9 @@ final class PassengerPreview {
         Entity who = "bark".equals(line[0]) && sh.dog != null && sh.dog.isValid() ? sh.dog : sh.m;
         if (who == sh.dog) who.getWorld().playSound(who.getLocation(), Sound.ENTITY_WOLF_AMBIENT, 1f, 1.4f);
         if ("jolt".equals(line[0]) || "bump".equals(line[0])) sh.m.swingMainHand();
+        // 닭 든 할머니: her hen flutters round as it would on the bus (bus.yml hold-fly)
+        boolean shaken = "jolt".equals(line[0]) || "bump".equals(line[0]) || "cry".equals(line[0]);
+        if (shaken && !sh.type.hold().fly().isEmpty() && sh.m.isValid()) Flutter.start(eco, sh.m, sh.type.hold().fly(), sh.type.scale(), bus.flutters());
         sh.bubble = bus.bubble(who, line[1], Math.max(10, Math.min(sh.step, 200) - 2));
     }
 

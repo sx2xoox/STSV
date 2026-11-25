@@ -342,16 +342,24 @@ public final class HwatuModule extends EcoModule {
 
     /** Tells everyone in a finished hand who won with what, and their own result (`chipsOf`: what they hold now). */
     void announce(Table t, Table.Result r, java.util.function.ToLongFunction<UUID> chipsOf, boolean test) {
-        List<String> names = new ArrayList<>();
-        for (UUID w : r.winners()) names.add(mini(w));
-        String winnerHand = r.winners().size() == 1 ? detail(r, r.winners().getFirst()) : "";
-        long share = r.winners().isEmpty() ? 0 : r.payout().get(r.winners().getFirst());
-        Component line = Lang.msg(r.uncontested() ? "hwatu.won-alone" : r.winners().size() > 1 ? "hwatu.won-split" : "hwatu.won",
-                "players", String.join("<gray>, </gray>", names), "hand", winnerHand, "pot", fmt(r.pot()), "share", fmt(share), "rake", fmt(r.burned()));
+        // the main pot (with side pots: each one after it, contested only by those who put in that much)
+        List<Component> lines = new ArrayList<>();
+        List<Table.PotResult> pots = r.pots();
+        for (int k = 0; k < pots.size(); k++) {
+            Table.PotResult pr = pots.get(k);
+            List<String> names = new ArrayList<>();
+            for (UUID w : pr.winners()) names.add(mini(w));
+            String hand = pr.winners().size() == 1 ? detail(r, pr.winners().getFirst()) : "";
+            String players = String.join("<gray>, </gray>", names);
+            if (k == 0) lines.add(Lang.msg(r.uncontested() ? "hwatu.won-alone" : pr.winners().size() > 1 ? "hwatu.won-split" : "hwatu.won",
+                    "players", players, "hand", hand, "pot", fmt(pots.size() > 1 ? pr.amount() : r.pot()), "share", fmt(pr.share()), "rake", fmt(pots.size() > 1 ? pr.burned() : r.burned())));
+            else lines.add(Lang.msg(pr.winners().size() > 1 ? "hwatu.won-side-split" : "hwatu.won-side", "n", k, "players", players, "hand", hand,
+                    "pot", fmt(pr.amount()), "share", fmt(pr.share()), "rake", fmt(pr.burned())));
+        }
         for (UUID u : r.players()) {
             Player p = Bukkit.getPlayer(u);
             if (p == null) continue;
-            p.sendMessage(line);
+            for (Component line : lines) p.sendMessage(line);
             if (t.game() == Table.Game.SUTDA && !r.uncontested()) {
                 List<String> hands = new ArrayList<>();
                 for (UUID o : r.players()) hands.add(mini(o) + " <gray>" + detail(r, o));
