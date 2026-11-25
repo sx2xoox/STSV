@@ -1235,7 +1235,7 @@ types:
       jolt: ["아 씨…", "깜짝이야"]
       thanks: ["…ㄳ", "(고개만 까딱)"]
   prankster:
-    name: 벨 장난 꼬마
+    name: 장난꾸러기 꼬마
     color: "#ffb74d"
     weight: 3.4
     fare: 0.5
@@ -1260,7 +1260,7 @@ types:
       jolt: ["어우 쏠려", "다리 끼었잖아"]
       thanks: ["(기지개를 켜며 내린다)", "어 수고"]
   complainer:
-    name: 민원 아줌마
+    name: 깐깐한 아줌마
     color: "#d4789a"
     weight: 3.4
     mood: 2.0
@@ -1276,7 +1276,7 @@ types:
       haggle: ["이런 운전엔 반만 낼 거예요", "다 낼 수 없어요, 민원 넣기 전에 감사하세요", "환불이에요 환불!"]
       thanks: ["다음엔 똑바로 해요", "…수고해요", "흥"]
   crumbs:
-    name: 과자 부스러기 학생
+    name: 과자 먹는 학생
     color: "#c9a26b"
     weight: 3.4
     fare: 0.8
