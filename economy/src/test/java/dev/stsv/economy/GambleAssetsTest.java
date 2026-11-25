@@ -34,7 +34,7 @@ class GambleAssetsTest {
                 "gamble_bowl", "gamble_whiteboard"));
         for (int m = 1; m <= 10; m++) for (String s : List.of("a", "b")) ids.add("gamble_card_" + m + s);
         for (int n = 1; n <= 5; n++) ids.add("gamble_chips_" + n);
-        for (String b : List.of("call", "die", "raise", "odd", "even", "ready", "leave")) ids.add("gamble_btn_" + b);
+        for (String b : List.of("die", "check", "ping", "call", "ddadang", "half", "odd", "even", "ready", "leave")) ids.add("gamble_btn_" + b);
         for (String p : List.of("cement", "rebar", "cone", "worklight", "drumfire", "sign", "pallet")) ids.add("gamble_prop_" + p);
         return ids;
     }
@@ -47,7 +47,7 @@ class GambleAssetsTest {
     void everyContractIdIsAnItemWithItsModel() {
         YamlConfiguration y = items();
         List<String> ids = contractIds();
-        assertEquals(45, ids.size());
+        assertEquals(48, ids.size());
         assertEquals(ids.size(), y.getKeys(false).size(), "items/gamble.yml holds the contract's ids and nothing else");
         for (String id : ids) {
             ConfigurationSection sec = y.getConfigurationSection(id);

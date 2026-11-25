@@ -312,11 +312,32 @@ gamble_btn_die:
   model: gamble_btn_die
   max-stack: 1
 
-gamble_btn_raise:
+gamble_btn_check:
   material: paper
-  name: "<white>레이즈 버튼"
+  name: "<white>체크 버튼"
   lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
-  model: gamble_btn_raise
+  model: gamble_btn_check
+  max-stack: 1
+
+gamble_btn_ping:
+  material: paper
+  name: "<white>삥 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_ping
+  max-stack: 1
+
+gamble_btn_ddadang:
+  material: paper
+  name: "<white>따당 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_ddadang
+  max-stack: 1
+
+gamble_btn_half:
+  material: paper
+  name: "<white>하프 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_half
   max-stack: 1
 
 gamble_btn_odd:
