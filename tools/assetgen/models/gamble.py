@@ -493,34 +493,42 @@ def _cards():
 # Chips
 # ================================================================================================
 
-CHIP = {"R": ("pepper", 2, ("car_white", 3)), "B": ("signal_blue", 1, ("car_white", 3)), "W": ("car_white", 3, ("pepper", 2))}
+CHIP = {"R": ("pepper", 2, ("car_white", 3)), "B": ("signal_blue", 1, ("car_white", 3)), "W": ("car_white", 3, ("pepper", 2)),
+        "K": ("iron", 3, ("gold", 2))}
 
 
-def chip_paint(cx, cz, colours, axis="y", lo=0.0):
-    """Chips stacked along `axis` from `lo`, one a px, colours[i] the i-th from the bottom (or the end): its colour all
-    round with edge spots (every other eighth of the way round), the top chip's face with spots at its rim."""
+def chip_paint(cx, cz, colour, edge=True):
+    """One casino chip round (cx, cz), lying flat: on its edge six white inserts round it (the stripes); on its faces a
+    rim with the same inserts, a fine ring inside it and a plain centre inlay a step lighter. On edge (edge=False:
+    standing on its rim, axis z) the same seen turned."""
+    ramp, step, spot = CHIP[colour]
+
     def decal(c):
-        if axis == "y":
-            k = math.floor(c.p[1] - lo - (0.01 if c.face == "up" else 0))
-            a = math.atan2(c.p[2] - cz, c.p[0] - cx)
-            r = math.hypot(c.p[2] - cz, c.p[0] - cx)
+        if edge:
+            dx, dz = c.p[0] - cx, c.p[2] - cz
+            cap = c.face in ("up", "down")
         else:
-            k = math.floor(c.p[0] - lo - (0.01 if c.face == "east" else 0))
-            a = math.atan2(c.p[2] - cz, c.p[1] - cx)
-            r = math.hypot(c.p[2] - cz, c.p[1] - cx)
-        k = max(0, min(len(colours) - 1, k))
-        ramp, step, spot = CHIP[colours[k]]
-        cap = (axis == "y" and c.face in ("up", "down")) or (axis == "x" and c.face in ("east", "west"))
+            dx, dz = c.p[0] - cx, c.p[1] - cz
+            cap = c.face in ("north", "south")
+        a = math.atan2(dz, dx)
+        r = math.hypot(dx, dz)
+        sector = math.floor((a + math.pi) / (2 * math.pi) * 16 + 0.5) % 4 == 0
         if cap:
-            if r > 1.6 and math.floor((a + math.pi) / (2 * math.pi) * 4 + 0.5) % 2 == 0 and abs(math.sin(2 * a)) < 0.5:
-                return spot
-            if r < 0.8:
-                return (ramp, step + 1)
-            return (ramp, step)
-        if math.floor((a + math.pi) / (2 * math.pi) * 6 + (k % 2) * 0.5) % 3 == 0:
-            return spot
-        return (ramp, step)
-    return Paint("pepper", 2, noise=0, rim=0.5, decal=decal)
+            if r > 2.0:
+                return spot if sector else (ramp, step)
+            if r > 1.3:
+                return (ramp, step - 1)
+            return (ramp, step + 1) if colour != "W" else ("car_white", 2)
+        return spot if sector else (ramp, step)
+    return Paint(ramp, step, noise=0, rim=0.6, decal=decal)
+
+
+# pile -> stacks [(gx, gz, height, colour)], fanned-out runs [(gx, gz, count, colour, (dx, dz) step)], chips standing on
+# their edge [(gx, gz, colour)], loose chips [(gx, gz, colour)], on a grid of GRID px: no two chips' boxes overlap
+
+
+# pile -> stacks [(gx, gz, height, colour)], fanned-out runs [(gx, gz, count, colour, (dx, dz) step)], chips standing on
+# their edge [(gx, gz, colour)], loose chips [(gx, gz, colour)], on a grid of GRID px: no two chips' boxes overlap
 
 
 def _mix(n, seed, bias="RBW"):
@@ -529,51 +537,67 @@ def _mix(n, seed, bias="RBW"):
 
 # pile -> stacks [(gx, gz, height, colour bias)], knocked-over rows [(gx, gz, length)], loose chips [(gx, gz, colour)], on a
 # grid of GRID px (rows may sit half a step over): no two chips' boxes overlap, so no two faces share a place
-GRID = 5.25
+GRID = 6.5
+
+
 PILES = {
-    1: ([(0, 0, 3, "RRB"), (1, 0, 2, "WB")], [], [(0.5, -1, "R")]),
-    2: ([(0, 0, 5, "RRB"), (1, 0, 3, "BBW"), (0.5, 1, 4, "WWR")], [], [(-0.5, 1, "B"), (1.5, 1, "R")]),
-    3: ([(0, 0, 7, "RRB"), (1, 0, 5, "BBW"), (0.5, 1, 6, "WRW"), (1.5, 1, 3, "RB")], [(0, -1, 4)], [(1, -1, "R"), (2, 0, "W")]),
-    4: ([(0, 0, 10, "RRB"), (1, 0, 8, "BBW"), (2, 0, 9, "WRW"), (0.5, 1, 6, "RB"), (1.5, 1, 7, "BWB"), (2.5, 1, 4, "RRW")],
-        [(-0.5, 1, 5)], [(0.5, -1, "B"), (2, -1, "R"), (1, 2, "W")]),
-    5: ([(0, 0, 14, "RRB"), (1, 0, 12, "BBW"), (2, 0, 13, "WRW"), (-0.5, 1, 9, "RB"), (0.5, 1, 11, "BRR"), (1.5, 1, 10, "WWB"),
-         (2.5, 1, 8, "RRW"), (0, 2, 6, "BWB"), (1, 2, 5, "RWR")],
-        [(2, 2, 5), (-1, 0, 4)], [(0.5, -1, "B"), (1.5, -1, "R"), (3, 0, "W"), (-1, 2, "R"), (3, 2, "W")]),
+    1: ([(0, 0, 3, "R"), (1, 0, 2, "B")], [], [], [(0.5, -1, "W")]),
+    2: ([(0, 0, 5, "R"), (1, 0, 3, "B"), (0.5, 1, 4, "W")], [(0.25, -1.1, 3, "R", (1.25, 0.25))], [], [(2, -1, "B")]),
+    3: ([(0, 0, 7, "R"), (1, 0, 5, "B"), (0.5, 1, 6, "W"), (1.5, 1, 4, "R")], [(0, -1.1, 4, "B", (1.25, 0.25))], [],
+        [(2, 0, "W"), (1.5, -1, "R")]),
+    4: ([(0, 0, 10, "R"), (1, 0, 8, "B"), (2, 0, 9, "W"), (0.5, 1, 6, "R"), (1.5, 1, 7, "B"), (2.5, 1, 5, "K")],
+        [(-0.25, -1.1, 5, "W", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5))], [(-0.5, 1, "B")], [(1.15, -1, "K"), (1, 2, "R")]),
+    5: ([(0, 0, 14, "R"), (1, 0, 12, "B"), (2, 0, 13, "W"), (-0.5, 1, 9, "K"), (0.5, 1, 11, "R"), (1.5, 1, 10, "B"),
+         (2.5, 1, 8, "W"), (0, 2, 6, "R"), (1, 2, 7, "K")],
+        [(-0.5, -1.1, 5, "B", (1.25, 0.25)), (2.25, -1.1, 4, "R", (-1.0, 0.5)), (2.25, 2.2, 4, "W", (1.0, 0.75))],
+        [(3, 0, "R"), (-1, 0, "W")], [(1, -1.1, "K"), (-1, 2, "B"), (3.5, 0.9, "R")]),
 }
 
 
 def _pile_centre(n):
-    pts = [(a, b) for (a, b, *_r) in PILES[n][0] + PILES[n][1] + PILES[n][2]]
+    stacks, fans, edges, loose = PILES[n]
+    pts = [(a, b) for (a, b, *_r) in stacks + fans + edges + loose]
     xs, zs = [a for a, _ in pts], [b for _, b in pts]
     return (min(xs) + max(xs)) / 2, (min(zs) + max(zs)) / 2
 
 
 def chips(n):
+    """Neat casino-chip stacks, each chip its own disc 6 across and 1 thick, sitting a hair off the one under it (a hand
+    stacked them), one colour a stack; from the third pile up a stack knocked into a fanned-out run, then chips
+    standing on their edge leaning on a stack, and loose chips. Black chips (K, gold inserts) from the fourth."""
     m = BModel(f"gamble_chips_{n}", floor=0, shift=(0, 8, 0))
-    stacks, spills, loose = PILES[n]
+    stacks, fans, edges, loose = PILES[n]
     gx0, gz0 = _pile_centre(n)
 
     def at(gx, gz):
         return 8 + (gx - gx0) * GRID, 8 + (gz - gz0) * GRID
     m.group("stacks")
-    for i, (gx, gz, hgt, bias) in enumerate(stacks):
+    for i, (gx, gz, hgt, col) in enumerate(stacks):
         x, z = at(gx, gz)
-        cyl(m, "stack", (x, z), 5, 0, hgt, chip_paint(x, z, _mix(hgt, n * 10 + i, bias)))
-    m.group("spill")
-    for i, (gx, gz, length) in enumerate(spills):
-        # a stack knocked over: chips lying on their edges in a row along x
+        for k in range(hgt):
+            jx = (round(h3(i, k, n, 61) * 2) - 1) * 0.25 if k else 0
+            jz = (round(h3(i, k, n, 62) * 2) - 1) * 0.25 if k else 0
+            cyl(m, "chip", (x + jx, z + jz), 6, k, k + 1, chip_paint(x + jx, z + jz, col))
+    m.group("fans")
+    for i, (gx, gz, cnt, col, (sx, sz)) in enumerate(fans):
         x, z = at(gx, gz)
-        x0 = x - length / 2
-        cyl(m, "row", (2.5, z), 5, x0, x0 + length, chip_paint(2.5, z, _mix(length, n * 20 + i), axis="x", lo=x0), axis="x")
+        for k in range(cnt):
+            # a run knocked over: each chip a little further along and a layer up, shingled
+            px, pz = x + sx * k - sx * (cnt - 1) / 2, z + sz * k - sz * (cnt - 1) / 2
+            cyl(m, "fan", (px, pz), 6, k * 0.5, k * 0.5 + 0.5, chip_paint(px, pz, col))
+    m.group("edges")
+    for i, (gx, gz, col) in enumerate(edges):
+        x, z = at(gx, gz)
+        cyl(m, "edge", (x, 3), 6, z - 0.5, z + 0.5, chip_paint(x, 3, col, edge=False), axis="z")
     m.group("loose")
     for i, (gx, gz, col) in enumerate(loose):
         x, z = at(gx, gz)
-        cyl(m, "chip", (x, z), 5, 0, 1, chip_paint(x, z, col))
+        cyl(m, "chip", (x, z), 6, 0, 1, chip_paint(x, z, col))
     return gui(m, fill=0.8)
 
 
 # ================================================================================================
-# The die (plain model: 16 texels a face)
+# The die (plain model: 32 texels a face)
 # ================================================================================================
 
 # the die's faces: model face -> number
@@ -581,13 +605,23 @@ DIE_FACES = {"up": 1, "down": 6, "north": 2, "south": 5, "west": 3, "east": 4}
 
 
 def die():
+    """The die with rounded edges: three slabs crossed (each face's 3.5 x 3.5 middle from its own slab, a quarter px
+    proud of the edge strips), so every edge and corner is cut round; each face shows the middle 28 x 28 of its tile."""
     tex = _surface("gamble_die_faces", ART.die_atlas)
     m = Model("gamble_die")
-    uv = {}
-    for f, n in DIE_FACES.items():
+
+    T_ = ART.DIE_TILE
+
+    def tile(n, inset=2):
         c, r = ART.DIE_TILES[n]
-        uv[f] = [c * 16, r * 16, c * 16 + 16, r * 16 + 16]
-    m.box("die", (6, 6, 6), (10, 10, 10), tex, uv=uv)
+        return [c * T_ + inset, r * T_ + inset, c * T_ + T_ - inset, r * T_ + T_ - inset]
+
+    bev = [0, 15, 1, 16]        # a bevel texel: the edge column of the 1's tile
+    m.group("die")
+    lo, hi, a, b = 6, 10, 6.25, 9.75
+    m.box("slab_y", (a, lo, a), (b, hi, b), tex, uv={"up": tile(1), "down": tile(6), "north": bev, "south": bev, "east": bev, "west": bev})
+    m.box("slab_x", (lo, a, a), (hi, b, b), tex, uv={"east": tile(4), "west": tile(3), "north": bev, "south": bev, "up": bev, "down": bev})
+    m.box("slab_z", (a, a, lo), (b, b, hi), tex, uv={"north": tile(2), "south": tile(5), "east": bev, "west": bev, "up": bev, "down": bev})
     return gui(m, fill=0.7)
 
 
@@ -596,24 +630,41 @@ def die():
 # ================================================================================================
 
 def bowl():
+    """An upturned white porcelain rice bowl (사발): a rim 11 across rolled at the bottom, the body narrowing up to an
+    unglazed foot ring on top; under the glaze a double cobalt line above the rim and a band of little blue sprays
+    round the body, a fine line round the foot; the glaze runs thick and greenish at the bottom edge, with a glossy
+    streak and a fine crackle; and a chip out of the rim."""
     m = BModel("gamble_bowl", floor=0, shift=(0, 8, 0))
 
     def glaze(c):
         y = c.p[1]
+        a = math.atan2(c.p[2] - 8, c.p[0] - 8)
         if c.face in SIDES:
-            if math.floor(y) == 1 or (3 <= y < 3.5):
-                return ("indigo", 2)                       # the blue lines round it
-            a = math.atan2(c.p[2] - 8, c.p[0] - 8)
-            if y < 1 and -2.0 < a < -1.75:
-                return ("clay", 3)                         # a chip out of the rim
-            if 1.5 < y < 4.5 and abs(a + 1.6) < 0.05:
-                return ("stone", 1)                        # a hairline crack up from it
+            row = math.floor(y)
+            if y < 0.75 and -2.0 < a < -1.7:
+                return ("clay", 3)                         # the chip out of the rim
+            if y < 0.5:
+                return ("celadon", 3)                      # the glaze pooled at the edge
+            if row == 1:
+                return ("indigo", 2)
+            if 1.75 <= y < 2.0 or row == 4 and y > 4.75:
+                return ("indigo", 3)
+            if row in (2, 3):
+                k = math.floor((a + math.pi) / (2 * math.pi) * 8)
+                f = (a + math.pi) / (2 * math.pi) * 8 - k
+                if abs(f - 0.5) < 0.09 and row == 3 or abs(f - 0.5) < 0.22 and row == 2 and h3(k, row, 0, 3) < 0.8:
+                    return ("sapphire", 1)                 # a little cobalt spray, eight round
+            if abs(a - 2.3) < 0.15 and 1.5 < y < 4:
+                return ("porcelain", 2)                    # the glossy streak (lit later by its own step)
+            if (c.i[0] * 7 + c.i[1] * 3 + c.i[2] * 5) % 23 == 0:
+                return ("porcelain", 1)                    # fine crackle
         return None
     p = Paint("porcelain", 2, "lacquer", noise=0.02, rim=1.3, decal=glaze)
-    for (d, lo, hi) in ((11, 0, 2.5), (10, 2.5, 3.5), (9, 3.5, 4.5), (7, 4.5, 5.25)):
+    for (d, lo, hi) in ((11, 0, 1.5), (10.5, 1.5, 2.5), (10, 2.5, 3.5), (9, 3.5, 4.5), (7, 4.5, 5.25)):
         cyl(m, "bowl", (8, 8), d, lo, hi, p)
-    ring(m, "foot", (8, 8), 5, 3, 5.25, 6.25, p)
-    cyl(m, "foot_in", (8, 8), 3, 5.25, 5.5, Paint("clay", 3, noise=0.05))
+    foot = Paint("clay", 3, noise=0.05, rim=1.0,
+                 decal=lambda c: ("clay", 2) if c.face == "up" and math.hypot(c.p[0] - 8, c.p[2] - 8) < 1.6 else None)
+    cyl(m, "foot", (8, 8), 5, 5.25, 6.25, foot)
     return gui(m, fill=0.8)
 
 

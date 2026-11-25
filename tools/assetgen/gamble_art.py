@@ -9,7 +9,7 @@ safety-sign buttons and the "공사중 · 관계자 외 출입금지" board.
                                            of turning into blocks; the card is 6 x 8 px on the table (4 texels a px)
   card_atlas(month, first) / back_atlas()  48 x 32: face | back side by side (one texture a card model; textures are
                                            multiples of 16 wide and high so the pack keeps all its mipmap levels)
-  die_atlas()                              48 x 32: the six faces, 16 x 16 each, in the order of DIE_TILES
+  die_atlas()                              96 x 64: the six faces, 32 x 32 each, in the order of DIE_TILES
   button(key)                              160 x 80: a yellow safety-sign plate, black frame, stencil Korean text
                                            (Neo둥근모), a black and yellow hazard strip along the bottom
   sign_face()                              192 x 96: the site entrance board
@@ -106,46 +106,44 @@ def back_atlas():
 # the die
 # ------------------------------------------------------------------------------------------------
 
-# where each face's 16 x 16 tile sits in die_atlas(): face number -> (column, row)
+# where each face's tile sits in die_atlas() (DIE_TILE x DIE_TILE texels): face number -> (column, row)
+DIE_TILE = 32
 DIE_TILES = {1: (0, 0), 2: (1, 0), 3: (2, 0), 4: (0, 1), 5: (1, 1), 6: (2, 1)}
-# pip centres on the face (texel units, 0..16): a 3 x 3 grid at 4 / 8 / 12
-_PIPS = {1: [(8, 8)], 2: [(4, 4), (12, 12)], 3: [(4, 4), (8, 8), (12, 12)], 4: [(4, 4), (12, 4), (4, 12), (12, 12)],
-         5: [(4, 4), (12, 4), (8, 8), (4, 12), (12, 12)], 6: [(4, 4), (4, 8), (4, 12), (12, 4), (12, 8), (12, 12)]}
+# pip centres on the face (0..1 of the face): a 3 x 3 grid at 1/4, 1/2, 3/4
+_PIPS = {1: [(2, 2)], 2: [(1, 1), (3, 3)], 3: [(1, 1), (2, 2), (3, 3)], 4: [(1, 1), (3, 1), (1, 3), (3, 3)],
+         5: [(1, 1), (3, 1), (2, 2), (1, 3), (3, 3)], 6: [(1, 1), (1, 2), (1, 3), (3, 1), (3, 2), (3, 3)]}
 
 
 def die_face(n):
-    """An ivory face with a rounded bevel (the edge texels a step darker, the corners two), drilled pips with a lit
-    lower-right rim (light from the top-left: the hole's far wall catches it); the one is a big red pip, as on
-    Korean / Chinese dice."""
-    im = Image.new("RGBA", (16, 16))
+    """A 32 x 32 ivory face (the die's 4 px face at 8 texels a px; its rounded edges are the model's), the outer texel
+    a step darker where the face meets the bevel, round drilled pips with a shadowed top-left inside and a lit lower-
+    right lip (light from the top-left); the one a big red pip, as on Korean / Chinese dice."""
+    S = DIE_TILE
+    im = Image.new("RGBA", (S, S))
     px = im.load()
-    ivory, bevel, corner = _c("pearl", 2), _c("pearl", 1), _c("pearl", 0)
-    for y in range(16):
-        for x in range(16):
-            e = min(x, y, 15 - x, 15 - y)
-            c = ivory if e >= 1 else bevel
-            if (x in (0, 15) and y in (0, 1, 14, 15)) or (y in (0, 15) and x in (0, 1, 14, 15)):
-                c = corner
-            px[x, y] = c
+    for y in range(S):
+        for x in range(S):
+            px[x, y] = _c("pearl", 1) if min(x, y, S - 1 - x, S - 1 - y) < 1 else _c("pearl", 2)
     big = n == 1
-    r = 3.1 if big else 1.75
+    r = 6.2 if big else 3.6
     ink, ink_lo = (_c("pepper", 2), _c("pepper", 0)) if big else (_c("iron", 1), _c("iron", 0))
-    for (cx, cy) in _PIPS[n]:
-        for y in range(16):
-            for x in range(16):
+    for (gx, gy) in _PIPS[n]:
+        cx, cy = gx * S / 4, gy * S / 4
+        for y in range(S):
+            for x in range(S):
                 dx, dy = x + 0.5 - cx, y + 0.5 - cy
                 d = (dx * dx + dy * dy) ** 0.5
                 if d <= r:
-                    px[x, y] = ink_lo if (dx + dy) < -r * 0.6 else ink       # the hole's shadowed top-left inside
-                elif d <= r + 0.75 and dx + dy > r * 0.7:
-                    px[x, y] = _c("pearl", 2) if not big else _c("pearl", 2)
+                    px[x, y] = ink_lo if (dx + dy) < -r * 0.55 else ink
+                elif d <= r + 1.0 and dx + dy > r * 0.8:
+                    px[x, y] = _c("pearl", 2) if big else _c("snow", 2)
     return im
 
 
 def die_atlas():
-    out = Image.new("RGBA", (48, 32))
+    out = Image.new("RGBA", (3 * DIE_TILE, 2 * DIE_TILE))
     for n, (c, r) in DIE_TILES.items():
-        out.paste(die_face(n), (c * 16, r * 16))
+        out.paste(die_face(n), (c * DIE_TILE, r * DIE_TILE))
     return out
 
 
@@ -413,6 +411,22 @@ def sign_back():
                 px[x, y] = _c("steel", 4)
             elif (x * 5 + y) % 13 == 0:
                 px[x, y] = _c("steel", 2)
+    return im
+
+
+def stencil_print(text, w, h, ramp_step=("pepper", 1), seed=0, wear=0.18, scale=1):
+    """w x h, transparent: the word in Neo둥근모 (not bold, scaled up by `scale`) centred, painted as a worn stencil
+    (some texels missing), for a cut-out plane laid over a surface (the crate's 취급주의, the cement sacks' print)."""
+    from stsv_assets.bake import h3
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px = im.load()
+    m = scale_mask(word_mask(text, bold=False, spacing=2, space=4), scale)
+    mh, mw = len(m), len(m[0])
+    ox, oy = (w - mw) // 2, (h - mh) // 2
+    for y in range(mh):
+        for x in range(mw):
+            if m[y][x] and 0 <= ox + x < w and 0 <= oy + y < h and h3(x, y, seed, 13) > wear:
+                px[ox + x, oy + y] = _c(*ramp_step)
     return im
 
 
