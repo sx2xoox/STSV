@@ -139,8 +139,10 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
      */
     public record Traits(double chatter, double chatterMood, double moodFloor, double sickAt, double babyCry, double babySmile, int seats,
                          String pet, Set<Integer> months, Set<Integer> peakDays, double peak, boolean ghost, int token, double onTime,
-                         double lateHit, int bless, double blessTip, double review, double giftChance, double giftMood, boolean tagsOnly) {
-        public static final Traits NONE = new Traits(0, 0, 0, 0, 0, 0, 1, "", Set.of(), Set.of(), 1, false, 0, 1, 0, 0, 1, 0, -1, -1, false);
+                         double lateHit, int bless, double blessTip, double review, double giftChance, double giftMood, boolean tagsOnly,
+                         double dodge, double haggleAt, double haggle, double prank, double litter, double treat) {
+        public static final Traits NONE = new Traits(0, 0, 0, 0, 0, 0, 1, "", Set.of(), Set.of(), 1, false, 0, 1, 0, 0, 1, 0, -1, -1, false,
+                0, 0, 1, 0, 0, 0);
 
         static Traits parse(ConfigurationSection t) {
             return new Traits(t.getDouble("chatter", 0), t.getDouble("chatter-mood", 0), t.getDouble("mood-floor", 0), t.getDouble("sick-at", 0),
@@ -148,7 +150,9 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                     Set.copyOf(t.getIntegerList("months")), Set.copyOf(t.getIntegerList("peak-days")), t.getDouble("peak", 1),
                     t.getBoolean("ghost"), t.getInt("token", 0), t.getDouble("on-time", 1), t.getDouble("late-hit", 0), t.getInt("bless", 0),
                     t.getDouble("bless-tip", 1), t.getDouble("review", 0), t.getDouble("gift-chance", -1), t.getDouble("gift-mood", -1),
-                    t.getBoolean("tags-only"));
+                    t.getBoolean("tags-only"), Math.clamp(t.getDouble("dodge", 0), 0, 1), t.getDouble("haggle-at", 0),
+                    Math.clamp(t.getDouble("haggle", 0.5), 0, 1), Math.clamp(t.getDouble("prank", 0), 0, 1), t.getDouble("litter", 0),
+                    Math.max(0, t.getDouble("treat", 0)));
         }
     }
 
@@ -268,7 +272,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     }
 
     /** The situations a kind's own talk may show off in the preview, most telling first (수다, 느릿느릿 타기, 아기 울음 …). */
-    static final List<String> SIGNATURE = List.of("chat", "slow", "cry", "smile", "sick", "bark", "late", "view", "waited");
+    static final List<String> SIGNATURE = List.of("dodge", "haggle", "prank", "chat", "slow", "cry", "smile", "sick", "bark", "late", "view", "waited");
 
     /**
      * The preview's three situations (/관리자 버스 손님 <종류>): getting on, then the kind's most telling own one (SIGNATURE),

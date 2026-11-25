@@ -1239,6 +1239,11 @@ bus:
   bus-only: "<yellow>이 버스는 태울 수 없는 손님이에요 (버스마다 태우는 손님이 달라요)"
   bus-far: "<yellow>시외버스는 {km} 넘게 가는 손님만 태워요"
   fare-luggage: " · <#c9a26b>보따리 +{g} G"
+  fare-haggle: " · <#e08a6b>운임을 {rate}%만 냄"
+  fare-treat: " · <#9fd36b>앞 손님이 내 준 +{g} G"
+  dodge: "<gray>{type}<gray>이(가) 뒷문으로 슬쩍 내렸어요. <#e08a6b>운임을 안 냈어요."
+  litter: "<gray>{type}<gray>이(가) 앉았던 자리에 과자 부스러기가 한가득… <#e08a6b>남은 손님들 기분 하락"
+  treat: "<gray>{type}<gray>: \"다음 손님 차비는 제가 낼게요.\" <#9fd36b>다음 손님 운임 +{pct}%"
   gift: "{type}<gray>이(가) 고맙다며 <white>{item}</white> {n}개를 줬어요"
   market: "<#ff9e5c>🧺 오늘은 장날!</#ff9e5c> <gray>{stops} 정류장에 할머니 · 농부 손님이 많아요"
   picnic: "<#7cc4ff>🎒 소풍날!</#7cc4ff> <gray>{stop} 정류장에 {who} {n}명이 {teams}팀으로 기다려요 · 팀을 다 내려 주면 팀 보너스"
@@ -1513,6 +1518,9 @@ bus:
     smile: "아기 웃음"
     sick: "멀미"
     bark: "강아지"
+    dodge: "무임승차"
+    haggle: "운임 깎기"
+    prank: "벨 장난"
   preview-trait:
     hidden: "보통 손님으로 안 나옴"
     slow: "타고 내리기 ×{v}"
@@ -1543,6 +1551,12 @@ bus:
     token: "유령 승차권 조각"
     gifts: "선물"
     announce: "탈 때 공지"
+    dodge: "운임 안 내고 내림 {v}%"
+    haggle: "기분 {v} 아래면 운임 일부만"
+    prank: "벨 장난 {v}%"
+    litter: "내릴 때 남은 손님 기분 {v}"
+    treat: "다음 손님 운임 +{v}%"
+    chatter-mood: "수다마다 다른 손님 기분 {v}"
 
 # 길라잡이 (/길라잡이): 체험관 월드에서 직접 해 보는 안내
 guide:

@@ -199,6 +199,8 @@ public final class BusModule extends EcoModule {
         /** 공정 운행: what the bus had driven when they got on (Run.meter); their stop was changed on the way (passed, turned round) */
         double odoAt;
         boolean rerouted;
+        /** 벨 장난 꼬마: rang the bell for nobody already this ride */
+        boolean pranked;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -1451,8 +1453,23 @@ public final class BusModule extends EcoModule {
         r.mood = r.type.floor(r.mood);
         // a stop on a hard road (README "국도", 성격): its fares ×1.4 (roads.characters.hard.fare), either end of the ride
         double hard = dev.stsv.economy.road.RoadRewards.fare(roadAt(stops.get(r.from)), roadAt(at));
+        BusSpec.Traits tr = r.type.x();
+        // 무임승차 청년: now and then off by the back door without paying (a 특급 · 단체 · 비밀 손님 always pays)
+        if (tr.dodge() > 0 && r.special == null && r.team == 0 && ThreadLocalRandom.current().nextDouble() < tr.dodge()) {
+            p.sendMessage(Lang.mm("bus.dodge", "type", typeTag(r.type)));
+            talk(null, r.m, r.type, "dodge", true);
+            p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.7f, 1.1f);
+            return onTime;
+        }
+        // 반말 아저씨 · 민원 아줌마: below their mood, they pay only part of it
+        boolean haggled = tr.haggleAt() > 0 && r.mood < tr.haggleAt();
+        if (haggled) factor *= tr.haggle();
         double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1) * Math.max(0, factor) * hard;
         double base = fare * spec.moodFactor(r.mood) + r.type.luggage();
+        // 친절한 신사 paid ahead for this one
+        Double treat = treated.remove(p.getUniqueId());
+        double treatBonus = treat == null ? 0 : fare * treat;
+        base += treatBonus;
         boolean rain = p.getWorld().hasStorm();
         double tip = onTime && r.mood >= r.type.tipMood() ? fare * f.tip() * r.type.tip() * (rain ? 1 + x.rainTip() : 1) : 0;
         int[] bless = blessed.get(p.getUniqueId());   // 스님's blessing: the next passengers tip more
@@ -1480,10 +1497,13 @@ public final class BusModule extends EcoModule {
         String tipText = tip > 0 ? Lang.raw("bus.fare-tip", "tip", Math.round(tip)) : onTime ? "" : Lang.raw("bus.fare-late");
         if (r.type.luggage() > 0) tipText += Lang.raw("bus.fare-luggage", "g", Math.round(r.type.luggage()));
         if (fee > 0) tipText += Lang.raw("bus.fare-rental", "fee", String.format("%,d", fee));
+        if (haggled) tipText += Lang.raw("bus.fare-haggle", "rate", (int) Math.round(tr.haggle() * 100));
+        if (treatBonus >= 1) tipText += Lang.raw("bus.fare-treat", "g", Math.round(treatBonus));
         String curve = rate < 100 ? Lang.raw("bus.fare-curve", "rate", rate) : "";
         if (!r.type.x().ghost() || paid > 0) p.sendMessage(Lang.mm("bus.fare", "fare", String.format("%,d", paid), "type", typeTag(r.type),
                 "mood", (int) Math.round(r.mood), "tip", tipText, "curve", curve));
         p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.3f);
+        if (haggled) talk(null, r.m, r.type, "haggle", true);
         if (r.mood >= 90) r.m.getWorld().spawnParticle(Particle.HEART, r.m.getLocation().add(0, 2.1, 0), 2, 0.3, 0.2, 0.3);
         // a kind passenger leaves something for the driver (할머니: 식혜, 인절미 ...)
         double giftMood = r.type.x().giftMood() >= 0 ? r.type.x().giftMood() : x.giftMood();
@@ -1892,6 +1912,21 @@ public final class BusModule extends EcoModule {
             double dist = line.between(idx, line.at(next.id()));
             int offN = 0;
             for (Rider x : r.riders) if (x.dest == next.id()) offN++;
+            // 벨 장난 꼬마: rings for nobody, once a ride, now and then
+            if (offN == 0 && dist < 150 && !r.rang.contains(next.id())) {
+                for (Rider x : r.riders) {
+                    if (x.pranked || x.type.x().prank() <= 0) continue;
+                    x.pranked = true;
+                    if (ThreadLocalRandom.current().nextDouble() >= x.type.x().prank()) continue;
+                    r.rang.add(next.id());
+                    x.m.swingMainHand();
+                    talk(r, x.m, x.type, "prank", true);
+                    p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 1.2f);
+                    Bukkit.getScheduler().runTaskLater(eco, () -> p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 1f, 0.95f), 4L);
+                    HudModule.flash(p, Lang.mm("bus.bell", "stop", next.name(), "n", 1), 3000);
+                    return;
+                }
+            }
             if (offN > 0 && dist < 150 && r.rang.add(next.id())) {
                 // the bell: those getting off raise a hand; a sleeper may not wake (and rides past)
                 boolean said = false;
@@ -2386,6 +2421,8 @@ public final class BusModule extends EcoModule {
     static final String GHOST_TITLE = "economy:night_driver";
     /** driver -> {passengers still blessed, their tip × 100} (스님: 성불하세요; in memory) */
     private final Map<UUID, int[]> blessed = new HashMap<>();
+    /** driver -> the next passenger's fare × this more (친절한 신사 paid ahead; in memory, one passenger) */
+    private final Map<UUID, Double> treated = new HashMap<>();
 
     /**
      * Once a second for a bus: chatter bubbles (수다쟁이 아줌마: everyone else a little crosser each time; 유튜버: 구독 좋아요~),
@@ -2431,6 +2468,16 @@ public final class BusModule extends EcoModule {
             blessed.put(u, new int[]{t.bless(), (int) Math.round(t.blessTip() * 100)});
             p.sendMessage(Lang.mm("bus.blessed", "n", t.bless(), "x", String.format("%.1f", t.blessTip())));
             p.getWorld().spawnParticle(Particle.END_ROD, p.getLocation().add(0, 1.5, 0), 12, 0.5, 0.6, 0.5, 0.01);
+        }
+        if (t.litter() != 0) {   // 과자 부스러기 학생: the seat left as it is
+            for (Rider o : run.riders) if (o != r) o.mood = o.type.floor(Math.clamp(o.mood + t.litter() * o.type.mood(), 0, 100));
+            p.sendMessage(Lang.mm("bus.litter", "type", typeTag(r.type)));
+            r.m.getWorld().spawnParticle(Particle.ITEM, r.m.getLocation().add(0, 0.6, 0), 10, 0.25, 0.1, 0.25, 0.02,
+                    new org.bukkit.inventory.ItemStack(org.bukkit.Material.COOKIE));
+        }
+        if (t.treat() > 0) {   // 친절한 신사: the next passenger's fare, paid ahead
+            treated.put(u, t.treat());
+            p.sendMessage(Lang.mm("bus.treat", "type", typeTag(r.type), "pct", (int) Math.round(t.treat() * 100)));
         }
         if (t.review() > 0 && r.mood >= t.review()) {
             String key = "bus.review." + u, today = eco.calendar().days().date(System.currentTimeMillis()).toString();

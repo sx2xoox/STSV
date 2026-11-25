@@ -65,6 +65,9 @@ final class PassengerPreview {
             case "cry" -> "😭";
             case "sick" -> "🤢";
             case "bark" -> "🐶";
+            case "dodge" -> "😏";
+            case "haggle" -> "😠";
+            case "prank" -> "😜";
             default -> "🙂";
         };
     }
@@ -96,6 +99,12 @@ final class PassengerPreview {
         if (x.ghost()) add(out, "ghost", "");
         if (!x.pet().isEmpty()) add(out, "pet", "");
         if (x.chatter() > 0) add(out, "chatter", num(x.chatter()));
+        if (x.chatter() > 0 && x.chatterMood() != 0) add(out, "chatter-mood", (x.chatterMood() > 0 ? "+" : "") + num(x.chatterMood()));
+        if (x.dodge() > 0) add(out, "dodge", num(Math.round(x.dodge() * 100)));
+        if (x.haggleAt() > 0) add(out, "haggle", num(x.haggleAt()));
+        if (x.prank() > 0) add(out, "prank", num(Math.round(x.prank() * 100)));
+        if (x.litter() != 0) add(out, "litter", num(x.litter()));
+        if (x.treat() > 0) add(out, "treat", num(Math.round(x.treat() * 100)));
         if (x.moodFloor() > 0) add(out, "mood-floor", num(x.moodFloor()));
         if (x.sickAt() > 0) add(out, "sick", num(x.sickAt()));
         if (x.babyCry() != 0 || x.babySmile() != 0) add(out, "baby", "");

@@ -73,10 +73,19 @@ class BusTest {
         assertEquals(0.5, s.hourFactor(3));
         assertEquals(1.0, s.hourFactor(13));
         assertTrue(s.rush(7));
-        assertEquals(28, s.types().size());
-        // the first six make up 90 (주민 40: fewer plain neighbours; the 2차 kinds come on top, by place and time)
-        double w = s.types().values().stream().limit(6).mapToDouble(BusSpec.Type::weight).sum();
-        assertEquals(90, w, 1e-9);
+        assertEquals(53, s.types().size());
+        // 2026-11: 할머니는 예전과 같은 비율 (10 / 135.7 = 7.4%), 진상 · 착한 손님의 새 버릇
+        double total = s.types().values().stream().mapToDouble(BusSpec.Type::weight).sum();
+        assertEquals(10 / 135.7, s.types().get("grandma").weight() / total, 0.002);
+        assertEquals(0.35, s.types().get("dodger").x().dodge(), 1e-9);
+        assertEquals(50, s.types().get("rude").x().haggleAt(), 1e-9);
+        assertEquals(0.5, s.types().get("rude").x().haggle(), 1e-9);
+        assertEquals(0.5, s.types().get("prankster").x().prank(), 1e-9);
+        assertEquals(-6, s.types().get("crumbs").x().litter(), 1e-9);
+        assertEquals(0.5, s.types().get("gentleman").x().treat(), 1e-9);
+        assertEquals(0, s.types().get("resident").x().dodge(), 1e-9);
+        // 2026-11 분포: 네 단 (흔함 45% · 자주 30% · 가끔 18% · 드묾 7%), 어느 한 종류도 전체의 8% 를 넘지 않음
+        for (BusSpec.Type t : s.types().values()) assertTrue(t.weight() / total <= 0.08, t.id());
         assertTrue(s.vehicles().contains("stsv:village_bus"));
     }
 

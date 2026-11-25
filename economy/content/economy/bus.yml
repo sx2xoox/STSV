@@ -493,12 +493,12 @@ types:
   resident:
     name: 동네 주민
     color: "#9fd36b"
-    weight: 40
+    weight: 24
     skins: ["economy:entity/bus/resident_1", "economy:entity/bus/resident_2 slim", "economy:entity/bus/resident_3"]
   student:
     name: 학생
     color: "#7cc4ff"
-    weight: 20
+    weight: 22
     fare: 0.8
     mood: 0.5
     rush: 2.0
@@ -523,7 +523,7 @@ types:
   grandma:
     name: 할머니
     color: "#e0a8ff"
-    weight: 10
+    weight: 29.5
     slow: 8.0          # 타고 내리는 데 4초 (2 이상이면 버스 문까지 천천히 걸어와서 탐)
     jolt: 2.0
     tip: 2.0
@@ -551,7 +551,7 @@ types:
   office:
     name: 회사원
     color: "#c9d2dc"
-    weight: 15
+    weight: 20
     fare: 1.2
     late: 5
     doze: 0.3
@@ -571,7 +571,7 @@ types:
   tourist:
     name: 관광객
     color: "#ffd166"
-    weight: 4
+    weight: 9
     fare: 1.5
     far: 1500
     tags: {sea: 3, mountain: 2, port: 2}
@@ -588,7 +588,7 @@ types:
   vip:
     name: VIP
     color: "#ffcf40"
-    weight: 1
+    weight: 3
     fare: 3.0
     far: 2500
     tip-mood: 70
@@ -607,7 +607,7 @@ types:
   farmer:
     name: 농부
     color: "#c9a26b"
-    weight: 6
+    weight: 9
     market: 3
     luggage: 100
     tags: {field: 4, village: 1.5, mountain: 0.5, sea: 0.3}
@@ -624,7 +624,7 @@ types:
   hiker:
     name: 등산객
     color: "#ff8a5c"
-    weight: 3
+    weight: 9
     mood: 0.6
     far: 800
     tags: {mountain: 6, forest: 3, sea: 0.3, village: 0.5}
@@ -643,7 +643,7 @@ types:
   fisher:
     name: 낚시꾼
     color: "#6fc3c9"
-    weight: 3
+    weight: 9
     tags: {sea: 6, port: 4, field: 0.3, mountain: 0.3}
     hours: [3, 20]
     skins: ["economy:entity/bus/fisher_1", "economy:entity/bus/fisher_2", "economy:entity/bus/fisher_3 slim"]
@@ -659,7 +659,7 @@ types:
   soldier:
     name: 군인
     color: "#8fae6b"
-    weight: 0.6
+    weight: 3
     weekend: 8
     to-end: true
     tip: 2.0
@@ -679,7 +679,7 @@ types:
   couple:
     name: 커플
     color: "#ff9ec8"
-    weight: 3
+    weight: 9
     pair: true
     hours: [11, 23]
     skins: ["economy:entity/bus/couple_1", "economy:entity/bus/couple_2 slim", "economy:entity/bus/couple_3 slim"]
@@ -697,7 +697,7 @@ types:
   drunk:
     name: 술 취한 아저씨
     color: "#e07a6b"
-    weight: 2
+    weight: 3.4
     hours: [21, 4]
     wander: 0.2
     turn: 2.0
@@ -719,7 +719,7 @@ types:
   courier:
     name: 택배기사
     color: "#c8925a"
-    weight: 3
+    weight: 9
     luggage: 150
     late: 8
     rush: 1.5
@@ -740,7 +740,7 @@ types:
   kinder:
     name: 유치원생
     color: "#ffe066"
-    weight: 2
+    weight: 3.4
     pair: true
     scale: 0.65
     fare: 0.5
@@ -764,7 +764,7 @@ types:
   camper:
     name: 캠핑족
     color: "#6fbf73"
-    weight: 2
+    weight: 3.4
     fare: 1.1
     luggage: 120
     far: 1000
@@ -783,7 +783,7 @@ types:
   haenyeo:
     name: 해녀
     color: "#4fa3a5"
-    weight: 1.5
+    weight: 3.4
     mood: 0.7
     tip: 1.5
     slow: 1.3
@@ -802,7 +802,7 @@ types:
   fan:
     name: 야구팬
     color: "#ff6b6b"
-    weight: 2
+    weight: 3.4
     tip: 1.5
     weekend: 3
     hours: [12, 23]
@@ -820,7 +820,7 @@ types:
   nurse:
     name: 간호사
     color: "#7fd1c7"
-    weight: 2
+    weight: 3.4
     mood: 0.8
     late: 2
     doze: 0.6
@@ -849,7 +849,7 @@ types:
   chatty:
     name: 수다쟁이 아줌마
     color: "#ff9ecb"
-    weight: 3
+    weight: 9
     tip: 1.5
     chatter: 8
     chatter-mood: -1
@@ -873,7 +873,7 @@ types:
   motionsick:
     name: 멀미하는 아저씨
     color: "#a8d08d"
-    weight: 2
+    weight: 3.4
     turn: 3.0
     jolt: 2.0
     sick-at: 20
@@ -892,7 +892,7 @@ types:
   mom:
     name: 애 업은 엄마
     color: "#ffc6a5"
-    weight: 2
+    weight: 3.4
     hours: [8, 20]
     baby-cry: -3
     baby-smile: 2
@@ -912,7 +912,7 @@ types:
   dogwalker:
     name: 강아지 데려온 할아버지
     color: "#d9b38c"
-    weight: 2
+    weight: 3.4
     fare: 1.5
     seats: 2
     pet: wolf
@@ -931,7 +931,7 @@ types:
   santa:
     name: 산타 할아버지
     color: "#ff4d4d"
-    weight: 1
+    weight: 4
     months: [12]
     peak-days: [24, 25]
     peak: 6
@@ -953,7 +953,7 @@ types:
   ghost:
     name: 유령 손님
     color: "#bfe6ff"
-    weight: 1.5
+    weight: 4
     hours: [2, 4]
     fare: 0
     tip: 0
@@ -974,7 +974,7 @@ types:
   rider:
     name: 배달 라이더
     color: "#3fd0c9"
-    weight: 2
+    weight: 3.4
     hours: [8, 23]
     on-time: 0.6
     tip: 2.0
@@ -995,7 +995,7 @@ types:
   monk:
     name: 스님
     color: "#d9a441"
-    weight: 0.6
+    weight: 3
     tags-only: true
     tags: {mountain: 8, forest: 2}
     mood: 0
@@ -1017,7 +1017,7 @@ types:
   youtuber:
     name: 유튜버
     color: "#ff3b3b"
-    weight: 1.5
+    weight: 3.4
     hours: [10, 24]
     chatter: 20
     review: 90
@@ -1035,6 +1035,367 @@ types:
       view: ["여러분 이 뷰 보이세요?!", "드론 날리고 싶다~", "오늘 썸네일 이걸로 간다!", "화질 올려서 보세요~"]
       waited: ["기다리는 동안 Q&A 할게요~", "버스 기다리기 브이로그…", "기다림도 콘텐츠다!", "대기 시간 실시간 중계 중~"]
       thanks: ["기사님 리뷰 영상 올릴게요~!", "구독 꼭 눌러 주세요 기사님!", "오늘 방송 여기까지~ 안녕!", "기사님 출연 감사합니다~"]
+  # ── 2026-11 손님 26종 (기획안 docs/plans/리뉴얼_기획안_2026-11.md "버스 손님 1차"): 착한 손님 · 진상 · 특이한 손님.
+  # 새 버릇: dodge 운임을 안 내고 내릴 확률 (talk.dodge) · haggle-at 이 기분 아래로 내리면 운임을 haggle 배만 냄 (talk.haggle)
+  # prank 한 번 탈 때 아무도 안 내리는 정류장에 벨을 누를 확률 (talk.prank) · litter 내릴 때 남은 손님 모두 기분 더하기
+  # treat 내릴 때 다음 손님 운임 × (1 + treat) (기사마다 한 명)
+  # ── 흔함
+  market:
+    name: 시장 아줌마
+    color: "#f2b36b"
+    weight: 20
+    tip: 1.3
+    slow: 2.0
+    luggage: 15
+    market: 3
+    tags: {village: 1.5, field: 1.3}
+    gift-chance: 0.2
+    gifts: [{item: economy:injeolmi, amount: 1}, {item: economy:corn_bread, amount: 1}, {item: economy:hotteok, amount: 1}]
+    skins: ["economy:entity/bus/market_1 slim", "economy:entity/bus/market_2 slim", "economy:entity/bus/market_3 slim"]
+    talk:
+      board: ["아유 짐이 많아서~ 기사님 미안해요", "장 보러 가요~ 오늘 배추가 싸대", "끙차, 보따리부터 올리고~", "기사님 오늘도 수고 많아요~", "아이고 자리 있네, 고마워라"]
+      jolt: ["아이고 내 계란!", "어머 보따리 쏟아진다!", "기사님 살살~ 두부 깨져요", "아유 깜짝이야~"]
+      smooth: ["기사님 운전 참 얌전하네~", "계란 하나도 안 깨졌네~ 호호", "이 버스 타면 장 보기 편해~"]
+      bell: ["여기 내려요~ 짐 좀 내릴게요", "시장 앞이요~", "기사님 여기요~"]
+      thanks: ["이거 하나 잡숴요~", "수고해요 기사님~", "다음 장날에 또 봐요~", "덤으로 하나 줄게~ 호호"]
+  uncle:
+    name: 동네 아저씨
+    color: "#b5a58a"
+    weight: 18
+    chatter: 25
+    tags: {village: 1.5}
+    skins: ["economy:entity/bus/uncle_1", "economy:entity/bus/uncle_2", "economy:entity/bus/uncle_3"]
+    talk:
+      board: ["어이 기사 양반, 잘 지내지?", "오늘 덥네 더워", "읍내 좀 가세", "허허 자리 많네"]
+      chat: ["아랫마을 김씨네 소가 새끼를 낳았대", "올해 고추 농사는 영 글렀어", "이장이 또 회의를 한다더만", "저 길 언제 포장한대?", "요즘 젊은 사람들이 동네에 많이 와",
+             "어제 경로당에서 장기 두다 졌지 뭐야", "그 집 아들이 서울서 내려왔대", "비가 와야 하는디 말이여"]
+      jolt: ["어이쿠!", "기사 양반 살살 혀", "허리 나가겄네"]
+      thanks: ["수고하게~", "또 보세", "잘 가게 기사 양반"]
+  univ:
+    name: 대학생
+    color: "#8fb8de"
+    weight: 18
+    fare: 0.9
+    rush: 1.5
+    doze: 0.45
+    skins: ["economy:entity/bus/univ_1", "economy:entity/bus/univ_2 slim", "economy:entity/bus/univ_3"]
+    talk:
+      board: ["안녕하세요…", "(이어폰을 꽂는다)", "1교시 망했다…", "과제 마감 오늘인데…", "공강이라 집 가요"]
+      jolt: ["앗 이어폰 빠졌다", "아 깜짝이야…", "폰 떨굴 뻔"]
+      smooth: ["(꾸벅꾸벅)", "편하다… 자야지", "노래 듣기 딱 좋네"]
+      doze-missed: ["헐 여기 어디야", "아 또 졸았다…", "과제 꿈 꿨어…"]
+      thanks: ["감사합니다~", "수고하세요", "꾸벅"]
+  worker:
+    name: 공사장 인부
+    color: "#e6c24a"
+    weight: 14
+    rush: 2.0
+    tip: 1.5
+    jolt: 0.5
+    tags: {village: 1.3}
+    skins: ["economy:entity/bus/worker_1", "economy:entity/bus/worker_2", "economy:entity/bus/worker_3"]
+    talk:
+      board: ["현장 가요~", "오늘도 일당 벌러 갑니다", "흙 좀 털고 탈게요", "아이고 허리야", "새벽부터 고생이네 다들"]
+      jolt: ["허허, 이 정도야 뭐", "현장보다 낫네", "괜찮아요 괜찮아"]
+      smooth: ["기사님 덕에 한숨 돌리네", "버스가 제일 편해", "이 맛에 퇴근하지"]
+      thanks: ["수고 많으십니다!", "고맙습니다, 기사님 커피 한 잔 하세요", "내일 또 탑니다~"]
+  kid:
+    name: 초등학생
+    color: "#ffd54a"
+    weight: 14
+    fare: 0.5
+    scale: 0.75
+    rush: 2.0
+    chatter: 15
+    chatter-mood: -0.5
+    tags: {village: 1.5}
+    skins: ["economy:entity/bus/kid_1", "economy:entity/bus/kid_2 slim", "economy:entity/bus/kid_3"]
+    talk:
+      board: ["안녕하세요오!", "기사 아저씨 안녕하세요!", "버스 탔다!", "학교 가요!", "엄마가 카드 줬어요!"]
+      chat: ["나 오늘 받아쓰기 백 점 맞았다!", "어제 게임 레벨 올렸다~", "쟤가 먼저 그랬어!", "우와 저기 강아지다!", "급식 뭐야? 돈가스래!", "숙제 안 했다…"]
+      jolt: ["와아 재밌다!", "한 번 더요!", "으악!"]
+      smooth: ["졸려…", "아저씨 운전 잘한다!"]
+      thanks: ["감사합니다아!", "안녕히 계세요!", "아저씨 또 봐요!"]
+  # ── 자주
+  chicken:
+    name: 닭 든 할머니
+    color: "#f0e0c8"
+    weight: 9
+    slow: 4.0
+    market: 2
+    baby-cry: -2
+    tags: {field: 2, village: 1.3}
+    skins: ["economy:entity/bus/chicken_1 slim", "economy:entity/bus/chicken_2 slim", "economy:entity/bus/chicken_3 slim"]
+    talk:
+      board: ["아이고 닭 좀 데리고 타도 되제?", "장에 팔러 가는 닭이여~", "얌전히 있으래이, 꼬꼬야", "끙차, 닭이 무겁네"]
+      cry: ["꼬꼬댁!! 꼬꼬댁!!", "(닭이 버스 안을 날아다닌다)", "꼬꼬오오!", "아이고 닭 잡아라 닭!"]
+      jolt: ["아이고 우리 닭 놀란다!", "어매 꼬꼬야 가만있어!", "닭 놓친다 기사 양반!"]
+      smooth: ["닭도 얌전하네~", "꼬꼬도 졸린갑다", "운전 참 곱게 하네"]
+      thanks: ["고마워요~ 달걀 하나 갖고 가", "수고했소", "꼬꼬야 인사해라"]
+  tardy:
+    name: 지각생
+    color: "#ff8a65"
+    weight: 9
+    scale: 0.95
+    rush: 3.0
+    late: 8
+    late-hit: -15
+    tip: 2.5
+    skins: ["economy:entity/bus/tardy_1", "economy:entity/bus/tardy_2 slim", "economy:entity/bus/tardy_3"]
+    talk:
+      board: ["기사님 빨리요 빨리!!", "(토스트를 입에 물고) 흡흡!", "늦었다 늦었다!!", "제발 제시간에만…!", "교문 닫히기 전에요!!"]
+      late: ["으아아 망했다!!", "선생님한테 죽었다…", "벌점이다…", "기사님 왜 이렇게 늦어요ㅠㅠ"]
+      smooth: ["이 속도면 된다!", "기사님 최고!", "살았다…"]
+      bell: ["여기요 여기!! 문 열어 주세요!!", "저 내려요 빨리!!"]
+      thanks: ["감사합니다!! (뛰어간다)", "기사님 덕분에 살았어요!!", "내일도 부탁드려요!!"]
+  interview:
+    name: 면접 청년
+    color: "#5c7cad"
+    weight: 9
+    mood: 1.5
+    tip: 2.0
+    hours: [7, 17]
+    skins: ["economy:entity/bus/interview_1", "economy:entity/bus/interview_2 slim", "economy:entity/bus/interview_3"]
+    talk:
+      board: ["(넥타이를 고쳐 맨다)", "안녕하십니까!", "오늘 면접 보러 갑니다", "(작게) 저는 성실한 인재로서…"]
+      jolt: ["아 서류 구겨지면 안 되는데…", "넥타이 삐뚤어졌다…", "헉, 머리 망가졌나"]
+      smooth: ["(자기소개 연습 중) 저의 장점은…", "덕분에 마음이 편해지네요", "좋은 예감이 들어요"]
+      bell: ["여기서 내리겠습니다!", "실례지만 여기서 세워 주세요"]
+      thanks: ["감사합니다! 붙으면 또 탈게요!", "기사님 덕분에 떨지 않고 갑니다", "꼭 붙겠습니다!"]
+  yeot:
+    name: 엿장수
+    color: "#d9a441"
+    weight: 9
+    chatter: 12
+    chatter-mood: 1
+    market: 2
+    tags: {village: 1.5}
+    skins: ["economy:entity/bus/yeot_1", "economy:entity/bus/yeot_2", "economy:entity/bus/yeot_3"]
+    talk:
+      board: ["찰칵찰칵~ 엿 사려~", "기사 양반 엿 하나 드시오~", "울릉도 호박엿이 왔어요~"]
+      chat: ["(가위 소리) 찰칵 찰칵~", "엿 먹고 기운 내요~ 허허", "엿장수 마음대로~", "고물 받아요 엿 바꿔 줘요~", "달달한 엿 한 가락 하소~"]
+      jolt: ["엿 떨어진다~ 허허", "가위 놓칠 뻔했네"]
+      thanks: ["엿 한 가락 두고 가오~", "잘 가시오~ 찰칵찰칵", "기사 양반 복 받으시오"]
+  traveler:
+    name: 외국인 여행객
+    color: "#7fd1c7"
+    weight: 9
+    fare: 1.3
+    wander: 0.15
+    review: 85
+    tags: {sea: 2, mountain: 1.5}
+    skins: ["economy:entity/bus/traveler_1", "economy:entity/bus/traveler_2 slim", "economy:entity/bus/traveler_3"]
+    talk:
+      board: ["안녕하세요! 이 버스… 바다… 가요?", "감사합니다! (꾸벅)", "한국 버스 처음이에요!", "지도… 여기… 맞아요?"]
+      view: ["우와! 너무 아름다워요!", "사진! 사진!", "한국 정말 예뻐요!", "원더풀~"]
+      jolt: ["오 마이…!", "와우!", "깜짝이야… 맞아요?"]
+      smooth: ["기사님 최고예요!", "편해요~ 좋아요!", "한국 버스 좋아요!"]
+      missed: ["어… 여기 아니에요?", "지도 보니까… 지나갔어요!", "스톱! 스톱! 플리즈!"]
+      thanks: ["감사합니다! 리뷰 쓸게요!", "기사님 사랑해요~", "또 올게요! 안녕!"]
+  phone:
+    name: 큰소리 통화남
+    color: "#c97b7b"
+    weight: 12
+    tip: 0.5
+    chatter: 7
+    chatter-mood: -1.5
+    skins: ["economy:entity/bus/phone_1", "economy:entity/bus/phone_2", "economy:entity/bus/phone_3"]
+    talk:
+      board: ["(전화 중) 어어 나 지금 버스야!!", "여보세요? 여보세요!! 잘 안 들려!!", "(통화하며 카드 찍는다)"]
+      chat: ["어 그래서 내가 그 새끼한테 뭐라 그랬냐면!!", "아 진짜?! 대박이네!! 하하하하!!", "뭐라고?! 안 들려!! 크게 말해!!", "그거 내가 해 준다니까!!",
+             "아 버스라 시끄러워서 그래!! 다시 말해 봐!!", "야 그 돈 언제 줄 거야!!", "응응 알았어 알았어!! 끊어!! …아니 근데 있잖아!!"]
+      jolt: ["(통화 중) 아 버스가 흔들려서!!", "야 잠깐만!! 기사님 운전 왜 이래!!"]
+      thanks: ["(통화하며 그냥 내림)", "어 나 내렸어!!", "어어 다 왔어!!"]
+  # ── 가끔
+  rude:
+    name: 반말 아저씨
+    color: "#a0645a"
+    weight: 3.4
+    mood: 1.5
+    tip: 0.3
+    haggle-at: 50
+    haggle: 0.5
+    skins: ["economy:entity/bus/rude_1", "economy:entity/bus/rude_2", "economy:entity/bus/rude_3"]
+    talk:
+      board: ["어이, 빨리 가자", "버스가 왜 이렇게 늦어", "(이쑤시개를 문다)", "자리 없어? 쯧"]
+      jolt: ["야! 똑바로 운전 안 해?!", "운전 그따위로 할 거야?", "어이 기사!"]
+      bump: ["뭐야 이거! 사고 내려고 작정했어?", "민원 넣는다 진짜"]
+      smooth: ["…뭐 그럭저럭이네", "흠", "이제야 좀 타겠네"]
+      haggle: ["이게 무슨 운전이야, 반만 낸다", "이런 버스는 돈 다 못 내", "에이 반값도 아까워"]
+      thanks: ["수고해", "그래", "(말없이 내림)"]
+  dodger:
+    name: 무임승차 청년
+    color: "#7d7d7d"
+    weight: 3.4
+    dodge: 0.35
+    skins: ["economy:entity/bus/dodger_1", "economy:entity/bus/dodger_2", "economy:entity/bus/dodger_3"]
+    talk:
+      board: ["(카드를 찍는 척한다)", "…", "(모자를 깊게 눌러쓴다)", "아 카드 어디 갔지…"]
+      dodge: ["(뒷문으로 슬쩍) 헤헤", "다음에 낼게요~!", "(후다닥 뛰어간다)"]
+      jolt: ["아 씨…", "깜짝이야"]
+      thanks: ["…ㄳ", "(고개만 까딱)"]
+  prankster:
+    name: 벨 장난 꼬마
+    color: "#ffb74d"
+    weight: 3.4
+    fare: 0.5
+    scale: 0.8
+    prank: 0.5
+    skins: ["economy:entity/bus/prankster_1", "economy:entity/bus/prankster_2", "economy:entity/bus/prankster_3"]
+    talk:
+      board: ["히히 버스 탔다~", "아저씨 안녕~ 히히", "(벨을 만지작거린다)"]
+      prank: ["(띵동!) 히히히 눌러 봤지롱~", "내리는 사람 없는데~ 메롱~", "(벨 누르고 딴청) 휘~휘~"]
+      jolt: ["와 재밌다!", "한 번 더!"]
+      thanks: ["메롱~", "아저씨 안녕~ 히히", "또 눌러야지~"]
+  spread:
+    name: 쩍벌남
+    color: "#8e8e9e"
+    weight: 3.4
+    chatter: 15
+    chatter-mood: -1
+    skins: ["economy:entity/bus/spread_1", "economy:entity/bus/spread_2", "economy:entity/bus/spread_3"]
+    talk:
+      board: ["(다리를 쫙 벌리고 앉는다)", "아 좁네 이 버스", "(두 자리를 차지한다)"]
+      chat: ["(옆 사람 쪽으로 다리를 더 벌린다)", "아 다리가 저려서 그래", "(무릎이 옆 사람을 툭툭 친다)", "좁으면 다른 데 앉든가"]
+      jolt: ["어우 쏠려", "다리 끼었잖아"]
+      thanks: ["(기지개를 켜며 내린다)", "어 수고"]
+  complainer:
+    name: 민원 아줌마
+    color: "#d4789a"
+    weight: 3.4
+    mood: 2.0
+    haggle-at: 60
+    haggle: 0.5
+    tags: {village: 1.5}
+    skins: ["economy:entity/bus/complainer_1 slim", "economy:entity/bus/complainer_2 slim", "economy:entity/bus/complainer_3 slim"]
+    talk:
+      board: ["기사님 이 버스 몇 분이나 늦은 줄 알아요?", "에어컨 좀 세게 틀어요", "의자가 왜 이렇게 더러워", "내가 이 노선 몇 년 탄 줄 알아요?"]
+      jolt: ["어머! 지금 뭐 하는 거예요?!", "번호 적었어요, 민원 넣을 거예요", "사람 다치면 책임질 거예요?!"]
+      bump: ["이거 군청에 다 얘기할 거예요!", "기사님 이름이 뭐예요?!"]
+      smooth: ["…진작 이렇게 하지", "오늘은 좀 낫네요", "흥"]
+      haggle: ["이런 운전엔 반만 낼 거예요", "다 낼 수 없어요, 민원 넣기 전에 감사하세요", "환불이에요 환불!"]
+      thanks: ["다음엔 똑바로 해요", "…수고해요", "흥"]
+  crumbs:
+    name: 과자 부스러기 학생
+    color: "#c9a26b"
+    weight: 3.4
+    fare: 0.8
+    scale: 0.9
+    litter: -6
+    skins: ["economy:entity/bus/crumbs_1", "economy:entity/bus/crumbs_2 slim", "economy:entity/bus/crumbs_3"]
+    talk:
+      board: ["(바스락) 과자 먹으면서 가야지~", "(와작와작)", "(봉지를 뜯는다)"]
+      jolt: ["앗 과자 쏟았다", "(부스러기가 흩날린다)", "아 내 과자!"]
+      smooth: ["(와작와작)", "음~ 맛있다", "(손가락을 빤다)"]
+      thanks: ["(부스러기를 털고 내린다)", "감사합니다~ (와작)", "안녕히 계세요~"]
+  gentleman:
+    name: 친절한 신사
+    color: "#c2b280"
+    weight: 3.4
+    mood-floor: 70
+    tip: 1.5
+    treat: 0.5
+    skins: ["economy:entity/bus/gentleman_1", "economy:entity/bus/gentleman_2", "economy:entity/bus/gentleman_3"]
+    talk:
+      board: ["안녕하십니까, 기사님. 오늘도 고생이 많으십니다", "천천히 가셔도 괜찮습니다", "(모자를 살짝 들어 인사한다)"]
+      jolt: ["허허, 괜찮습니다. 다들 괜찮으신가요?", "조심하십시오, 여러분", "길이 험하지요"]
+      smooth: ["운전 솜씨가 훌륭하십니다", "참 평안한 여정입니다", "덕분에 편히 갑니다"]
+      thanks: ["다음 손님 차비는 제가 내겠습니다", "기사님, 늘 건강하십시오", "좋은 하루 되십시오"]
+  shaman:
+    name: 무당
+    color: "#e05a8a"
+    weight: 3.4
+    bless: 3
+    bless-tip: 1.3
+    hours: [18, 4]
+    skins: ["economy:entity/bus/shaman_1 slim", "economy:entity/bus/shaman_2 slim", "economy:entity/bus/shaman_3 slim"]
+    talk:
+      board: ["…이 버스에 기운이 좋구먼", "기사 양반 사주에 물이 많네", "(방울을 흔든다) 딸랑…"]
+      jolt: ["어허, 액이 끼었구먼", "잡귀가 붙었나…", "딸랑딸랑…"]
+      smooth: ["좋은 기운이 흐르네", "이 버스는 복이 들어오는 버스여", "(눈을 감고 중얼거린다)"]
+      thanks: ["액운은 내가 쫓아 주고 가네", "다음 손님들 복 받을 것이여", "딸랑… 무탈하시게"]
+  mailman:
+    name: 우체부
+    color: "#d9534f"
+    weight: 3.4
+    slow: 0.5
+    mood: 0.5
+    hours: [8, 18]
+    skins: ["economy:entity/bus/mailman_1", "economy:entity/bus/mailman_2", "economy:entity/bus/mailman_3"]
+    talk:
+      board: ["우편이요~ 아니 손님이요~ 하하", "배달 가는 길입니다!", "편지 한가득이네요"]
+      jolt: ["편지 날아간다!", "어이쿠 소포!"]
+      smooth: ["덕분에 시간 맞추겠네요", "오늘 배달 순조롭다~"]
+      thanks: ["좋은 소식 전하러 갑니다!", "수고하세요~ 기사님 앞으로도 편지 오면 갖다 드릴게요", "감사합니다!"]
+  bungeo:
+    name: 붕어빵 장수
+    color: "#c58b4f"
+    weight: 3.4
+    months: [11, 12, 1, 2]
+    hours: [15, 23]
+    gift-chance: 0.3
+    gift-mood: 70
+    gifts: [{item: economy:hotteok, amount: 1}]
+    skins: ["economy:entity/bus/bungeo_1", "economy:entity/bus/bungeo_2", "economy:entity/bus/bungeo_3"]
+    talk:
+      board: ["아이고 춥다 추워~", "장사하러 가요~ 오늘 반죽 넉넉히 했어", "(손을 호호 분다)"]
+      jolt: ["반죽 쏟아질라!", "어이쿠, 팥 앙금!"]
+      smooth: ["따뜻하니 좋네~", "기사님 덕에 손 녹이네"]
+      thanks: ["따끈할 때 하나 잡숴요~", "추운데 고생 많아요~", "이따 장사 끝나고 또 탈게요"]
+  # ── 드묾
+  bride:
+    name: 신혼부부
+    color: "#ffe0f0"
+    weight: 3
+    pair: true
+    tip: 2.0
+    tags: {sea: 2, mountain: 1.5}
+    skins: ["economy:entity/bus/bride_1 slim", "economy:entity/bus/bride_2", "economy:entity/bus/bride_3 slim"]
+    talk:
+      board: ["저희 어제 결혼했어요!", "신혼여행 가요~♥", "여보 여기 앉자~", "(손을 꼭 잡고 탄다)"]
+      view: ["여보 저기 봐!", "여기서 사진 찍자~", "평생 기억할 거야♥"]
+      jolt: ["여보 괜찮아?!", "꺄악, 잡아 줘~"]
+      smooth: ["이 버스 우리 추억이다~", "여보 어깨 빌려줘♥"]
+      thanks: ["기사님 행복하세요~♥", "결혼 잘했다~ 감사합니다!", "애 낳으면 또 탈게요!"]
+  police:
+    name: 경찰
+    color: "#3f6fb5"
+    weight: 3
+    mood-floor: 75
+    chatter: 30
+    chatter-mood: 0.5
+    skins: ["economy:entity/bus/police_1", "economy:entity/bus/police_2 slim", "economy:entity/bus/police_3"]
+    talk:
+      board: ["수고 많으십니다", "순찰 교대하러 갑니다", "(모자를 고쳐 쓴다)"]
+      chat: ["(주변을 둘러본다) 다들 안전벨트… 아 버스지", "이 동네 참 조용하고 좋습니다", "기사님 안전 운전 감사합니다", "(진상 손님 쪽을 슬쩍 본다)"]
+      jolt: ["다들 다치신 분 없으시죠?", "기사님 속도 조금만 줄여 주세요"]
+      thanks: ["안전 운전 하십시오!", "수고하십시오", "충성!"]
+  magician:
+    name: 마술사
+    color: "#8a5ad9"
+    weight: 3
+    chatter: 18
+    chatter-mood: 1.5
+    tip: 1.5
+    skins: ["economy:entity/bus/magician_1", "economy:entity/bus/magician_2", "economy:entity/bus/magician_3"]
+    talk:
+      board: ["(모자에서 비둘기가 나온다)", "자, 여러분 주목~", "기사님, 카드 한 장 뽑아 보시겠어요?"]
+      chat: ["짠! 동전이 사라졌습니다~", "(손수건이 끝없이 나온다)", "이 카드가… 기사님 주머니에!", "수리수리 마수리~", "(꽃을 꺼내 옆 손님에게 준다)"]
+      jolt: ["어이쿠, 비둘기가!", "카드가 다 흩어졌네요~ 이것도 마술!"]
+      thanks: ["감사합니다~ 짠! (사라진다… 는 척)", "기사님 행운의 카드 드릴게요", "다음 공연에 또 만나요~"]
+  wrestler:
+    name: 씨름 선수
+    color: "#c0392b"
+    weight: 2
+    scale: 1.15
+    jolt: 0.2
+    tags: {field: 1.5, village: 1.3}
+    skins: ["economy:entity/bus/wrestler_1", "economy:entity/bus/wrestler_2", "economy:entity/bus/wrestler_3"]
+    talk:
+      board: ["(버스가 살짝 기운다) 허허, 미안합니다", "대회 나가러 갑니다!", "끙차, 문이 좁네"]
+      jolt: ["(끄떡없다)", "허허, 이 정도야", "흔들린 거 맞습니까?"]
+      smooth: ["버스가 튼튼하네요", "편안합니다"]
+      thanks: ["천하장사 되면 또 타겠습니다!", "감사합니다!", "(악수하려다 기사 손이 아파 보여 멈춘다)"]
   # 수상한 선글라스 남자 (README 에는 없음: docs/admin/버스_비밀_의뢰.md). 보통 손님으로는 안 나옴 (weight 0)
   shades:
     name: "???"
