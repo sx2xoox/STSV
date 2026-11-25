@@ -336,10 +336,11 @@ final class HallTable implements Table.Listener, Table.Bank {
         return k == null ? Integer.MAX_VALUE : k;
     }
 
-    /** What a 섯다 bet was, as MiniMessage: 하프! +120칩, with 올인 when it left them nothing. */
+    /** What a 섯다 bet was, as MiniMessage: 하프! +120칩, with 올인 when it left them nothing, 한도 when it reached the hand limit. */
     static String act(Table.Bet b) {
         String s = Lang.raw("hwatu.act." + b.action().key(), "n", fmt(b.added()));
-        return b.allIn() ? s + " " + Lang.raw("hwatu.act.allin") : s;
+        if (b.allIn()) return s + " " + Lang.raw("hwatu.act.allin");
+        return b.limit() ? s + " " + Lang.raw("hwatu.act.limit") : s;
     }
 
     @Override
@@ -506,8 +507,9 @@ final class HallTable implements Table.Listener, Table.Bank {
                 else if (in) {
                     int seat = t.players().indexOf(me);
                     if (t.allIn(me)) parts.add(part("hwatu.line.allin", 0));
+                    else if (t.atLimit(me)) parts.add(part("hwatu.line.limit", 0));
                     else if (game == Table.Game.SUTDA && t.betting() != null && seat >= 0 && t.betting().toCall(seat) > 0)
-                        parts.add(part("hwatu.line.to-call", 0, "n", fmt(t.betting().toCall(seat))));
+                        parts.add(part(t.limitReached() ? "hwatu.line.to-call-limit" : "hwatu.line.to-call", 0, "n", fmt(t.betting().toCall(seat))));
                     String mine = mine(t, me);
                     if (mine != null) parts.add(new ActionLine.Part(mine, plain(mine), 0));
                 } else parts.add(part("hwatu.line.watching", 0));

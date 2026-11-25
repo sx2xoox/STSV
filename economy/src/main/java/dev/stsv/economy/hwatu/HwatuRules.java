@@ -65,10 +65,14 @@ public final class HwatuRules {
         return ante * Math.max(1, sitAntes);
     }
 
-    /** The 자릿세 of a pot: percent of it, rounded up (a pot is never free). */
+    /**
+     * The 자릿세 of a pot: percent of it, rounded down. With 1-chip antes a pot of a few chips would otherwise lose a whole
+     * chip (2 chips → 1 = 50 %); rounded down it never takes more than the percent, and a small pot (under 20 chips at
+     * 5 %) pays none.
+     */
     public static long rake(long pot, int percent) {
         if (pot <= 0 || percent <= 0) return 0;
-        return (pot * percent + 99) / 100;
+        return pot * percent / 100;
     }
 
     /** How a pot is paid: each winner's share and what is destroyed (the 자릿세 and the odd chips a split leaves). */

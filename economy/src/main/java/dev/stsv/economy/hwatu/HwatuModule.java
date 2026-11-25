@@ -827,6 +827,11 @@ public final class HwatuModule extends EcoModule {
             m.put("buy_price", fmt(spec.buyPrice()));
             m.put("cash_price", fmt(spec.cashPrice()));
             m.put("rake", String.valueOf(spec.rakePercent()));
+            m.put("rake_from", fmt((100 + spec.rakePercent() - 1) / spec.rakePercent()));   // the smallest pot that pays (rounded down)
+            m.put("limit_antes", spec.handLimitAntes() <= 0 ? Lang.raw("hwatu.no-limit") : fmt(spec.handLimitAntes()));
+            List<String> rooms = new ArrayList<>();
+            for (HwatuSpec.Room r : spec.rooms()) rooms.add(Lang.raw("hwatu.room-ante", "room", r.name(), "ante", fmt(r.ante())));
+            m.put("rooms", String.join(" · ", rooms));
             m.put("hours", String.valueOf(spec.minAgeMs() / 3_600_000L));
             m.put("turn", String.valueOf(spec.turnSeconds()));
             m.put("balance", EconomyModule.format(core.economy().balance(u)));

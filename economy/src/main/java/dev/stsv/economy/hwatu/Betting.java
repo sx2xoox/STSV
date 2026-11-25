@@ -16,10 +16,14 @@ import java.util.Set;
  * 하프 = what calling costs + half of (the pot after that call), at least the ante
  * 따당 = what makes my bet twice the bet to match
  * </pre>
- * There is no cap on raises: a seat short of chips puts in what it has (올인) and stops acting; the chips it could not
- * match are settled as side pots ({@link Pots}). 따당 and 하프 are offered only to a seat that can put in more than a call
- * while somebody else can still answer. Every raise lifts the bet and every seat's chips are finite, so a round always
- * ends: when everyone still in has matched the bet (or is all-in), or only one is left.
+ * There is no cap on how many times the bet goes up, but there is a 한도 per hand (hwatu.yml hand-limit-antes): the most
+ * a seat may put in this round ({@code most}, what the hand limit leaves after the ante and the earlier rounds). A raise
+ * that would pass it puts in only up to it (shown as 한도); a seat at its limit stops acting like an all-in one (it never
+ * owes: nobody can bet past the limit), so once the bet is the limit the others can only 콜 or 다이. A seat short of
+ * chips puts in what it has (올인) and stops acting; the chips it could not match are settled as side pots ({@link Pots}).
+ * 따당 and 하프 are offered only to a seat that can put in more than a call while somebody else can still answer. Every
+ * raise lifts the bet and every seat's chips are finite, so a round always ends: when everyone still in has matched the
+ * bet (or is all-in or at the limit), or only one is left.
  */
 public final class Betting {
 
@@ -49,7 +53,7 @@ public final class Betting {
     private final int n;
     private final long ante, base;
     private final boolean[] folded;
-    private final long[] put, left;
+    private final long[] put, left, most;
     private final boolean[] pending;
     private final Action[] last;
     private long bet;
@@ -59,8 +63,17 @@ public final class Betting {
     /**
      * ante: the room's ante (the 삥 and the least 하프); basePot: chips already in the pot (antes, earlier rounds);
      * stacks: what each seat can still put in; out: seats already out of the hand (folded in an earlier round), or null.
+     * No hand limit.
      */
     public Betting(long ante, long basePot, long[] stacks, boolean[] out) {
+        this(ante, basePot, stacks, out, null);
+    }
+
+    /**
+     * The same with a hand limit: limits[i] is the most seat i may put in this round (the hand's 한도 less what it put in
+     * before this round), or null for none.
+     */
+    public Betting(long ante, long basePot, long[] stacks, boolean[] out, long[] limits) {
         if (stacks.length < 2) throw new IllegalArgumentException("players " + stacks.length);
         if (ante < 1) throw new IllegalArgumentException("ante " + ante);
         this.n = stacks.length;
@@ -69,12 +82,14 @@ public final class Betting {
         folded = new boolean[n];
         put = new long[n];
         left = new long[n];
+        most = new long[n];
         pending = new boolean[n];
         last = new Action[n];
         for (int i = 0; i < n; i++) {
             folded[i] = out != null && out[i];
             left[i] = Math.clamp(stacks[i], 0, MOST);
-            pending[i] = !folded[i] && left[i] > 0;
+            most[i] = limits == null ? MOST : Math.clamp(limits[i], 0, MOST);
+            pending[i] = able(i);
         }
         for (int i = 0; i < n; i++) {
             if (able(i)) {
@@ -120,9 +135,26 @@ public final class Betting {
         return put[seat];
     }
 
-    /** What the seat can still put in. */
+    /** What the seat can still put in (its chips; the hand limit aside: {@link #room}). */
     public long left(int seat) {
         return left[seat];
+    }
+
+    /** What the seat may still put in this round: its chips, or less if the hand limit comes first. */
+    public long room(int seat) {
+        return Math.min(left[seat], Math.max(0, most[seat] - put[seat]));
+    }
+
+    /** Still in with chips left, but at the hand limit: it can put in nothing more this hand (한도). */
+    public boolean atLimit(int seat) {
+        return !folded[seat] && left[seat] > 0 && put[seat] >= most[seat];
+    }
+
+    /** The bet of this round is the hand limit: nobody can raise any more (only 콜 · 다이). */
+    public boolean capped() {
+        if (bet == 0) return false;
+        for (int i = 0; i < n; i++) if (!folded[i] && put[i] == bet && put[i] >= most[i]) return true;
+        return false;
     }
 
     /** The bet to match this round (0: nobody has bet). */
@@ -130,7 +162,7 @@ public final class Betting {
         return bet;
     }
 
-    /** How many times the bet went up this round (삥 · 따당 · 하프), for show: there is no cap. */
+    /** How many times the bet went up this round (삥 · 따당 · 하프), for show: no cap on the count (only the hand limit). */
     public int raises() {
         return raises;
     }
@@ -153,14 +185,14 @@ public final class Betting {
         return a;
     }
 
-    /** Still in and able to bet. */
+    /** Still in and able to bet (chips left, under the hand limit). */
     private boolean able(int seat) {
-        return !folded[seat] && left[seat] > 0;
+        return !folded[seat] && room(seat) > 0;
     }
 
-    /** What the seat owes to match the bet (it may hold less: then calling is all-in). */
+    /** What the seat owes to match the bet, up to its limit (it may hold less: then calling is all-in). */
     private long owe(int seat) {
-        return Math.max(0, bet - put[seat]);
+        return Math.max(0, Math.min(bet, most[seat]) - put[seat]);
     }
 
     /** What calling adds now (capped by what the seat has). */
@@ -174,14 +206,19 @@ public final class Betting {
         return false;
     }
 
-    /** The seat can put in more than a call, and someone could answer it. */
+    /** The seat can put in more than a call (chips and hand limit), and someone could answer it. */
     public boolean canRaise(int seat) {
-        return able(seat) && left[seat] > owe(seat) && answerable(seat);
+        return able(seat) && room(seat) > owe(seat) && answerable(seat);
     }
 
-    /** What an action would add for this seat (all it has if that is less: 올인). */
+    /** What an action would add for this seat (all it has if that is less: 올인; up to the hand limit: 한도). */
     public long amount(int seat, Action a) {
-        long want = switch (a) {
+        return Math.clamp(want(seat, a), 0, room(seat));
+    }
+
+    /** What an action asks for, before the seat's chips and the hand limit. */
+    private long want(int seat, Action a) {
+        return switch (a) {
             case DIE, CHECK -> 0;
             case PING -> ante;
             case CALL -> owe(seat);
@@ -191,13 +228,22 @@ public final class Betting {
                 yield call + Math.max(ante, (pot() + call) / 2);
             }
         };
-        return Math.clamp(want, 0, left[seat]);
     }
 
     /** Whether the action would leave the seat with nothing (shown as 올인). */
     public boolean allInBy(int seat, Action a) {
         long add = amount(seat, a);
         return add > 0 && add == left[seat];
+    }
+
+    /**
+     * Whether a raise (삥 · 따당 · 하프) is cut down to the hand limit (shown as 한도): it would ask for more than the limit
+     * leaves, the seat holds more than that, and it is not all-in.
+     */
+    public boolean limitBy(int seat, Action a) {
+        if (!a.raises()) return false;
+        long add = amount(seat, a);
+        return add > 0 && add < want(seat, a) && add < left[seat];
     }
 
     /** What the seat may do now (empty when it is not its turn), in button order. */

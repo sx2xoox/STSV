@@ -22,13 +22,15 @@ import java.util.random.RandomGenerator;
  *            주사위: each player in turn presses 굴리기 to shake their cup (timers.roll: rolled for them); when all have
  *                    rolled, timers.reveal to look, then the highest total wins (ties split)
  *            섯다:   two streets: one card each, a betting round ({@link Betting}: 삥 · 체크 · 콜 · 따당 · 하프 · 다이, no
- *                    cap, 올인 when short; turn timer: 다이 if there is something to match, else 체크), the second card,
+ *                    cap on the number of raises, 올인 when short; turn timer: 다이 if there is something to match, else
+ *                    체크), the second card,
  *                    a second betting round (체크 again while nobody bet), showdown ({@link Sutda}) of the main pot and
  *                    each side pot ({@link Pots}); everyone but one folding ends it at once; 구사 replays with the same
  *                    pot (no new ante), dealt anew street by street
  *          leaving mid-hand folds (the chips put in stay in the pot); one player left wins the pot
  *          a 섯다 player's stake is every chip they hold when the hand starts (the bank's {@link Bank#stack}): they can
- *          never put in more, so chips never go below 0
+ *          never put in more, so chips never go below 0; and nobody puts more than the 한도 ({@link #handLimit}: ante ×
+ *          hand-limit-antes) into one hand, ante, both streets and a 구사 재경기 together
  * RESULT   timers.result to read it, then the next hand
  * </pre>
  * Every pot pays the 자릿세 ({@link HwatuRules#split}); the chips are moved by the listener (nothing is taken before a hand ends,
@@ -100,8 +102,16 @@ public final class Table {
         }
     }
 
-    /** A 섯다 bet made: who, what, the chips it added, and whether it left them all-in (올인). */
-    public record Bet(UUID player, Betting.Action action, long added, boolean allIn) {}
+    /**
+     * A 섯다 bet made: who, what, the chips it added, whether it left them all-in (올인), and whether it brought them to
+     * the hand limit with chips to spare (한도).
+     */
+    public record Bet(UUID player, Betting.Action action, long added, boolean allIn, boolean limit) {
+
+        public Bet(UUID player, Betting.Action action, long added, boolean allIn) {
+            this(player, action, added, allIn, false);
+        }
+    }
 
     public interface Listener {
         /** Something on the table changed (redraw). */
@@ -218,6 +228,29 @@ public final class Table {
 
     public long ante() {
         return room.ante();
+    }
+
+    /**
+     * The most one player may put into one hand here (ante, every street, a 구사 재경기): ante × hand-limit-antes
+     * ({@link Betting#MOST}: no limit). Only 섯다 can reach it (홀짝 · 주사위 put in the ante alone).
+     */
+    public long handLimit() {
+        int k = spec.handLimitAntes();
+        if (k <= 0) return Betting.MOST;
+        return Math.min(Betting.MOST, ante() * k);
+    }
+
+    /** In the running 섯다 hand with chips left but nothing more to put in: at the hand limit (한도). */
+    public boolean atLimit(UUID u) {
+        return game == Game.SUTDA && inHand(u) && left(u) > 0 && put(u) >= handLimit();
+    }
+
+    /** The running 섯다 hand reached the limit: someone still in put in the 한도, so nobody can raise any more. */
+    public boolean limitReached() {
+        if (game != Game.SUTDA || phase != Phase.PLAYING) return false;
+        long cap = handLimit();
+        for (UUID u : players) if (inHand(u) && put(u) >= cap) return true;
+        return false;
     }
 
     /** Chips a player must hold to be dealt in here. */
@@ -461,16 +494,21 @@ public final class Table {
         }
     }
 
-    /** A new betting round for the players still in (prev: the round before, whose folds carry over). */
+    /**
+     * A new betting round for the players still in (prev: the round before, whose folds carry over); each may put in what
+     * the hand limit leaves after what they put in so far.
+     */
     private Betting round(Betting prev) {
-        long[] left = new long[players.size()];
+        long[] left = new long[players.size()], most = new long[players.size()];
         boolean[] out = new boolean[players.size()];
+        long cap = handLimit();
         for (int i = 0; i < players.size(); i++) {
             UUID u = players.get(i);
             left[i] = Math.max(0, stake.get(u) - put(u));
+            most[i] = Math.max(0, cap - put(u));
             out[i] = prev != null && prev.folded(i);
         }
-        return new Betting(ante(), pot(), left, out);
+        return new Betting(ante(), pot(), left, out, most);
     }
 
     /**
@@ -577,7 +615,8 @@ public final class Table {
         UUID u = players.get(seat);
         long added = betting.act(seat, a);
         put.merge(u, added, Long::sum);
-        lastBet = new Bet(u, a, added, a != Betting.Action.DIE && added > 0 && left(u) == 0);
+        boolean allIn = a != Betting.Action.DIE && added > 0 && left(u) == 0;
+        lastBet = new Bet(u, a, added, allIn, a != Betting.Action.DIE && added > 0 && !allIn && put(u) >= handLimit());
         l.bet(this, lastBet);
         afterBet(now, l);
     }

@@ -14,7 +14,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 섯다 betting (README "도박장 (화투방)"): 삥 · 체크 · 콜 · 따당 · 하프 · 다이 for each state, no cap on raises, all-in, and
+ * 섯다 betting (README "도박장 (화투방)"): 삥 · 체크 · 콜 · 따당 · 하프 · 다이 for each state, any number of raises up to the
+ * hand limit (한도), all-in, and
  * the main pot and side pots ({@link Pots}) with ties and the 자릿세.
  */
 class BettingTest {
@@ -247,6 +248,140 @@ class BettingTest {
         }
     }
 
+    // ------------------------------------------------------------------------------------------ the hand limit (한도)
+
+    @Test
+    void aRaisePastTheLimitIsCutToIt() {
+        // ante 10, 한도 100 a hand: after the antes each may put in 90 more
+        Betting b = new Betting(10, 30, new long[]{1000, 1000, 1000}, null, new long[]{90, 90, 90});
+        b.act(0, PING);                                   // 10
+        b.act(1, DDADANG);                                // 20
+        assertEquals(60, b.act(2, HALF), "call 20 + half of (30 + 10 + 20 + 20)");
+        assertTrue(b.legal(0).contains(DDADANG), "still under the limit: a raise is offered");
+        assertEquals(80, b.amount(0, DDADANG), "따당 would be +110: cut to the 80 the limit leaves");
+        assertTrue(b.limitBy(0, DDADANG));
+        assertTrue(b.limitBy(0, HALF));
+        assertFalse(b.limitBy(0, CALL), "a call is never labelled 한도");
+        assertFalse(b.allInBy(0, DDADANG), "not all-in: chips are left");
+        assertFalse(b.capped());
+        assertEquals(80, b.act(0, DDADANG));
+        assertEquals(90, b.bet());
+        assertTrue(b.atLimit(0));
+        assertFalse(b.allIn(0));
+        assertTrue(b.capped(), "the bet is the limit");
+        assertEquals(set(DIE, CALL), b.legal(1), "at the limit nobody can raise: 콜 · 다이 only");
+        assertEquals(70, b.toCall(1));
+        b.act(1, CALL);
+        assertEquals(set(DIE, CALL), b.legal(2));
+        b.act(2, CALL);
+        assertTrue(b.done(), "everyone at the limit");
+        for (int s = 0; s < 3; s++) assertEquals(90, b.put(s));
+        assertEquals(1000 - 90, b.left(0), "the chips past the limit stay with the player");
+    }
+
+    @Test
+    void noRaiseOnceTheLimitIsReachedOrLeftIsOnlyACall() {
+        // one seat already at the limit when the round starts (an earlier street took it there): it never acts
+        Betting b = new Betting(10, 200, new long[]{900, 900}, null, new long[]{0, 0});
+        assertTrue(b.done(), "both at the limit: nothing to bet");
+        assertTrue(b.atLimit(0) && b.atLimit(1));
+        // the limit leaves exactly a call: no raise
+        Betting c = new Betting(10, 30, new long[]{1000, 1000}, null, new long[]{40, 40});
+        c.act(0, HALF);   // 15
+        c.act(1, HALF);   // call 15 + half of (30 + 15 + 15) = 45 → cut to 40
+        assertTrue(c.atLimit(1));
+        assertEquals(set(DIE, CALL), c.legal(0), "the 25 left is a call: no 따당 · 하프");
+        assertEquals(25, c.toCall(0));
+        c.act(0, CALL);
+        assertTrue(c.done());
+        // 삥 cut too: with 5 left under the limit, 삥 (10) puts in 5
+        Betting d = new Betting(10, 30, new long[]{1000, 1000}, null, new long[]{5, 5});
+        assertEquals(5, d.amount(0, PING));
+        assertTrue(d.limitBy(0, PING));
+        // no limit (the old constructor): nothing is ever cut
+        Betting e = new Betting(2, 10, 1_000_000);
+        assertFalse(e.limitBy(0, HALF));
+        assertFalse(e.atLimit(0));
+    }
+
+    @Test
+    void theLimitCarriesAcrossStreets() {
+        // street 1 takes each to 60 of a 100 limit (ante 10 in the pot already); street 2 has 40 left
+        Betting one = new Betting(10, 20, new long[]{500, 500}, null, new long[]{90, 90});
+        one.act(0, PING);
+        one.act(1, DDADANG);   // 20
+        one.act(0, DDADANG);   // 40
+        one.act(1, DDADANG);   // 80 → cut to 90? no: 80 - 20 = 60 more, under the limit
+        assertEquals(80, one.put(1));
+        one.act(0, CALL);
+        assertTrue(one.done());
+        long put = 10 + one.put(0);   // 90
+        Betting two = new Betting(10, one.pot(), new long[]{500 - one.put(0), 500 - one.put(1)}, null,
+                new long[]{100 - put, 100 - put});
+        assertEquals(set(DIE, CHECK, PING, HALF), two.legal(0), "10 left: still a 삥");
+        assertEquals(10, two.amount(0, HALF), "하프 would be half the pot: cut to the 10 the limit leaves");
+        assertTrue(two.limitBy(0, HALF));
+        two.act(0, HALF);
+        assertEquals(set(DIE, CALL), two.legal(1));
+        two.act(1, CALL);
+        assertTrue(two.done());
+        assertEquals(100, put + two.put(0), "the whole hand: exactly the limit");
+    }
+
+    @Test
+    void theLimitWithAnAllInAndSidePots() {
+        // seat 1 holds 40 (short of the limit), seats 0 and 2 shove up to the 90 the limit leaves
+        Betting b = new Betting(10, 30, new long[]{1000, 40, 1000}, null, new long[]{90, 90, 90});
+        int steps = 0;
+        while (!b.done()) {
+            int s = b.turn();
+            Set<Betting.Action> l = b.legal(s);
+            b.act(s, l.contains(HALF) ? HALF : l.contains(CALL) ? CALL : CHECK);
+            assertTrue(++steps < 50);
+        }
+        assertTrue(b.allIn(1), "the short stack is all-in, as before");
+        assertFalse(b.atLimit(1));
+        assertTrue(b.atLimit(0) && b.atLimit(2));
+        assertEquals(90, b.put(0));
+        assertEquals(40, b.put(1));
+        assertEquals(90, b.put(2));
+        // the hand (ante 10 each + this round): 100 · 50 · 100 → main 150 for all three, side 100 for seats 0 and 2
+        long[] hand = {100, 50, 100};
+        assertEquals(List.of(0L, 0L, 0L), toList(Pots.uncalled(hand)));
+        List<Pots.Pot> pots = Pots.of(hand, new boolean[3]);
+        assertEquals(List.of(new Pots.Pot(150, List.of(0, 1, 2)), new Pots.Pot(100, List.of(0, 2))), pots);
+    }
+
+    @Test
+    void aLimitedRoundAlwaysEndsWithinTheLimit() {
+        Random r = new Random(11);
+        for (int k = 0; k < 4000; k++) {
+            int n = 2 + r.nextInt(5);
+            long[] stacks = new long[n], most = new long[n];
+            long limit = 10 + r.nextInt(2000);
+            for (int i = 0; i < n; i++) {
+                stacks[i] = r.nextInt(4) == 0 ? r.nextInt(40) : 10 + r.nextInt(5000);
+                most[i] = limit;
+            }
+            Betting b = new Betting(10, 10L * n, stacks, null, most);
+            int steps = 0;
+            while (!b.done()) {
+                int seat = b.turn();
+                List<Betting.Action> legal = new ArrayList<>(b.legal(seat));
+                assertFalse(legal.isEmpty());
+                Betting.Action a = legal.get(r.nextInt(legal.size()));
+                b.act(seat, a);
+                assertTrue(b.put(seat) <= limit, "never past the limit");
+                assertTrue(b.left(seat) >= 0);
+                assertTrue(++steps < 500, "the round ends");
+            }
+            for (int s : b.in()) {
+                assertTrue(b.put(s) == b.bet() || b.allIn(s), "everyone still in matched the bet or is all-in");
+                assertTrue(b.put(s) <= Math.min(stacks[s], limit));
+            }
+        }
+    }
+
     // ------------------------------------------------------------------------------------------ pots
 
     @Test
@@ -289,13 +424,15 @@ class BettingTest {
 
     @Test
     void eachPotPaysItsOwnRakeAndSplits() {
-        // the main pot of 230 split by two: rake 12 (5 %, up), 218 / 2 = 109 each, nothing odd
+        // the main pot of 230 split by two: rake 11 (5 %, down), 219 / 2 = 109 each, 1 odd chip burned
         HwatuRules.Split main = HwatuRules.split(230, 5, 2);
         assertEquals(109, main.share());
-        assertEquals(12, main.burned());
-        // a side pot of 210 split three ways: rake 11, 199 / 3 = 66, 1 odd chip burned
+        assertEquals(11 + 1, main.burned());
+        // a side pot of 210 split three ways: rake 10, 200 / 3 = 66, 2 odd chips burned
         HwatuRules.Split side = HwatuRules.split(210, 5, 3);
         assertEquals(66, side.share());
-        assertEquals(11 + 1, side.burned());
+        assertEquals(10 + 2, side.burned());
+        // a small pot pays no 자릿세 (5 % of 19 rounded down)
+        assertEquals(new HwatuRules.Split(19, 0), HwatuRules.split(19, 5, 1));
     }
 }

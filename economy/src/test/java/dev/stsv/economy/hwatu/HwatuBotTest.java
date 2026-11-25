@@ -108,7 +108,10 @@ class HwatuBotTest {
     }
 
     private static Table sutda(int seats, long seed, List<UUID> who) {
-        HwatuSpec s = HwatuTest.spec();
+        return sutda(HwatuTest.spec(), seats, seed, who);
+    }
+
+    private static Table sutda(HwatuSpec s, int seats, long seed, List<UUID> who) {
         Table t = new Table(1, Table.Game.SUTDA, s.rooms().getFirst(), s, new Random(seed));
         for (int k = 0; k < seats; k++) {
             UUID u = UUID.randomUUID();
@@ -181,13 +184,27 @@ class HwatuBotTest {
         assertTrue(weakFolds > 50, "a weak card mostly folds to a big bet: " + weakFolds);
     }
 
-    /** Bots playing whole hands through the real table: every move legal, every hand ends. */
+    /** Bots playing whole hands through the real table (초보방: ante 1, 한도 100): every move legal, every hand ends, within the limit. */
     @Test
     void botsPlayWholeHands() {
+        botHands(HwatuTest.spec());
+        // a low 한도 (4 antes) so the bots run into it often: they still only play legal moves and never pass it
+        org.bukkit.configuration.file.YamlConfiguration y = org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(
+                java.nio.file.Path.of(System.getProperty("stsv.content")).resolve("economy/hwatu.yml").toFile());
+        y.set("hand-limit-antes", 4);
+        List<String> problems = new ArrayList<>();
+        HwatuSpec low = HwatuSpec.parse(y, problems);
+        assertEquals(List.of(), problems);
+        assertTrue(botHands(low) > 0, "some hands reach the 한도");
+    }
+
+    /** 300 bot hands; how many bets reached the 한도. */
+    private static int botHands(HwatuSpec spec) {
         Random r = new Random(11);
+        int limited = 0;
         for (long seed = 0; seed < 300; seed++) {
             List<UUID> who = new ArrayList<>();
-            Table t = sutda(2 + (int) (seed % 5), seed, who);
+            Table t = sutda(spec, 2 + (int) (seed % 5), seed, who);
             HwatuTest.Log log = new HwatuTest.Log();
             long now = 10_000;
             // short and deep stacks (some below a few antes: they go all-in), like a 시험 판 after some hands
@@ -204,9 +221,28 @@ class HwatuBotTest {
                         : HwatuBot.sutda(Sutda.of(c[0], c[1]), t.betting(), seat, r.nextDouble());
                 assertNull(t.act(u, Table.move(a), now, log));
                 assertTrue(++steps < 500);
+                if (t.lastBet() != null && t.lastBet().limit()) limited++;
             }
             assertEquals(1, log.results.size());
+            for (long v : log.results.getFirst().put().values()) assertTrue(v <= t.handLimit(), "a bot never puts past the 한도");
             for (UUID u : log.results.getFirst().players()) assertTrue(chips.get(u) + log.results.getFirst().net(u) >= 0, "nobody below 0");
+        }
+        return limited;
+    }
+
+    /** A bot facing a bet at the limit only calls or folds (a raise it wants falls back to 콜). */
+    @Test
+    void aBotAtTheLimitOnlyCallsOrFolds() {
+        Set<Betting.Action> capped = EnumSet.of(Betting.Action.DIE, Betting.Action.CALL);
+        Betting b = new Betting(1, 3, new long[]{5000, 5000}, null, new long[]{99, 99});
+        b.act(0, Betting.Action.HALF);
+        while (b.legal(b.turn()).contains(Betting.Action.DDADANG)) b.act(b.turn(), Betting.Action.DDADANG);
+        assertTrue(b.capped());
+        int seat = b.turn();
+        assertEquals(capped, b.legal(seat));
+        for (double roll = 0; roll < 1; roll += 0.05) {
+            assertTrue(capped.contains(HwatuBot.sutda(hand("3광", "8광"), b, seat, roll)), "38광땡 wants to raise: 콜");
+            assertTrue(capped.contains(HwatuBot.sutdaFirst(Card.parse("3광"), b, seat, roll)));
         }
     }
 }

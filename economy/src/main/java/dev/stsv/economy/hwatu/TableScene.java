@@ -303,7 +303,9 @@ final class TableScene {
                     : Lang.raw("hwatu.sign-playing");
             case RESULT -> Lang.raw("hwatu.sign-result", "seconds", host.secondsLeft());
         };
-        sign.text(Lang.mm("hwatu.sign", "game", host.gameName(), "room", host.roomName(), "ante", HallTable.fmt(t.ante()),
+        String limit = t.game() != Table.Game.SUTDA || t.handLimit() >= Betting.MOST ? ""
+                : Lang.raw(t.limitReached() ? "hwatu.sign-limit-reached" : "hwatu.sign-limit", "n", HallTable.fmt(t.handLimit()));
+        sign.text(Lang.mm("hwatu.sign", "game", host.gameName(), "room", host.roomName(), "ante", HallTable.fmt(t.ante()), "limit", limit,
                 "n", t.seats().size(), "max", Math.min(t.max(), host.usableSeats().size()), "state", state));
     }
 
@@ -717,7 +719,8 @@ final class TableScene {
     /** What a viewer's buttons say (a change redraws them): the buttons and the amounts on them. */
     private String key(Table t, UUID u, List<Controls.Button> buttons) {
         StringBuilder b = new StringBuilder();
-        for (Controls.Button x : buttons) b.append(x.key()).append(':').append(amount(t, u, x)).append(allIn(t, u, x) ? "!" : "").append(';');
+        for (Controls.Button x : buttons)
+            b.append(x.key()).append(':').append(amount(t, u, x)).append(allIn(t, u, x) ? "!" : limit(t, u, x) ? "^" : "").append(';');
         return b.toString();
     }
 
@@ -737,12 +740,20 @@ final class TableScene {
         return bet != null && i >= 0 && a != null && t.step() == Table.Step.BET && bet.allInBy(i, a);
     }
 
-    /** A button's words: its name, and on a betting button the chips it puts in (+120, or 올인 +80). */
+    /** A raise cut down to the hand limit (한도). */
+    private boolean limit(Table t, UUID u, Controls.Button b) {
+        Betting bet = t.betting();
+        int i = t.players().indexOf(u);
+        Betting.Action a = b.action();
+        return bet != null && i >= 0 && a != null && t.step() == Table.Step.BET && bet.limitBy(i, a);
+    }
+
+    /** A button's words: its name, and on a betting button the chips it puts in (+120, 올인 +80, or +37 (한도)). */
     private Component label(Table t, UUID u, Controls.Button b) {
         long n = amount(t, u, b);
         String name = Lang.raw("hwatu.btn." + b.key() + (b == Controls.Button.CALL && n == 0 ? "-free" : ""), "n", HallTable.fmt(n));
         if (b.action() == null || n == 0) return Text.mm(name);
-        String chips = Lang.raw(allIn(t, u, b) ? "hwatu.btn-allin" : "hwatu.btn-amount", "n", HallTable.fmt(n));
+        String chips = Lang.raw(allIn(t, u, b) ? "hwatu.btn-allin" : limit(t, u, b) ? "hwatu.btn-limit" : "hwatu.btn-amount", "n", HallTable.fmt(n));
         return Lang.mm("hwatu.btn-label", "name", name, "amount", chips);
     }
 

@@ -145,6 +145,46 @@ class HallTest {
         }
     }
 
+    @Test
+    void buttonsAtTheHandLimit() {
+        // 초보방 (ante 1, 한도 100 a hand): two deep stacks 따당 up; the raise past the limit is cut to it, then only 콜 · 다이
+        HwatuSpec spec = HwatuTest.spec();
+        Table t = new Table(1, Table.Game.SUTDA, spec.rooms().getFirst(), spec, new Random(3));
+        Table.Listener quiet = new Table.Listener() {
+            public void changed(Table x) {}
+            public void kicked(Table x, UUID p, String r) {}
+            public void finished(Table x, Table.Result r) {}
+            public void replay(Table x) {}
+        };
+        t.sit(A, 0);
+        t.sit(B, 0);
+        t.tick(spec.startSeconds() * 1000L + 1, (u, n) -> null, quiet);
+        assertEquals(100, t.handLimit());
+        assertNull(t.act(t.turn(), Controls.Button.PING.move(), 0, quiet));
+        int steps = 0;
+        while (true) {
+            UUID u = t.turn();
+            int seat = t.players().indexOf(u);
+            List<Controls.Button> b = Controls.buttons(Controls.state(t, u, true, false));
+            if (t.betting().limitBy(seat, Betting.Action.DDADANG)) {
+                assertEquals(List.of(Controls.Button.DIE, Controls.Button.CALL, Controls.Button.DDADANG, Controls.Button.HALF), b,
+                        "a raise past the limit is still offered, cut to it (labelled 한도)");
+                assertEquals(100 - t.put(u), t.betting().amount(seat, Betting.Action.DDADANG));
+                assertEquals(100 - t.put(u), t.betting().amount(seat, Betting.Action.HALF));
+                assertNull(t.act(u, Controls.Button.DDADANG.move(), 0, quiet));
+                break;
+            }
+            assertNull(t.act(u, Controls.Button.DDADANG.move(), 0, quiet));
+            assertTrue(++steps < 20);
+        }
+        assertTrue(t.limitReached());
+        assertTrue(t.lastBet().limit());
+        UUID other = t.turn();
+        assertEquals(List.of(Controls.Button.DIE, Controls.Button.CALL), Controls.buttons(Controls.state(t, other, true, false)),
+                "the bet is the limit: no 따당 · 하프");
+        assertEquals(List.of(), Controls.buttons(Controls.state(t, t.lastBet().player(), true, false)), "not their turn");
+    }
+
     // ------------------------------------------------------------------------------------------ cards
 
     @Test

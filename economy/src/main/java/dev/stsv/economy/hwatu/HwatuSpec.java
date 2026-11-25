@@ -13,21 +13,22 @@ import java.util.Map;
  *
  * <pre>
  * chips: { buy-price: 100, cash-price: 95, daily-buy: 0 }   # daily-buy 0: no daily limit
- * rake-percent: 5
+ * rake-percent: 5               # of each pot, rounded down (a pot under 20 chips pays none)
+ * hand-limit-antes: 100        # 한도: the most one player puts into one hand = ante × this (0: none)
  * daily-loss-cap: 0             # chips lost (net) in a day before the player can't sit until 05시; 0: no cap
  * min-account-hours: 0          # 0: no account-age rule
  * test-chips: 100000            # /관리자 화투방 시험: each seat's pretend chips (never real)
  * timers: { turn: 20, start: 10, roll: 10, reveal: 3, result: 6 }   # roll: 굴리기 (주사위 · 홀짝) before it rolls itself
- * rooms:  [ { id: beginner, name: "초보방", ante: 10 }, ... ]     # exactly three, in order
+ * rooms:  [ { id: beginner, name: "초보방", ante: 1 }, ... ]      # exactly three, in order
  * games:
  *   holjjak: { name: "홀짝", max: 2 }
  *   dice:    { name: "주사위", max: 6, dice: 2 }
- *   sutda:   { name: "섯다", max: 6, sit-antes: 3, replays: 1 }   # sit with ante × sit-antes; no cap on raises (all-in)
+ *   sutda:   { name: "섯다", max: 6, sit-antes: 3, replays: 1 }   # sit with ante × sit-antes; raise any number of times up to the 한도 (all-in)
  * </pre>
  */
 public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePercent, long lossCap, long minAgeMs,
                         int turnSeconds, int startSeconds, int revealSeconds, int resultSeconds, int rollSeconds,
-                        List<Room> rooms, Map<Table.Game, GameSpec> games, long testChips) {
+                        List<Room> rooms, Map<Table.Game, GameSpec> games, long testChips, int handLimitAntes) {
 
     public record Room(String id, String name, long ante) {}
 
@@ -53,6 +54,8 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
         if (rake < 1 || rake > 50) problems.add("rake-percent: 1~50");
         long cap = c.getLong("daily-loss-cap");
         if (cap < 0) problems.add("daily-loss-cap: 0 이상 (0 = 제한 없음)");
+        int limit = c.getInt("hand-limit-antes", 100);
+        if (limit < 0) problems.add("hand-limit-antes: 0 이상 (한 판에 한 사람이 넣을 수 있는 칩 = 판돈 × 이만큼, 0 = 제한 없음)");
         int hours = c.getInt("min-account-hours");
         if (hours < 0) problems.add("min-account-hours: 0 이상");
         int turn = c.getInt("timers.turn"), start = c.getInt("timers.start"), reveal = c.getInt("timers.reveal"), result = c.getInt("timers.result");
@@ -100,6 +103,6 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
         }
         return new HwatuSpec(Math.max(1, buy), Math.clamp(cash, 1, Math.max(1, buy)), Math.max(0, daily), Math.clamp(rake, 1, 50), Math.max(0, cap),
                 Math.max(0, hours) * 3_600_000L, Math.max(5, turn), Math.max(1, start), Math.max(1, reveal), Math.max(1, result), Math.max(3, roll), rooms, games,
-                Math.max(1, test));
+                Math.max(1, test), Math.max(0, limit));
     }
 }

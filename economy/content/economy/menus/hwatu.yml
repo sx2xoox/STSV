@@ -1,6 +1,7 @@
 # 도박장 칩 창 (/화투방 칩 · 도박장 환전 창구의 현장 소장 우클릭, README "도박장", 수치는 hwatu.yml). 배경은 우편함 것을 그대로 씀
 # 위 = 내 칩, 가운데 = 전적 · 도박장으로, 아래 = 칩 사기 · 바꾸기. 판은 도박장 테이블에 앉아서 함 (이 창에는 없음)
-# 자리표시자: {chips} {chips_gold} {bought} {buy_left} {daily_buy} {net} {loss_cap} {buy_price} {cash_price} {rake} {hours} {turn} {balance}
+# 자리표시자: {chips} {chips_gold} {bought} {buy_left} {daily_buy} {net} {loss_cap} {buy_price} {cash_price} {rake} {rake_from} (자릿세를 내는 가장 작은 판, 내림이라) {hours} {turn} {balance}
+#            {rooms} (방마다 "초보방 1칩", 문구는 messages.yml hwatu.room-ante) {limit_antes} (한도 = 판돈 × 이만큼, hwatu.yml hand-limit-antes)
 #            {rest} (쉬어 가기 한 줄: 한도가 0 이면 "제한 없음" 문구) {age} (계정 나이 한 줄: 0 이면 "새 계정도 바로") — 문구는 messages.yml hwatu.rest-* · age-*
 hwatu:
   title: "<#f0e2b0>도박장 <#b9a6d6>· 칩 {chips}"
@@ -80,11 +81,13 @@ hwatu:
       name: "<white>도박장 규칙"
       lore:
         - "<gray>플레이어끼리만 겨뤄요 (서버는 상대하지 않음)"
-        - "<gray>판마다 자릿세 <white>{rake}%</white>는 사라져요"
+        - "<gray>판마다 자릿세 <white>{rake}%</white>(내림)는 사라져요 <dark_gray>({rake_from}칩 안 되는 판은 없음)"
         - "<gray>섯다: 한 장 → 베팅 → 한 장 더 → 베팅 → 패 공개"
         - "<gray>  <white>삥</white>(판돈) · <white>체크</white>(안 건 판만) · <white>콜</white> · <white>따당</white>(두 배) · <white>하프</white>(판의 절반) · <red>다이</red>"
         - "<gray>주사위 · 홀짝: 내 차례에 자리 앞 <yellow>[굴리기]</yellow> (안 누르면 대신 굴림)"
-        - "<gray>올리는 횟수 제한 없음, 칩이 모자라면 <dark_red>올인</dark_red> (맞춘 만큼의 판만 겨룸)"
+        - "<gray>판돈: {rooms}"
+        - "<gray>올리는 횟수 제한 없음, 한 판에 넣는 칩은 <gold>한도</gold> <white>판돈 × {limit_antes}</white>까지"
+        - "<gray>칩이 모자라면 <dark_red>올인</dark_red> (맞춘 만큼의 판만 겨룸)"
         - "<gray>내 차례 {turn}초: 넘기면 섯다는 낼 것이 있으면 다이, 없으면 체크"
         - "<gray>테이블 의자에 앉으면 그 판에 앉고, 일어나면 나감"
         - "<gray>판 도중에 일어나면 다이 (건 칩은 판에 남음)"

@@ -50,16 +50,20 @@ class HwatuTest {
         assertEquals(20, s.turnSeconds());
         assertEquals(10, s.rollSeconds());
         assertEquals(List.of("초보방", "일반방", "큰손방"), s.rooms().stream().map(HwatuSpec.Room::name).toList());
-        assertEquals(List.of(10L, 100L, 500L), s.rooms().stream().map(HwatuSpec.Room::ante).toList());
+        assertEquals(List.of(1L, 10L, 100L), s.rooms().stream().map(HwatuSpec.Room::ante).toList());
+        assertEquals(100, s.handLimitAntes(), "한도: the most one player puts into one hand = 100 antes");
         assertEquals(2, s.game(Table.Game.HOLJJAK).max());
         assertEquals(6, s.game(Table.Game.DICE).max());
         assertEquals(6, s.game(Table.Game.SUTDA).max());
         assertEquals(3, s.game(Table.Game.SUTDA).sitAntes());
         assertEquals(1, s.game(Table.Game.SUTDA).replays());
-        // 섯다 at 큰손방: ante × 3 (no cap on raises: a player short of chips goes all-in)
-        assertEquals(1500, s.need(Table.Game.SUTDA, s.rooms().get(2)));
-        assertEquals(30, s.need(Table.Game.SUTDA, s.rooms().get(0)));
-        assertEquals(500, s.need(Table.Game.DICE, s.rooms().get(2)));
+        // 섯다 at 큰손방: ante × 3 (a player short of chips goes all-in)
+        assertEquals(300, s.need(Table.Game.SUTDA, s.rooms().get(2)));
+        assertEquals(3, s.need(Table.Game.SUTDA, s.rooms().get(0)));
+        assertEquals(100, s.need(Table.Game.DICE, s.rooms().get(2)));
+        // the hand limit of each room: 초보방 100 · 일반방 1,000 · 큰손방 10,000
+        for (int k = 0; k < 3; k++)
+            assertEquals(List.of(100L, 1000L, 10_000L).get(k), new Table(1, Table.Game.SUTDA, s.rooms().get(k), s, new Random(1)).handLimit());
         // chips never make gold: cashing gives back less than buying cost
         assertTrue(s.cashPrice() < s.buyPrice());
     }
@@ -153,12 +157,17 @@ class HwatuTest {
     }
 
     @Test
-    void theRakeIsFivePercentRoundedUpAndASplitNeverMakesChips() {
+    void theRakeIsFivePercentRoundedDownAndASplitNeverMakesChips() {
+        // rounded down: with 1-chip antes a 2-chip pot pays nothing (rounded up it would lose half); 20 chips and up pay
+        assertEquals(0, HwatuRules.rake(1, 5));
+        assertEquals(0, HwatuRules.rake(2, 5));
+        assertEquals(0, HwatuRules.rake(19, 5));
         assertEquals(1, HwatuRules.rake(20, 5));
-        assertEquals(2, HwatuRules.rake(21, 5));
+        assertEquals(1, HwatuRules.rake(39, 5));
+        assertEquals(2, HwatuRules.rake(40, 5));
         assertEquals(5, HwatuRules.rake(100, 5));
-        assertEquals(1, HwatuRules.rake(1, 5));
         assertEquals(0, HwatuRules.rake(0, 5));
+        assertEquals(new HwatuRules.Split(2, 0), HwatuRules.split(2, 5, 1), "a 1-chip 홀짝: the winner gets both chips");
         HwatuRules.Split s = HwatuRules.split(200, 5, 1);
         assertEquals(190, s.share());
         assertEquals(10, s.burned());
@@ -169,7 +178,7 @@ class HwatuTest {
             for (int w = 1; w <= 6; w++) {
                 HwatuRules.Split x = HwatuRules.split(pot, 5, w);
                 assertEquals(pot, x.share() * w + x.burned());
-                assertTrue(x.burned() * 100 >= pot * 5, "at least 5% is destroyed");
+                assertTrue(HwatuRules.rake(pot, 5) * 100 <= pot * 5 && (HwatuRules.rake(pot, 5) + 1) * 100 > pot * 5, "5%, rounded down");
                 assertTrue(x.burned() < HwatuRules.rake(pot, 5) + w);
             }
         }
@@ -213,9 +222,14 @@ class HwatuTest {
             for (UUID u : r.players()) net += r.net(u);
             assertEquals(r.pot(), paid + r.burned(), "every chip of the pot is paid or destroyed");
             assertEquals(-r.burned(), net, "the players lose exactly what is destroyed");
-            assertTrue(r.burned() >= HwatuRules.rake(r.pot(), 5));
-            long pots = 0;
-            for (Table.PotResult p : r.pots()) pots += p.amount();
+            long pots = 0, rakes = 0;
+            for (Table.PotResult p : r.pots()) {
+                pots += p.amount();
+                rakes += HwatuRules.rake(p.amount(), 5);
+                assertTrue(p.burned() >= HwatuRules.rake(p.amount(), 5), "each pot pays its own 자릿세 (5%, down)");
+            }
+            assertTrue(r.burned() >= rakes);
+            assertTrue(rakes * 100 <= r.pot() * 5, "never more than 5% of the hand");
             assertEquals(r.pot(), pots, "the pots hold the whole pot");
             for (UUID u : r.players()) assertTrue(r.put().get(u) >= 0);
         }
@@ -253,7 +267,7 @@ class HwatuTest {
 
     @Test
     void holjjakFromSittingToTheResult() {
-        Table t = table(Table.Game.HOLJJAK, 0, 1);
+        Table t = table(Table.Game.HOLJJAK, 1, 1);
         Log log = new Log();
         UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
         long now = 1_000_000;
@@ -314,7 +328,7 @@ class HwatuTest {
 
     @Test
     void diceRollOneAfterAnotherClockwiseAndTheTimerRollsForTheIdle() {
-        Table t = table(Table.Game.DICE, 0, 21);
+        Table t = table(Table.Game.DICE, 1, 21);
         Log log = new Log();
         List<UUID> rolled = new ArrayList<>();
         Table.Listener l = new Table.Listener() {
@@ -367,7 +381,7 @@ class HwatuTest {
 
     @Test
     void leavingMidHandLosesWhatWasPut() {
-        Table t = table(Table.Game.HOLJJAK, 1, 2);
+        Table t = table(Table.Game.HOLJJAK, 2, 2);
         Log log = new Log();
         UUID a = UUID.randomUUID(), b = UUID.randomUUID();
         t.sit(a, 0);
@@ -386,7 +400,7 @@ class HwatuTest {
 
     @Test
     void aPlayerWhoCannotPlayStandsUp() {
-        Table t = table(Table.Game.DICE, 0, 3);
+        Table t = table(Table.Game.DICE, 1, 3);
         Log log = new Log();
         UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
         t.sit(a, 0);
@@ -397,7 +411,7 @@ class HwatuTest {
         assertEquals(List.of(a, b), t.seats());
         assertEquals(Table.Phase.PLAYING, t.phase());
         // everyone stands up: nobody left to play
-        Table u = table(Table.Game.DICE, 0, 3);
+        Table u = table(Table.Game.DICE, 1, 3);
         u.sit(a, 0);
         u.sit(b, 0);
         u.tick(10_000, (x, need) -> "hwatu.away", log);
@@ -409,7 +423,7 @@ class HwatuTest {
     void diceHighestTotalWinsAndTiesSplit() {
         int splits = 0;
         for (long seed = 0; seed < 300; seed++) {
-            Table t = table(Table.Game.DICE, 0, seed);
+            Table t = table(Table.Game.DICE, 1, seed);
             Log log = new Log();
             List<UUID> ps = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
             for (UUID p : ps) t.sit(p, 0);
@@ -436,7 +450,7 @@ class HwatuTest {
 
     @Test
     void sutdaBettingAndShowdown() {
-        Table t = table(Table.Game.SUTDA, 0, 4);
+        Table t = table(Table.Game.SUTDA, 1, 4);
         Log log = new Log();
         UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
         for (UUID p : List.of(a, b, c)) t.sit(p, 0);
@@ -517,16 +531,16 @@ class HwatuTest {
         assertTrue(r.uncontested());
         assertEquals(List.of(order.get(0)), r.winners());
         // the 삥 nobody answered goes back: the pot is the three antes
-        assertEquals(500 * 3, r.pot());
-        assertEquals(500, r.put().get(order.get(0)));
-        assertEquals(HwatuRules.rake(1500, 5), r.burned());
-        assertEquals(1500 - 75 - 500, r.net(order.get(0)));
-        assertEquals(-500, r.net(order.get(1)));
+        assertEquals(100 * 3, r.pot());
+        assertEquals(100, r.put().get(order.get(0)));
+        assertEquals(HwatuRules.rake(300, 5), r.burned());
+        assertEquals(300 - 15 - 100, r.net(order.get(0)));
+        assertEquals(-100, r.net(order.get(1)));
     }
 
     /** Plays a 섯다 hand with set cards and stacks: each player shoves (하프 / 콜 until all-in) or as `moves` say. */
     private static Table rigged(Map<UUID, Card[]> cards, Map<UUID, Long> chips, long seed) {
-        Table t = table(Table.Game.SUTDA, 0, seed);
+        Table t = table(Table.Game.SUTDA, 1, seed);
         for (Map.Entry<UUID, Card[]> e : cards.entrySet()) {
             assertTrue(t.force(e.getKey(), e.getValue()[0], e.getValue()[1]));
             t.sit(e.getKey(), 0);
@@ -571,10 +585,10 @@ class HwatuTest {
         assertEquals(3, r.pots().size());
         // main 4 × 50 = 200 → A; side 1: 3 × 70 = 210 → B; side 2: 2 × 80 = 160 → C (D loses everything it put in)
         assertEquals(new Table.PotResult(200, List.of(a), 190, 10), r.pots().get(0));
-        assertEquals(new Table.PotResult(210, List.of(b), 199, 11), r.pots().get(1));
+        assertEquals(new Table.PotResult(210, List.of(b), 200, 10), r.pots().get(1));
         assertEquals(new Table.PotResult(160, List.of(c), 152, 8), r.pots().get(2));
         assertEquals(190 - 50, r.net(a));
-        assertEquals(199 - 120, r.net(b));
+        assertEquals(200 - 120, r.net(b));
         assertEquals(152 - 200, r.net(c));
         assertEquals(-200, r.net(d));
         assertEquals(List.of(a, b, c), r.winners());
@@ -611,7 +625,7 @@ class HwatuTest {
     void sutdaAllInCannotBeOutbetByLeaving() {
         // A goes all-in for 30 (its ante + 20); C raised past it, then C and B leave: A takes the pot
         UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
-        Table t = table(Table.Game.SUTDA, 0, 9);
+        Table t = table(Table.Game.SUTDA, 1, 9);
         for (UUID u : List.of(a, b, c)) t.sit(u, 0);
         Map<UUID, Long> chips = Map.of(a, 30L, b, 1000L, c, 1000L);
         Log log = new Log();
@@ -634,15 +648,15 @@ class HwatuTest {
         assertEquals(List.of(a), r.winners());
         assertEquals(30, r.put().get(c), "C's 10 nobody matched went back");
         assertEquals(85, r.pot());
-        assertEquals(85 - 5, r.payout().get(a));
-        assertEquals(50, r.net(a));
+        assertEquals(85 - 4, r.payout().get(a), "5% of 85 rounded down");
+        assertEquals(51, r.net(a));
     }
 
     @Test
-    void aLongRaiseWarAtTheTable() {
-        // two deep stacks 따당 each other until one is all-in; the other calls; the hand settles
+    void aLongRaiseWarAtTheTableStopsAtTheHandLimit() {
+        // two deep stacks 따당 each other: the bet doubles until the 한도 (일반방: 100 antes = 1,000 chips a hand), then only 콜
         UUID a = UUID.randomUUID(), b = UUID.randomUUID();
-        Table t = table(Table.Game.SUTDA, 0, 12);
+        Table t = table(Table.Game.SUTDA, 1, 12);
         t.sit(a, 0);
         t.sit(b, 0);
         Map<UUID, Long> chips = Map.of(a, 100_000L, b, 70_000L);
@@ -657,17 +671,148 @@ class HwatuTest {
             if (d) raises++;
             assertTrue(++steps < 100);
         }
-        assertTrue(raises > 10, "no cap: " + raises);
-        if (log.results.isEmpty()) return;   // 구사 재경기 (the war is the test)
+        assertTrue(raises >= 6, "raised until the limit: " + raises);
+        // both at the limit: the second street (and a 구사 재경기) has nothing left to bet, straight to the showdown
+        assertEquals(1, log.results.size());
         Table.Result r = log.results.getFirst();
-        assertEquals(70_000, r.put().get(a));
-        assertEquals(70_000, r.put().get(b), "the deeper stack only risks what the other can match");
-        assertEquals(140_000, r.pot());
+        assertEquals(1000, r.put().get(a));
+        assertEquals(1000, r.put().get(b), "nobody puts more than the 한도 into one hand, however deep");
+        assertEquals(2000, r.pot());
+    }
+
+    @Test
+    void theHandLimitWithAnAllInAndSidePots() {
+        // 초보방 (ante 1, 한도 100): a and b 따당 up to the limit, c (60 chips) goes all-in short of it
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID(), c = UUID.randomUUID();
+        Table t = table(Table.Game.SUTDA, 0, 31);
+        for (UUID u : List.of(a, b, c)) t.sit(u, 0);
+        Map<UUID, Long> chips = Map.of(a, 5_000L, b, 5_000L, c, 60L);
+        Log log = new Log();
+        List<Table.Bet> bets = new ArrayList<>();
+        Table.Listener l = new Table.Listener() {
+            public void changed(Table x) {}
+            public void kicked(Table x, UUID p, String r) {}
+            public void finished(Table x, Table.Result r) { log.finished(x, r); }
+            public void replay(Table x) { log.replay(x); }
+            public void bet(Table x, Table.Bet bet) { bets.add(bet); }
+        };
+        t.tick(10_000, stacks(chips), l);
+        assertEquals(List.of(a, b, c), t.players());
+        assertEquals(100, t.handLimit());
+        assertEquals(3, t.pot());
+        assertNull(t.act(a, Table.Move.PING, 10_000, l));          // 1 (put 2)
+        assertNull(t.act(b, Table.Move.HALF, 10_000, l));          // call 1 + half of 5 = 3 (put 4)
+        assertNull(t.act(c, Table.Move.CALL, 10_000, l));          // 3 (put 4)
+        int steps = 0;
+        while (t.phase() == Table.Phase.PLAYING) {
+            UUID u = t.turn();
+            java.util.Set<Betting.Action> legal = t.legal(u);
+            assertNull(t.act(u, legal.contains(Betting.Action.DDADANG) ? Table.Move.DDADANG : Table.Move.CALL, 10_000, l));
+            for (UUID x : List.of(a, b, c)) assertTrue(t.phase() != Table.Phase.PLAYING || t.put(x) <= 100, "never past the limit");
+            assertTrue(++steps < 50);
+        }
+        assertTrue(bets.stream().anyMatch(Table.Bet::limit), "a bet reached the 한도");
+        assertTrue(bets.stream().anyMatch(x -> x.allIn() && x.player().equals(c)), "c's all-in");
+        assertTrue(bets.stream().noneMatch(x -> x.limit() && x.allIn()), "올인 and 한도 never both");
+        // a and b at the limit, c all-in: nothing more to bet, the second card and the showdown follow by themselves
+        Table.Result r = log.results.getFirst();
+        assertEquals(100, r.put().get(a));
+        assertEquals(100, r.put().get(b));
+        assertEquals(60, r.put().get(c), "c went all-in short of the limit");
+        assertEquals(260, r.pot());
+        assertEquals(2, r.pots().size(), "the main pot (3 × 60) and the side pot (a and b's 40 more each)");
+        assertEquals(180, r.pots().get(0).amount());
+        assertEquals(3, r.players().size());
+        assertEquals(80, r.pots().get(1).amount());
+        assertFalse(r.pots().get(1).winners().contains(c), "c cannot win the side pot");
+    }
+
+    @Test
+    void theHandLimitCountsBothStreets() {
+        // 일반방 (ante 10, 한도 1,000): 삥 · 콜 on the first street (20 each), then a 따당 war on the second until a 따당
+        // asks for more than the limit leaves: it is cut to the limit (한도), and the other can only 콜 or 다이
+        UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+        Table t = table(Table.Game.SUTDA, 1, 40);
+        t.sit(a, 0);
+        t.sit(b, 0);
+        Log log = new Log();
+        t.tick(10_000, stacks(Map.of(a, 50_000L, b, 50_000L)), log);
+        assertEquals(List.of(a, b), t.players());
+        assertEquals(1000, t.handLimit());
+        assertNull(t.act(a, Table.Move.PING, 10_000, log));
+        assertNull(t.act(b, Table.Move.CALL, 10_000, log));
+        assertEquals(2, t.street());
+        assertEquals(20, t.put(a));
+        assertNull(t.act(a, Table.Move.PING, 10_000, log));
+        int steps = 0;
+        UUID u = t.turn();
+        while (!t.betting().limitBy(t.players().indexOf(u), Betting.Action.DDADANG)) {
+            assertNull(t.act(u, Table.Move.DDADANG, 10_000, log));
+            assertFalse(t.lastBet().limit());
+            u = t.turn();
+            assertTrue(++steps < 20);
+        }
+        int seat = t.players().indexOf(u);
+        Betting bet = t.betting();
+        assertEquals(b, u);
+        assertEquals(340, t.put(b));
+        assertEquals(660, bet.amount(seat, Betting.Action.DDADANG), "따당 would be +960: cut to the 660 the limit leaves");
+        assertTrue(bet.limitBy(seat, Betting.Action.HALF), "하프 too");
+        assertFalse(bet.allInBy(seat, Betting.Action.DDADANG));
+        assertFalse(t.limitReached());
+        assertNull(t.act(b, Table.Move.DDADANG, 10_000, log));
+        assertEquals(1000, t.put(b));
+        assertTrue(t.lastBet().limit(), "the chat and the sign say 한도");
+        assertTrue(t.atLimit(b));
+        assertTrue(t.limitReached());
+        assertTrue(t.betting().capped());
+        assertEquals(java.util.Set.of(Betting.Action.DIE, Betting.Action.CALL), t.legal(a), "at the limit: only 콜 · 다이");
+        assertEquals(340, t.betting().toCall(0));
+        assertNull(t.act(a, Table.Move.CALL, 10_000, log));
+        // a 구사 재경기 would keep the same pot: both are at the limit, so nothing more is bet either way
+        assertEquals(1, log.results.size());
+        Table.Result r = log.results.getFirst();
+        assertEquals(1000, r.put().get(a));
+        assertEquals(1000, r.put().get(b));
+    }
+
+    @Test
+    void theReplayCannotPassTheLimit() {
+        // a 구사 재경기 bets on top of what the first deal put in: the limit is for the whole hand
+        int seen = 0;
+        for (long seed = 0; seed < 4000 && seen < 3; seed++) {
+            Table t = table(Table.Game.SUTDA, 0, seed);   // 초보방: ante 1, 한도 100
+            Log log = new Log();
+            UUID a = UUID.randomUUID(), b = UUID.randomUUID();
+            t.sit(a, 0);
+            t.sit(b, 0);
+            t.tick(10_000, stacks(Map.of(a, 1000L, b, 1000L)), log);
+            // street 1: 삥 · 콜 (put 2 each), street 2: 체크 · 체크
+            assertNull(t.act(t.turn(), Table.Move.PING, 10_000, log));
+            assertNull(t.act(t.turn(), Table.Move.CALL, 10_000, log));
+            assertNull(t.act(t.turn(), Table.Move.CHECK, 10_000, log));
+            assertNull(t.act(t.turn(), Table.Move.CHECK, 10_000, log));
+            if (log.replays == 0) continue;
+            seen++;
+            assertEquals(4, t.pot());
+            int steps = 0;
+            while (t.phase() == Table.Phase.PLAYING) {
+                UUID u = t.turn();
+                java.util.Set<Betting.Action> l = t.legal(u);
+                assertNull(t.act(u, l.contains(Betting.Action.DDADANG) ? Table.Move.DDADANG : l.contains(Betting.Action.PING) ? Table.Move.PING : Table.Move.CALL, 10_000, log));
+                assertTrue(t.phase() != Table.Phase.PLAYING || t.put(a) <= 100 && t.put(b) <= 100);
+                assertTrue(++steps < 100);
+            }
+            Table.Result r = log.results.getFirst();
+            assertEquals(100, r.put().get(a), "the first deal's 2 and the replay's 98: 100 in all");
+            assertEquals(100, r.put().get(b));
+        }
+        assertTrue(seen > 0, "a 구사 replay happens in 4,000 deals");
     }
 
     @Test
     void sutdaChecksAroundByTheTimer() {
-        Table t = table(Table.Game.SUTDA, 0, 6);
+        Table t = table(Table.Game.SUTDA, 1, 6);
         Log log = new Log();
         t.sit(UUID.randomUUID(), 0);
         t.sit(UUID.randomUUID(), 0);
@@ -690,7 +835,7 @@ class HwatuTest {
         Random r = new Random(5);
         int folded = 0, shown = 0;
         for (long seed = 0; seed < 300; seed++) {
-            Table t = table(Table.Game.SUTDA, 0, seed);
+            Table t = table(Table.Game.SUTDA, 1, seed);
             Log log = new Log();
             int n = 2 + (int) (seed % 5);
             for (int k = 0; k < n; k++) t.sit(UUID.randomUUID(), 0);
@@ -768,7 +913,7 @@ class HwatuTest {
     void allInOnTheAnteStillDealsBothStreets() {
         UUID a = UUID.randomUUID(), b = UUID.randomUUID();
         Map<UUID, Long> chips = Map.of(a, 10L, b, 10L);
-        Table t = table(Table.Game.SUTDA, 0, 8);
+        Table t = table(Table.Game.SUTDA, 1, 8);
         t.sit(a, 0);
         t.sit(b, 0);
         Log log = new Log();
@@ -783,7 +928,7 @@ class HwatuTest {
     void gusaReplaysWithTheSamePotOnce() {
         int seen = 0;
         for (long seed = 0; seed < 4000 && seen < 5; seed++) {
-            Table t = table(Table.Game.SUTDA, 0, seed);
+            Table t = table(Table.Game.SUTDA, 1, seed);
             Log log = new Log();
             for (int k = 0; k < 4; k++) t.sit(UUID.randomUUID(), 0);
             long now = 10_000;
@@ -869,6 +1014,10 @@ class HwatuTest {
         if (!m.isString("hwatu.btn.call-free")) missing.add("btn.call-free");
         // what a bet says (HallTable.act: chat, the sign, the board, over the seat)
         for (Betting.Action a : Betting.Action.values()) if (!m.isString("hwatu.act." + a.key())) missing.add("act." + a.key());
+        // 올인 · 한도 (chat · the sign · the buttons · the action bar) and the menu's rooms
+        for (String k : List.of("act.allin", "act.limit", "btn-allin", "btn-limit", "sign-limit", "sign-limit-reached", "line.allin", "line.limit",
+                "line.to-call", "line.to-call-limit", "room-ante"))
+            if (!m.isString("hwatu." + k)) missing.add(k);
         assertFalse(m.contains("hwatu.btn.raise"), "레이즈 is retired");
         assertTrue(missing.isEmpty(), String.join("\n", missing));
     }
