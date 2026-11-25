@@ -57,13 +57,14 @@ the model's north side (the same yaw that turns a sign to a player turns these t
                        its face (north) gamble_art.button: 콜 다이 레이즈 홀 짝 준비 일어나기 in stencil. Lit (light
                        emission): readable in the dim hall.
   gamble_whiteboard    a wall whiteboard 2.5 x 1.5 blocks in an aluminium frame, marker tray with markers and an eraser,
-                       old smudges and a wiped tally (正) bottom right, a receipt under a magnet top left (as seen from in front).
-                       Centred on the display's position side to side
-                       and up and down; its back at model z 16 (half a block behind the position: place the display in
-                       the middle of the block in front of a wall, its front away from the wall). The writing surface is
-                       x -11.5..27.5, y -3.5..19.5 at z 15 (2.44 x 1.44 blocks, 7 px = 0.4375 block behind the display's
-                       position; model +x is the viewer's left), the top-left 5 x 6 px (x 22..27, y 13..19) held by the receipt;
-                       the words are text displays.
+                       old smudges and a wiped tally (正) bottom right, a receipt under a magnet top left (as seen from in
+                       front). Centred on the display's position side to side and up and down. Drawn with its back at z 16
+                       and moved 11.5 px forward (shift), so in the model: the writing surface is x -11.5..27.5,
+                       y -3.5..19.5 at z 3.5 (2.44 x 1.44 blocks, 0.28 block IN FRONT of the display's position: a text
+                       display 0.3 block in front of the position sits just on it, as HallLayout places it), the back at
+                       z 4.5 (0.22 block in front of the position; against a wall when the position is 0.22 block out
+                       from it). Model +x is the viewer's left; the top-left 5 x 6 px (x 22..27, y 13..19) is held by the
+                       receipt. The words are text displays.
 """
 
 import math
@@ -552,7 +553,7 @@ def button_model(key):
 # ================================================================================================
 
 def whiteboard():
-    m = BModel("gamble_whiteboard", floor=None, planes=(("z>", 16),))
+    m = BModel("gamble_whiteboard", floor=None, planes=(("z>", 16),), shift=(0, 0, -11.5))
 
     def board(c):
         if c.face != "north":

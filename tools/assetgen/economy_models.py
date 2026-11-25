@@ -163,3 +163,8 @@ ALL.update(FISHING_GEAR.ALL)
 # stone per secret with its own gold emblem (secret_stone_solved_<id>)
 from models import monument as MONUMENT   # noqa: E402
 ALL.update(MONUMENT.ALL)
+
+# 도박장 (models/gamble.py, items/gamble.yml): the tables, the props, and the display models of the play (cards, chips, die,
+# bowl, buttons, whiteboard)
+from models import gamble as GAMBLE   # noqa: E402
+ALL.update(GAMBLE.ALL)

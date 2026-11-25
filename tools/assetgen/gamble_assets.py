@@ -165,10 +165,10 @@ def sheet(path=SHEET):
     els.append(_plane("feltbg", 5180, -20, 5220, 20))
     view(560, y0, 300, 300, [5200, 3, 0], 10, 10, 28, 3.4, "gamble_bowl · 사발")
     els.extend(_placed(pv["gamble_whiteboard"], (6000, 22, 0), 1))
-    els.append({"from": [5970, -2, 8.01], "to": [6030, 50, 12], "shade": True, "rotation": None,
+    els.append({"from": [5970, -2, -3.49], "to": [6030, 50, 0], "shade": True, "rotation": None,
                 "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "ply"}}})
-    els.append(_plane("ply", 5970, -10, 6030, 8))
-    view(860, y0, 740, 300, [6008, 22, 4], 24, 8, 8, 2.0, "gamble_whiteboard · 벽걸이 2.5×1.5칸")
+    els.append(_plane("ply", 5970, -20, 6030, -3.5))
+    view(860, y0, 740, 300, [6008, 22, -7], 24, 8, 8, 2.0, "gamble_whiteboard · 벽걸이 2.5×1.5칸")
 
     # row 5: the buttons
     y0 = 1650
