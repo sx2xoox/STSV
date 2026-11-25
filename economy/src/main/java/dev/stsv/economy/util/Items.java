@@ -220,7 +220,48 @@ public final class Items {
      * ({@code <lang:item.minecraft.lapis_lazuli>}), so every player reads them in their own game language.
      */
     public static String mmName(ItemStack item) {
+        // a vanilla item's name is the game's translatable name: chat shows it in Korean, but the text the server draws itself
+        // (the resource-pack sidebar · HUD) cannot and showed "item.minecraft.diamond". The Korean name instead, when known.
+        if (!item.hasItemMeta() || !item.getItemMeta().hasCustomName()) {
+            String k = key(item);
+            if (k.startsWith("minecraft:")) {
+                String ko = koName(k.substring("minecraft:".length()));
+                if (ko != null) return MiniMessage.miniMessage().escapeTags(ko);
+            }
+        }
         return mm(item.effectiveName());
+    }
+
+    private static volatile java.util.Map<String, String> ko;
+
+    /** The Korean name of a vanilla item ("diamond" -> "다이아몬드") from vanilla-names-ko.yml, or null. */
+    public static String koName(String vanillaId) {
+        java.util.Map<String, String> m = ko;
+        if (m == null) {
+            m = new java.util.HashMap<>();
+            try (var in = Items.class.getResourceAsStream("/vanilla-names-ko.yml")) {
+                if (in != null) m.putAll(parseNames(new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8)));
+            } catch (java.io.IOException ignored) {
+                // no names: the game's own (translatable) name is used
+            }
+            ko = m;
+        }
+        return m.get(vanillaId);
+    }
+
+    /** Lines of `id: "name"` (comments and blank lines skipped). */
+    static java.util.Map<String, String> parseNames(String text) {
+        java.util.Map<String, String> out = new java.util.HashMap<>();
+        for (String line : text.split("\n")) {
+            line = line.strip();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            int c = line.indexOf(':');
+            if (c <= 0) continue;
+            String v = line.substring(c + 1).strip();
+            if (v.length() >= 2 && v.startsWith("\"") && v.endsWith("\"")) v = v.substring(1, v.length() - 1);
+            out.put(line.substring(0, c).strip(), v);
+        }
+        return out;
     }
 
     /** "economy:ruby" / "minecraft:diamond" as a {item} placeholder; the id itself if there is no such item. */
