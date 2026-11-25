@@ -1224,7 +1224,7 @@ types:
       haggle: ["이게 무슨 운전이야, 반만 낸다", "이런 버스는 돈 다 못 내", "에이 반값도 아까워"]
       thanks: ["수고해", "그래", "(말없이 내림)"]
   dodger:
-    name: 무임승차 청년
+    name: 얌체 청년
     color: "#7d7d7d"
     weight: 3.4
     dodge: 0.35

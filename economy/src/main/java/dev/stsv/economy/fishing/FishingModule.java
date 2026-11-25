@@ -233,13 +233,13 @@ public final class FishingModule extends EcoModule {
         caught.remove();
         e.getHook().remove();
         EquipmentSlot hand = e.getHand() == EquipmentSlot.OFF_HAND ? EquipmentSlot.OFF_HAND : EquipmentSlot.HAND;
-        land(p, s, hand, true);
+        land(p, s, hand, habitat, true);
         var acc = eco.accessories();
         if (acc != null) {
             acc.activity(u, "fish", 1);
             acc.drop(p, "fish");
             // 장신구 만선: a common or uncommon fish comes up twice
-            if (spec.rarities().get(s.rarity()).index() <= 1 && !s.id().equals("pearl") && acc.roll(u, "full_net")) land(p, s, hand, false);
+            if (spec.rarities().get(s.rarity()).index() <= 1 && !s.id().equals("pearl") && acc.roll(u, "full_net")) land(p, s, hand, habitat, false);
             // 장신구 용궁 보물: a 용궁 상자 with the catch
             if (acc.roll(u, "dragon_treasure")) Items.create(acc.spec().chestItem(), 1).ifPresent(c -> {
                 for (ItemStack left : p.getInventory().addItem(c).values()) p.getWorld().dropItemNaturally(p.getLocation(), left);
@@ -278,10 +278,10 @@ public final class FishingModule extends EcoModule {
     // ------------------------------------------------------------------------------------------
 
     /**
-     * The fish on the line comes up: into the inventory, with what vanilla gives for a catch, and the codex. rod = the bite itself
-     * (not the 장신구 만선's second fish): only that one counts in a 낚시대회.
+     * The fish on the line comes up: into the inventory, with what vanilla gives for a catch, and the codex. water = the hook's
+     * habitat; rod = the bite itself (not the 장신구 만선's second fish): only that one counts in a 낚시대회.
      */
-    private void land(Player p, FishSpec.Species s, EquipmentSlot hand, boolean rod) {
+    private void land(Player p, FishSpec.Species s, EquipmentSlot hand, String water, boolean rod) {
         UUID u = p.getUniqueId();
         FishSpec.Rarity r = spec.rarities().get(s.rarity());
         boolean fisher = "fisher".equals(eco.jobs().job(u));
@@ -302,7 +302,7 @@ public final class FishingModule extends EcoModule {
         if (r.index() >= 2) eco.jobs().rewardAction(p, "find", s.item(), 1);
         eco.jobs().rollSpecials(p, "catch", null);
         // a 낚시대회 running: a rod's catch scores (a trial fish never), and gets a size in its message only
-        TournamentModule.Scored scored = !pearl && rod && !trial && eco.tournament() != null ? eco.tournament().caught(p, s) : null;
+        TournamentModule.Scored scored = !pearl && rod && !trial && eco.tournament() != null ? eco.tournament().caught(p, s, water) : null;
         // the title: the fish's picture and name, its rarity below (and the tournament's size grade)
         int idx = order.indexOf(s.id());
         String head = (idx >= 0 ? FishSpec.icon(idx) + " " : "") + "<" + r.color() + ">" + s.name();
@@ -312,8 +312,7 @@ public final class FishingModule extends EcoModule {
         p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.4f + r.index() * 0.1f);
         p.sendMessage(Lang.msg(pearl ? "fishing.caught-pearl" : "fishing.caught",
                 "color", r.color(), "fish", s.name(), "rarity", r.name(), "count", count > 1 ? " ×" + count : ""));
-        if (scored != null) p.sendMessage(Lang.msg("tournament.size", "size", String.format("%.1f", scored.size()),
-                "grade", scored.grade(), "weight", TournamentRules.weightText(scored.weight()), "points", scored.pointsText()));
+        if (scored != null) p.sendMessage(scored.line());
         if (pearl || trial) return;
         boolean first = store.record(u, s.id(), 0, now());   // no size: the codex's biggest catch stays what it was
         // the codex takes one of the fish to register it (/도감)
