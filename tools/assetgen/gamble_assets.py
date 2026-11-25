@@ -11,7 +11,7 @@ preview sheet.
   skin     economy/content/economy/assets/economy/textures/entity/bus/site_boss.png = "economy:entity/bus/site_boss"
            (economy_bus_skins.site_boss; the HUD's faces sheet takes every skin of that folder the next time it is built)
   sheet    the tables (their seats numbered in a plan of the cells), the props, the cards, chips, dice (each face up by
-           the README's turns), the bowl, the whiteboard, the buttons and the skin
+           the README's turns), the bowl, the dice cup, the whiteboard, the buttons and the skin
 """
 
 import base64
@@ -163,7 +163,11 @@ def sheet(path=SHEET):
     view(0, y0, 560, 300, [4822.5, 2, 0], 24, 0, 45, 2.2, "gamble_die · 위 1 … 6 (README 회전표대로)")
     els.extend(_placed(pv["gamble_bowl"], (5200, 0, 0), 1))
     els.append(_plane("feltbg", 5180, -20, 5220, 20))
-    view(560, y0, 300, 300, [5200, 3, 0], 10, 10, 28, 3.4, "gamble_bowl · 사발")
+    view(560, y0, 150, 300, [5200, 3, 0], 10, 10, 28, 3.4, "gamble_bowl · 사발")
+    els.extend(_placed(pv["gamble_cup"], (5300, 0, 0), 1))
+    els.extend(_placed(pv["gamble_die"], (5306, 2, -6), 1))
+    els.append(_plane("feltbg", 5280, -20, 5320, 20))
+    view(710, y0, 150, 300, [5302, 3, -2], 11, 10, 28, 3.4, "gamble_cup · 주사위 컵")
     els.extend(_placed(pv["gamble_whiteboard"], (6000, 22, 0), 1))
     els.append({"from": [5970, -2, -3.49], "to": [6030, 50, 0], "shade": True, "rotation": None,
                 "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "ply"}}})
@@ -174,9 +178,10 @@ def sheet(path=SHEET):
     y0 = 1650
     for i, k in enumerate(ART.BUTTON_WORDS):
         els.extend(_placed(pv[f"gamble_btn_{k}"], (5705 - i * 14, 3, 0), 1))
-    els.append(_plane("feltbg", 5565, -15, 5720, 15))
-    view(0, y0, 1600, 230, [5642, 3, 0], 50, 0, 8, 0.8,
-         "gamble_btn_die · check · ping · call · ddadang · half · odd · even · ready · leave (빛남)")
+    n = len(ART.BUTTON_WORDS)
+    els.append(_plane("feltbg", 5705 - n * 14, -15, 5720, 15))
+    view(0, y0, 1600, 230, [5712 - n * 7, 3, 0], 55, 0, 8, 0.8,
+         "gamble_btn_" + " · ".join(ART.BUTTON_WORDS) + " (빛남)")
 
     H = 1880
     src = BUILD / "gamble_hall_assets.preview.json"

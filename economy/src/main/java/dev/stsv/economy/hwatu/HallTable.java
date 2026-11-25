@@ -153,7 +153,7 @@ final class HallTable implements Table.Listener, Table.Bank {
             Location anchor = f.get().display().getLocation();
             List<Location> spots = mod.furniture().seats(f.get());
             if (spots.size() < 2) return;
-            scene = new TableScene(this, mod.plugin(), anchor.getWorld(), spots, anchor.getBlockY() + mod.hall().top(kind), kind);
+            scene = new TableScene(this, mod.plugin(), anchor.getWorld(), spots, anchor.getBlockY(), anchor.getBlockY() + mod.hall().top(kind), kind);
             scene.spawn();
             for (Player p : Bukkit.getOnlinePlayers()) scene.showTo(p);
         }

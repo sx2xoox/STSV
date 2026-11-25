@@ -113,9 +113,10 @@ public final class TableArt {
     // ------------------------------------------------------------------------------------------ the table top
 
     /**
-     * How high the sign over a table floats, from the FLOOR the table stands on (not its top: the two tables differ):
-     * between the bulb hanging over the table (its block 2 .. 3 over the floor) and the ceiling (4 over the floor; the
-     * sign's three lines at its scale rise about 0.38 over this), as HallLayout.Table#sign.
+     * How high the sign over a table floats, from the FLOOR the table stands on (not its top: the two tables differ): just
+     * over the bulb hanging over the table (its lamp about 0.06 .. 0.56 up the block 2 .. 3 over the floor), under the
+     * ceiling (3 over the floor; the sign's three lines at {@code TableScene.SIGN_SCALE} rise about 0.38 over this), as
+     * HallLayout.Table#sign.
      */
     public static final double SIGN_UP = 2.58;
 
@@ -180,6 +181,13 @@ public final class TableArt {
 
     /** Gaps between things side by side (blocks): wider than the things (a card 0.28, a button 0.3, a die 0.15 across). */
     public static final double CARD_GAP = 0.32, BUTTON_GAP = 0.34, DIE_GAP = 0.2;
+
+    /**
+     * The 주사위 cup (gamble_cup, {@link #CUP_HEIGHT} blocks tall at scale 1, 8 px across) stands over its player's dice;
+     * lifted off a roll it is put down mouth up CUP_ASIDE further out (of the way to the seat) and CUP_SIDE blocks to the
+     * sitter's right, clear of the dice and of the neighbours'.
+     */
+    public static final double CUP_ASIDE = 0.15, CUP_SIDE = 0.2, CUP_HEIGHT = 8.5 / 16.0;
 
     /** Where one button of a seat's pad goes: `side` blocks to the sitter's right, drawn at `scale` (1 = full size). */
     public record Slot(double side, double scale) {}

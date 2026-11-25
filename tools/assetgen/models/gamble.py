@@ -52,9 +52,11 @@ the model's north side (the same yaw that turns a sign to a player turns these t
                        Western and Korean dice); the one a big red pip. README "도박장" has the turn for each face up.
   gamble_bowl          an upturned white porcelain rice bowl (사발) with a blue line, 11 px across, 6.25 tall, a chip in
                        its rim; bottom on the display's position.
-  gamble_btn_<die|check|ping|call|ddadang|half|odd|even|ready|leave>
+  gamble_cup           a leather dice cup (주사위 통), upturned over a player's dice: 8 px across at its brass lip, 8.5 tall,
+                       stitched, its bottom (mouth) on the display's position; turned over (mouth up) when set aside.
+  gamble_btn_<die|check|ping|call|ddadang|half|odd|even|roll|ready|leave>
                        a yellow safety-sign plate 12 x 6 px, 1 px thick, standing up, CENTRED on the display's position,
-                       its face (north) gamble_art.button: 다이 체크 삥 콜 따당 하프 홀 짝 준비 일어나기 in stencil. Lit
+                       its face (north) gamble_art.button: 다이 체크 삥 콜 따당 하프 홀 짝 굴리기 준비 일어나기 in stencil. Lit
                        (light emission): readable in the dim hall. (레이즈 is retired: 섯다 bets 삥 · 체크 · 콜 · 따당 · 하프.)
   gamble_whiteboard    a wall whiteboard 2.5 x 1.5 blocks in an aluminium frame, marker tray with markers and an eraser,
                        old smudges, half-wiped marker scribbles (a blue scrawl, a red ring) and a tally (正), three magnets, a receipt under a magnet top left (as seen from in
@@ -788,6 +790,43 @@ def bowl():
 
 
 # ================================================================================================
+# 주사위 컵 (upturned)
+# ================================================================================================
+
+def cup():
+    """A leather dice cup (주사위 통), upturned over a player's two dice: 8 across at the rim, a brass-bound lip, the
+    body narrowing a little up to its closed end; two rows of pale stitching (above the lip and under the top), a worn
+    patch where the hand grips it, a little embossed die on the top. 8.5 tall; bottom (its mouth) on the display's
+    position."""
+    m = BModel("gamble_cup", floor=0, shift=(0, 8, 0))
+
+    def hide(c):
+        y = c.p[1]
+        a = math.atan2(c.p[2] - 8, c.p[0] - 8)
+        if c.face in SIDES:
+            k = math.floor((a + math.pi) / (2 * math.pi) * 24)
+            if (1.6 < y < 1.9 or 6.6 < y < 6.9) and k % 2 == 0:
+                return ("paper", 3)                         # the stitches
+            if 2.5 < y < 5.5 and abs(a - 0.6) < 0.45 and h3(c.i[0], c.i[1], c.i[2], 7) < 0.7:
+                return ("leather", 4)                      # rubbed shiny where it is held
+            if h3(c.i[0], c.i[1], c.i[2], 9) < 0.08:
+                return ("leather", 1)                      # scuffs
+        if c.face == "up":
+            dx, dz = c.p[0] - 8, c.p[2] - 8
+            if max(abs(dx), abs(dz)) < 1.6 and (abs(dx) > 1.1 or abs(dz) > 1.1):
+                return ("leather", 1)                      # the embossed die's edge
+            if abs(dx) < 0.4 and abs(dz) < 0.4:
+                return ("leather", 1)
+        return None
+    hide_p = Paint("leather", 2, noise=0.05, rim=1.1, decal=hide)
+    lip = Paint("brass", 3, "metal", noise=0.03, rim=1.3)
+    cyl(m, "lip", (8, 8), 8, 0, 1, lip)
+    for (d, lo, hi) in ((7.5, 1, 4), (7, 4, 7.25), (6.5, 7.25, 8.5)):
+        cyl(m, "cup", (8, 8), d, lo, hi, hide_p)
+    return gui(m, fill=0.75)
+
+
+# ================================================================================================
 # Buttons (plain model: the plate's face at 13 1/3 texels a px)
 # ================================================================================================
 
@@ -1242,6 +1281,7 @@ for _n in range(1, 6):
     DISPLAY[f"gamble_chips_{_n}"] = (lambda n=_n: chips(n))
 DISPLAY["gamble_die"] = die
 DISPLAY["gamble_bowl"] = bowl
+DISPLAY["gamble_cup"] = cup
 for _k in ART.BUTTON_WORDS:
     DISPLAY[f"gamble_btn_{_k}"] = (lambda k=_k: button_model(k))
 DISPLAY["gamble_whiteboard"] = whiteboard

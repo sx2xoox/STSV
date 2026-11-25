@@ -98,6 +98,15 @@ public final class HallLayout {
         }
     }
 
+    /**
+     * The whiteboard (gamble_whiteboard, centred on its display: the frame 12.5 px over the middle, the marker tray
+     * 13.75 px under it) hangs with its middle this far over the floor (the ceiling is 3 over it): the tray 0.69 over
+     * the floor, the frame's top 0.67 under the ceiling, the writing about a standing player's eye (1.62).
+     */
+    public static final double WHITEBOARD_MIDDLE = 1.55, WHITEBOARD_UP = 12.5 / 16, WHITEBOARD_DOWN = 13.75 / 16;
+    /** Its text display's point over the middle (text grows up from it, and HwatuModule draws it 0.45 lower). */
+    public static final double WHITEBOARD_TEXT = 0.1;
+
     /** The two table items (core furniture with seats: docs/plans/도박장_기획.md §2). */
     public static final String ROUND = "economy:gamble_table_round", DUEL = "economy:gamble_table_duel";
 
@@ -228,7 +237,7 @@ public final class HallLayout {
                 new Point(0.5, 1, HALL_Z0 + 2.5, 0),
                 new Point(-7.5, 1, 4.5, 90),
                 new Point(-4.5, 1, 4.5, 270),
-                new Point(0.5, 2.1, HALL_Z1 - 0.85, 180),
+                new Point(0.5, 1 + WHITEBOARD_MIDDLE + WHITEBOARD_TEXT, HALL_Z1 - 0.85, 180),
                 new Point(0.5, ROOF + 1, UP_Z0 + 1.5, 0),
                 List.copyOf(d.smoke),
                 new Box(-HALF + 1, 1, HALL_Z0 + 1, HALF - 1, UP_ROOF - 1, HALL_Z1 - 1),
@@ -519,7 +528,7 @@ public final class HallLayout {
             for (int[] s : round ? roundSeats() : duelSeats()) seats.add(new int[]{x + s[0], y, z + s[1]});
             Point centre = new Point(x + 0.5, y + 1.0, z + 0.5, 180);
             boolean open = VOID.containsBlock(x, ROOF, z);
-            Point sign = new Point(x + 0.5, 2.75, z + 0.5, 180);   // just under its bulb
+            Point sign = new Point(x + 0.5, y + dev.stsv.economy.hwatu.TableArt.SIGN_UP, z + 0.5, 180);   // between its bulb and the ceiling (TableScene)
             tables.add(new Table(i, x, y, z, 180, (String) t[2], (Game) t[3], (Room) t[4], List.copyOf(foot), List.copyOf(seats), centre, sign));
             smoke.add(new Point(x + 0.5, y + 1.8, z + 0.5, 0));
             if (!open) set(x, ROOF - 1, z, "lantern[hanging=true]");   // a bare bulb over each (the back row's hang through the hole)
@@ -555,7 +564,9 @@ public final class HallLayout {
         set(5, y, 5, "cauldron");                                 // the ashtray stand
         labels.add(new Label(HALF - 0.02, 3.08, 5.5, 270, "<red><bold>금 연", 1.2f, 0xE0FFFFFF));
         // --- the whiteboard on the back wall, crates of drinks in the back corners
-        props.add(new Prop(0.5, y, HALL_Z1 - 0.55, "economy:gamble_whiteboard", 1f, 180));
+        // its model is centred on its point up and down (not stood on it like the others): HallBuilder lifts every prop
+        // half a block (model floor on the point), so the point is half a block under the middle it should hang at
+        props.add(new Prop(0.5, y + WHITEBOARD_MIDDLE - 0.5, HALL_Z1 - 0.55, "economy:gamble_whiteboard", 1f, 180));
         for (int x = -9; x <= -8; x++) {
             set(x, y, 22, "green_terracotta");
             set(x, y + 1, 22, x == -9 ? "green_terracotta" : AIR);
