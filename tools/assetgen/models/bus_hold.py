@@ -681,7 +681,7 @@ def cane():
     varnished wood, a black rubber ferrule)."""
     m = BModel("bus_hold_cane", floor=None)
     wood = _plain("wood_dark", 2, kind="grain", rim=1.3)
-    m.box("shaft", (7.25, -16, 7.25), (8.75, 10, 8.75), wood)
+    m.box("shaft", (7.25, -13.5, 7.25), (8.75, 10, 8.75), wood)
     m.box("crook", (7.25, 10, 7.25), (13.5, 11.75, 8.75), wood)
     m.box("crook", (11.75, 7, 7.25), (13.5, 10, 8.75), wood)
     m.box("crook", (12, 6, 7.5), (13.25, 7, 8.5), _plain("wood_dark", 1))
@@ -728,8 +728,9 @@ def fishing_rod():
     m.box("handle", (9.75, 8, 4.25), (11.25, 8.75, 5.25), _plain("rubber", 2))
     m.box("knob", (11.25, 7.25, 4.25), (12, 9.5, 5.25), _plain("rubber", 1))
     # the line down from the tip and its float
-    m.box("line", (7.9, 22.5, 7.9), (8.1, 31, 8.1), _plain("porcelain", 2))
-    m.box("float", (7.4, 20.5, 7.4), (8.6, 22.5, 8.6), _plain("fox", 3, decal=lambda c: ("porcelain", 2) if c.p[1] > 21.75 else None))
+    m.box("line", (7.9, 31.5, 5.6), (8.1, 31.7, 7.6), _plain("porcelain", 2))
+    m.box("line", (7.9, 24, 5.4), (8.1, 31.5, 5.6), _plain("porcelain", 2))
+    m.box("float", (7.4, 22, 4.9), (8.6, 24, 6.1), _plain("fox", 3, decal=lambda c: ("porcelain", 2) if c.p[1] > 23.25 else None))
     held = hold_transform(grip=(8, 3, 8), at=fist(), turn=turn(x=28, z=-12))
     return displays(m, held)
 
@@ -839,7 +840,7 @@ def bundle():
         return None
     paints = {"cloth": _plain("sapphire", 1, kind="weave", rim=0.9, decal=flowers), "knot": _plain("sapphire", 0, kind="weave", decal=flowers)}
     voxels(m, "bundle", cells, lambda lab: paints[lab])
-    held = hold_transform(grip=(8, 5, 8), at=fist(0, 0, 0), turn=turn())
+    held = hold_transform(grip=(8, 5, 8), at=fist(1.5, 0.5, -0.5), turn=turn(y=-20), scale=0.62)
     return displays(m, held)
 
 
