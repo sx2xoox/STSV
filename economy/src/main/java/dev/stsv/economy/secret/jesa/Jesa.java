@@ -399,6 +399,22 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         }
     }
 
+    /** BusModule: whether this driver overhears the 제사상 hints (bus.yml types.*.talk.jesa-hint): see {@link #seeking}. */
+    @Override
+    public boolean hints(Player p) {
+        UUID u = p.getUniqueId();
+        if (!on() || guide(p)) return false;
+        return seeking(stage(u), open(u), sequel.seeking(u));
+    }
+
+    /**
+     * Who hears passengers talk about tables: someone who overheard her and has not yet had their table accepted (stage
+     * 1 or 2, while the secret is still theirs to solve), or who is laying a weekly 기일 table now. Nobody else, ever.
+     */
+    static boolean seeking(int stage, boolean open, boolean weekly) {
+        return weekly || (open && stage >= HEARD && stage < ACCEPTED);
+    }
+
     /** She says it, to nobody (stage 1). */
     private void begin(Player p, Entity grandma, BusStop here) {
         UUID u = p.getUniqueId();

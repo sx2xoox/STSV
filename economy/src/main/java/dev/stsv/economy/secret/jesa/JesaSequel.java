@@ -178,6 +178,11 @@ public final class JesaSequel extends Sequel {
         return on() && live(u) && step(u) >= Giil.HOUSE && free(u);
     }
 
+    /** Whether a weekly table is theirs to lay and not yet accepted (asked, or the house stands): the bus's 제사상 hints. */
+    boolean seeking(UUID u) {
+        return on() && live(u) && free(u) && step(u) < Giil.ACCEPTED;
+    }
+
     private Location home(UUID u) {
         String saved = get(u, "house");
         int[] at = Place.decode(saved);

@@ -367,13 +367,13 @@ class ContentTest {
         for (String id : ours) if (id.startsWith("economy:lost_") && !makeable.contains(id) && !yaml("items/secrets.yml").contains(id.substring(8))) problems.add("a lost item no kind leaves: " + id);
         for (String title : lost.titles().keySet()) if (!titles.contains(title.substring(title.indexOf(':') + 1))) problems.add("lost title: " + title);
         // 버스 선물: what a passenger hands the driver (bus.yml types.*.gifts) is an item that exists; 배 comes from nowhere else,
-        // and only the 할머니 gives it (the dog walker gives nothing)
+        // and only the 할머니, the 시장 아줌마 and the 농부 give it (the dog walker gives nothing)
         YamlConfiguration busYaml = yaml("bus.yml");
         for (String type : busYaml.getConfigurationSection("types").getKeys(false)) {
             for (Map<?, ?> g : busYaml.getMapList("types." + type + ".gifts")) {
                 String id = JobSpec.norm(String.valueOf(g.get("item")));
                 if (!exists(id, ours)) problems.add("bus gift of " + type + ": " + id);
-                if (id.equals("economy:pear") && !type.equals("grandma")) problems.add("only the 할머니 gives pears, not " + type);
+                if (id.equals("economy:pear") && !Set.of("grandma", "market", "farmer").contains(type)) problems.add("only the 할머니 · 시장 아줌마 · 농부 give pears, not " + type);
                 makeable.add(id);
             }
         }

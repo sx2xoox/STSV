@@ -1898,6 +1898,7 @@ public final class BusModule extends EcoModule {
                 }
             }
         }
+        if (hint(p, run, now)) return;
         // an event team aboard cheers now and then (야구팬's chants, 소풍 songs); a 특급 손님 frets
         if (ticks - run.talkAt > x.talkCooldown() * 2 && ThreadLocalRandom.current().nextDouble() < 0.06) {
             for (Rider r : run.riders) {
@@ -2634,9 +2635,72 @@ public final class BusModule extends EcoModule {
         default String sign(BusStop s) {
             return "";
         }
+
+        /** Whether this driver may overhear the 제사상 hints (bus.yml types.*.talk.jesa-hint) now. */
+        default boolean hints(Player driver) {
+            return false;
+        }
     }
 
     private final Map<String, Watcher> watchers = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Whether any watcher lets this driver overhear the 제사상 hints. */
+    private boolean watcherHints(Player driver) {
+        for (Watcher w : watchers.values()) {
+            try {
+                if (w.hints(driver)) return true;
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[버스] watcher 오류", e);
+            }
+        }
+        return false;
+    }
+
+    /** driver -> when they last overheard a 제사상 hint (millis; in memory) */
+    private final Map<UUID, Long> hintAt = new HashMap<>();
+
+    /**
+     * 숨은 비밀 (운영자 문서 숨은_비밀/주인_없는_제사.md): a driver who is laying a table for the dead (a watcher says so) now and
+     * then overhears someone aboard talk about how a 제사상 is laid (types.*.talk.jesa-hint): hint.chance a second, at least
+     * hint.gap seconds apart, only when no bubble was up for two talk-cooldowns. The bubble is theirs alone. True = said one.
+     */
+    private boolean hint(Player p, Run run, long now) {
+        BusSpec.Extra x = spec.extra();
+        if (ticks - run.talkAt <= x.talkCooldown() * 2L) return false;
+        Long last = hintAt.get(p.getUniqueId());
+        if (last != null && now - last < x.hintGap() * 1000L) return false;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        double roll = rnd.nextDouble();
+        if (roll >= x.hintChance()) return false;   // most seconds: nobody is asked anything
+        List<BusSpec.Type> aboard = new ArrayList<>();
+        for (Rider r : run.riders) {
+            boolean can = !r.secret && r.m.isValid() && (lostDog == null || lostDog.lamentFor(r.m) == null);
+            aboard.add(can ? r.type : null);
+        }
+        int i = hinter(spec, aboard, watcherHints(p), roll, x.hintChance(), rnd.nextInt(1 << 20));
+        if (i < 0) return false;
+        Rider r = run.riders.get(i);
+        List<String> lines = spec.hints(r.type);
+        String line = lines.get(rnd.nextInt(lines.size()));
+        bubble(r.m, line, 60L, p);
+        r.said = line;
+        r.saidUntil = System.currentTimeMillis() + 3000;
+        run.talkAt = ticks;
+        hintAt.put(p.getUniqueId(), now);
+        return true;
+    }
+
+    /**
+     * Who of those aboard (null = one who can't speak now) says a 제사상 hint: only for a driver who is seeking (else never,
+     * whatever the roll), only when the roll is under the chance, one of those whose kind has hint lines (`pick` chooses).
+     * -1 = nobody.
+     */
+    static int hinter(BusSpec spec, List<BusSpec.Type> aboard, boolean seeking, double roll, double chance, int pick) {
+        if (!seeking || roll >= chance) return -1;
+        List<Integer> can = new ArrayList<>();
+        for (int i = 0; i < aboard.size(); i++) if (aboard.get(i) != null && !spec.hints(aboard.get(i)).isEmpty()) can.add(i);
+        return can.isEmpty() ? -1 : can.get(Math.floorMod(pick, can.size()));
+    }
 
     /** Registers (or with null, removes) a watcher under an id; a later one of the same id replaces the earlier. */
     public void watch(String id, Watcher w) {

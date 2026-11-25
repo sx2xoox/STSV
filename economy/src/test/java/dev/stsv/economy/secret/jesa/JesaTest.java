@@ -599,4 +599,19 @@ class JesaTest {
         assertEquals(java.util.Set.of(), Vessel.changed(nulls, java.util.Map.of(), same));
         assertEquals(java.util.Set.of(), Vessel.changed(java.util.Map.of(), nulls, same));
     }
+
+    /** The bus's 제사상 hints: only for someone laying a table (heard her / the house stands, still theirs), or a weekly one. */
+    @Test
+    void onlyThoseLayingATableHearTheHints() {
+        assertFalse(Jesa.seeking(0, true, false), "never begun");
+        assertTrue(Jesa.seeking(Jesa.HEARD, true, false), "heard her");
+        assertTrue(Jesa.seeking(Jesa.HOUSE, true, false), "the house stands");
+        assertFalse(Jesa.seeking(Jesa.ACCEPTED, true, false), "the table was accepted");
+        assertFalse(Jesa.seeking(Jesa.ACCEPTED + 1, true, false), "solved");
+        assertFalse(Jesa.seeking(Jesa.HOUSE, false, false), "someone else solved it first");
+        assertTrue(Jesa.seeking(Jesa.ACCEPTED + 1, false, true), "solved, laying this week's 기일 table");
+        assertTrue(Jesa.seeking(0, true, true));
+        // the start: 할머니 rarer (bus.yml 29.5 -> 18), the chance a stop with her aboard higher to match (0.01 × 29.5/18)
+        assertEquals(0.01 * 29.5 / 18, yml().getDouble("start.chance"), 0.001);
+    }
 }

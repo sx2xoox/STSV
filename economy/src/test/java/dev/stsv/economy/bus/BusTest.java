@@ -74,9 +74,12 @@ class BusTest {
         assertEquals(1.0, s.hourFactor(13));
         assertTrue(s.rush(7));
         assertEquals(53, s.types().size());
-        // 2026-11: 할머니는 예전과 같은 비율 (10 / 135.7 = 7.4%), 진상 · 착한 손님의 새 버릇
+        // 2026-11: 할머니는 흔한 손님 (18 = 동네 아저씨 · 대학생과 같음, 약 4.6%; 예전 7.4%), 진상 · 착한 손님의 새 버릇
         double total = s.types().values().stream().mapToDouble(BusSpec.Type::weight).sum();
-        assertEquals(10 / 135.7, s.types().get("grandma").weight() / total, 0.002);
+        assertEquals(18, s.types().get("grandma").weight(), 1e-9);
+        assertEquals(s.types().get("uncle").weight(), s.types().get("grandma").weight(), 1e-9);
+        assertEquals(0.046, s.types().get("grandma").weight() / total, 0.003);
+        assertEquals(387.4, total, 0.05);
         assertEquals(0.35, s.types().get("dodger").x().dodge(), 1e-9);
         assertEquals(50, s.types().get("rude").x().haggleAt(), 1e-9);
         assertEquals(0.5, s.types().get("rude").x().haggle(), 1e-9);
@@ -120,6 +123,70 @@ class BusTest {
         assertEquals(java.util.Set.of("stsv:mini_bus", "stsv:village_bus", "stsv:limousine_bus"), s.vehicles());
         // grandma's gifts are real items of the economy
         for (BusSpec.Gift g : s.types().get("grandma").gifts()) assertTrue(g.item().startsWith("economy:"), g.item());
+    }
+
+    /** 배 (economy:pear): the 할머니 is rarer now, so the 시장 아줌마 and the 농부 give one too; about as many pears as before. */
+    @Test
+    void pearsStillComeAsOften() {
+        BusSpec s = spec();
+        double total = s.types().values().stream().mapToDouble(BusSpec.Type::weight).sum(), now = 0;
+        for (BusSpec.Type t : s.types().values()) {
+            long pears = t.gifts().stream().filter(g -> g.item().equals("economy:pear")).count();
+            if (pears == 0) continue;
+            double chance = t.x().giftChance() >= 0 ? t.x().giftChance() : s.extra().giftChance();
+            now += t.weight() / total * chance * pears / t.gifts().size();
+        }
+        double before = 29.5 / 398.9 * 0.47 / 4;   // only the 할머니 (29.5 of 398.9), one of her four gifts
+        assertEquals(1.0, now / before, 0.15, "pears per pleased passenger, against before");
+        // the 시장 아줌마's other gifts as often as before (0.2 of three = 0.27 of four)
+        BusSpec.Type market = s.types().get("market");
+        assertEquals(0.2 / 3, market.x().giftChance() / market.gifts().size(), 0.002);
+        assertTrue(s.types().get("farmer").gifts().stream().allMatch(g -> g.item().equals("economy:pear")));
+    }
+
+    /** 제사상 hints (types.*.talk.jesa-hint): real lines of several kinds, never a default line, never an admin preview situation. */
+    @Test
+    void tableHintsAreTheirOwnLines() {
+        BusSpec s = spec();
+        int n = 0, kinds = 0;
+        for (BusSpec.Type t : s.types().values()) {
+            List<String> h = s.hints(t);
+            assertFalse(s.situations(t).contains(BusSpec.HINT), t.id());
+            if (h.isEmpty()) continue;
+            kinds++;
+            n += h.size();
+            assertTrue(h.size() >= 3 && h.size() <= 6, t.id() + " " + h.size());
+            for (String line : h) {
+                assertFalse(line.isBlank(), t.id());
+                for (String bad : List.of("비밀", "감나무", "초가", "{", "<")) assertFalse(line.contains(bad), t.id() + ": " + line);
+            }
+        }
+        assertTrue(kinds >= 8, "kinds " + kinds);
+        assertTrue(n >= 20 && n <= 40, "lines " + n);
+        assertFalse(s.extra().talk().containsKey(BusSpec.HINT), "no default hint lines (every kind would say them)");
+        assertTrue(s.hints(s.types().get("grandma")).isEmpty(), "she is not the one who tells");
+        // every rule of the table is in some line
+        String all = String.join("\n", s.types().values().stream().flatMap(t -> s.hints(t).stream()).toList());
+        for (String rule : List.of("홍동백서", "어동육서", "좌포우혜", "반서갱동", "조율이시", "고춧가루", "마늘", "팥", "탕", "배", "가운데 잔",
+                "두 번", "밤", "북어포", "손질대", "명태", "치' 자")) assertTrue(all.contains(rule), rule);
+        assertTrue(s.extra().hintChance() > 0 && s.extra().hintChance() <= 0.1);
+        assertTrue(s.extra().hintGap() >= 60);
+    }
+
+    /** Only a driver who is laying a table hears a hint, whatever the dice; and only from a kind that has hint lines. */
+    @Test
+    void hintsOnlyForSeekers() {
+        BusSpec s = spec();
+        BusSpec.Type monk = s.types().get("monk"), office = s.types().get("office"), market = s.types().get("market");
+        List<BusSpec.Type> aboard = java.util.Arrays.asList(office, monk, null, market);
+        for (int pick = 0; pick < 8; pick++) {
+            assertEquals(-1, BusModule.hinter(s, aboard, false, 0.0, 1.0, pick), "never for someone not seeking");
+            int i = BusModule.hinter(s, aboard, true, 0.0, 1.0, pick);
+            assertTrue(i == 1 || i == 3, "the monk or the market woman, not " + i);
+        }
+        assertEquals(-1, BusModule.hinter(s, aboard, true, 0.5, 0.03, 0), "the roll missed");
+        assertEquals(-1, BusModule.hinter(s, List.of(office, office), true, 0.0, 1.0, 0), "nobody aboard who talks of tables");
+        assertEquals(-1, BusModule.hinter(s, java.util.Arrays.asList((BusSpec.Type) null), true, 0.0, 1.0, 0));
     }
 
     static RoadNetwork.Road straight(String dock, double x0, double z0, double dx, double dz, int n) {

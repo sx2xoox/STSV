@@ -121,7 +121,13 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     public record Extra(Map<String, String> tags, int marketEvery, Set<String> marketTags, int picnicFrom, int picnicTo, int picnicStudents,
                         double transfer, double transferBonus, int dozeAfter, double dozeMiss, int passed, double missedMood,
                         double rainTip, double snowJolt, int talkCooldown, double giftChance, double giftMood,
-                        Map<String, List<String>> talk, Map<String, Bus> buses, Map<String, List<String>> names) {}
+                        Map<String, List<String>> talk, Map<String, Bus> buses, Map<String, List<String>> names, double hintChance, int hintGap) {}
+
+    /**
+     * The talk key of the 제사상 hints (운영자 문서 숨은_비밀/주인_없는_제사.md): lines some kinds say only to a driver who is laying a
+     * table for the dead (BusModule.Watcher#hints). Never a fallback line, never in the admin preview's situations.
+     */
+    public static final String HINT = "jesa-hint";
 
     public record Step(double at, double factor) {}
 
@@ -338,7 +344,8 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                 pc.getInt("to", 12), pc.getInt("students", 10), c.getDouble("transfer", 0.25), c.getDouble("transfer-bonus", 0.2),
                 dz.getInt("after", 90), dz.getDouble("miss", 0.4), c.getInt("passed", 15), c.getDouble("missed-mood", -10),
                 c.getDouble("rain-tip", 0.2), c.getDouble("snow-jolt", 0.5), c.getInt("talk-cooldown", 60), c.getDouble("gift-chance", 0.35),
-                c.getDouble("gift-mood", 90), talk(c.getConfigurationSection("talk")), buses, talk(c.getConfigurationSection("names")));
+                c.getDouble("gift-mood", 90), talk(c.getConfigurationSection("talk")), buses, talk(c.getConfigurationSection("names")),
+                Math.clamp(c.getDouble("hint.chance", 0.03), 0, 1), Math.max(0, c.getInt("hint.gap", 150)));
         for (Type t : types.values()) for (String k : t.tags().keySet()) {
             if (!tagNames.containsKey(k)) problems.add("types." + t.id() + ".tags: 없는 특성 " + k);
         }
@@ -392,6 +399,12 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
         return out;
     }
 
+    /** This kind's own 제사상 hints ({@link #HINT}; never the default lines), or an empty list. */
+    public List<String> hints(Type t) {
+        List<String> own = t == null ? null : t.talk().get(HINT);
+        return own == null ? List.of() : own;
+    }
+
     /** A line for this kind in this situation (its own, else the default ones), or null. */
     public List<String> lines(Type t, String situation) {
         List<String> own = t == null ? null : t.talk().get(situation);
@@ -404,10 +417,10 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     public List<String> situations(Type t) {
         java.util.LinkedHashSet<String> out = new java.util.LinkedHashSet<>();
         if (t != null) t.talk().forEach((k, v) -> {
-            if (!v.isEmpty()) out.add(k);
+            if (!v.isEmpty() && !k.equals(HINT)) out.add(k);
         });
         extra.talk().forEach((k, v) -> {
-            if (!v.isEmpty()) out.add(k);
+            if (!v.isEmpty() && !k.equals(HINT)) out.add(k);
         });
         return List.copyOf(out);
     }
