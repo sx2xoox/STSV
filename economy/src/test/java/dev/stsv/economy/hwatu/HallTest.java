@@ -364,8 +364,8 @@ class HallTest {
         HallSpec h = HallSpec.parse(YamlConfiguration.loadConfiguration(Path.of(System.getProperty("stsv.content")).resolve("economy/hwatu.yml").toFile())
                 .getConfigurationSection("hall"), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(0.95, h.top(TableKind.ROUND), 1e-9);
-        assertEquals(0.85, h.top(TableKind.DUEL), 1e-9);
+        assertEquals(0.84, h.top(TableKind.ROUND), 1e-9);
+        assertEquals(0.77, h.top(TableKind.DUEL), 1e-9);
         assertEquals(1000, h.bigPot());
         assertEquals(5, h.boardLines());
         assertTrue(h.mannequins());

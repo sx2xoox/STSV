@@ -699,8 +699,9 @@ public final class HwatuModule extends EcoModule {
             t.setAlignment(TextDisplay.TextAlignment.LEFT);
             t.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
             t.setShadowed(false);
-            t.setLineWidth(260);
-            t.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.45f, 0.45f, 0.45f), new Quaternionf()));
+            t.setLineWidth(200);
+            // text grows up from its position: down a little so the lines sit in the middle of the writing surface
+            t.setTransformation(new Transformation(new Vector3f(0, -0.45f, 0), new Quaternionf(), new Vector3f(0.45f, 0.45f, 0.45f), new Quaternionf()));
             t.setViewRange(0.5f);
             t.getPersistentDataContainer().set(TableScene.TAG, PersistentDataType.STRING, BOARD_TAG);
         });

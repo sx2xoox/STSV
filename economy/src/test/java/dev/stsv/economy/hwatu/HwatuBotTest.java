@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** 시험 판 (/관리자 화투방 시험, README "화투방"): the bots' play, picking cards by name and dealing forced cards. */
+/** 시험 판 (/관리자 도박장 시험, README "도박장"): the bots' play, picking cards by name and dealing forced cards. */
 class HwatuBotTest {
 
     private static Sutda.Hand hand(String a, String b) {

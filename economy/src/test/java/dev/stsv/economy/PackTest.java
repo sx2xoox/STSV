@@ -27,6 +27,8 @@ class PackTest {
     private static final Path CORE = Path.of("../content/stsv").toAbsolutePath().normalize();
     /** job machines, the press and their parts: model_tier (crops are the other models) */
     static final String MACHINE = "(gem_bench(_wheel)?|mill(_stone)?|fish_bench|forge|kitchen|still|press(_screw)?)_[0-4]";
+    /** the 도박장 models that give light (models/gamble.py): the work light, the drum fire and the buttons */
+    static final String GAMBLE_LIT = "gamble_(prop_worklight|prop_drumfire|btn_[a-z]+)";
     // crop stages are crossed planes with cut-out textures
 
     @Test
@@ -35,16 +37,19 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(7 * 5 + 3 * 5 + 77 + 9 + 1 + 1 + 5 + 2 + 2 + 13, models.size(),
+        assertEquals(7 * 5 + 3 * 5 + 77 + 9 + 1 + 1 + 5 + 2 + 2 + 13 + 45, models.size(),
                 "7 machines in 5 tiers (4세대: 4강), 3 spinning parts in 5 tiers, 77 growth stages of 17 crops, 9 하역장 props (6 container colours), the 국도 sign, "
-                        + "its guide sign and its 5 arrows, the 통발 and the 가두리, the 숨은 비밀 기념비 stone unsolved and solved, and solved with each secret's own emblem (13)");
+                        + "its guide sign and its 5 arrows, the 통발 and the 가두리, the 숨은 비밀 기념비 stone unsolved and solved, and solved with each secret's own emblem (13), "
+                        + "and the 도박장's 45 (2 tables, 7 props, 21 cards, 5 chip piles, the die, the bowl, 7 buttons, the whiteboard)");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);
             assertTrue(r.warnings().isEmpty(), name + ": " + r.warnings());
             boolean glows = false;
             for (JsonElement e : r.model().getAsJsonArray("elements")) glows |= e.getAsJsonObject().has("light_emission");
-            if (!name.matches(MACHINE)) assertFalse(glows, name + ": crops do not glow");
+            if (name.matches(GAMBLE_LIT)) assertTrue(glows, name + ": the 도박장's lamp, fire and buttons are lit");
+            else if (name.startsWith("gamble_")) assertFalse(glows, name);
+            else if (!name.matches(MACHINE)) assertFalse(glows, name + ": crops do not glow");
             else if (name.endsWith("_3") || name.startsWith("forge_")) assertTrue(glows, name + ": 3강 glows, and so does the forge fire");
             else if (name.matches("(gem_bench|mill|fish_bench)(_wheel|_stone)?_[0-2]")) assertFalse(glows, name + ": nothing glows below 3강");
             assertTrue(r.model().has("display"), name);
@@ -56,7 +61,8 @@ class PackTest {
         List<Path> crops;
         try (var s = Files.list(PACK.resolve("models"))) {
             crops = s.filter(p -> p.toString().endsWith(".bbmodel")).filter(p -> p.getFileName().toString().matches("[a-z_]+_\\d\\.bbmodel"))
-                    .filter(p -> !p.getFileName().toString().replace(".bbmodel", "").matches(MACHINE)).sorted().toList();
+                    .filter(p -> !p.getFileName().toString().replace(".bbmodel", "").matches(MACHINE))
+                    .filter(p -> !p.getFileName().toString().startsWith("gamble_")).sorted().toList();
         }
         assertEquals(77, crops.size());
         for (Path p : crops) {

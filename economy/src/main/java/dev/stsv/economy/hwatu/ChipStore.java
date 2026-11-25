@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 화투방 chips (README "화투방"): every player's chips, a number on the account and never an item (eco_hwatu_chip: chips,
  * and for the day it was last touched: chips bought and the net won (+) / lost (-) that day), and the log of every hand
- * (eco_hwatu_hand) for /관리자 화투방 기록. Accounts are read whole at start, kept in memory, written through.
+ * (eco_hwatu_hand) for /관리자 도박장 기록. Accounts are read whole at start, kept in memory, written through.
  */
 public final class ChipStore {
 

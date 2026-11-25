@@ -105,7 +105,7 @@ public final class Table {
     private int replays;
     private Step step;
     private Result last;
-    /** 시험 판 (/관리자 화투방 시험 섯다 패): the cards some players get in the next 섯다 hand's first deal. */
+    /** 시험 판 (/관리자 도박장 시험 섯다 패): the cards some players get in the next 섯다 hand's first deal. */
     private final Map<UUID, Card[]> forced = new LinkedHashMap<>();
 
     private final RandomGenerator rng;

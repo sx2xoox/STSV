@@ -9,7 +9,7 @@ import java.util.List;
  *
  * <pre>
  * hall:
- *   top: { round: 0.95, duel: 0.85 }   # table top height above the furniture's floor block (blocks)
+ *   top: { round: 0.84, duel: 0.77 }   # table top height above the furniture's floor block (blocks)
  *   big-pot: 1000                      # a pot this big (chips) or more lights the hall up and goes on the whiteboard
  *   board-lines: 5                     # 오늘의 큰 판 lines on the whiteboard
  *   radius: 40                         # how far the hall's players hear and see a big win
@@ -25,9 +25,9 @@ public record HallSpec(double topRound, double topDuel, long bigPot, int boardLi
     public static HallSpec parse(ConfigurationSection c, List<String> problems) {
         if (c == null) {
             problems.add("hall 이 없음 (기본값을 씀)");
-            return new HallSpec(0.95, 0.85, 1000, 5, 40, true);
+            return new HallSpec(0.84, 0.77, 1000, 5, 40, true);
         }
-        double round = c.getDouble("top.round", 0.95), duel = c.getDouble("top.duel", 0.85);
+        double round = c.getDouble("top.round", 0.84), duel = c.getDouble("top.duel", 0.77);
         if (round <= 0 || round > 2 || duel <= 0 || duel > 2) problems.add("hall.top: 0 초과 2 이하 (블록)");
         long big = c.getLong("big-pot", 1000);
         if (big < 1) problems.add("hall.big-pot: 1 이상");

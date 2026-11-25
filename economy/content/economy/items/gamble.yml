@@ -1,0 +1,355 @@
+# 도박장 (docs/plans/도박장_기획.md §2, README "도박장"): the gambling hall's tables, props and the display models of the play.
+# 모델: tools/assetgen/models/gamble.py (python3 tools/assetgen/gamble_assets.py), 미리보기: docs/previews/gamble_hall_assets.png
+# 아무도 갖지 않음 (상점이 사지도 팔지도 않음): 건물(/관리자 도박장 건설)이 놓고, 판이 ItemDisplay 로 띄움. 관리자는 /give 로 놓을 수 있음.
+# 좌석 순서 = 게임의 자리 번호: 0 = 테이블 정면(가구의 앞, -z 칸), 위에서 보아 시계 방향.
+
+gamble_table_round:
+  material: paper
+  name: "<#3f8f5a>도박장 원탁"
+  lore: ["<gray>도박장 가구 · 5×5칸 · 좌석 6", "<gray>케이블 드럼 위에 녹색 천 (담뱃불 자국 · 테이프 보수)", "<yellow>우클릭: 앉기"]
+  model: gamble_table_round
+  max-stack: 1
+  furniture:
+    # 가운데 3×3 = 드럼 탁자, 둘레 여섯 칸 = 자리. 모델은 2배로 줄여 굽고 2배로 표시 (텍셀은 다른 가구와 같은 1/16칸)
+    cells: [[-1, 0, -1], [0, 0, -1], [1, 0, -1], [-1, 0, 0], [0, 0, 0], [1, 0, 0], [-1, 0, 1], [0, 0, 1], [1, 0, 1],
+            [0, 0, -2], [2, 0, -1], [2, 0, 1], [0, 0, 2], [-2, 0, 1], [-2, 0, -1]]
+    scale: [2, 2, 2]
+    seats:
+      - { cell: [0, 0, -2], height: 0.5, facing: 180.0 }   # 0: 파란 의자
+      - { cell: [2, 0, -1], height: 0.5, facing: -116.57 }   # 1: 페인트 통
+      - { cell: [2, 0, 1], height: 0.5, facing: -63.43 }   # 2: 빨간 포장마차 의자
+      - { cell: [0, 0, 2], height: 0.5, facing: 0.0 }   # 3: 흰 의자
+      - { cell: [-2, 0, 1], height: 0.52, facing: 63.43 }   # 4: 판지 깐 페인트 통
+      - { cell: [-2, 0, -1], height: 0.5, facing: 116.57 }   # 5: 파란 포장마차 의자
+
+gamble_table_duel:
+  material: paper
+  name: "<#3f8f5a>도박장 1:1 탁자"
+  lore: ["<gray>도박장 가구 · 1×3칸 · 좌석 2", "<gray>각목 상자 위에 녹색 천, 마주 보는 의자 둘", "<yellow>우클릭: 앉기"]
+  model: gamble_table_duel
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, -1], [0, 0, 0], [0, 0, 1]]
+    seats:
+      - { cell: [0, 0, -1], height: 0.5, facing: 180 }   # 0: 앞 (파란 의자)
+      - { cell: [0, 0, 1], height: 0.5, facing: 0 }      # 1: 뒤 (빨간 의자)
+
+# ── 건물 소품 (가구로 놓거나 ItemDisplay 로: economy:model/<id>, 크기 1) ──────────────────────
+gamble_prop_cement:
+  material: paper
+  name: "<#c8b98a>시멘트 포대 더미"
+  lore: ["<gray>도박장 소품 · 1×1칸"]
+  model: gamble_prop_cement
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+gamble_prop_rebar:
+  material: paper
+  name: "<#c8b98a>철근 다발"
+  lore: ["<gray>도박장 소품 · 3×1칸 · 지나갈 수 있음"]
+  model: gamble_prop_rebar
+  max-stack: 16
+  furniture:
+    cells: [[-1, 0, 0], [0, 0, 0], [1, 0, 0]]
+    solid: false
+
+gamble_prop_cone:
+  material: paper
+  name: "<#c8b98a>안전 고깔"
+  lore: ["<gray>도박장 소품 · 1×1칸"]
+  model: gamble_prop_cone
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+gamble_prop_worklight:
+  material: paper
+  name: "<#c8b98a>삼각대 작업등"
+  lore: ["<gray>도박장 소품 · 1×1칸, 높이 2 · 빛"]
+  model: gamble_prop_worklight
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+    light: { level: 15, cell: [0, 1, 0] }
+
+gamble_prop_drumfire:
+  material: paper
+  name: "<#c8b98a>드럼통 모닥불"
+  lore: ["<gray>도박장 소품 · 1×1칸, 높이 2 · 빛"]
+  model: gamble_prop_drumfire
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+    light: { level: 14, cell: [0, 1, 0] }
+
+gamble_prop_sign:
+  material: paper
+  name: "<#c8b98a>공사중 표지판"
+  lore: ["<gray>도박장 소품 · 2×1칸, 높이 2"]
+  model: gamble_prop_sign
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [1, 1, 0]]
+
+gamble_prop_pallet:
+  material: paper
+  name: "<#c8b98a>자재 팔레트"
+  lore: ["<gray>도박장 소품 · 1×1칸"]
+  model: gamble_prop_pallet
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0]]
+
+# ── 표시 전용 (판이 ItemDisplay 로 띄움: 앞 = 모델 북쪽, 크기 1) ─────────────────────────
+gamble_card_1a:
+  material: paper
+  name: "<white>1월 송학 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_1a
+  max-stack: 1
+
+gamble_card_1b:
+  material: paper
+  name: "<white>1월 송학 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_1b
+  max-stack: 1
+
+gamble_card_2a:
+  material: paper
+  name: "<white>2월 매조 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_2a
+  max-stack: 1
+
+gamble_card_2b:
+  material: paper
+  name: "<white>2월 매조 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_2b
+  max-stack: 1
+
+gamble_card_3a:
+  material: paper
+  name: "<white>3월 벚꽃 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_3a
+  max-stack: 1
+
+gamble_card_3b:
+  material: paper
+  name: "<white>3월 벚꽃 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_3b
+  max-stack: 1
+
+gamble_card_4a:
+  material: paper
+  name: "<white>4월 흑싸리 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_4a
+  max-stack: 1
+
+gamble_card_4b:
+  material: paper
+  name: "<white>4월 흑싸리 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_4b
+  max-stack: 1
+
+gamble_card_5a:
+  material: paper
+  name: "<white>5월 난초 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_5a
+  max-stack: 1
+
+gamble_card_5b:
+  material: paper
+  name: "<white>5월 난초 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_5b
+  max-stack: 1
+
+gamble_card_6a:
+  material: paper
+  name: "<white>6월 모란 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_6a
+  max-stack: 1
+
+gamble_card_6b:
+  material: paper
+  name: "<white>6월 모란 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_6b
+  max-stack: 1
+
+gamble_card_7a:
+  material: paper
+  name: "<white>7월 홍싸리 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_7a
+  max-stack: 1
+
+gamble_card_7b:
+  material: paper
+  name: "<white>7월 홍싸리 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_7b
+  max-stack: 1
+
+gamble_card_8a:
+  material: paper
+  name: "<white>8월 공산 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_8a
+  max-stack: 1
+
+gamble_card_8b:
+  material: paper
+  name: "<white>8월 공산 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_8b
+  max-stack: 1
+
+gamble_card_9a:
+  material: paper
+  name: "<white>9월 국진 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_9a
+  max-stack: 1
+
+gamble_card_9b:
+  material: paper
+  name: "<white>9월 국진 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_9b
+  max-stack: 1
+
+gamble_card_10a:
+  material: paper
+  name: "<white>10월 단풍 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_10a
+  max-stack: 1
+
+gamble_card_10b:
+  material: paper
+  name: "<white>10월 단풍 패"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_10b
+  max-stack: 1
+
+gamble_card_back:
+  material: paper
+  name: "<white>화투 패 뒷면"
+  lore: ["<gray>도박장 표시용 · 테이블 위 화투 패"]
+  model: gamble_card_back
+  max-stack: 1
+
+gamble_chips_1:
+  material: paper
+  name: "<white>칩 더미 1"
+  lore: ["<gray>도박장 표시용 · 판돈 칩"]
+  model: gamble_chips_1
+  max-stack: 1
+
+gamble_chips_2:
+  material: paper
+  name: "<white>칩 더미 2"
+  lore: ["<gray>도박장 표시용 · 판돈 칩"]
+  model: gamble_chips_2
+  max-stack: 1
+
+gamble_chips_3:
+  material: paper
+  name: "<white>칩 더미 3"
+  lore: ["<gray>도박장 표시용 · 판돈 칩"]
+  model: gamble_chips_3
+  max-stack: 1
+
+gamble_chips_4:
+  material: paper
+  name: "<white>칩 더미 4"
+  lore: ["<gray>도박장 표시용 · 판돈 칩"]
+  model: gamble_chips_4
+  max-stack: 1
+
+gamble_chips_5:
+  material: paper
+  name: "<white>칩 더미 5"
+  lore: ["<gray>도박장 표시용 · 판돈 칩"]
+  model: gamble_chips_5
+  max-stack: 1
+
+gamble_die:
+  material: paper
+  name: "<white>주사위"
+  lore: ["<gray>도박장 표시용"]
+  model: gamble_die
+  max-stack: 1
+
+gamble_bowl:
+  material: paper
+  name: "<white>홀짝 사발"
+  lore: ["<gray>도박장 표시용 · 엎어 놓은 사발"]
+  model: gamble_bowl
+  max-stack: 1
+
+gamble_btn_call:
+  material: paper
+  name: "<white>콜 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_call
+  max-stack: 1
+
+gamble_btn_die:
+  material: paper
+  name: "<white>다이 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_die
+  max-stack: 1
+
+gamble_btn_raise:
+  material: paper
+  name: "<white>레이즈 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_raise
+  max-stack: 1
+
+gamble_btn_odd:
+  material: paper
+  name: "<white>홀 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_odd
+  max-stack: 1
+
+gamble_btn_even:
+  material: paper
+  name: "<white>짝 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_even
+  max-stack: 1
+
+gamble_btn_ready:
+  material: paper
+  name: "<white>준비 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_ready
+  max-stack: 1
+
+gamble_btn_leave:
+  material: paper
+  name: "<white>일어나기 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_leave
+  max-stack: 1
+
+gamble_whiteboard:
+  material: paper
+  name: "<white>화이트보드"
+  lore: ["<gray>도박장 표시용 · 오늘의 큰 판"]
+  model: gamble_whiteboard
+  max-stack: 1

@@ -1,7 +1,7 @@
 package dev.stsv.economy.hwatu;
 
 /**
- * The bots of the 시험 판 (/관리자 화투방 시험, README "화투방"): simple sensible play so the admin can try every game alone.
+ * The bots of the 시험 판 (/관리자 도박장 시험, README "도박장"): simple sensible play so the admin can try every game alone.
  * Pure (unit-tested); the randomness comes in as a number in [0, 1).
  *
  * <pre>
