@@ -1,7 +1,8 @@
 # 낚시. 바닐라처럼 찌가 물에 잠길 때 우클릭하면 낚아 올림 (늦으면 놓침). 무엇이 걸릴지는 아래 물고기 중에서:
 # 그 물(서식지)과 때(시간·날씨)에 사는 것, 등급은 아래 확률로.
 # 희귀·전설이 걸릴 확률은 jobs.yml 어부의 finds.chance (직업이 아니면 outsider), 그중 전설이 legend-share.
-# 크기는 size 범위 안에서 정해지고 희귀·전설은 아이템에 크기가 붙어 매입가가 0.7 ~ 1.5배 (흔함·보통은 쌓이게 크기 없음).
+# 낚은 물고기에는 크기가 없음 (모두 겹쳐지고 값도 같음). size 는 낚시대회에서만 쓰는 글자 크기 (대어·작은 고기·무게 합계 종목).
+# color 는 낚시대회 색깔 종목의 색 묶음 (아래 colors).
 # 물고기 그림·이 파일은 tools/assetgen/economy_fish.py 가 만듭니다.
 
 legend-share: 0.05     # 희귀·전설 입질 중 전설 비율
@@ -53,6 +54,16 @@ rarities:
   rare: { name: "희귀", color: "#5aa8ff" }
   legend: { name: "전설", color: "#ffaa00" }
 
+# 낚시대회 색깔 종목: 물고기 그림의 주된 색으로 묶음 (모든 물고기에 color 가 하나씩)
+colors:
+  red: "붉은"
+  yellow: "노란"
+  blue: "푸른"
+  silver: "은빛"
+  brown: "갈색"
+  green: "초록"
+  dark: "검은"
+
 # 도감 묶음: 다 잡으면 칭호
 groups:
   sea: { name: "바다", title: economy:angler_sea }
@@ -71,101 +82,101 @@ groups:
 # habitat: sea, deep, warm, cold, river, coldriver, swamp, mangrove, jungle, cave, mushroom, fresh (민물 어디나), salt (바다 어디나)
 # when: night, dawn, dusk, rain, thunder, fullmoon
 species:
-  mackerel: { name: "고등어", habitat: sea, rarity: common, size: [25, 45], price: 5, shape: f }
-  horse_mackerel: { name: "전갱이", habitat: sea, rarity: common, size: [15, 35], price: 5, shape: f }
-  sardine: { name: "정어리", habitat: sea, rarity: common, size: [12, 25], price: 5, shape: f }
-  saury: { name: "꽁치", habitat: sea, rarity: common, size: [25, 40], price: 5, shape: l }
-  rockfish: { name: "우럭", habitat: sea, rarity: uncommon, size: [20, 45], price: 14, shape: f }
-  flatfish: { name: "광어", habitat: sea, rarity: uncommon, size: [30, 80], price: 18, shape: p }
-  greenling: { name: "노래미", habitat: sea, rarity: uncommon, size: [20, 40], price: 11, shape: f }
-  filefish: { name: "쥐치", habitat: sea, rarity: uncommon, size: [15, 30], price: 12, shape: f }
-  red_seabream: { name: "참돔", habitat: sea, rarity: rare, size: [30, 90], price: 60, shape: f }
-  yellowtail: { name: "방어", habitat: sea, rarity: rare, size: [50, 100], price: 60, shape: f }
-  hairtail: { name: "갈치", habitat: sea, rarity: rare, size: [60, 150], price: 53, shape: l }
-  bluefin_tuna: { name: "참다랑어", habitat: sea, rarity: legend, size: [120, 300], price: 375, shape: f }
-  cod: { name: "대구", habitat: deep, rarity: common, size: [40, 90], price: 5, shape: f, item: minecraft:cod }
-  pollack: { name: "명태", habitat: deep, rarity: common, size: [30, 60], price: 5, shape: f }
-  monkfish: { name: "아귀", habitat: deep, rarity: uncommon, size: [40, 100], price: 21, shape: p }
-  black_rockfish: { name: "볼락", habitat: deep, rarity: uncommon, size: [15, 30], price: 12, shape: f }
-  skate: { name: "홍어", habitat: deep, rarity: uncommon, size: [50, 120], price: 23, shape: p }
-  croaker: { name: "민어", habitat: deep, rarity: rare, size: [50, 110], price: 90, shape: f }
-  octopus: { name: "문어", habitat: deep, rarity: rare, size: [40, 150], price: 83, shape: q }
-  giant_squid: { name: "대왕오징어", habitat: deep, rarity: rare, size: [200, 600], price: 120, shape: q }
-  marlin: { name: "청새치", habitat: deep, rarity: legend, size: [180, 400], price: 780, shape: f }
-  lantern_angler: { name: "초롱아귀", habitat: deep, rarity: legend, size: [20, 60], price: 720, shape: p }
-  damselfish: { name: "자리돔", habitat: warm, rarity: common, size: [8, 18], price: 5, shape: f }
-  clownfish: { name: "흰동가리", habitat: warm, rarity: common, size: [6, 12], price: 6, shape: f }
-  pufferfish: { name: "복어", habitat: warm, rarity: common, size: [10, 30], price: 6, shape: p, item: minecraft:pufferfish }
-  butterflyfish: { name: "나비고기", habitat: warm, rarity: uncommon, size: [10, 20], price: 12, shape: p }
-  tang: { name: "쥐돔", habitat: warm, rarity: uncommon, size: [15, 35], price: 14, shape: p }
-  lionfish: { name: "쏠배감펭", habitat: warm, rarity: uncommon, size: [20, 38], price: 20, shape: f }
-  mahi_mahi: { name: "만새기", habitat: warm, rarity: rare, size: [60, 150], price: 75, shape: f }
-  sunfish: { name: "개복치", habitat: warm, rarity: rare, size: [100, 300], price: 113, shape: p }
-  yellowfin_tuna: { name: "황다랑어", habitat: warm, rarity: rare, size: [80, 200], price: 98, shape: f }
-  sailfish: { name: "돛새치", habitat: warm, rarity: legend, size: [150, 340], price: 750, shape: f }
-  whale_shark: { name: "고래상어", habitat: warm, rarity: legend, size: [500, 1200], price: 900, shape: f }
-  herring: { name: "청어", habitat: cold, rarity: common, size: [20, 40], price: 5, shape: f }
-  sandfish: { name: "도루묵", habitat: cold, rarity: common, size: [15, 26], price: 5, shape: f }
-  salmon: { name: "연어", habitat: cold, rarity: common, size: [50, 100], price: 5, shape: f, item: minecraft:salmon }
-  atka_mackerel: { name: "임연수어", habitat: cold, rarity: uncommon, size: [30, 50], price: 12, shape: f }
-  sand_lance: { name: "양미리", habitat: cold, rarity: uncommon, size: [10, 20], price: 9, shape: l }
-  snow_crab: { name: "대게", habitat: cold, rarity: rare, size: [20, 40], price: 90, shape: c }
-  king_crab: { name: "킹크랩", habitat: cold, rarity: rare, size: [40, 90], price: 120, shape: c }
-  greenland_shark: { name: "그린란드상어", habitat: cold, rarity: legend, size: [250, 600], price: 825, shape: f }
-  pale_chub: { name: "피라미", habitat: river, rarity: common, size: [8, 15], price: 3, shape: f }
-  crucian_carp: { name: "붕어", habitat: river, rarity: common, size: [10, 35], price: 5, shape: f }
-  carp: { name: "잉어", habitat: river, rarity: uncommon, size: [30, 90], price: 15, shape: f }
-  catfish: { name: "메기", habitat: river, rarity: uncommon, size: [30, 100], price: 17, shape: l }
-  bitterling: { name: "납자루", habitat: river, rarity: uncommon, size: [5, 10], price: 9, shape: f }
-  mandarin_fish: { name: "쏘가리", habitat: river, rarity: rare, size: [20, 50], price: 68, shape: f }
-  kkeokji: { name: "꺽지", habitat: river, rarity: rare, size: [10, 20], price: 45, shape: f }
-  bagrid_catfish: { name: "동자개", habitat: river, rarity: rare, size: [15, 30], price: 42, shape: l }
-  sturgeon: { name: "철갑상어", habitat: river, rarity: legend, size: [100, 300], price: 450, shape: l }
-  dragon_carp: { name: "용잉어", habitat: river, rarity: legend, size: [90, 140], price: 675, shape: f }
-  smelt: { name: "빙어", habitat: coldriver, rarity: common, size: [7, 15], price: 3, shape: f }
-  lenok: { name: "열목어", habitat: coldriver, rarity: uncommon, size: [30, 70], price: 18, shape: f }
-  dace: { name: "황어", habitat: coldriver, rarity: uncommon, size: [25, 45], price: 12, shape: f }
-  masu_salmon: { name: "산천어", habitat: coldriver, rarity: rare, size: [20, 40], price: 57, shape: f }
-  trout: { name: "송어", habitat: coldriver, rarity: rare, size: [30, 70], price: 60, shape: f }
-  char: { name: "곤들매기", habitat: coldriver, rarity: rare, size: [30, 70], price: 72, shape: f }
-  taimen: { name: "타이멘", habitat: coldriver, rarity: legend, size: [100, 200], price: 780, shape: f }
-  loach: { name: "미꾸라지", habitat: swamp, rarity: common, size: [8, 18], price: 3, shape: l }
-  paradise_fish: { name: "버들붕어", habitat: swamp, rarity: common, size: [6, 12], price: 5, shape: f }
-  snakehead: { name: "가물치", habitat: swamp, rarity: uncommon, size: [40, 90], price: 20, shape: l }
-  swamp_eel: { name: "드렁허리", habitat: swamp, rarity: uncommon, size: [30, 60], price: 14, shape: l }
-  softshell_turtle: { name: "자라", habitat: swamp, rarity: rare, size: [15, 40], price: 83, shape: p }
-  eel: { name: "뱀장어", habitat: swamp, rarity: rare, size: [40, 100], price: 75, shape: l }
-  giant_snakehead: { name: "거대 가물치", habitat: swamp, rarity: legend, size: [100, 180], price: 720, shape: l }
-  goby: { name: "망둥어", habitat: mangrove, rarity: common, size: [8, 20], price: 5, shape: f }
-  mudskipper: { name: "짱뚱어", habitat: mangrove, rarity: uncommon, size: [10, 20], price: 14, shape: f }
-  mullet: { name: "숭어", habitat: mangrove, rarity: uncommon, size: [30, 70], price: 12, shape: f }
-  mud_crab: { name: "머드크랩", habitat: mangrove, rarity: rare, size: [15, 25], price: 72, shape: c }
-  barramundi: { name: "바라문디", habitat: mangrove, rarity: rare, size: [60, 150], price: 83, shape: f }
-  king_mudskipper: { name: "왕짱뚱어", habitat: mangrove, rarity: legend, size: [30, 50], price: 630, shape: f }
-  guppy: { name: "구피", habitat: jungle, rarity: common, size: [3, 6], price: 5, shape: f }
-  neon_tetra: { name: "네온테트라", habitat: jungle, rarity: common, size: [3, 4], price: 6, shape: f }
-  tilapia: { name: "틸라피아", habitat: jungle, rarity: uncommon, size: [20, 45], price: 11, shape: f }
-  angelfish: { name: "엔젤피시", habitat: jungle, rarity: uncommon, size: [10, 20], price: 18, shape: p }
-  piranha: { name: "피라냐", habitat: jungle, rarity: rare, size: [20, 35], price: 68, shape: f }
-  discus: { name: "디스커스", habitat: jungle, rarity: rare, size: [15, 25], price: 90, shape: p }
-  arowana: { name: "아로와나", habitat: jungle, rarity: legend, size: [60, 120], price: 840, shape: l }
-  arapaima: { name: "피라루쿠", habitat: jungle, rarity: legend, size: [200, 450], price: 900, shape: l }
-  cavefish: { name: "장님물고기", habitat: cave, rarity: common, size: [6, 12], price: 5, shape: f }
-  cave_shrimp: { name: "동굴 새우", habitat: cave, rarity: common, size: [4, 8], price: 5, shape: c }
-  cave_crayfish: { name: "동굴 가재", habitat: cave, rarity: uncommon, size: [8, 15], price: 15, shape: c }
-  moss_minnow: { name: "이끼 피라미", habitat: cave, rarity: uncommon, size: [8, 15], price: 12, shape: f }
-  crystal_trout: { name: "수정 송어", habitat: cave, rarity: rare, size: [25, 50], price: 105, shape: f }
-  glow_jellyfish: { name: "발광 해파리", habitat: cave, rarity: rare, size: [10, 30], price: 98, shape: q }
-  abyssfish: { name: "심연어", habitat: cave, rarity: legend, size: [80, 160], price: 870, shape: l }
-  petal_carp: { name: "꽃잎 잉어", habitat: cave, rarity: legend, size: [40, 80], price: 750, shape: f }
-  spore_goby: { name: "포자 망둥어", habitat: mushroom, rarity: uncommon, size: [10, 20], price: 23, shape: f }
-  mushroom_puffer: { name: "버섯 복어", habitat: mushroom, rarity: rare, size: [15, 30], price: 105, shape: p }
-  mycelium_ray: { name: "균사 가오리", habitat: mushroom, rarity: legend, size: [80, 160], price: 780, shape: p }
-  sweetfish: { name: "은어", habitat: fresh, rarity: uncommon, size: [15, 30], price: 15, shape: f, when: night }
-  pike_conger: { name: "갯장어", habitat: salt, rarity: uncommon, size: [60, 150], price: 18, shape: l, when: night }
-  golden_crucian: { name: "황금 붕어", habitat: fresh, rarity: rare, size: [20, 40], price: 90, shape: f, when: dawn }
-  sunset_bream: { name: "노을 도미", habitat: salt, rarity: rare, size: [30, 70], price: 83, shape: f, when: dusk }
-  rainbow_trout: { name: "무지개송어", habitat: fresh, rarity: rare, size: [30, 70], price: 75, shape: f, when: rain }
-  moonlight_ray: { name: "달빛 가오리", habitat: salt, rarity: legend, size: [80, 200], price: 720, shape: p, when: night }
-  thunder_catfish: { name: "천둥 메기", habitat: fresh, rarity: legend, size: [100, 250], price: 780, shape: l, when: thunder }
-  moon_goldfish: { name: "달 금붕어", habitat: fresh, rarity: legend, size: [15, 40], price: 750, shape: f, when: fullmoon }
+  mackerel: { name: "고등어", habitat: sea, rarity: common, size: [25, 45], price: 5, shape: f, color: blue }
+  horse_mackerel: { name: "전갱이", habitat: sea, rarity: common, size: [15, 35], price: 5, shape: f, color: silver }
+  sardine: { name: "정어리", habitat: sea, rarity: common, size: [12, 25], price: 5, shape: f, color: blue }
+  saury: { name: "꽁치", habitat: sea, rarity: common, size: [25, 40], price: 5, shape: l, color: blue }
+  rockfish: { name: "우럭", habitat: sea, rarity: uncommon, size: [20, 45], price: 14, shape: f, color: dark }
+  flatfish: { name: "광어", habitat: sea, rarity: uncommon, size: [30, 80], price: 18, shape: p, color: brown }
+  greenling: { name: "노래미", habitat: sea, rarity: uncommon, size: [20, 40], price: 11, shape: f, color: brown }
+  filefish: { name: "쥐치", habitat: sea, rarity: uncommon, size: [15, 30], price: 12, shape: f, color: yellow }
+  red_seabream: { name: "참돔", habitat: sea, rarity: rare, size: [30, 90], price: 60, shape: f, color: red }
+  yellowtail: { name: "방어", habitat: sea, rarity: rare, size: [50, 100], price: 60, shape: f, color: blue }
+  hairtail: { name: "갈치", habitat: sea, rarity: rare, size: [60, 150], price: 53, shape: l, color: silver }
+  bluefin_tuna: { name: "참다랑어", habitat: sea, rarity: legend, size: [120, 300], price: 375, shape: f, color: blue }
+  cod: { name: "대구", habitat: deep, rarity: common, size: [40, 90], price: 5, shape: f, item: minecraft:cod, color: brown }
+  pollack: { name: "명태", habitat: deep, rarity: common, size: [30, 60], price: 5, shape: f, color: silver }
+  monkfish: { name: "아귀", habitat: deep, rarity: uncommon, size: [40, 100], price: 21, shape: p, color: brown }
+  black_rockfish: { name: "볼락", habitat: deep, rarity: uncommon, size: [15, 30], price: 12, shape: f, color: red }
+  skate: { name: "홍어", habitat: deep, rarity: uncommon, size: [50, 120], price: 23, shape: p, color: brown }
+  croaker: { name: "민어", habitat: deep, rarity: rare, size: [50, 110], price: 90, shape: f, color: brown }
+  octopus: { name: "문어", habitat: deep, rarity: rare, size: [40, 150], price: 83, shape: q, color: red }
+  giant_squid: { name: "대왕오징어", habitat: deep, rarity: rare, size: [200, 600], price: 120, shape: q, color: red }
+  marlin: { name: "청새치", habitat: deep, rarity: legend, size: [180, 400], price: 780, shape: f, color: blue }
+  lantern_angler: { name: "초롱아귀", habitat: deep, rarity: legend, size: [20, 60], price: 720, shape: p, color: dark }
+  damselfish: { name: "자리돔", habitat: warm, rarity: common, size: [8, 18], price: 5, shape: f, color: blue }
+  clownfish: { name: "흰동가리", habitat: warm, rarity: common, size: [6, 12], price: 6, shape: f, color: red }
+  pufferfish: { name: "복어", habitat: warm, rarity: common, size: [10, 30], price: 6, shape: p, item: minecraft:pufferfish, color: yellow }
+  butterflyfish: { name: "나비고기", habitat: warm, rarity: uncommon, size: [10, 20], price: 12, shape: p, color: yellow }
+  tang: { name: "쥐돔", habitat: warm, rarity: uncommon, size: [15, 35], price: 14, shape: p, color: blue }
+  lionfish: { name: "쏠배감펭", habitat: warm, rarity: uncommon, size: [20, 38], price: 20, shape: f, color: red }
+  mahi_mahi: { name: "만새기", habitat: warm, rarity: rare, size: [60, 150], price: 75, shape: f, color: green }
+  sunfish: { name: "개복치", habitat: warm, rarity: rare, size: [100, 300], price: 113, shape: p, color: silver }
+  yellowfin_tuna: { name: "황다랑어", habitat: warm, rarity: rare, size: [80, 200], price: 98, shape: f, color: yellow }
+  sailfish: { name: "돛새치", habitat: warm, rarity: legend, size: [150, 340], price: 750, shape: f, color: blue }
+  whale_shark: { name: "고래상어", habitat: warm, rarity: legend, size: [500, 1200], price: 900, shape: f, color: blue }
+  herring: { name: "청어", habitat: cold, rarity: common, size: [20, 40], price: 5, shape: f, color: blue }
+  sandfish: { name: "도루묵", habitat: cold, rarity: common, size: [15, 26], price: 5, shape: f, color: brown }
+  salmon: { name: "연어", habitat: cold, rarity: common, size: [50, 100], price: 5, shape: f, item: minecraft:salmon, color: red }
+  atka_mackerel: { name: "임연수어", habitat: cold, rarity: uncommon, size: [30, 50], price: 12, shape: f, color: brown }
+  sand_lance: { name: "양미리", habitat: cold, rarity: uncommon, size: [10, 20], price: 9, shape: l, color: silver }
+  snow_crab: { name: "대게", habitat: cold, rarity: rare, size: [20, 40], price: 90, shape: c, color: red }
+  king_crab: { name: "킹크랩", habitat: cold, rarity: rare, size: [40, 90], price: 120, shape: c, color: red }
+  greenland_shark: { name: "그린란드상어", habitat: cold, rarity: legend, size: [250, 600], price: 825, shape: f, color: silver }
+  pale_chub: { name: "피라미", habitat: river, rarity: common, size: [8, 15], price: 3, shape: f, color: silver }
+  crucian_carp: { name: "붕어", habitat: river, rarity: common, size: [10, 35], price: 5, shape: f, color: brown }
+  carp: { name: "잉어", habitat: river, rarity: uncommon, size: [30, 90], price: 15, shape: f, color: yellow }
+  catfish: { name: "메기", habitat: river, rarity: uncommon, size: [30, 100], price: 17, shape: l, color: dark }
+  bitterling: { name: "납자루", habitat: river, rarity: uncommon, size: [5, 10], price: 9, shape: f, color: silver }
+  mandarin_fish: { name: "쏘가리", habitat: river, rarity: rare, size: [20, 50], price: 68, shape: f, color: yellow }
+  kkeokji: { name: "꺽지", habitat: river, rarity: rare, size: [10, 20], price: 45, shape: f, color: green }
+  bagrid_catfish: { name: "동자개", habitat: river, rarity: rare, size: [15, 30], price: 42, shape: l, color: yellow }
+  sturgeon: { name: "철갑상어", habitat: river, rarity: legend, size: [100, 300], price: 450, shape: l, color: silver }
+  dragon_carp: { name: "용잉어", habitat: river, rarity: legend, size: [90, 140], price: 675, shape: f, color: yellow }
+  smelt: { name: "빙어", habitat: coldriver, rarity: common, size: [7, 15], price: 3, shape: f, color: silver }
+  lenok: { name: "열목어", habitat: coldriver, rarity: uncommon, size: [30, 70], price: 18, shape: f, color: brown }
+  dace: { name: "황어", habitat: coldriver, rarity: uncommon, size: [25, 45], price: 12, shape: f, color: brown }
+  masu_salmon: { name: "산천어", habitat: coldriver, rarity: rare, size: [20, 40], price: 57, shape: f, color: green }
+  trout: { name: "송어", habitat: coldriver, rarity: rare, size: [30, 70], price: 60, shape: f, color: green }
+  char: { name: "곤들매기", habitat: coldriver, rarity: rare, size: [30, 70], price: 72, shape: f, color: silver }
+  taimen: { name: "타이멘", habitat: coldriver, rarity: legend, size: [100, 200], price: 780, shape: f, color: red }
+  loach: { name: "미꾸라지", habitat: swamp, rarity: common, size: [8, 18], price: 3, shape: l, color: brown }
+  paradise_fish: { name: "버들붕어", habitat: swamp, rarity: common, size: [6, 12], price: 5, shape: f, color: green }
+  snakehead: { name: "가물치", habitat: swamp, rarity: uncommon, size: [40, 90], price: 20, shape: l, color: dark }
+  swamp_eel: { name: "드렁허리", habitat: swamp, rarity: uncommon, size: [30, 60], price: 14, shape: l, color: brown }
+  softshell_turtle: { name: "자라", habitat: swamp, rarity: rare, size: [15, 40], price: 83, shape: p, color: green }
+  eel: { name: "뱀장어", habitat: swamp, rarity: rare, size: [40, 100], price: 75, shape: l, color: green }
+  giant_snakehead: { name: "거대 가물치", habitat: swamp, rarity: legend, size: [100, 180], price: 720, shape: l, color: dark }
+  goby: { name: "망둥어", habitat: mangrove, rarity: common, size: [8, 20], price: 5, shape: f, color: brown }
+  mudskipper: { name: "짱뚱어", habitat: mangrove, rarity: uncommon, size: [10, 20], price: 14, shape: f, color: dark }
+  mullet: { name: "숭어", habitat: mangrove, rarity: uncommon, size: [30, 70], price: 12, shape: f, color: silver }
+  mud_crab: { name: "머드크랩", habitat: mangrove, rarity: rare, size: [15, 25], price: 72, shape: c, color: green }
+  barramundi: { name: "바라문디", habitat: mangrove, rarity: rare, size: [60, 150], price: 83, shape: f, color: silver }
+  king_mudskipper: { name: "왕짱뚱어", habitat: mangrove, rarity: legend, size: [30, 50], price: 630, shape: f, color: dark }
+  guppy: { name: "구피", habitat: jungle, rarity: common, size: [3, 6], price: 5, shape: f, color: red }
+  neon_tetra: { name: "네온테트라", habitat: jungle, rarity: common, size: [3, 4], price: 6, shape: f, color: blue }
+  tilapia: { name: "틸라피아", habitat: jungle, rarity: uncommon, size: [20, 45], price: 11, shape: f, color: silver }
+  angelfish: { name: "엔젤피시", habitat: jungle, rarity: uncommon, size: [10, 20], price: 18, shape: p, color: silver }
+  piranha: { name: "피라냐", habitat: jungle, rarity: rare, size: [20, 35], price: 68, shape: f, color: silver }
+  discus: { name: "디스커스", habitat: jungle, rarity: rare, size: [15, 25], price: 90, shape: p, color: red }
+  arowana: { name: "아로와나", habitat: jungle, rarity: legend, size: [60, 120], price: 840, shape: l, color: yellow }
+  arapaima: { name: "피라루쿠", habitat: jungle, rarity: legend, size: [200, 450], price: 900, shape: l, color: dark }
+  cavefish: { name: "장님물고기", habitat: cave, rarity: common, size: [6, 12], price: 5, shape: f, color: silver }
+  cave_shrimp: { name: "동굴 새우", habitat: cave, rarity: common, size: [4, 8], price: 5, shape: c, color: silver }
+  cave_crayfish: { name: "동굴 가재", habitat: cave, rarity: uncommon, size: [8, 15], price: 15, shape: c, color: silver }
+  moss_minnow: { name: "이끼 피라미", habitat: cave, rarity: uncommon, size: [8, 15], price: 12, shape: f, color: green }
+  crystal_trout: { name: "수정 송어", habitat: cave, rarity: rare, size: [25, 50], price: 105, shape: f, color: blue }
+  glow_jellyfish: { name: "발광 해파리", habitat: cave, rarity: rare, size: [10, 30], price: 98, shape: q, color: blue }
+  abyssfish: { name: "심연어", habitat: cave, rarity: legend, size: [80, 160], price: 870, shape: l, color: dark }
+  petal_carp: { name: "꽃잎 잉어", habitat: cave, rarity: legend, size: [40, 80], price: 750, shape: f, color: red }
+  spore_goby: { name: "포자 망둥어", habitat: mushroom, rarity: uncommon, size: [10, 20], price: 23, shape: f, color: brown }
+  mushroom_puffer: { name: "버섯 복어", habitat: mushroom, rarity: rare, size: [15, 30], price: 105, shape: p, color: red }
+  mycelium_ray: { name: "균사 가오리", habitat: mushroom, rarity: legend, size: [80, 160], price: 780, shape: p, color: brown }
+  sweetfish: { name: "은어", habitat: fresh, rarity: uncommon, size: [15, 30], price: 15, shape: f, when: night, color: silver }
+  pike_conger: { name: "갯장어", habitat: salt, rarity: uncommon, size: [60, 150], price: 18, shape: l, when: night, color: dark }
+  golden_crucian: { name: "황금 붕어", habitat: fresh, rarity: rare, size: [20, 40], price: 90, shape: f, when: dawn, color: yellow }
+  sunset_bream: { name: "노을 도미", habitat: salt, rarity: rare, size: [30, 70], price: 83, shape: f, when: dusk, color: red }
+  rainbow_trout: { name: "무지개송어", habitat: fresh, rarity: rare, size: [30, 70], price: 75, shape: f, when: rain, color: green }
+  moonlight_ray: { name: "달빛 가오리", habitat: salt, rarity: legend, size: [80, 200], price: 720, shape: p, when: night, color: blue }
+  thunder_catfish: { name: "천둥 메기", habitat: fresh, rarity: legend, size: [100, 250], price: 780, shape: l, when: thunder, color: dark }
+  moon_goldfish: { name: "달 금붕어", habitat: fresh, rarity: legend, size: [15, 40], price: 750, shape: f, when: fullmoon, color: yellow }

@@ -1241,7 +1241,7 @@ types:
     fare: 0.5
     scale: 0.8
     prank: 0.5
-    skins: ["economy:entity/bus/prankster_1", "economy:entity/bus/prankster_2", "economy:entity/bus/prankster_3"]
+    skins: ["economy:entity/bus/prankster_1", "economy:entity/bus/prankster_2", "economy:entity/bus/prankster_3 slim"]
     talk:
       board: ["히히 버스 탔다~", "아저씨 안녕~ 히히", "(벨을 만지작거린다)"]
       prank: ["(띵동!) 히히히 눌러 봤지롱~", "내리는 사람 없는데~ 메롱~", "(벨 누르고 딴청) 휘~휘~"]
@@ -1321,7 +1321,7 @@ types:
     slow: 0.5
     mood: 0.5
     hours: [8, 18]
-    skins: ["economy:entity/bus/mailman_1", "economy:entity/bus/mailman_2", "economy:entity/bus/mailman_3"]
+    skins: ["economy:entity/bus/mailman_1", "economy:entity/bus/mailman_2 slim", "economy:entity/bus/mailman_3"]
     talk:
       board: ["우편이요~ 아니 손님이요~ 하하", "배달 가는 길입니다!", "편지 한가득이네요"]
       jolt: ["편지 날아간다!", "어이쿠 소포!"]
@@ -1336,7 +1336,7 @@ types:
     gift-chance: 0.3
     gift-mood: 70
     gifts: [{item: economy:hotteok, amount: 1}]
-    skins: ["economy:entity/bus/bungeo_1", "economy:entity/bus/bungeo_2", "economy:entity/bus/bungeo_3"]
+    skins: ["economy:entity/bus/bungeo_1", "economy:entity/bus/bungeo_2 slim", "economy:entity/bus/bungeo_3"]
     talk:
       board: ["아이고 춥다 추워~", "장사하러 가요~ 오늘 반죽 넉넉히 했어", "(손을 호호 분다)"]
       jolt: ["반죽 쏟아질라!", "어이쿠, 팥 앙금!"]

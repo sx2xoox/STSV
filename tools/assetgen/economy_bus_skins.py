@@ -10,13 +10,18 @@ textures, so nothing is uploaded to Mojang.
 A texture at assets/economy/textures/entity/bus/<id>.png is the key "economy:entity/bus/<id>"
 (ResolvableProfile.skinPatch().body(key), with .model(SLIM) for the slim ones: see SLIM / main()).
 
-Twenty-eight passenger types, three of each: 동네 주민 resident, 학생 student, 할머니 grandma, 회사원 office,
+Fifty-three passenger types, three of each: 동네 주민 resident, 학생 student, 할머니 grandma, 회사원 office,
 관광객 tourist, VIP, and the second batch 농부 farmer, 등산객 hiker, 낚시꾼 fisher, 군인 soldier (on leave, no
 insignia), 커플 couple, 술 취한 아저씨 drunk, and the third batch 택배기사 courier, 유치원생 kinder, 캠핑족 camper,
 해녀 haenyeo, 야구팬 fan (an invented team), 간호사 nurse, and the fourth batch 수다쟁이 아줌마 chatty, 멀미하는 아저씨
 motionsick, 애 업은 엄마 mom, 강아지 데려온 할아버지 dogwalker (the dog is not here), 수상한 선글라스 남자 shades (the same man
 three times), 산타 할아버지 santa, 유령 손님 ghost, 배달 라이더 rider, 스님 monk, 유튜버 youtuber (no logos, no real team or
-company colours). Colours are flat per area; the depth comes from the outer layer (hair volume, hats,
+company colours), and the fifth batch 시장 아줌마 market, 동네 아저씨 uncle, 대학생 univ, 공사장 인부 worker, 초등학생 kid,
+닭 든 할머니 chicken (the hen on her chest), 지각생 tardy, 면접 청년 interview, 엿장수 yeot, 외국인 여행객 traveler (no
+flags), 큰소리 통화남 phone, 반말 아저씨 rude, 무임승차 청년 dodger, 벨 장난 꼬마 prankster, 쩍벌남 spread, 민원 아줌마
+complainer, 과자 부스러기 학생 crumbs, 친절한 신사 gentleman, 무당 shaman, 우체부 mailman (no emblem), 붕어빵 장수 bungeo,
+신혼부부 bride (bride, groom, 한복 bride), 경찰 police (no badge or lettering), 마술사 magician, 씨름 선수 wrestler.
+Colours are flat per area; the depth comes from the outer layer (hair volume, hats,
 jackets, cardigans, backpacks, glasses) and one shared light pass (finish()), so faces stay clean: eyes are
 a white pixel and a pupil, the mouth two pixels.
 """
@@ -3291,6 +3296,1845 @@ def youtuber(v):
     return s
 
 
+# ---------------------------------------------------------------------------------------------
+# helpers for the fifth batch
+# ---------------------------------------------------------------------------------------------
+
+CLEAR = (0, 0, 0, 0)                                      # paint this to take a pixel away again
+
+
+def angry_brows(col):
+    """grumpy brows: the inner ends pulled down to the eyes (row 3), the outer ends up (row 2)"""
+    B = C(col)
+    return lambda s: s.paint("head", lambda fc, x, y, w, h: B if fc == "front" and (x, y) in ((1, 2), (2, 3), (5, 3), (6, 2)) else None)
+
+
+def worried_brows(col):
+    """brows tilted up in the middle (nervous): the inner ends in row 2, the outer ends in row 3"""
+    B = C(col)
+    return lambda s: s.paint("head", lambda fc, x, y, w, h: B if fc == "front" and (x, y) in ((1, 3), (2, 2), (5, 2), (6, 3)) else None)
+
+
+def frown(col):
+    """a stern turned-down mouth: the mouth row 6, its corners dropped to row 7"""
+    return lambda s: s.paint("head", lambda fc, x, y, w, h: C(col) if fc == "front" and (x, y) in ((3, 6), (4, 6), (2, 7), (5, 7)) else None)
+
+
+def toothpick(col="e8d49a"):
+    """a toothpick out of the corner of the mouth"""
+    return lambda s: s.paint("head", lambda fc, x, y, w, h: (C(col) if x == 5 else shade(C(col), 1.1))
+                             if fc == "front" and (x, y) in ((5, 6), (6, 6)) else None)
+
+
+def grin(col, teeth="fafafa"):
+    """a cheeky lopsided grin: teeth showing in row 6, one corner hitched up into row 5, the lower lip in row 7"""
+    def f(fc, x, y, w, h):
+        if fc != "front":
+            return None
+        if (x, y) in ((2, 6), (5, 6), (6, 5), (3, 7), (4, 7)):
+            return C(col)
+        if y == 6 and x in (3, 4):
+            return C(teeth)
+        return None
+    return lambda s: s.paint("head", f)
+
+
+def side_cap(col, bill):
+    """a cap turned sideways: the crown over the top and rows 0-1, the bill sticking out over the wearer's right ear"""
+    K, B = C(col), C(bill)
+
+    def f(fc, x, y, w, h):
+        if fc == "top":
+            return K
+        if fc == "bottom":
+            return None
+        if y <= 1:
+            return None if (fc == "left" and y == 1 and fwd(fc, x, 8) in (3, 4)) else K   # the strap gap at the other side
+        if y == 2 and fc == "right" and 1 <= fwd(fc, x, 8) <= 6:
+            return B
+        if y == 2 and fc == "front" and x == 0:
+            return B
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def shades_up(lens, frame):
+    """sunglasses pushed up onto the head (outer layer, row 1 over the hair)"""
+    L, F = C(lens), C(frame)
+
+    def f(fc, x, y, w, h):
+        if fc == "front" and y == 1:
+            if x in (1, 2, 5, 6):
+                return shade(L, 1.6) if x in (1, 5) else L
+            return F
+        if fc == "front" and y == 0 and x in (1, 2, 5, 6):
+            return F
+        if fc in SIDES and y == 1 and fwd(fc, x, 8) <= 4:
+            return F
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def big_visor(col):
+    """a big sun visor (썬캡): a band round row 1, a deep peak over the brows that wraps round onto the sides"""
+    K = C(col)
+
+    def f(fc, x, y, w, h):
+        if fc in ("top", "bottom"):
+            return None
+        if y == 1:
+            return shade(K, 1.08) if fc == "front" else K
+        if y == 2 and (fc == "front" or (fc in SIDES and fwd(fc, x, 8) <= 2)):
+            return shade(K, 0.84)
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def hard_hat(col):
+    """a construction hard hat (outer layer): the dome over the top with a ridge down the middle, rows 0-1, a brim
+    in row 2 all round"""
+    K = C(col)
+
+    def f(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return shade(K, 1.12) if x in (3, 4) else K
+        if fc == "front" and y <= 1 and x in (3, 4):
+            return shade(K, 1.12)                         # the ridge
+        if y <= 1:
+            return K
+        if y == 2:
+            return shade(K, 0.8)                          # the brim
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def head_towel(col, line):
+    """a towel tied over the head (수건): over the top and rows 0-1, its woven border in row 2, the knot at the
+    forehead"""
+    T, L = C(col), C(line)
+
+    def f(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return shade(T, 0.94) if (x + y) % 3 == 0 else T
+        if fc == "front" and y <= 1 and x in (3, 4):
+            return shade(T, 0.82) if y == 1 else shade(T, 0.9)   # the knot
+        if y <= 1:
+            return T
+        if y == 2:
+            return L
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def earbud_wire(col="f4f4f4"):
+    """wired earphones: a white bud in each ear, the wires down the neck to a Y on the chest and into a pocket"""
+    E = C(col)
+    path = ((2, 0), (2, 1), (3, 2), (5, 0), (5, 1), (4, 2), (4, 3), (4, 4), (4, 5), (4, 6))
+
+    def hf(fc, x, y, w, h):
+        if fc in SIDES and fwd(fc, x, 8) == 3 and 4 <= y <= 7:
+            return E if y > 4 else shade(E, 1.05)
+        return None
+
+    def bf(fc, x, y, w, h):
+        if fc == "front" and (x, y) in path:
+            return E
+        return None
+
+    def apply(s):
+        s.paint("head", hf, 1)
+        s.paint("body", bf, 1)
+    return apply
+
+
+def hivis(s, col, strip, neck=True):
+    """a high-visibility vest (body outer layer): no sleeves, two reflective bands round the body (rows 5, 9) and
+    up over the shoulders, a V neck"""
+    V, S = C(col), C(strip)
+
+    def f(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return S if x in (1, 6) else V
+        if neck and fc == "front" and ((y == 0 and 2 <= x <= 5) or (y in (1, 2) and x in (3, 4))):
+            return None
+        if y in (5, 9):
+            return S
+        if fc in ("front", "back") and x in (1, 6) and y < 5:
+            return S
+        if fc == "front" and x == 4 and y > 2:
+            return shade(V, 0.85)                         # the zip
+        return V
+    s.paint("body", f, 1)
+
+
+def specks(s, parts_, col, k=0, mod=9, layer=0):
+    """dust / crumbs: single pixels on a regular sprinkle over the given parts' side faces"""
+    D = C(col)
+    for p in parts_:
+        s.paint(p, lambda fc, x, y, w, h: D if fc not in ("top", "bottom") and (x * 4 + y * 3 + k) % mod == 0 else None, layer)
+
+
+def mombbae(s, pattern, shoe):
+    """몸빼 trousers: the flowery pattern, the gathered cuff in row 10, rubber shoes"""
+    for lg in ("rleg", "lleg"):
+        def f(fc, x, y, w, h):
+            if fc == "bottom":
+                return shade(C(shoe), 0.8)
+            if y == 11:
+                return C(shoe)
+            if fc == "top":
+                return pattern(0, 1)
+            if y == 10:
+                return shade(pattern(1, 2), 0.82)
+            return pattern(x, y)
+        s.paint(lg, f)
+
+
+def apron(s, col, tie, pocket=True, bib=True, pattern=None, legs_rows=4):
+    """an apron (body outer layer): a bib up the chest on a neck strap, the skirt rows 4-11 and on over the front of
+    the thighs, ties round the waist (row 5), a pocket"""
+    A, T = C(col), C(tie)
+
+    def at(x, y):
+        return pattern(x, y) if pattern else A
+
+    def f(fc, x, y, w, h):
+        if fc == "front":
+            if bib and y <= 3:
+                if 2 <= x <= 5:
+                    return at(x, y)
+                return T if (y == 0 and x in (1, 6)) else None
+            if not bib and y < 5:
+                return None
+            if y == 5:
+                return T if x in (0, 7) else at(x, y)
+            if pocket and 7 <= y <= 9 and 2 <= x <= 5:
+                return shade(A, 0.82) if y == 7 else shade(at(x, y), 0.94)
+            return at(x, y)
+        if fc in SIDES:
+            return T if y == 5 else None
+        if fc == "back":
+            if y == 5 or (x in (3, 4) and y in (6, 7)):
+                return T                                  # the bow at the back
+            if y == 0 and 1 <= x <= 6:
+                return T if bib else None
+        if fc == "top" and bib and x in (1, 6):
+            return T
+        return None
+    s.paint("body", f, 1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: (shade(at(x, y), 0.86) if y == legs_rows - 1 else at(x, y))
+                if fc == "front" and y < legs_rows else None, 1)
+
+
+def toshi(s, pattern, edge):
+    """arm covers (토시) over the forearms (outer layer rows 4-9), elastic at both ends"""
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: (C(edge) if y in (4, 9) else pattern(x, y))
+                if 4 <= y <= 9 and fc not in ("top", "bottom") else None, 1)
+
+
+def chicken(s, white="f6f4ee", comb="e0302a", beak="f0a020", skin="e0aa84"):
+    """a white hen held at the chest (body outer layer): her head with a red comb and an orange beak looking out
+    to the wearer's right, the round body, a grey wing, the tail at the other side, the hands under her"""
+    W, Cb, Bk = C(white), C(comb), C(beak)
+    shape = {(5, 1): Cb, (6, 1): Cb,
+             (4, 2): W, (5, 2): W, (6, 2): W,
+             (3, 3): Bk, (4, 3): W, (5, 3): C("1a1a1a"), (6, 3): W, (0, 3): W,
+             (4, 4): Cb, (5, 4): W, (6, 4): W, (0, 4): W, (1, 4): W,
+             (2, 8): W, (3, 8): W, (4, 8): W, (5, 8): W}
+    for x in range(0, 7):
+        shape[(x, 5)] = W
+    for x in range(1, 7):
+        shape[(x, 6)] = W
+        shape[(x, 7)] = W
+    for p in ((2, 6), (3, 6), (4, 6), (3, 7), (4, 7)):
+        shape[p] = shade(W, 0.84)                         # the wing
+    shape[(1, 8)] = C(skin)                                # the hands under her
+    shape[(6, 8)] = C(skin)
+    shape[(0, 7)] = C(skin)
+    shape[(7, 7)] = C(skin)
+
+    def f(fc, x, y, w, h):
+        if fc == "front":
+            return shape.get((x, y))
+        if fc == "right" and fwd(fc, x) == 0 and 3 <= y <= 7:
+            return W                                       # her tail round the side
+        return None
+    s.paint("body", f, 1)
+
+
+def toast(crust="b8743a", bread="f4d898"):
+    """a slice of toast held in the mouth (head outer layer): 4 x 3 at the mouth, a crust round a pale middle"""
+    def f(fc, x, y, w, h):
+        if fc == "front" and 3 <= x <= 6 and 5 <= y <= 7:
+            if y == 6 and x in (4, 5):
+                return C(bread)
+            if (x, y) == (3, 5):
+                return None                               # a bite out of the corner
+            return C(crust)
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def held_folder(s, col, paper="f8f8f4", arm="larm"):
+    """a document folder held at the side: rows 6-11 of the arm's outer layer, papers showing at its top edge"""
+    F, P = C(col), C(paper)
+
+    def f(fc, x, y, w, h):
+        if fc in ("top", "bottom") or y < 6:
+            return None
+        if y == 6:
+            return P if fc in ("front", "back") else F
+        if fc == "front" and y == 9 and x == w - 1:
+            return C("d8d8d8")                            # the clip
+        return F
+    s.paint(arm, f, 1)
+
+
+def yeot_scissors(s, metal="c8ccd2", grip="3a2a22", arm="rarm"):
+    """the 엿장수's big iron scissors in the hand (arm outer layer): the blades open in a V above the fist"""
+    M, G = C(metal), C(grip)
+
+    def f(fc, x, y, w, h):
+        if fc != "front":
+            return M if (fc in SIDES and 4 <= y <= 7 and fwd(fc, x) == 0) else None
+        if y in (4, 5) and x in (0, w - 1):
+            return shade(M, 1.12)
+        if y in (6, 7) and x in (1, w - 2):
+            return M
+        if y == 8 and 1 <= x <= w - 2:
+            return C("6a6e74")                            # the rivet
+        if y == 10 and x in (0, w - 1):
+            return G                                      # the handles round the fist
+        return None
+    s.paint(arm, f, 1)
+
+
+def phone_at_ear(skin, case, screen="2a2a30"):
+    """a phone pressed to the right ear by a raised hand (head outer layer): the phone on the side of the head, the
+    hand round it, the fingers and the phone showing at the face's edge"""
+    Sk, Ca, Sc = C(skin), C(case), C(screen)
+
+    def f(fc, x, y, w, h):
+        if fc == "right":
+            g = fwd(fc, x, 8)
+            if 1 <= g <= 4 and 2 <= y <= 6:
+                if g in (2, 3) and 3 <= y <= 5:
+                    return Sc
+                return Ca
+            if 1 <= g <= 5 and y == 7 or (g == 5 and 4 <= y <= 6):
+                return Sk                                  # the hand
+        if fc == "front" and x == 0:
+            if 2 <= y <= 4:
+                return Ca
+            if 5 <= y <= 7:
+                return Sk
+        if fc == "bottom" and x == 0 and y >= 5:
+            return Sk
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def gold_chain(col="e8c25a"):
+    """a chunky gold chain round the neck, lying on the chest (outer layer)"""
+    G = C(col)
+    path = ((2, 0), (2, 1), (2, 2), (3, 3), (4, 3), (5, 2), (5, 1), (5, 0))
+
+    def f(fc, x, y, w, h):
+        if fc == "front" and (x, y) in path:
+            return G if (x + y) % 2 else shade(G, 1.18)
+        if fc == "back" and y == 0 and 2 <= x <= 5:
+            return G
+        return None
+    return lambda s: s.paint("body", f, layer=1)
+
+
+def big_backpack(s, col, strap, cover=None):
+    """a big school bag for a small kid: over the whole back (rows 0-10), bulging round the sides, a reflector, a
+    yellow safety cover over its bottom half if given; straps down the front"""
+    B, S = C(col), C(strap)
+    Cv = C(cover) if cover else None
+
+    def f(fc, x, y, w, h):
+        if fc == "back":
+            if y <= 10:
+                if y == 0:
+                    return shade(B, 1.1)
+                if y == 3:
+                    return shade(B, 0.8)                  # the flap's edge
+                if Cv and y >= 6:
+                    return Cv if y > 6 else shade(Cv, 0.85)
+                if (x, y) in ((3, 5), (4, 5)):
+                    return C("f4f4f4")                     # a reflector
+                return B
+            return None
+        if fc == "top":
+            return S if x in (1, 6) else (B if y >= 2 else None)
+        if fc in SIDES:
+            g = fwd(fc, x)
+            if g >= 2 and y <= 10:
+                return (Cv if Cv and y >= 6 else B)
+            return None
+        if fc == "front" and x in (1, 6) and y <= 8:
+            return S
+        return None
+    s.paint("body", f, 1)
+
+
+SAEKDONG = ("d8303a", "f2c43a", "2f6fd0", "f4f4f0", "3aa05a", "e86aa0")
+
+
+def saekdong(s, top, skin, start=2):
+    """색동 sleeves: the jacket colour at the shoulder, then rainbow stripes one row each down to the wrist"""
+    for a in ("rarm", "larm"):
+        def f(fc, x, y, w, h):
+            if fc == "bottom":
+                return C(skin)
+            if fc == "top" or y < start:
+                return C(top)
+            if y <= 9:
+                return C(SAEKDONG[(y - start) % len(SAEKDONG)])
+            if y == 10:
+                return C("f4f4f0")                         # the white cuff
+            return C(skin)
+        s.paint(a, f)
+
+
+def hanbok_body(top, skirt, ribbon, collar="f6f4ee", top_rows=5):
+    """a 저고리 and 치마: the short jacket rows 0..top_rows-1 with the white collar (동정) crossing, the long ribbon
+    (고름) hanging from the knot, the skirt below"""
+    T, S, R, Co = C(top), C(skirt), C(ribbon), C(collar)
+
+    def f(fc, x, y, w, h):
+        if fc == "front":
+            if (x, y) in ((1, 0), (2, 0), (3, 1), (4, 2), (5, 3)):
+                return Co
+            if (x, y) in ((5, top_rows - 1), (6, top_rows - 1)):
+                return shade(R, 0.85)                      # the knot
+            if x == 5 and top_rows <= y <= top_rows + 4 or x == 6 and top_rows <= y <= top_rows + 2:
+                return R                                   # the ribbon's ends
+        if fc == "top":
+            return T
+        if y < top_rows:
+            return T
+        if y == top_rows and fc != "bottom":
+            return shade(S, 0.88)                          # the skirt's waistband
+        return S
+    return f
+
+
+def long_skirt(s, col, shoe, pleat=0.9):
+    """a long skirt down to the ankles on both leg layers, pleats on the outer layer, shoes peeking out"""
+    K = C(col)
+    legs(s, col, shoe, shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: (shade(K, pleat) if x % 2 else K) if fc not in ("top", "bottom") and y <= 10 else None, 1)
+
+
+def goggal(col, flower1, flower2):
+    """a white peaked 고깔 (folded hat): over the top with the fold down the middle, rows 0-1, down over the ears,
+    paper flowers on the front"""
+    K = C(col)
+
+    def f(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return shade(K, 0.88) if x in (3, 4) else K
+        if fc == "front":
+            if y == 0 and x in (3, 4):
+                return shade(K, 0.88)                      # the fold
+            if (x, y) in ((1, 1), (6, 1)):
+                return C(flower1)
+            if (x, y) in ((2, 1), (5, 1)):
+                return C(flower2)
+            if y <= 1 or (y == 2 and x in (0, 7)):
+                return K
+            return None
+        if fc in SIDES:
+            return K if y <= 2 or (y <= 4 and fwd(fc, x, 8) >= 2) else None
+        if fc == "back":
+            return K if y <= 3 else None
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def jokduri(col, gem1, gem2):
+    """a bride's 족두리: a small black crown on the top of the head with jewels, a gold pin (비녀) through the hair
+    at the back"""
+    K = C(col)
+
+    def f(fc, x, y, w, h):
+        if fc == "top":
+            if 2 <= x <= 5 and 2 <= y <= 5:
+                return C(gem1) if (x, y) in ((3, 3), (4, 4)) else (C(gem2) if (x, y) in ((4, 3), (3, 4)) else K)
+            return None
+        if fc == "front" and y == 0 and 2 <= x <= 5:
+            return C(gem1) if x in (3, 4) else K
+        if fc == "back" and y == 0 and 2 <= x <= 5:
+            return K
+        if fc == "back" and y == 5 and 1 <= x <= 6:
+            return C("e8c25a")                             # the 비녀
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def yeonji(col="e0303a"):
+    """연지곤지: a red dot on each cheek and one on the forehead"""
+    return lambda s: s.paint("head", lambda fc, x, y, w, h: C(col) if fc == "front" and (x, y) in ((1, 5), (6, 5), (3, 2), (4, 2)) else None)
+
+
+def veil(col, tiara, gem):
+    """a bridal veil (outer layer): a tiara at the hairline, the veil over the back and the sides of the head and on
+    down the back of the body"""
+    V, T, G = C(col), C(tiara), C(gem)
+
+    def hf(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "front":
+            if y == 0 and 1 <= x <= 6:
+                return G if x in (3, 4) else T
+            return None
+        if fc == "top":
+            return T if y == 7 else (V if y <= 3 else None)
+        if fc == "back":
+            return shade(V, 0.96) if (x + y) % 4 == 0 else V
+        if fc in SIDES:
+            return V if fwd(fc, x, 8) >= 3 else None
+        return None
+
+    def bf(fc, x, y, w, h):
+        if fc == "back" and y <= 9 and not (y == 9 and x in (0, 7)):
+            return shade(V, 0.96) if (x + y) % 4 == 0 else V
+        if fc in SIDES and fwd(fc, x) == 3 and y <= 7:
+            return V
+        return None
+
+    def apply(s):
+        s.paint("head", hf, 1)
+        s.paint("body", bf, 1)
+    return apply
+
+
+def top_hat(col, band):
+    """a magician's top hat (outer layer): the crown over the top with a shine and rows 0, a band in row 1, the brim
+    in row 2 all round"""
+    K, B = C(col), C(band)
+
+    def f(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return shade(K, 1.6) if (x == 1 or y == 1) and 1 <= x <= 6 and 1 <= y <= 6 else K
+        if y == 0:
+            return shade(K, 1.5) if (fc == "front" and x == 1) else K
+        if y == 1:
+            return B
+        if y == 2:
+            return shade(K, 1.25)                          # the brim catching the light
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def cape(s, col, lining):
+    """a cape over the shoulders (outer layer): all over the back and the sides of the body and over the outer side
+    and the back of the arms, the lining showing along its front edges and the turned-up collar"""
+    K, L = C(col), C(lining)
+
+    def bf(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "front":
+            if x in (0, 7):
+                return L
+            if y == 0 and x in (1, 6):
+                return L
+            return None
+        if fc == "top":
+            return K
+        return K
+    s.paint("body", bf, 1)
+    for a, outer in (("rarm", "right"), ("larm", "left")):
+        s.paint(a, lambda fc, x, y, w, h, outer=outer: (K if fc in ("back", outer, "top") and y <= 10 else
+                                                      (L if fc == "front" and y <= 10 and x == (0 if outer == "right" else w - 1) else None)), 1)
+
+    def collar(fc, x, y, w, h):
+        if fc == "back" and y >= 6:
+            return L
+        if fc in SIDES and y >= 6 and fwd(fc, x, 8) >= 4:
+            return L
+        return None
+    s.paint("head", collar, 1)
+
+
+def police_cap(col, band, bill):
+    """a peaked uniform cap (outer layer, no badge): the crown over the top and row 0, a band in row 1, a shiny
+    black peak in row 2 at the front"""
+    K, B, P = C(col), C(band), C(bill)
+
+    def f(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return shade(K, 1.08) if 1 <= x <= 6 and 1 <= y <= 6 else K
+        if y == 0:
+            return K
+        if y == 1:
+            return B
+        if y == 2 and fc == "front":
+            return shade(P, 1.6) if x in (2, 3) else P
+        if y == 2 and fc in SIDES and fwd(fc, x, 8) == 0:
+            return P
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
+def mail_bag(s, strap, bag, letter):
+    """a postman's bag on a strap across the body (outer layer): the strap from the right shoulder down to the left
+    hip, the bag on the hip with a flap and letters peeking out"""
+    St, B, Lt = C(strap), C(bag), C(letter)
+
+    def f(fc, x, y, w, h):
+        if fc == "front":
+            if 4 <= x <= 7 and 7 <= y <= 11:
+                if y == 7:
+                    return shade(B, 0.8)                   # the flap
+                if y == 8 and x == 6:
+                    return C("d8c890")                     # the buckle
+                return B
+            if (x, y) in ((5, 6), (6, 6)):
+                return Lt                                  # letters
+            if 0 <= y <= 6 and x == y:
+                return St
+            return None
+        if fc == "back" and 0 <= y <= 7 and x == 7 - y:
+            return St
+        if fc == "top" and x == 0:
+            return St
+        if fc == "left" and 7 <= y <= 11 and fwd(fc, x) <= 1:
+            return B
+        return None
+    s.paint("body", f, 1)
+
+
+def map_in_hand(s, paper="f2e8c8", arm="larm"):
+    """a folded tourist map held open in the hand (arm outer layer rows 6-11): roads, a river, a red pin"""
+    P = C(paper)
+
+    def f(fc, x, y, w, h):
+        if fc in ("top",) or y < 6:
+            return None
+        if fc == "bottom":
+            return P
+        if fc == "front":
+            if (x, y) == (1, 8):
+                return C("e0303a")
+            if y == 9:
+                return C("5a9ad8")                         # a river
+            if x == w - 2:
+                return C("e09a3a")                         # a road
+            if y == 6:
+                return shade(P, 0.88)                      # the fold
+            return P
+        return P if fc != "back" else shade(P, 0.9)
+    s.paint(arm, f, 1)
+
+
+def bells(s, arm="rarm"):
+    """a bunch of shaman's bells (방울) in the fist (arm outer layer): a red ribbon, gold bells"""
+    G = C("e8c25a")
+
+    def f(fc, x, y, w, h):
+        if fc == "top":
+            return None
+        if y == 8:
+            return C("d8303a") if fc == "front" and x == 1 else None
+        if y >= 9 or fc == "bottom":
+            return G if (x + y) % 2 else shade(G, 0.78)
+        return None
+    s.paint(arm, f, 1)
+
+
+def hand_fan(s, arm="larm"):
+    """a folding fan held open in front of the hand (arm outer layer rows 5-9): coloured panels, the ribs"""
+    cols = [C(c) for c in ("d8303a", "f2c43a", "2f6fd0", "3aa05a")]
+
+    def f(fc, x, y, w, h):
+        if fc != "front":
+            return None
+        if 5 <= y <= 7:
+            return cols[(x + (y == 6)) % 4] if y != 5 else shade(cols[x % 4], 1.12)
+        if y == 8:
+            return C("8a5a2a")                             # the ribs
+        return None
+    s.paint(arm, f, 1)
+
+
+def stripes(c1, c2, every=2):
+    A, B = C(c1), C(c2)
+    return lambda x, y: A if y % every == 0 else B
+
+
+def bow_tie(col, knot=None):
+    """a bow tie at the collar (body front): two wings over rows 0-2, the knot between them"""
+    K = C(col)
+    Kn = C(knot) if knot else shade(K, 0.8)
+    return lambda fc, x, y: (K if fc == "front" and x in (2, 5) and y <= 2 else
+                             (Kn if fc == "front" and x in (3, 4) and y == 1 else None))
+
+
+def curl_mustache(col):
+    """a waxed handlebar mustache: row 6 under the nose, the tips curled up into row 5"""
+    return lambda s: s.paint("head", lambda fc, x, y, w, h: C(col) if fc == "front" and ((y == 6 and 2 <= x <= 5) or (x, y) in ((1, 5), (6, 5))) else None)
+
+
+def padded(col):
+    """a padded jacket: puffy bands, a seam every third row, a zip"""
+    K = C(col)
+
+    def f(fc, x, y, w, h):
+        if fc == "front" and x == 4 and y >= 1:
+            return shade(K, 0.72)
+        if fc == "front" and y == 0 and 2 <= x <= 5:
+            return shade(K, 0.85)                         # the collar
+        if y % 3 == 2:
+            return shade(K, 0.84)
+        if y % 3 == 0:
+            return shade(K, 1.06)
+        return K
+    return f
+
+
+def tweed(col, fleck):
+    K, F = C(col), C(fleck)
+    return lambda x, y: F if (x * 3 + y * 2) % 7 == 0 else (shade(K, 0.92) if (x + y * 2) % 5 == 0 else K)
+
+
+def pattern_jacket(s, at, open_rows=6, open_cols=(2, 5), lapel=None):
+    """jacket() with a patterned cloth: at(x, y) -> colour"""
+    a, b = open_cols
+
+    def f(fc, x, y, w, h):
+        if fc == "front":
+            if y < open_rows and a <= x <= b:
+                return None
+            if lapel and y < open_rows and x in (a - 1, b + 1):
+                return C(lapel)
+        return at(x, y)
+    s.paint("body", f, layer=1)
+
+
+def satba(s, col):
+    """the 샅바 of 씨름: a thick band round the waist (rows 9-11, outer layer) and a loop round the right thigh"""
+    K = C(col)
+
+    def bf(fc, x, y, w, h):
+        if fc in ("top", "bottom") or y < 9:
+            return None
+        return shade(K, 0.82) if y == 9 else (shade(K, 1.08) if (x + y) % 3 == 0 else K)
+    s.paint("body", bf, 1)
+    s.paint("rleg", lambda fc, x, y, w, h: (K if y == 1 else shade(K, 0.86)) if fc not in ("top", "bottom") and y in (1, 2) else None, 1)
+    s.paint("rleg", lambda fc, x, y, w, h: K if fc in ("front", "left") and y == 0 else None, 1)
+
+
+# ---------------------------------------------------------------------------------------------
+# the fifth batch
+# ---------------------------------------------------------------------------------------------
+
+def market(v):
+    """시장 아줌마: a perm, a flowery 몸빼, an apron, arm covers (토시)"""
+    if v == 1:
+        # a dark brown perm, a lilac top, a navy apron, pink flowery 몸빼, red-checked 토시
+        s, sk = Skin(slim=True), "e0aa84"
+        head(s, sk, "3a2620", "perm", mouth="b0504a", blush="eb9a8a", extra=[gold_earrings("e8c25a")])
+        shirt, apr, tie, apat = "b89ad0", "2a3a6a", "f4f4f0", None
+        mom_ = flowers("e85d8f", "ffe08a", "fff6d8", leaf="6fc26a")
+        to, toe, shoe = plaid("e8605a", "b8382f", "8a2a22"), "8a2a22", "3a7ad8"
+        pouch = None
+    elif v == 2:
+        # a wine perm under a pink visor, a white top, a red-checked apron, purple 몸빼, blue 토시, a money belt (전대)
+        s, sk = Skin(slim=True), "d49a72"
+        head(s, sk, "6a2a3a", "perm", mouth="a8443e", blush="e08a7a", extra=[visor("ff7aa8")])
+        shirt, apr, tie, apat = "f2f0ea", "d8403a", "f4f4f0", plaid("d8403a", "f4e8e4", "f8f8f8")
+        mom_ = flowers("5b3f8f", "f2c8e8", "ffe08a", leaf="7fc98a")
+        to, toe, shoe = (lambda x, y: C("5a9ad0")), "2a5a90", "7a2a3a"
+        pouch = ("4a3428", "6a4a32")
+    else:
+        # a grey perm, glasses, a mint top, a yellow apron, a red flowery 몸빼, flowery 토시
+        s, sk = Skin(slim=True), "e8b896"
+        head(s, sk, "9a9690", "perm", mouth="b0645a", blush="f0a8a0", extra=[glasses("7a5a3a")])
+        shirt, apr, tie, apat = "8ad0b8", "f2c42a", "c89a1a", None
+        mom_ = flowers("d8343f", "fff4e8", "ffd34d", leaf="5aa05a")
+        to, toe, shoe = flowers("f4f0e0", "e86a9a", "f2c43a", step=(3, 3)), "e86a9a", "2f2f35"
+        pouch = None
+
+    def b(fc, x, y, w, h):
+        if fc == "front" and y == 0 and x in (3, 4):
+            return C(sk)
+        return C(shirt)
+    body(s, b)
+    arms(s, shirt, sk, sleeve=10)
+    toshi(s, to, toe)
+    mombbae(s, mom_, shoe)
+    apron(s, apr, tie, pattern=apat)
+    if pouch:
+        waist_pouch(*pouch)(s)
+    return s
+
+
+def uncle(v):
+    """동네 아저씨: thin on top, a sleeveless undershirt (런닝) or a polo stretched over a belly, slippers"""
+    if v in (1, 3):
+        if v == 1:
+            # balding, a white 런닝, grey shorts, blue slippers
+            s, sk = Skin(), "dca07a"
+            head(s, sk, "2a2522", "bald", brows="2a2522", mouth="8a4a40")
+            run, shorts, slip, bare = "f6f6f2", "7a7e86", "3a6fd8", 6
+        else:
+            # buzz-cut grey, a light grey ribbed 런닝, a towel round the neck, rolled-up tracksuit trousers, green slippers
+            s, sk = Skin(), "c88c62"
+            head(s, sk, "8a8680", "buzz", brows="4a4642", mouth="7a3e36", pupils="side")
+            run, shorts, slip, bare = "d8dade", "2a3a5a", "3a9a5a", 8
+        R = C(run)
+
+        def b(fc, x, y, w, h):
+            if fc == "top":
+                return C(sk) if x in (0, 7) else R
+            if fc == "front":
+                if (y == 0 and 2 <= x <= 5) or (y == 1 and x in (3, 4)):
+                    return C(sk)                           # the scoop neck
+                if y <= 2 and x in (0, 7):
+                    return C(sk)                           # the arm holes
+                if 6 <= y <= 10 and 2 <= x <= 5:
+                    return shade(R, 0.95) if y in (6, 10) else shade(R, 1.02)   # the belly
+                if (x, y) == (4, 9):
+                    return shade(R, 0.86)
+            if fc == "back" and y <= 2 and x in (0, 7):
+                return C(sk)
+            if v == 3 and fc in ("front", "back") and x % 2 == 0:
+                return shade(R, 0.93)                      # the ribbing
+            return R
+        body(s, b)
+        arms(s, sk, sk, sleeve=0)
+        legs(s, shorts, slip, shoe_rows=1, skin=sk, bare=bare)
+        if v == 3:
+            for lg in ("rleg", "lleg"):
+                s.paint(lg, lambda fc, x, y, w, h: shade(C(shorts), 0.82) if y == 7 and fc not in ("top", "bottom") else None)   # rolled up
+                s.paint(lg, lambda fc, x, y, w, h: C("f4f4f4") if fc in SIDES and x == 1 and y < 7 else None)
+            neck_towel("f4f2ea", "e8605a")(s)
+    else:
+        # short greying hair, a mint polo over a belly, a belt, beige slacks, white socks in brown slippers
+        s, sk = Skin(), "e2ab84"
+        head(s, sk, "4a4642", "short", brows="3a3632", mouth="8a4a40")
+        s.paint("head", lambda fc, x, y, w, h: C("9a9690") if fc in SIDES and fwd(fc, x, 8) >= 4 and y in (3, 4) else None)   # grey at the temples
+        P = C("8ad0b8")
+
+        def b(fc, x, y, w, h):
+            if fc == "front":
+                if y == 0 and x in (3, 4):
+                    return C(sk)
+                if y == 0 and x in (2, 5):
+                    return shade(P, 1.15)                  # the collar
+                if x == 4 and y in (1, 2):
+                    return shade(P, 0.8)                   # buttons
+                if 5 <= y <= 8 and 2 <= x <= 5:
+                    return shade(P, 1.06)                  # the belly pushing the polo out
+            if y == 9:
+                return C("e8c25a") if fc == "front" and x in (3, 4) else C("3a2a1e")   # the belt
+            if y >= 10:
+                return C("c8b48a")
+            return P
+        body(s, b)
+        arms(s, "8ad0b8", sk, sleeve=4)
+        legs(s, "c8b48a", "7a4a2a", shoe_rows=1, sock="f4f4f4")
+        slip = "7a4a2a"
+    # slippers: open at the heel, the bare (or socked) heel showing at the back, a white band across the front
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: (C("f4f4f4") if fc == "front" and x in (1, 2) else
+                                          (C(sk) if v != 2 and fc == "back" else None)) if y == 11 else None)
+    return s
+
+
+def univ(v):
+    """대학생: a hoodie, wired earphones, a backpack, messy hair"""
+    if v == 1:
+        s, sk = Skin(), "e6b48e"
+        head(s, sk, "2a2220", "messy", pupils="side")
+        hood_c, pack, jeans, shoe = "2a3a66", ("8a8e96", "4a4e56"), "3d5f95", "f0f0f0"
+    elif v == 2:
+        s, sk = Skin(slim=True), "f2c8a6"
+        head(s, sk, "4a2e22", "long", mouth="c05a5a", blush="f2a8a0")
+        s.paint("head", lambda fc, x, y, w, h: C("4a2e22") if fc == "front" and (x, y) in ((2, 1), (5, 2)) else None, 1)   # stray strands
+        hood_c, pack, jeans, shoe = "d8c8a8", ("26262c", "1a1a1e"), "26262c", "f4f4f4"
+    else:
+        s, sk = Skin(), "d39a72"
+        head(s, sk, "1c1a1a", "messy", mouth="8a4a40", extra=[glasses("2a2a2a"), tired()])
+        hood_c, pack, jeans, shoe = "7a2a38", ("5e6a3e", "3e4a2a"), "4a4e57", "2a2a2a"
+    body(s, hoodie_body(hood_c, shade_hex(hood_c, 0.7)))
+    arms(s, hood_c, sk, sleeve=10, cuff=shade_hex(hood_c, 0.82))
+    backpack(s, *pack)
+    earbud_wire()(s)
+    legs(s, jeans, shoe, shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(C(jeans), 0.88) if fc == "front" and x == 1 and y < 11 else None)
+    return s
+
+
+def worker(v):
+    """공사장 인부: a yellow hard hat, a high-vis vest, dusty work clothes, cotton gloves, boots"""
+    if v == 1:
+        s, sk = Skin(), "c88c62"
+        head(s, sk, "1e1a18", "short", mouth="7a3e36")
+        cloth, trousers, vestc, strip = "7a808a", "6a604c", "ff7a1a", "e8eef0"
+    elif v == 2:
+        s, sk = Skin(), "b9784e"
+        head(s, sk, "2a2522", "short", brows="2a2522", mouth="7a3e36", extra=[mustache("2a2522")])
+        cloth, trousers, vestc, strip = "2a3a5a", "4e5560", "c8f03a", "e8eef0"
+    else:
+        s, sk = Skin(), "a86e48"
+        head(s, sk, "1c1a1a", "buzz", mouth="6a3430", pupils="side", extra=[sweat()])
+        cloth, trousers, vestc, strip = "5e6a3e", "5a5040", "c8f03a", "f0a030"
+    hard_hat("f2c22a")(s)
+    body(s, lambda fc, x, y, w, h: C(sk) if fc == "front" and y == 0 and x in (3, 4) else C(cloth))
+    arms(s, cloth, sk, sleeve=10)
+    legs(s, trousers, "6a4a2a", shoe_rows=2)
+    dust = "%02x%02x%02x" % tuple((a + b) // 2 for a, b in zip(C(cloth)[:3], C("d8ccb0")[:3]))
+    specks(s, ("body", "rarm", "larm"), dust, k=v, mod=13)   # dust
+    specks(s, ("rleg", "lleg"), "%02x%02x%02x" % tuple((a + b) // 2 for a, b in zip(C(trousers)[:3], C("d8ccb0")[:3])), k=v + 3, mod=11)
+    hivis(s, vestc, strip)
+    gloves(s, "f0ece0", cuff="d8d0bc")
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C("d8402a") if fc == "back" and y == 11 else None)   # the red-dipped palms
+    boots(s, "5a3e26", rows=2, top="7a5a3a")
+    if v == 3:
+        neck_towel("f4f2ea", "3a7ad8")(s)
+    return s
+
+
+def kid(v):
+    """초등학생: a yellow cap or safety hat, a big school bag, bright clothes, big eyes"""
+    if v == 1:
+        # a red tee, navy shorts, a blue bag under a yellow safety cover
+        s, sk = Skin(), "f2c8a6"
+        head(s, sk, "2a1e18", "short", mouth="d0606a", blush="ff9a9a", extra=[big_eyes("2a2026"), cap("ffd23a", "f0b020")])
+        tee, shorts, shoe, bag = "e8443a", "2a3a66", "f4f4f4", ("3a7ae0", "2a58a8", "ffe23a")
+    elif v == 2:
+        # a yellow round safety hat over pigtails, a pink hoodie, a denim skirt, a lilac bag
+        s, sk = Skin(slim=True), "f8d8bc"
+        head(s, sk, "4a2a1e", "bob", mouth="e0707a", blush="ff9aa8",
+             extra=[big_eyes("3a2420"), pigtails("4a2a1e", "ff6a9a"), kid_hat("ffd23a", strap="e8b820")])
+        tee, shorts, shoe, bag = "ff8ab8", "5a86c2", "ff6a9a", ("b8a0f0", "8a70c8", None)
+    else:
+        # a lime tee, khaki shorts, an orange bag, an indoor-shoe bag (실내화 주머니) in hand
+        s, sk = Skin(), "c88c62"
+        head(s, sk, "151214", "messy", mouth="d0606a", blush="ec8a7a", extra=[big_eyes("1a1416"), cap("ffd23a", "f0b020")])
+        tee, shorts, shoe, bag = "9ae03a", "c8b07a", "3a7ae0", ("ff8a2a", "d06a1a", "ffe23a")
+    T = C(tee)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if y == 0 and 2 <= x <= 5:
+                return shade(T, 0.8)
+            if y == 3 and x == 6:
+                return C("ffffff")                         # a name tag
+            if v == 1 and y == 5:
+                return C("f4f4f4")                         # a white stripe
+            if v == 2 and x in (2, 5) and 1 <= y <= 3:
+                return C("ffffff")                         # drawstrings
+        if v == 1 and y == 5 and fc != "top":
+            return C("f4f4f4")
+        return T
+    body(s, b)
+    arms(s, tee, sk, sleeve=10 if v == 2 else 4)
+    big_backpack(s, bag[0], bag[1], cover=bag[2])
+    if v == 2:
+        legs(s, shorts, shoe, shoe_rows=1, skin=sk, bare=4, sock="fafafa")
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: shade(C(shorts), 0.85 if y == 3 else 1.0) if y <= 3 and fc not in ("top", "bottom") else None, 1)
+    else:
+        legs(s, shorts, shoe, shoe_rows=1, skin=sk, bare=5, sock="ffffff")
+    if v == 3:
+        s.paint("larm", lambda fc, x, y, w, h: (C("2a58a8") if y == 8 else C("4a8ae0")) if fc != "top" and y >= 8 else None, 1)
+    return s
+
+
+def chicken_grandma(v):
+    """닭 든 할머니: a towel over her head, a cardigan, flowery 몸빼, a white hen held at the chest"""
+    if v == 1:
+        s, sk = Skin(slim=True), "d9a47c"
+        head(s, sk, "c9c5c0", "perm", mouth="a0544c", blush="e8968a", extra=[happy_eyes("3a2a2a"), head_towel("f4f2ea", "5a8ad0")])
+        blouse, cardi = "efe2c8", "6a4a8a"
+        mom_ = flowers("e85d8f", "ffe08a", "fff6d8", leaf="6fc26a")
+        shoe = "4a7bd1"
+    elif v == 2:
+        s, sk = Skin(slim=True), "c98a5c"
+        head(s, sk, "e8e4dc", "perm", mouth="9a4a40", blush="d8826a", extra=[head_towel("f2a8c0", "f4f4f0")])
+        blouse, cardi = "f5efe2", "3f7a5a"
+        mom_ = flowers("5b3f8f", "f2c8e8", "ffe08a", leaf="7fc98a")
+        shoe = "7a2a3a"
+    else:
+        s, sk = Skin(slim=True), "e0aa84"
+        head(s, sk, "5a5450", "perm", mouth="a0544c", blush="e8968a", extra=[glasses("8a6a3a"), head_towel("f2d84a", "c89a1a")])
+        blouse, cardi = "e8e0d0", "a8323a"
+        mom_ = flowers("2a5a8a", "f4f4f0", "ffd34d", leaf=None)
+        shoe = "2f2f35"
+    body(s, lambda fc, x, y, w, h: C(blouse))
+    jacket(s, cardi, open_rows=12, open_cols=(2, 5))
+    arms(s, blouse, sk, sleeve=10, layer_cloth=cardi)
+    mombbae(s, mom_, shoe)
+    chicken(s, skin=sk)
+    return s
+
+
+def tardy(v):
+    """지각생: the uniform thrown on askew, a slice of toast in the mouth, bed hair, a bead of sweat"""
+    if v == 1:
+        # the tie swung aside, the blazer slipping off one shoulder, the shirt tail out, the bag on one strap
+        s, sk = Skin(), "f1c7a5"
+        head(s, sk, "1b1b22", "messy", pupils="side", extra=[toast(), sweat()])
+        blazer, tie, trousers = "2b3a67", "c0392b", "6b6f78"
+    elif v == 2:
+        # a girl: the ribbon crooked, hair all over the place, one knee sock down
+        s, sk = Skin(slim=True), "f3cdb0"
+        head(s, sk, "2b1d18", "long", mouth="c45a5a", blush="f5aaa0", pupils="side", extra=[toast(), sweat()])
+        s.paint("head", lambda fc, x, y, w, h: C("2b1d18") if fc == "front" and (x, y) in ((2, 1), (3, 1), (5, 2)) else None, 1)
+        blazer, tie, trousers = "7a2638", "d03a3a", "3b4a6b"
+    else:
+        # the blazer buttoned one off, a cowlick sticking up, indoor slippers still on
+        s, sk = Skin(), "c98b5e"
+        head(s, sk, "1c1a1a", "short", pupils="out", extra=[toast("a8642a", "f0d088"), sweat()])
+        s.paint("head", lambda fc, x, y, w, h: C("1c1a1a") if (fc == "top" and x in (5, 6) and y in (2, 3)) or
+                (fc == "front" and y == 0 and x in (5, 6)) or (fc == "back" and y == 0 and x in (1, 2)) else None, 1)   # the cowlick
+        blazer, tie, trousers = "1f2a44", "2e6bd1", "2b3346"
+    shirt, T = C("f4f4f0"), C(tie)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if y == 0 and x in (3, 4):
+                return C(sk)
+            if v != 2 and (x, y) in ((4, 1), (5, 2), (5, 3), (6, 4), (6, 5)):
+                return shade(T, 0.8) if y == 1 else T      # the tie swung aside
+            if v == 2 and (x, y) in ((3, 1), (4, 2), (5, 1), (2, 2)):
+                return T                                    # the crooked ribbon
+            if y == 11:
+                return shirt if x <= 3 else C("2a2a2a")     # the tail hangs out
+        if fc == "back" and y == 11:
+            return shirt if x >= 4 else C("2a2a2a")
+        return shirt
+    body(s, b)
+    orows, ocols = (12, (2, 5)) if v != 3 else (6, (3, 4))
+    jacket(s, blazer, open_rows=orows, open_cols=ocols, lapel=shade_hex(blazer, 0.82))
+    backpack(s, "2f6fd6" if v != 2 else "f2b632", "24489a" if v != 2 else "c48d1c")
+    s.paint("body", lambda fc, x, y, w, h: ((C(shade_hex(blazer, 0.82)) if y < orows and x == ocols[1] + 1 else C(blazer))
+                                           if (fc == "front" and x == 6 and y <= 7) else (C(blazer) if fc == "top" and x == 6 else None)), 1)   # the bag on one strap
+    if v == 1:
+        s.paint("body", lambda fc, x, y, w, h: CLEAR if (fc == "front" and x >= 6 and y <= 2) or (fc == "left" and y <= 1) or
+                (fc == "top" and x >= 6) else None, 1)        # slipping off the shoulder
+    if v == 3:
+        s.paint("body", lambda fc, x, y, w, h: (C("d8b04a") if (x, y) in ((2, 6), (5, 8), (2, 10)) else
+                                               (shade(C(blazer), 0.8) if (x, y) in ((3, 8), (4, 10)) else None))
+                if fc == "front" else None, 1)              # the buttons in the wrong holes
+    arms(s, "f4f4f0", sk, sleeve=10, layer_cloth=blazer)
+    if v == 1:
+        s.paint("larm", lambda fc, x, y, w, h: CLEAR if y <= 1 and fc != "bottom" else None, 1)
+    if v == 2:
+        skirt = lambda x, y: C("1f2a44") if y == 5 else (C("3b4a6b") if x % 2 else C("4a5c84"))
+        legs(s, "5a6d94", "1c1c1c", skin=sk, bare=6, shoe_rows=1)
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: skirt(x, y) if y <= 5 and fc not in ("top", "bottom") else None)
+            s.paint(lg, lambda fc, x, y, w, h: skirt(x, y) if y <= 5 and fc not in ("top", "bottom") else None, 1)
+        s.paint("lleg", lambda fc, x, y, w, h: C("f4f4f4") if fc != "bottom" and y in (7, 8) else None)        # one knee sock up
+        s.paint("rleg", lambda fc, x, y, w, h: C("f4f4f4") if fc != "bottom" and y == 10 else None)            # the other slid down
+    else:
+        legs(s, trousers, "1a1a1a" if v == 1 else "f4f4f4", shoe_rows=1)
+        if v == 3:
+            s.paint("rleg", lambda fc, x, y, w, h: C("3a7ad8") if fc == "front" and y == 11 and x in (1, 2) else None)   # 실내화
+            s.paint("lleg", lambda fc, x, y, w, h: C("3a7ad8") if fc == "front" and y == 11 and x in (1, 2) else None)
+        else:
+            s.paint("lleg", lambda fc, x, y, w, h: C("c8d0e0") if y == 10 and fc not in ("top", "bottom") else None)   # a sock showing
+    return s
+
+
+def interview(v):
+    """면접 청년: a neat navy suit, a white shirt and a tie, slick hair, a folder of papers, a nervous look"""
+    if v == 1:
+        s, sk = Skin(), "f0c4a0"
+        head(s, sk, "16161a", "part", extra=[worried_brows("16161a")])
+        suit, tie, folder = "22305a", "c0392b", "1e1e22"
+    elif v == 2:
+        s, sk = Skin(slim=True), "f2cba9"
+        head(s, sk, "1e1614", "slick", mouth="c4544e", extra=[worried_brows("1e1614"), ponytail("1e1614", "1e1614", length=2)])
+        suit, tie, folder = "22305a", "fafafa", "5a9ad8"                  # a plain blouse, no tie
+    else:
+        s, sk = Skin(), "dcae88"
+        head(s, sk, "2a2724", "slick", pupils="side", extra=[glasses("3a3a40"), sweat()])
+        suit, tie, folder = "1e2a4e", "2e6bd1", "8a5a2a"
+    T = C(tie)
+
+    def b(fc, x, y, w, h):
+        if fc == "front" and 3 <= x <= 4 and 1 <= y <= (7 if v != 2 else 2):
+            if v == 3 and y % 2 == 0:
+                return shade(T, 0.7)                       # a striped tie
+            return T if y > 1 else shade(T, 0.82)
+        return C("fafafa")
+    body(s, b)
+    jacket(s, suit, open_rows=6 if v != 2 else 4, open_cols=(2, 5), lapel=shade_hex(suit, 0.8), edge=shade_hex(suit, 0.8))
+    s.paint("body", lambda fc, x, y, w, h: C("d8b04a") if fc == "front" and x == 4 and y in (7, 9) else None, 1)   # buttons, done up
+    arms(s, "fafafa", sk, sleeve=9, cuff="fafafa", layer_cloth=suit)
+    held_folder(s, folder)
+    if v == 2:
+        legs(s, suit, "1a1a1a", skin=sk, bare=6, shoe_rows=1)
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: C(suit) if y <= 5 and fc not in ("top", "bottom") else None, 1)
+            s.paint(lg, lambda fc, x, y, w, h: C("e8c0a0") if 6 <= y <= 10 and fc != "bottom" else None)
+    else:
+        legs(s, suit, "121212", shoe_rows=2)
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: shade(C(suit), 0.85) if fc == "front" and x == 1 and y < 10 else None)   # the crease
+    return s
+
+
+def yeot(v):
+    """엿장수: a straw hat, a white 한복 under a bright patchwork vest, clown cheeks, the big iron scissors in hand"""
+    if v == 1:
+        s, sk = Skin(), "e2ab84"
+        head(s, sk, "2a2522", "short", mouth="c0303a", extra=[smile("c0303a"), flush("f05a5a", "e83a3a"), straw_hat("d8303a")])
+        vestp = lambda x, y: C(SAEKDONG[x % 6])                     # rainbow stripes
+    elif v == 2:
+        s, sk = Skin(), "c88c62"
+        head(s, sk, "1e1a18", "short", mouth="c0303a", extra=[happy_eyes("2a1e18"), smile("c0303a"), flush("f05a5a", "e83a3a"), straw_hat("2f6fd0")])
+        vestp = lambda x, y: C(("d8303a", "f2c43a", "3aa05a", "2f6fd0")[(x // 2 + y // 3) % 4])   # patchwork squares
+    else:
+        s, sk = Skin(), "d39a72"
+        head(s, sk, "3a3632", "short", brows="2a2622", mouth="c0303a",
+             extra=[mustache("2a2622"), flush("f05a5a", "e83a3a"), straw_hat("3aa05a"),
+                    lambda s: s.paint("head", lambda fc, x, y, w, h: (C("f04a8a") if (x, y) in ((5, 1), (6, 0), (6, 2), (7, 1)) else
+                                                                      (C("ffe04a") if (x, y) == (6, 1) else None)) if fc == "front" else None, 1)])   # a paper flower
+        vestp = flowers("f2c43a", "d8303a", "2f6fd0", step=(4, 4))
+    white = "f2efe6"
+    body(s, lambda fc, x, y, w, h: (C("c8c4b8") if (x, y) in ((2, 0), (3, 1), (4, 2)) else C(white)) if fc == "front" else C(white))
+
+    def vf(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "front" and 3 <= x <= 4:
+            return None
+        if fc == "front" and x in (2, 5):
+            return C("1e1e22")                              # black trim
+        return vestp(x, y)
+    s.paint("body", vf, 1)
+    arms(s, white, sk, sleeve=10)
+    yeot_scissors(s)
+    legs(s, white, "1e1e22", shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: C("2f6fd0") if y == 9 and fc not in ("top", "bottom") else None)   # 대님 ankle ties
+        s.paint(lg, lambda fc, x, y, w, h: shade(C(white), 0.9) if y <= 8 and fc not in ("top", "bottom") and x % 2 else None, 1)   # baggy 바지
+    return s
+
+
+def traveler(v):
+    """외국인 여행객: blond or red hair, sunburnt cheeks, a huge hiking pack, a map in hand, shorts (no flags)"""
+    if v == 1:
+        s, sk = Skin(), "f6d8c4"
+        head(s, sk, "f0d070", "messy", eye="3a6ab0", mouth="c0605a", extra=[flush("f29a88", "f08070")])
+        tee, shorts, pack = "3aa0a0", "c8b07a", ("e86a2a", "2a2a2a", "f0d040")
+    elif v == 2:
+        s, sk = Skin(slim=True), "f8dcc8"
+        head(s, sk, "c8502a", "short", eye="3a8a5a", mouth="d0606a",
+             extra=[flush("f29a88", "f08a7a"), ponytail("c8502a", "2a2a2a", length=4),
+                    lambda s: s.paint("head", lambda fc, x, y, w, h: C("c88a6a") if fc == "front" and (x, y) in ((1, 5), (6, 5), (2, 5)) else None)])   # freckles
+        tee, shorts, pack = "f4f4f0", "5a6a4a", ("6a3a8a", "26262c", "e8e8e8")
+    else:
+        s, sk = Skin(), "f4d4bc"
+        head(s, sk, "e8c060", "short", eye="4a7ab0", mouth="c0605a",
+             extra=[beard("d8b050"), flush("f29a88", "f08070"), bucket_hat("6f7f4a")])
+        tee, shorts, pack = "e8c84a", "6a604c", ("3a7a4a", "1e2a1e", "e8e0c8")
+    T = C(tee)
+    body(s, lambda fc, x, y, w, h: shade(T, 0.82) if fc == "front" and y == 0 and 2 <= x <= 5 else T)
+    arms(s, tee, sk, sleeve=4)
+    s.paint("rarm", lambda fc, x, y, w, h: C("f29a88") if fc == "front" and y in (5, 6) else None)   # sunburnt arms
+    hiking_pack(s, *pack)
+    map_in_hand(s)
+    legs(s, shorts, "6a4a30", shoe_rows=2, skin=sk, bare=5, sock="f4f4f4")
+    return s
+
+
+def phone_man(v):
+    """큰소리 통화남: a flashy shirt open at the neck, a gold chain, a phone held to his ear, mouth wide open"""
+    if v == 1:
+        s, sk = Skin(), "e2ab84"
+        shirt = flowers("6a2a8a", "e8c25a", "fff0a0", step=(4, 4))
+        trousers, shoe, hair = "f2f0ea", "f4f4f4", "16161a"
+    elif v == 2:
+        s, sk = Skin(), "c88c62"
+        shirt = lambda x, y: C("3a2414") if (x * 3 + y * 5) % 7 in (0, 1) and (x + y) % 2 else (C("c8902a") if (x + y * 2) % 5 == 0 else C("e8b860"))   # leopard
+        trousers, shoe, hair = "1a1a1e", "f4f4f4", "2a2420"
+    else:
+        s, sk = Skin(), "dcaa86"
+        shirt = flowers("d8303a", "f4f4f0", "2a2a2a", leaf=None, step=(4, 4))
+        trousers, shoe, hair = "d8c8a6", "6a3a2a", "3a3632"
+    head(s, sk, hair, "slick", brows=hair, mouth="5a1e22", pupils="side",
+         extra=[chatter(shade_hex(sk, 0.7)), phone_at_ear(sk, "e8c25a")])
+
+    def b(fc, x, y, w, h):
+        if fc == "front" and ((y <= 1 and 2 <= x <= 5) or (y == 2 and x in (3, 4))):
+            return C(sk)                                    # open down to the chest
+        return shirt(x, y)
+    body(s, b)
+    gold_chain()(s)
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C(sk) if fc == "bottom" or y >= 4 else shirt(x + 1, y))
+    s.paint("larm", lambda fc, x, y, w, h: C("e8c25a") if y == 9 and fc not in ("top", "bottom") else None)   # a gold watch
+    s.paint("rarm", lambda fc, x, y, w, h: C(sk) if fc == "bottom" else None)
+    legs(s, trousers, shoe, shoe_rows=1)
+    s.paint("body", lambda fc, x, y, w, h: (C("e8c25a") if fc == "front" and x in (3, 4) else C("1e1e22")) if y == 11 and fc not in ("top", "bottom") else None)   # a belt
+    return s
+
+
+def rude(v):
+    """반말 아저씨: a frown under angry brows, a golf cap, a windbreaker, a toothpick"""
+    if v == 1:
+        s, sk = Skin(), "dca07a"
+        capc, bill, wb, trousers = "f4f4f0", "2a3a66", "2a3a66", "6a6c72"
+    elif v == 2:
+        s, sk = Skin(), "c48a62"
+        capc, bill, wb, trousers = "d8c8a6", "a8323a", "7a2a38", "4a4e57"
+    else:
+        s, sk = Skin(), "e2ab84"
+        capc, bill, wb, trousers = "2a2a2e", "e8c25a", "5e6a3e", "8a8070"
+    head(s, sk, "2a2522" if v != 3 else "7a7670", "short", mouth="6a3430",
+         extra=[angry_brows("1e1a18"), frown("6a3430"), toothpick(), cap(capc, bill)])
+    W = C(wb)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if x == 4:
+                return C("c8ccd0") if y <= 1 else shade(W, 0.75)   # the zip
+            if y == 0 and x in (2, 3, 5):
+                return shade(W, 0.85)                      # the collar
+            if 6 <= y <= 9 and 1 <= x <= 6 and x != 4:
+                return shade(W, 1.07)                      # the belly
+            if y == 11:
+                return shade(W, 0.82)
+        if fc in SIDES and x == 1:
+            return C("e8e8e0") if v != 3 else C("d8c8a6")  # the piping
+        return W
+    body(s, b)
+    arms(s, wb, sk, sleeve=10, cuff=shade_hex(wb, 0.75))
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: (C("e8e8e0") if v != 3 else C("d8c8a6")) if fc in SIDES and x == 1 and y < 10 else None)
+    legs(s, trousers, "2a2a2a", shoe_rows=1)
+    return s
+
+
+def dodger(v):
+    """무임승차 청년: a track suit, the hood up or a cap backwards, eyes sliding sideways, a bead of sweat"""
+    if v == 1:
+        s, sk = Skin(), "e6b48e"
+        ts, stripe = "1e1e24", "f4f4f4"
+        hat = [hood(ts)]
+    elif v == 2:
+        s, sk = Skin(), "c88c62"
+        ts, stripe = "2a3a66", "e8c84a"
+        hat = [back_cap("d8303a", "a8222a")]
+    else:
+        s, sk = Skin(), "d39a72"
+        ts, stripe = "6a2232", "f4f4f4"
+        hat = [cap("2a2a2e", "1a1a1e"), hood(ts)]
+    head(s, sk, "1c1a1a", "short", mouth="7a3e36", pupils="side", extra=[sweat()] + hat)
+    T = C(ts)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if x == 4:
+                return C("c8ccd0") if y <= 1 else shade(T, 0.7)   # the zip, done right up
+            if y == 0 and 2 <= x <= 5:
+                return shade(T, 0.8)
+            if y == 7 and x in (1, 6):
+                return shade(T, 0.75)                      # pocket slits
+        if fc in SIDES and x == 1:
+            return C(stripe)
+        return T
+    body(s, b)
+    if v != 2:
+        s.paint("body", lambda fc, x, y, w, h: shade(T, 0.85) if fc == "back" and y <= 1 and 1 <= x <= 6 else None, 1)   # the hood's back
+    for p in ("rarm", "larm", "rleg", "lleg"):
+        s.paint(p, lambda fc, x, y, w, h: C(stripe) if fc in SIDES and x == 1 else T)
+    arms(s, ts, sk, sleeve=10, cuff=shade_hex(ts, 0.75))
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C(stripe) if fc in SIDES and x == 1 and y < 10 else None)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: (C(stripe) if fc in SIDES and x == 1 else T) if fc != "bottom" else C("f4f4f4"))
+        s.paint(lg, lambda fc, x, y, w, h: C("f4f4f4") if y == 11 or fc == "bottom" else None)   # white trainers
+    return s
+
+
+def prankster(v):
+    """벨 장난 꼬마: a small kid, a cap on sideways, a cheeky grin, a striped shirt, a plaster on the knee"""
+    if v == 1:
+        s, sk = Skin(), "f2c8a6"
+        head(s, sk, "2a1e18", "messy", mouth="c0505a", blush="ff9a9a", extra=[big_eyes("2a2026"), grin("a03040"), side_cap("2f6fd0", "1f4fa0")])
+        st, shorts, shoe = stripes("d8303a", "f4f4f4"), "2a3a66", "f4f4f4"
+    elif v == 2:
+        s, sk = Skin(), "c88c62"
+        head(s, sk, "151214", "short", mouth="c0505a", blush="ec8a7a", extra=[big_eyes("1a1416"), grin("8a2a30"), side_cap("d8303a", "a8222a")])
+        st, shorts, shoe = stripes("2f6fd0", "f4f4f4"), "c8b07a", "e8443a"
+    else:
+        s, sk = Skin(slim=True), "f8d8bc"
+        head(s, sk, "5a3424", "bob", mouth="c0505a", blush="ff9aa8",
+             extra=[big_eyes("3a2420"), grin("a03040"), side_cap("3aa05a", "2a7a40"), ponytail("5a3424", "ff6a9a", length=2)])
+        st, shorts, shoe = stripes("f2c43a", "2a3a66"), "5a86c2", "ff6a9a"
+    body(s, lambda fc, x, y, w, h: st(x, y + 1))
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C(sk) if fc == "bottom" or y >= 4 else st(x, y + 1))
+    legs(s, shorts, shoe, shoe_rows=1, skin=sk, bare=5, sock="ffffff")
+    s.paint("rleg", lambda fc, x, y, w, h: (C("f0d0a0") if x in (1, 2) else None) if fc == "front" and y == 6 else None)   # a plaster
+    return s
+
+
+def spread(v):
+    """쩍벌남: an oversized tracksuit, sunglasses pushed up on the head, a smug look, big trainers"""
+    if v == 1:
+        s, sk = Skin(), "e2ab84"
+        ts, trim, shoe = "2a3a66", "f4f4f4", "f4f4f4"
+    elif v == 2:
+        s, sk = Skin(), "c88c62"
+        ts, trim, shoe = "5a2a7a", "e8c25a", "1e1e22"
+    else:
+        s, sk = Skin(), "dcaa86"
+        ts, trim, shoe = "8a8e96", "1e1e22", "f4f4f4"
+    head(s, sk, "1e1a18", "short", mouth="8a4a40", pupils="out",
+         extra=[shades_up(("3a8ad8", "e05a9a", "f08a2a")[v - 1], "e8c25a" if v == 2 else "f4f4f4"), lambda s: s.paint("head", lambda fc, x, y, w, h: C("8a4a40") if fc == "front" and (x, y) == (5, 5) else None)])
+    T = C(ts)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if x == 4 and y >= 2:
+                return shade(T, 0.75)
+            if y <= 1 and 3 <= x <= 4:
+                return C("f4f4f4")                         # a white tee under the zip
+            if y == 11:
+                return shade(T, 0.8)
+        if fc in SIDES and x in (1, 2):
+            return C(trim) if x == 1 else T
+        return T
+    body(s, b)
+    s.paint("body", lambda fc, x, y, w, h: (C(trim) if fc in SIDES and x == 1 else (shade(T, 0.92) if (x + y) % 5 == 0 else T))
+            if fc != "bottom" and not (fc == "front" and (x == 4 or (y <= 1 and x == 3))) else None, 1)   # baggy
+    arms(s, ts, sk, sleeve=11, layer_cloth=ts)
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C(trim) if fc in SIDES and x == 1 and y < 11 else None, 1)
+    legs(s, ts, shoe, shoe_rows=2)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: (C(trim) if fc in SIDES and x == 1 else (shade(T, 0.9) if y in (3, 7) else T))
+                if fc not in ("top", "bottom") and y <= 9 else None, 1)   # baggy trousers
+        s.paint(lg, lambda fc, x, y, w, h: C(shoe) if fc not in ("top",) and y >= 10 else None, 1)   # chunky trainers
+        s.paint(lg, lambda fc, x, y, w, h: C("c8c8c8") if y == 11 and fc not in ("top", "bottom") else None, 1)
+    return s
+
+
+def complainer(v):
+    """민원 아줌마: a short perm, a big sun visor, sunglasses, a quilted vest, a stern mouth"""
+    if v == 1:
+        s, sk = Skin(slim=True), "e8b896"
+        hair, vis, lens, vestc, blouse, slacks = "2a2024", "f4f4f0", "1a1a20", "6a3a8a", "f0b0c8", "2a2a30"
+    elif v == 2:
+        s, sk = Skin(slim=True), "d49a72"
+        hair, vis, lens, vestc, blouse, slacks = "5a2a2a", "ff7aa8", "5a3a1e", "1e2a4e", "f4f4f0", "d8c8a6"
+    else:
+        s, sk = Skin(slim=True), "e0aa84"
+        hair, vis, lens, vestc, blouse, slacks = "3a3632", "e8d8b0", "2a3a2a", "c8323a", "e8e0d0", "4a4e57"
+    head(s, sk, hair, "perm", mouth="8a3a3a",
+         extra=[sunglasses(lens, "2a2a2a", shade_hex(lens, 2.2)), frown("8a3a3a"), big_visor(vis), gold_earrings("e8c25a")])
+    body(s, lambda fc, x, y, w, h: C(sk) if fc == "front" and y == 0 and x in (3, 4) else C(blouse))
+    V = C(vestc)
+
+    def vf(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "front" and y == 0 and x in (3, 4):
+            return None
+        if fc == "front" and x == 4:
+            return shade(V, 0.7)                           # the zip
+        if y == 0:
+            return shade(V, 0.9)                           # the collar
+        if (x + y) % 4 == 0 or (x - y) % 4 == 0:
+            return shade(V, 0.82)                          # the diamond quilting
+        return V
+    s.paint("body", vf, 1)
+    arms(s, blouse, sk, sleeve=10)
+    legs(s, slacks, "1e1e22", shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(C(slacks), 0.88) if fc == "front" and x == 1 and y < 11 else None)
+    return s
+
+
+def crumbs(v):
+    """과자 부스러기 학생: headphones on, an open snack bag in hand, crumbs down the front and round the mouth"""
+    if v == 1:
+        # a white school shirt under a navy sweater vest, a red snack bag
+        s, sk = Skin(), "f1c7a5"
+        head(s, sk, "1b1b22", "short", mouth="a8584f", pupils="side", extra=[headphones("1e1e24", "e8443a")])
+        bag, stripe, trousers = "e8443a", "f2c43a", "2b3346"
+    elif v == 2:
+        # a beige cardigan, a plaid skirt, a yellow snack bag, white headphones
+        s, sk = Skin(slim=True), "f3cdb0"
+        head(s, sk, "3a2620", "long", mouth="c45a5a", blush="f5aaa0", extra=[headphones("f4f4f4", "b8a0f0")])
+        bag, stripe, trousers = "f2c43a", "2f6fd0", "3b4a6b"
+    else:
+        # an orange hoodie, a blue snack bag
+        s, sk = Skin(), "d39a72"
+        head(s, sk, "2a1e16", "messy", mouth="8a3e36", extra=[headphones("2a2a34", "30d0f0")])
+        bag, stripe, trousers = "2f6fd0", "f4f4f4", "4a4e57"
+    if v == 1:
+        body(s, lambda fc, x, y, w, h: C(sk) if fc == "front" and y == 0 and x in (3, 4) else C("f4f4f0"))
+        Sv = C("2b3a67")
+
+        def sweater(fc, x, y, w, h):
+            if fc == "bottom":
+                return None
+            if fc == "front" and ((y == 0 and 1 <= x <= 6) or (y == 1 and 2 <= x <= 5) or (y == 2 and 3 <= x <= 4)):
+                return None                                 # the V neck
+            return shade(Sv, 0.85) if y == 11 else Sv
+        s.paint("body", sweater, 1)
+        arms(s, "f4f4f0", sk, sleeve=4)
+    elif v == 2:
+        body(s, lambda fc, x, y, w, h: C("f4f4f0"))
+        jacket(s, "d8c8a0", open_rows=12, open_cols=(3, 4), lapel=shade_hex("d8c8a0", 0.85))
+        arms(s, "f4f4f0", sk, sleeve=10, layer_cloth="d8c8a0")
+    else:
+        body(s, hoodie_body("f08a2a", "f4f4f4"))
+        hood_down(s, "f08a2a")
+        arms(s, "f08a2a", sk, sleeve=10, cuff=shade_hex("f08a2a", 0.82))
+    snack_crumb = C("e0b060")
+
+    def cr(fc, x, y, w, h):
+        if fc == "front" and (x, y) in ((1, 4), (5, 6), (2, 8), (6, 9), (3, 11), (6, 2)):
+            return snack_crumb if (x + y) % 2 else shade(snack_crumb, 0.82)
+        return None
+    s.paint("body", cr, 1)
+    s.paint("head", lambda fc, x, y, w, h: snack_crumb if fc == "front" and (x, y) in ((2, 7), (5, 7), (5, 6)) else None)   # crumbs round the mouth
+    snack_bag(s, bag, stripe)
+    if v == 2:
+        skirt = plaid("3b4a6b", "5a6d94", "7a2638")
+        legs(s, "5a6d94", "1c1c1c", skin=sk, bare=6, sock="f4f4f4", shoe_rows=1)
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: skirt(x, y) if y <= 5 and fc not in ("top", "bottom") else None, 1)
+    else:
+        legs(s, trousers, "1a1a1a" if v == 1 else "f4f4f4", shoe_rows=1)
+    s.paint("lleg", lambda fc, x, y, w, h: snack_crumb if fc == "front" and (x, y) in ((1, 2), (2, 6)) else None, 1)
+    return s
+
+
+def snack_bag(s, col, stripe, arm="larm"):
+    """a crisp packet held in the hand (arm outer layer rows 6-11): a crimped silver top edge, a stripe across, a
+    crisp peeking out"""
+    B, S = C(col), C(stripe)
+
+    def f(fc, x, y, w, h):
+        if fc == "top" or y < 6:
+            return None
+        if fc == "bottom":
+            return B
+        if y == 6:
+            return C("d8d8dc") if (x + (fc == "front")) % 2 == 0 else (C("f2d070") if fc == "front" else None)   # crimp, a crisp
+        if y == 9:
+            return S
+        if y == 7 and fc == "front":
+            return C("c8ccd4")                             # the torn-open top
+        return B
+    s.paint(arm, f, 1)
+
+
+def gentleman(v):
+    """친절한 신사: grey hair, round glasses, a gentle smile, a tweed jacket, a bow tie, a pocket square"""
+    if v == 1:
+        s, sk = Skin(), "e8b896"
+        head(s, sk, "c8c4bc", "part", brows="b8b4ac", mouth="a8584f", extra=[glasses("8a6a3a"), smile("a8584f")])
+        tw, bt, sq, trousers = tweed("8a6a4a", "a2825e"), "c0303a", "f4f4f0", "5a5650"
+    elif v == 2:
+        s, sk = Skin(), "dca07a"
+        head(s, sk, "e8e4dc", "part", brows="f2efe8", mouth="8a4a40", extra=[glasses("3a3a40"), mustache("eeeae2")])
+        tw, bt, sq, trousers = tweed("7a7e84", "92969c"), "2a3a66", "c0303a", "3a3e48"
+    else:
+        s, sk = Skin(), "d09a74"
+        head(s, sk, "9a9690", "part", brows="8a8680", mouth="8a4a40",
+             extra=[glasses("c9a227"), smile("8a4a40"), flat_cap("6a5440", "8a7258")])
+        tw, bt, sq, trousers = tweed("5a6a4a", "6e7e5c"), "7a2a38", "e8c25a", "6a604c"
+    bow = bow_tie(bt)
+
+    def b(fc, x, y, w, h):
+        c = bow(fc, x, y)
+        if c:
+            return c
+        if fc == "front" and y >= 2 and 2 <= x <= 5:
+            return C("c8b88a") if v != 2 else C("e8e0d0")   # a waistcoat / a knit
+        return C("f4f4f0")
+    body(s, b)
+    pattern_jacket(s, tw, open_rows=8, open_cols=(2, 5), lapel=None)
+    s.paint("body", lambda fc, x, y, w, h: C(sq) if fc == "front" and (x, y) in ((1, 3), (0, 3)) else None, 1)   # the pocket square
+    s.paint("body", lambda fc, x, y, w, h: shade(tw(x, y), 0.8) if fc == "front" and x in (1, 6) and y < 8 else None, 1)   # the lapels
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C(sk) if fc == "bottom" or y >= 10 else (C("f4f4f0") if y == 9 else tw(x, y)))
+        s.paint(a, lambda fc, x, y, w, h: (shade(tw(x, y), 0.8) if y == 8 else tw(x + 1, y)) if fc != "bottom" and y <= 8 else None, 1)
+        s.paint(a, lambda fc, x, y, w, h: shade(tw(x, y), 0.78) if fc in SIDES and x == 1 and y in (6, 7) else None, 1)   # elbow patch
+    legs(s, trousers, "6a3a1e", shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(C(trousers), 0.88) if fc == "front" and x == 1 and y < 11 else None)
+    return s
+
+
+def shaman(v):
+    """무당: a 한복 in the five colours (오방색), 색동 sleeves, a ritual headpiece, bells and a fan"""
+    if v == 1:
+        # a white 고깔, a red 저고리, a blue 치마, bells
+        s, sk = Skin(slim=True), "f0c8a6"
+        head(s, sk, "1a1414", "slick", mouth="c0222e", extra=[lips("c0222e"), goggal("f6f4ee", "e0303a", "f2c43a")])
+        top, skirt, ribbon = "d8303a", "2a4ab0", "f2c43a"
+    elif v == 2:
+        # a black hat with a red tassel and feathers, a blue sleeveless 쾌자 over a red robe, a red skirt, a fan
+        s, sk = Skin(slim=True), "e0aa84"
+        hat = gat("1a1a22")
+        feather = lambda s: s.paint("head", lambda fc, x, y, w, h: (C("d8303a") if (fc == "top" and 3 <= x <= 4 and 3 <= y <= 4) else
+                                                                    (C("3aa05a") if fc == "right" and fwd(fc, x, 8) in (4, 5) and y <= 1 else
+                                                                     (C("f2c43a") if fc == "right" and fwd(fc, x, 8) == 6 and y <= 1 else None))), 1)
+        head(s, sk, "1a1414", "slick", mouth="b0202a", extra=[lips("b0202a"), hat, feather])
+        top, skirt, ribbon = "d8303a", "d8303a", "f2c43a"
+    else:
+        # a red headband with a yellow knot, a yellow 저고리, a red 치마, bells and a fan
+        s, sk = Skin(slim=True), "e8b896"
+        band = lambda s: s.paint("head", lambda fc, x, y, w, h: (C("d8303a") if y == 2 else
+                                                                 (C("f2c43a") if fc == "back" and x in (3, 4) and y in (3, 4) else None))
+                                 if fc not in ("top", "bottom") else None, 1)
+        head(s, sk, "1a1414", "long", mouth="c0222e", extra=[lips("c0222e"), band])
+        top, skirt, ribbon = "f2c43a", "d8303a", "2a4ab0"
+    body(s, hanbok_body(top, skirt, ribbon, top_rows=5 if v != 2 else 12))
+    saekdong(s, top, sk)
+    if v == 2:
+        K = C("2a4ab0")
+
+        def kwaeja(fc, x, y, w, h):
+            if fc == "bottom":
+                return None
+            if fc == "front" and 3 <= x <= 4:
+                return None
+            if fc == "front" and x in (2, 5):
+                return C("f2c43a")                          # the trim
+            return K
+        s.paint("body", kwaeja, 1)
+    long_skirt(s, skirt, "f4f4f0")
+    if v != 2:
+        bells(s)
+    if v != 1:
+        hand_fan(s)
+    return s
+
+
+def mailman(v):
+    """우체부: a postal-red cap and uniform (no emblem), a leather mail bag with letters peeking out"""
+    red = "c8282a"
+    R = C(red)
+    if v == 1:
+        s, sk = Skin(), "e0a882"
+        head(s, sk, "1e1c1a", "short", mouth="8a4a40", extra=[cap(red, "1e1e22")])
+        trousers = "2a3346"
+    elif v == 2:
+        s, sk = Skin(slim=True), "f0c6a4"
+        head(s, sk, "2e1e18", "short", mouth="b85a50", blush="f0a898", extra=[cap(red, "1e1e22"), ponytail("2e1e18", "c8282a", length=3)])
+        trousers = "2a3346"
+    else:
+        s, sk = Skin(), "c88c62"
+        head(s, sk, "5a5450", "short", brows="2e2a26", mouth="7a3e36", extra=[mustache("4a4440"), cap(red, "1e1e22")])
+        trousers = "4a4e57"
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if v == 1:
+                if y == 0 and x in (1, 2, 5, 6):
+                    return C("f4f4f0")                     # the polo collar
+                if x in (3, 4) and y <= 2:
+                    return C(sk) if y == 0 else shade(R, 0.8)
+            else:
+                if y == 0 and 1 <= x <= 6:
+                    return shade(R, 0.8) if x not in (3, 4) else C("f4f4f0")
+                if x == 4 and y >= 1:
+                    return shade(R, 0.72)                  # the zip
+                if v == 3 and y % 3 == 2:
+                    return shade(R, 0.85)                  # the padded vest's seams
+            if y == 3 and x in (1, 2, 5, 6):
+                return shade(R, 0.84)                      # pocket flaps
+            if y == 11:
+                return shade(R, 0.82)
+        if fc in SIDES and x == 1:
+            return C("1e1e22")                             # a dark seam
+        return R
+    body(s, b)
+    if v == 3:
+        arms(s, "8a8e96", sk, sleeve=10, cuff="6a6e74")
+    else:
+        arms(s, red, sk, sleeve=4 if v == 1 else 10, cuff=None if v == 1 else shade_hex(red, 0.8))
+    mail_bag(s, "5a3a22", "8a5a2a", "f4f4f0")
+    legs(s, trousers, "1a1a1a", shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: R if fc in SIDES and x == 1 and y < 11 else None)   # a red stripe down the side
+    return s
+
+
+def bungeo(v):
+    """붕어빵 장수: a knit beanie, a padded jacket, an apron with a little fish-bread on it, mittens, rosy cheeks"""
+    if v == 1:
+        s, sk = Skin(), "e2ab84"
+        head(s, sk, "2a2522", "short", mouth="8a4a40", blush="f0907a", extra=[beanie("7a7e84", "5e6268", pom="f4f4f0")])
+        jk, apr, tie, mit, trousers = "2a3a66", "c8323a", "f4f4f0", "8a5a2a", "4a4e57"
+    elif v == 2:
+        s, sk = Skin(slim=True), "f2c8a6"
+        head(s, sk, "4a2e22", "bob", mouth="c05a5a", blush="f59a8a", extra=[beanie("e86a9a", "c84a7a", pom="f4f4f0")])
+        jk, apr, tie, mit, trousers = "ece4d4", "3a8a5a", "f4f4f0", "d8303a", "26262c"
+    else:
+        s, sk = Skin(), "c48a62"
+        head(s, sk, "3a3632", "short", brows="2a2622", mouth="7a3e36", blush="e0806a",
+             extra=[mustache("2a2622"), beanie("1e1e24", "2a2a30")])
+        jk, apr, tie, mit, trousers = "5e6a3e", "f4f4f0", "c8b48a", "7a7e84", "5a5040"
+    pf = padded(jk)
+    body(s, lambda fc, x, y, w, h: pf(fc, x, y, w, h))
+    s.paint("body", lambda fc, x, y, w, h: pf(fc, x, y, w, h) if fc != "bottom" else None, 1)   # puffy
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C(sk) if fc == "bottom" else pf("side", x, y, w, h))
+        s.paint(a, lambda fc, x, y, w, h: pf("side", x, y, w, h) if fc != "bottom" and y <= 9 else None, 1)
+    gloves(s, mit, cuff=shade_hex(mit, 1.2))
+    fish = {(3, 7), (4, 7), (6, 7), (2, 8), (3, 8), (4, 8), (5, 8), (3, 9), (4, 9), (6, 9)}
+    A = C(apr)
+    apron(s, apr, tie, pocket=False, pattern=lambda x, y: (C("c8822a") if (x, y) in fish else A))
+    s.paint("body", lambda fc, x, y, w, h: C("3a2a1e") if fc == "front" and (x, y) == (3, 8) else None, 1)   # the fish's eye
+    legs(s, trousers, "2a2a2a", shoe_rows=2)
+    return s
+
+
+def bride(v):
+    """신혼부부: the bride in white with a veil, the groom in a black tuxedo, the bride again in a wedding 한복"""
+    if v == 1:
+        # a white dress with a sweetheart neckline, a veil and a tiara, a bouquet
+        s, sk = Skin(slim=True), "f6d0b2"
+        head(s, sk, "5a3a2a", "bob", mouth="d0506a", blush="f8b0b0", extra=[lips("d0506a"), veil("fafaff", "d8dce4", "a8d8ff")])
+        W = C("fafafa")
+
+        def b(fc, x, y, w, h):
+            if fc == "top":
+                return C(sk)
+            if y == 0 or (y == 1 and x in (0, 3, 4, 7)):
+                return C(sk)                               # bare shoulders, the sweetheart neckline
+            if y == 5 and fc != "bottom":
+                return C("e8e0f0")                         # a satin sash
+            if y in (2, 3) and (x + y) % 3 == 0:
+                return C("ecece8")                         # lace
+            return W
+        body(s, b)
+        arms(s, sk, sk, sleeve=0)
+
+        def bouquet(fc, x, y, w, h):
+            if fc != "front":
+                return None
+            if 2 <= x <= 5 and 7 <= y <= 8:
+                return C("f08aa8") if (x + y) % 2 else (C("fafafa") if y == 7 else C("e8507a"))
+            if (x, y) in ((3, 9), (4, 9)):
+                return C("4a9a4a")
+            if (x, y) in ((1, 8), (6, 8)):
+                return C(sk)                               # the hands
+            return None
+        s.paint("body", bouquet, 1)
+        long_skirt(s, "fafafa", "f4f4f4", pleat=0.95)
+        return s
+    if v == 2:
+        # the groom: a black tuxedo, a white shirt, a black bow tie, a white flower on the lapel, slick hair
+        s, sk = Skin(), "f0c4a0"
+        head(s, sk, "16161a", "slick", mouth="a8584f", extra=[smile("a8584f")])
+        bow = bow_tie("141418", "2c2c34")
+
+        def b(fc, x, y, w, h):
+            c = bow(fc, x, y)
+            if c:
+                return c
+            if fc == "front" and 3 <= x <= 4 and y in (4, 6, 8):
+                return C("e0e0e0")                         # studs
+            return C("fafafa")
+        body(s, b)
+        jacket(s, "15151a", open_rows=9, open_cols=(2, 5), lapel="34343e", edge="34343e")
+        s.paint("body", lambda fc, x, y, w, h: (C("fafafa") if (x, y) == (1, 3) else (C("f8c8d8") if (x, y) == (1, 4) else
+                                               (C("4a9a4a") if (x, y) == (1, 5) else None))) if fc == "front" else None, 1)   # the boutonniere
+        arms(s, "fafafa", sk, sleeve=9, cuff="fafafa", layer_cloth="15151a")
+        legs(s, "15151a", "050505", shoe_rows=2)
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: C("34343e") if fc in SIDES and x == 1 and y < 10 else None)
+        return s
+    # the 한복 bride: a green 저고리 with 색동 sleeves over a red 치마, a 족두리, 연지곤지, the hair in a low bun
+    s, sk = Skin(slim=True), "f8d8c0"
+    head(s, sk, "1a1414", "slick", mouth="d0303a", extra=[lips("d0303a"), yeonji(), jokduri("1a1a22", "e0303a", "3aa0d8")])
+    top, skirt = "7ac04a", "d8202a"                        # 녹의홍상: a green jacket over a red skirt
+    body(s, hanbok_body(top, skirt, "8a1a6a", collar="f6f4ee", top_rows=5))
+    saekdong(s, top, sk, start=3)
+    s.paint("rarm", lambda fc, x, y, w, h: C("f4f4f0") if y >= 10 and fc != "top" else None, 1)   # the long white 한삼 over the hands
+    s.paint("larm", lambda fc, x, y, w, h: C("f4f4f0") if y >= 10 and fc != "top" else None, 1)
+    long_skirt(s, skirt, "f4f4f0")
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: C("e8c25a") if fc not in ("top", "bottom") and y == 8 and x % 2 == 0 else None, 1)   # a gold-leaf border (금박)
+    return s
+
+
+def police(v):
+    """경찰: a police-blue uniform and peaked cap (no badge, no lettering), reflective strips"""
+    navy, strip = "1e2e5a", "d8e0e8"
+    N = C(navy)
+    if v == 1:
+        # a light blue shirt, a navy tie, a duty belt, a reflective band on the cap
+        s, sk = Skin(), "e0a882"
+        head(s, sk, "1a1a1a", "short", mouth="8a4a40", extra=[police_cap(navy, strip, "0e0e12")])
+        S = C("a8c4e8")
+
+        def b(fc, x, y, w, h):
+            if fc == "front":
+                if 3 <= x <= 4 and 1 <= y <= 6:
+                    return N if y > 1 else shade(N, 0.8)
+                if y == 3 and x in (1, 2, 5, 6):
+                    return shade(S, 0.84)                  # pocket flaps
+            if y == 9:
+                return C("c8ccd0") if fc == "front" and x in (3, 4) else C("1a1a1e")   # the duty belt
+            if fc in SIDES and y in (7, 8) and fwd(fc, x) == 1:
+                return C("1a1a1e")                         # a pouch on the belt
+            if y >= 10:
+                return N
+            if fc in SIDES and y == 0:
+                return C(strip)
+            return S
+        body(s, b)
+        arms(s, "a8c4e8", sk, sleeve=4)
+        for a in ("rarm", "larm"):
+            s.paint(a, lambda fc, x, y, w, h: C(strip) if y == 2 and fc not in ("top", "bottom") else None)   # reflective arm bands
+    elif v == 2:
+        # a navy jacket with reflective bands, a bun under the cap
+        s, sk = Skin(slim=True), "f0c6a4"
+        head(s, sk, "1e1614", "slick", mouth="b85a50", extra=[bun("1e1614", "1e1614"), police_cap(navy, strip, "0e0e12")])
+
+        def b(fc, x, y, w, h):
+            if fc == "front":
+                if x == 4 and y >= 1:
+                    return shade(N, 0.7)
+                if y == 0 and 2 <= x <= 5:
+                    return C("a8c4e8") if x in (3, 4) else shade(N, 0.8)
+            if y in (6, 7) and fc != "bottom":
+                return C(strip) if y == 6 else C("c8f03a")  # the reflective band
+            if y == 9 and fc != "bottom":
+                return C("1a1a1e")
+            return N
+        body(s, b)
+        arms(s, navy, sk, sleeve=10, cuff=strip)
+    else:
+        # a lime high-vis vest with silver strips over the navy jacket, white gloves (traffic duty)
+        s, sk = Skin(), "c88c62"
+        head(s, sk, "1a1a1a", "short", mouth="7a3e36", extra=[police_cap(navy, strip, "0e0e12")])
+        body(s, lambda fc, x, y, w, h: C("a8c4e8") if fc == "front" and y <= 1 and x in (3, 4) else N)
+        hivis(s, "c8f03a", strip)
+        arms(s, navy, sk, sleeve=10, cuff=strip)
+        gloves(s, "fafafa")
+    legs(s, navy, "0e0e12", shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: C(strip) if fc in SIDES and x == 1 and 1 <= y <= 9 else None)   # reflective piping
+    return s
+
+
+def magician(v):
+    """마술사: a top hat, a black cape with a red lining, white gloves, a waxed mustache"""
+    if v == 1:
+        # a red waistcoat, a wand
+        s, sk = Skin(), "f0c4a0"
+        head(s, sk, "16161a", "slick", brows="16161a", extra=[curl_mustache("16161a"), top_hat("15151a", "c8202a")])
+        wc = "c8202a"
+    elif v == 2:
+        # silver hair and mustache, a purple waistcoat, a fan of playing cards
+        s, sk = Skin(), "e2ab84"
+        head(s, sk, "c8c4bc", "slick", brows="d8d4cc", extra=[curl_mustache("e8e4dc"), top_hat("15151a", "6a3a9a")])
+        wc = "6a3a9a"
+    else:
+        # a goatee, a gold waistcoat, a monocle, a wand and a rose
+        s, sk = Skin(), "c88c62"
+        head(s, sk, "2a1e16", "slick", brows="2a1e16", pupils="side",
+             extra=[curl_mustache("2a1e16"), top_hat("15151a", "e8c25a"),
+                    lambda s: s.paint("head", lambda fc, x, y, w, h: C("e8c25a") if fc == "front" and ((y in (3, 5) and x in (5, 6)) or (y == 4 and x in (4, 7))) else None, 1),
+                    lambda s: s.paint("head", lambda fc, x, y, w, h: C("2a1e16") if fc == "front" and (x, y) in ((3, 7), (4, 7)) else None)])
+        wc = "c8a030"
+    bow = bow_tie("15151a")
+
+    def b(fc, x, y, w, h):
+        c = bow(fc, x, y)
+        if c:
+            return c
+        if fc == "front" and 2 <= x <= 5 and 3 <= y <= 9:
+            return C(wc) if not (x in (3, 4) and y % 2 == 0) else C("e8c25a")   # the waistcoat and its buttons
+        if fc == "front" and y >= 10:
+            return C("15151a")
+        return C("fafafa")
+    body(s, b)
+    jacket(s, "15151a", open_rows=10, open_cols=(2, 5), lapel="2c2c34")
+    arms(s, "fafafa", sk, sleeve=9, cuff="fafafa", layer_cloth="15151a")
+    cape(s, "121216", "c8202a")
+    gloves(s, "fafafa")
+    if v == 1 or v == 3:
+        s.paint("rarm", lambda fc, x, y, w, h: (C("fafafa") if y == 6 else C("121216")) if fc == "front" and x == 1 and 6 <= y <= 11 else None, 1)   # the wand
+    if v == 2:
+        s.paint("larm", lambda fc, x, y, w, h: (C("fafafa") if (x + y) % 2 else C("d8303a")) if fc == "front" and 7 <= y <= 9 else None, 1)   # cards
+    if v == 3:
+        s.paint("larm", lambda fc, x, y, w, h: (C("d8203a") if y <= 8 else C("3a8a3a")) if fc == "front" and x == 1 and 7 <= y <= 10 else None, 1)   # a rose
+    legs(s, "15151a", "050505", shoe_rows=2)
+    return s
+
+
+def wrestler(v):
+    """씨름 선수: bare arms and chest, a big build, white shorts under the 샅바 (red or blue), a headband, bare feet"""
+    if v == 1:
+        s, sk = Skin(), "d8a078"
+        head(s, sk, "1a1a1a", "short", mouth="7a3e36", extra=[angry_brows("1a1a1a"), tie_band("d8303a")])
+        sat = "d8303a"
+    elif v == 2:
+        s, sk = Skin(), "c48a62"
+        head(s, sk, "1a1a1a", "buzz", mouth="6a3430", extra=[smile("6a3430"), tie_band("2a5ad8")])
+        sat = "2a5ad8"
+    else:
+        s, sk = Skin(), "b9784e"
+        head(s, sk, "1a1a1a", "short", brows="1a1a1a", mouth="6a3430", extra=[mustache("1a1a1a"), tie_band("d8303a")])
+        sat = "d8303a"
+    S = C(sk)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if y == 3 and 1 <= x <= 6 and x not in (3, 4):
+                return shade(S, 0.9)                       # the chest
+            if x in (3, 4) and 2 <= y <= 3:
+                return shade(S, 0.92)
+            if 5 <= y <= 8 and 2 <= x <= 5:
+                return shade(S, 1.05) if y < 8 else shade(S, 0.94)   # the belly
+            if (x, y) == (4, 7):
+                return shade(S, 0.8)
+        if y >= 10:
+            return C("f4f4f0")                             # shorts
+        return S
+    body(s, b)
+    arms(s, sk, sk, sleeve=0)
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: shade(S, 1.05) if fc in SIDES and 2 <= y <= 4 else None)   # big shoulders
+    legs(s, "f4f4f0", sk, shoe_rows=1, skin=sk, bare=5)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(S, 0.9) if fc == "bottom" else None)
+    satba(s, sat)
+    return s
+
+
 TYPES = [("resident", "동네 주민", resident), ("student", "학생", student), ("grandma", "할머니", grandma),
          ("office", "회사원", office), ("tourist", "관광객", tourist), ("vip", "VIP", vip),
          ("farmer", "농부", farmer), ("hiker", "등산객", hiker), ("fisher", "낚시꾼", fisher),
@@ -3299,7 +5143,16 @@ TYPES = [("resident", "동네 주민", resident), ("student", "학생", student)
          ("haenyeo", "해녀", haenyeo), ("fan", "야구팬", fan), ("nurse", "간호사", nurse),
          ("chatty", "수다쟁이 아줌마", chatty), ("motionsick", "멀미하는 아저씨", motionsick), ("mom", "애 업은 엄마", mom),
          ("dogwalker", "강아지 할아버지", dogwalker), ("shades", "선글라스 남자", shades), ("santa", "산타 할아버지", santa),
-         ("ghost", "유령 손님", ghost), ("rider", "배달 라이더", rider), ("monk", "스님", monk), ("youtuber", "유튜버", youtuber)]
+         ("ghost", "유령 손님", ghost), ("rider", "배달 라이더", rider), ("monk", "스님", monk), ("youtuber", "유튜버", youtuber),
+         ("market", "시장 아줌마", market), ("uncle", "동네 아저씨", uncle), ("univ", "대학생", univ),
+         ("worker", "공사장 인부", worker), ("kid", "초등학생", kid), ("chicken", "닭 든 할머니", chicken_grandma),
+         ("tardy", "지각생", tardy), ("interview", "면접 청년", interview), ("yeot", "엿장수", yeot),
+         ("traveler", "외국인 여행객", traveler), ("phone", "큰소리 통화남", phone_man), ("rude", "반말 아저씨", rude),
+         ("dodger", "무임승차 청년", dodger), ("prankster", "벨 장난 꼬마", prankster), ("spread", "쩍벌남", spread),
+         ("complainer", "민원 아줌마", complainer), ("crumbs", "과자 부스러기 학생", crumbs),
+         ("gentleman", "친절한 신사", gentleman), ("shaman", "무당", shaman), ("mailman", "우체부", mailman),
+         ("bungeo", "붕어빵 장수", bungeo), ("bride", "신혼부부", bride), ("police", "경찰", police),
+         ("magician", "마술사", magician), ("wrestler", "씨름 선수", wrestler)]
 VARIANTS = 3
 
 
