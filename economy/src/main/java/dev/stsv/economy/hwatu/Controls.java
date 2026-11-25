@@ -14,6 +14,7 @@ import java.util.UUID;
  * 섯다, my turn       one per legal action ({@link Betting#legal}), in this order:
  *                     다이 · 체크 · 삥 · 콜 · 따당 · 하프   (nobody bet yet: 다이 체크 삥 하프 · after a bet: 다이 콜 따당 하프)
  * 홀짝, my call       홀 · 짝
+ * 홀짝 · 주사위, my roll   굴리기 (the bowl / my cup is shaken, the die / my dice show)
  * in the hand, not my turn: nothing (the turn timer floats over the table)
  * not in a hand (waiting · result · sat down mid-hand · folded): 일어나기, and 준비 if I sit out (missed a turn)
  * </pre>
@@ -28,7 +29,7 @@ public final class Controls {
     /** A button: its model economy:gamble_btn_&lt;key&gt; and its text hwatu.btn.&lt;key&gt;. */
     public enum Button {
         DIE("die"), CHECK("check"), PING("ping"), CALL("call"), DDADANG("ddadang"), HALF("half"),
-        ODD("odd"), EVEN("even"), READY("ready"), LEAVE("leave");
+        ODD("odd"), EVEN("even"), ROLL("roll"), READY("ready"), LEAVE("leave");
 
         private final String key;
 
@@ -55,6 +56,7 @@ public final class Controls {
                 case HALF -> Table.Move.HALF;
                 case ODD -> Table.Move.ODD;
                 case EVEN -> Table.Move.EVEN;
+                case ROLL -> Table.Move.ROLL;
                 default -> null;
             };
         }
@@ -90,7 +92,8 @@ public final class Controls {
                     yield out;
                 }
                 case PICK -> List.of(Button.ODD, Button.EVEN);
-                case ROLL -> List.of();
+                case ROLL -> List.of(Button.ROLL);
+                case SHOW -> List.of();
             };
         }
         return s.sittingOut() ? List.of(Button.READY, Button.LEAVE) : List.of(Button.LEAVE);

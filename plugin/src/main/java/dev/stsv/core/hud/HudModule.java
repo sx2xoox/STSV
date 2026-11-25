@@ -89,8 +89,9 @@ import java.util.function.Function;
  * status line steps aside for a few seconds instead of overwriting it (and, in pack mode, so the health bars stay).
  *
  * Board ({@link #board}, pack mode): rows of text (Galmuri9) without a background in the bottom right corner of
- * the screen (a fishing tournament's ranking), shown to every online player with the pack while a producer has one:
- * the first registered producer that answers a board for that player wins. It is drawn on the action bar with the
+ * the screen (a fishing tournament's ranking, a 도박장 table's 족보), shown to every online player with the pack while a
+ * producer has one: each player sees one board, the highest-priority producer whose audience takes them and that
+ * answers one (HudBoards; a seated game's board, {@link #BOARD_SEATED}, over a tournament's for everyone). It is drawn on the action bar with the
  * bars (each piece has zero net advance; the action bar is the only line the game anchors to the bottom of the
  * screen, see HudLayout), so while a player has a board the HUD draws their action bar even without the bars
  * (creative, hud.health off) and messages go above it through {@link #flash} as usual. Producers are asked on the
@@ -148,7 +149,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     private static final String ADMIN_OWNER = "STSV HUD";
     /** How long /관리자 사이드바 보드시험 shows its sample. */
     private static final long PREVIEW_MILLIS = 10_000;
-    private final Map<String, Function<Player, HudLayout.Board>> boardMakers = new LinkedHashMap<>();
+    private final HudBoards<Player> boardMakers = new HudBoards<>();
     /** What each player's first boss bar title shows besides the board (sidebar and overlay), and the board. */
     private final Map<UUID, Component> panelShown = new ConcurrentHashMap<>();
     private final Map<UUID, Component> boardShown = new ConcurrentHashMap<>();
@@ -704,18 +705,31 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     // Board (pack mode): a small panel against the bottom right, for every player
     // ------------------------------------------------------------------------------------------
 
+    /** The priority of a board only the players seated at something see (a 도박장 table): above everything for everyone. */
+    public static final int BOARD_SEATED = 100;
+
     /**
-     * Adds (or replaces) a board producer, asked for each online player with the pack on every refresh (once a
-     * second) and on {@link #refreshBoard}: null = nothing for that player. Of the producers that answer a board,
-     * the first registered is shown.
+     * Adds (or replaces) a board producer for everyone at priority 0, asked for each online player with the pack on
+     * every refresh (once a second) and on {@link #refreshBoard}: null = nothing for that player. See
+     * {@link #board(String, int, java.util.function.Predicate, Function)}.
      */
     public void board(String id, Function<Player, HudLayout.Board> render) {
-        boardMakers.put(id, render);
+        board(id, 0, null, render);
+    }
+
+    /**
+     * Adds (or replaces) a board producer with a priority and an audience (null: everyone). Each player sees one board:
+     * of the producers whose audience takes them, the highest priority that answers one (not null); the same priority
+     * goes by registration order. A table game uses {@link #BOARD_SEATED} with "seated here" as its audience, so a
+     * fishing tournament (priority 0, everyone) keeps its board for everybody else.
+     */
+    public void board(String id, int priority, java.util.function.Predicate<Player> audience, Function<Player, HudLayout.Board> render) {
+        boardMakers.put(id, priority, audience, render);
         refreshBoard();
     }
 
     public void removeBoard(String id) {
-        if (boardMakers.remove(id) != null) refreshBoard();
+        if (boardMakers.remove(id)) refreshBoard();
     }
 
     /**
@@ -759,16 +773,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
             if (until > System.currentTimeMillis()) b = sampleBoard(p);
             else previews.remove(u);
         }
-        if (b == null) {
-            for (var e : boardMakers.entrySet()) {
-                try {
-                    b = e.getValue().apply(p);
-                } catch (RuntimeException ex) {
-                    plugin.getLogger().warning("보드 '" + e.getKey() + "' 오류: " + ex.getMessage());
-                }
-                if (b != null) break;
-            }
-        }
+        if (b == null) b = boardMakers.pick(p, (id, ex) -> plugin.getLogger().warning("보드 '" + id + "' 오류: " + ex.getMessage()));
         if (b == null) return null;
         Integer placedRight = placed(p) ? placement(p).right() : null;
         int right = HudLayout.boardRight(layout.settings().boardRight(), placedRight,

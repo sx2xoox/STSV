@@ -54,7 +54,11 @@ final class HallTable implements Table.Listener, Table.Bank {
     private final List<UUID> resit = new ArrayList<>();
     private TableScene scene;
     private Test test;
-    private UUID lastTurn, actedBy;
+    private UUID actedBy;
+    /** whose move it was and which (a change is a new move: a sound, a flash; the old one may have timed out) */
+    private String lastMove;
+    private UUID lastTurn;
+    private long lastDeadline;
     private int lostFor;
 
     HallTable(HwatuModule mod, HallStore.Binding binding, TableKind kind, Table.Game game, HwatuSpec.Room room) {
@@ -326,6 +330,12 @@ final class HallTable implements Table.Listener, Table.Bank {
         return test != null ? test.chips(u) : mod.available(u);
     }
 
+    @Override
+    public int chair(UUID u) {
+        Integer k = seats.get(u);
+        return k == null ? Integer.MAX_VALUE : k;
+    }
+
     /** What a 섯다 bet was, as MiniMessage: 하프! +120칩, with 올인 when it left them nothing. */
     static String act(Table.Bet b) {
         String s = Lang.raw("hwatu.act." + b.action().key(), "n", fmt(b.added()));
@@ -340,23 +350,45 @@ final class HallTable implements Table.Listener, Table.Bank {
     }
 
     @Override
+    public void street(Table t) {
+        tell(Lang.msg("hwatu.street-two"));
+        if (scene != null) scene.street();
+    }
+
+    @Override
+    public void rolled(Table t, UUID player) {
+        if (scene != null) scene.rolled(player);
+    }
+
+    /** Whose move it is now and which (null: nobody's). */
+    private static String move(Table t) {
+        UUID turn = t.turn();
+        return turn == null ? null : turn + ":" + t.step() + ":" + t.street() + ":" + t.deals();
+    }
+
+    @Override
     public void changed(Table t) {
         UUID turn = t.turn();
-        if (!java.util.Objects.equals(turn, lastTurn)) {
+        String now = move(t);
+        if (!java.util.Objects.equals(now, lastMove)) {
             UUID before = lastTurn;
-            // their turn ran out (the table moved for them): they sit out from the next hand until 준비
-            if (before != null && !before.equals(actedBy) && seats.containsKey(before) && !mod.isBot(before) && test == null
-                    && t.players().contains(before) && out.add(before)) {
+            // their turn ran out (the table moved for them at its deadline, not someone leaving): they sit out from the
+            // next hand until 준비
+            if (before != null && !before.equals(actedBy) && System.currentTimeMillis() >= lastDeadline && seats.containsKey(before)
+                    && !mod.isBot(before) && test == null && t.players().contains(before) && out.add(before)) {
                 Player p = Bukkit.getPlayer(before);
                 if (p != null) p.sendMessage(Lang.msg("hwatu.timed-out"));
             }
             actedBy = null;
             lastTurn = turn;
+            lastMove = now;
+            lastDeadline = t.deadline();
             if (turn != null && !mod.isBot(turn)) {
                 Player p = Bukkit.getPlayer(turn);
                 if (p != null) {
                     p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.6f);
-                    HudModule.flash(p, Lang.mm("hwatu.your-turn", "seconds", mod.spec().turnSeconds()));
+                    String key = t.step() == Table.Step.ROLL ? "hwatu.your-roll" : t.step() == Table.Step.PICK ? "hwatu.your-pick" : "hwatu.your-turn";
+                    HudModule.flash(p, Lang.mm(key, "seconds", t.moveSeconds()));
                 }
             }
         }
@@ -424,47 +456,107 @@ final class HallTable implements Table.Listener, Table.Bank {
         table.spec(s);
     }
 
-    // ------------------------------------------------------------------------------------------ the board (bottom right)
+    // ------------------------------------------------------------------------------------------ the HUD
 
+    /**
+     * The board in the bottom right corner (README "도박장"): 섯다's 족보 (pages turning every few seconds, the page of my own
+     * hand while I hold two cards, its row lit), or the rules of 주사위 / 홀짝. The hand as it stands is on the action bar
+     * ({@link #actionLine}).
+     */
     HudLayout.Board board(Player viewer) {
+        List<HudLayout.Board.Row> rows = new ArrayList<>();
+        if (game == Table.Game.SUTDA) {
+            Sutda.Hand h = table.phase() == Table.Phase.WAITING || table.folded(viewer.getUniqueId()) ? null : table.hand(viewer.getUniqueId());
+            String code = h == null ? null : h.code();
+            int page = Jokbo.page(code, System.currentTimeMillis());
+            String mine = Jokbo.row(code);
+            for (String r : Jokbo.SUTDA.get(page))
+                rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.jokbo." + r, "c", r.equals(mine) ? Lang.raw("hwatu.jokbo-mine") : Lang.raw("hwatu.jokbo-row"))));
+            String note = code == null ? Lang.raw("hwatu.jokbo-note-" + (page + 1)) : Lang.raw("hwatu.jokbo-my-hand", "hand", Lang.raw(HwatuModule.HAND + code));
+            return new HudLayout.Board(Lang.mm("hwatu.jokbo-title", "page", page + 1, "pages", Jokbo.SUTDA.size(), "note", note), rows);
+        }
+        String key = game.key();
+        for (int i = 1; i <= Jokbo.RULE_ROWS; i++)
+            rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules." + key + "-" + i, "ante", fmt(table.ante()), "rake", mod.spec().rakePercent(),
+                    "roll", mod.spec().rollSeconds(), "dice", mod.spec().game(Table.Game.DICE).dice())));
+        return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", gameName(), "room", roomName()), rows);
+    }
+
+    /**
+     * The action bar's line for a seated player: one compact line of the hand as it stands for them (whose move and the
+     * time left, the pot, what I put in, what calling costs, my cards / dice / call, my chips), or the wait / the result.
+     */
+    Component actionLine(Player viewer) {
         UUID me = viewer.getUniqueId();
         Table t = table;
-        List<HudLayout.Board.Row> rows = new ArrayList<>();
-        UUID turn = t.turn();
+        List<String> parts = new ArrayList<>();
         long left = secondsLeft();
+        boolean in = t.players().contains(me);
         switch (t.phase()) {
-            case WAITING -> rows.add(new HudLayout.Board.Row(null, Lang.mm(t.seats().size() < 2 ? "hwatu.board-alone" : "hwatu.board-starting", "seconds", left)));
+            case WAITING -> parts.add(Lang.raw(t.seats().size() < 2 ? "hwatu.line.alone" : "hwatu.line.starting", "seconds", left));
             case PLAYING -> {
-                if (turn != null) rows.add(new HudLayout.Board.Row(mod.isBot(turn) ? null : turn,
-                        Lang.mm(turn.equals(me) ? "hwatu.board-my-turn" : "hwatu.board-turn", "player", mini(turn), "seconds", left)));
-                else rows.add(new HudLayout.Board.Row(null, Lang.mm(t.step() == Table.Step.ROLL ? "hwatu.board-rolling" : "hwatu.board-playing", "seconds", left)));
-                rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-pot", "pot", fmt(t.pot()), "ante", fmt(t.ante()))));
-                if (t.players().contains(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm(t.folded(me) ? "hwatu.board-folded" : "hwatu.board-put", "n", fmt(t.put(me)))));
-                if (game == Table.Game.SUTDA && t.players().contains(me) && !t.folded(me)) {   // 내 패의 족보 (나에게만)
-                    Card[] c = t.cards(me);
-                    if (c != null && c.length == 2 && c[0] != null && c[1] != null)
-                        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-hand", "hand", Lang.raw(HwatuModule.HAND + Sutda.of(c[0], c[1]).code()))));
-                }
-                if (game == Table.Game.SUTDA && t.betting() != null) {
-                    // 마지막 베팅은 자리 위 글자 · 채팅으로 보임: 판(최대 6줄)에 내 칩 줄이 남도록 여기서는 뺌
+                UUID turn = t.turn();
+                if (turn != null && turn.equals(me))
+                    parts.add(Lang.raw(t.step() == Table.Step.ROLL ? "hwatu.line.my-roll" : t.step() == Table.Step.PICK ? "hwatu.line.my-pick" : "hwatu.line.my-turn", "seconds", left));
+                else if (turn != null) parts.add(Lang.raw("hwatu.line.turn", "player", mini(turn), "seconds", left));
+                else parts.add(Lang.raw("hwatu.line.showing", "seconds", left));
+                if (game == Table.Game.SUTDA) parts.add(Lang.raw("hwatu.line.street", "n", t.street()));
+                parts.add(Lang.raw("hwatu.line.pot", "pot", fmt(t.pot())));
+                if (in && t.folded(me)) parts.add(Lang.raw("hwatu.line.folded"));
+                else if (in) {
+                    if (game == Table.Game.SUTDA) parts.add(Lang.raw("hwatu.line.put", "n", fmt(t.put(me))));
                     int seat = t.players().indexOf(me);
-                    if (t.allIn(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-allin")));
-                    else if (seat >= 0 && t.inHand(me) && t.betting().toCall(seat) > 0)
-                        rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-to-call", "n", fmt(t.betting().toCall(seat)))));
-                }
+                    if (t.allIn(me)) parts.add(Lang.raw("hwatu.line.allin"));
+                    else if (game == Table.Game.SUTDA && t.betting() != null && seat >= 0 && t.betting().toCall(seat) > 0)
+                        parts.add(Lang.raw("hwatu.line.to-call", "n", fmt(t.betting().toCall(seat))));
+                    String mine = mine(t, me);
+                    if (mine != null) parts.add(mine);
+                } else parts.add(Lang.raw("hwatu.line.watching"));
             }
             case RESULT -> {
                 Table.Result r = t.last();
                 if (r != null && r.players().contains(me)) {
                     long net = r.net(me);
-                    rows.add(new HudLayout.Board.Row(null, Lang.mm(net >= 0 ? "hwatu.board-won" : "hwatu.board-lost", "n", fmt(Math.abs(net)))));
+                    parts.add(Lang.raw(net >= 0 ? "hwatu.line.won" : "hwatu.line.lost", "n", fmt(Math.abs(net))));
                 }
-                rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-result", "seconds", left)));
+                parts.add(Lang.raw("hwatu.line.next", "seconds", left));
             }
         }
-        rows.add(new HudLayout.Board.Row(null, Lang.mm(test != null ? "hwatu.board-test-chips" : "hwatu.board-chips", "n", fmt(held(me) - (t.phase() == Table.Phase.PLAYING ? t.put(me) : 0)))));
-        if (out.contains(me)) rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.board-sitting-out")));
-        return new HudLayout.Board(Lang.mm("hwatu.board-title", "game", gameName(), "room", roomName()), rows);
+        parts.add(Lang.raw(test != null ? "hwatu.line.test-chips" : "hwatu.line.chips", "n", fmt(held(me) - (t.phase() == Table.Phase.PLAYING ? t.put(me) : 0))));
+        if (out.contains(me)) parts.add(Lang.raw("hwatu.line.sitting-out"));
+        return Lang.mm("hwatu.line.all", "line", String.join(Lang.raw("hwatu.line.sep"), parts));
+    }
+
+    /** My cards (one: the card, two: the 족보), my dice or my call, as MiniMessage; null if nothing yet. */
+    private String mine(Table t, UUID me) {
+        switch (game) {
+            case SUTDA -> {
+                Card[] c = t.cards(me);
+                if (c == null || c.length == 0) return null;
+                Sutda.Hand h = t.hand(me);
+                return h != null ? Lang.raw("hwatu.line.hand", "hand", Lang.raw(HwatuModule.HAND + h.code()))
+                        : Lang.raw("hwatu.line.one-card", "card", c[0].label());
+            }
+            case DICE -> {
+                int[] r = t.rolls(me);
+                if (r == null) return null;
+                int total = 0;
+                StringBuilder b = new StringBuilder();
+                for (int x : r) {
+                    total += x;
+                    if (!b.isEmpty()) b.append('+');
+                    b.append(x);
+                }
+                return Lang.raw("hwatu.line.dice", "roll", b, "total", total);
+            }
+            case HOLJJAK -> {
+                Boolean odd = t.calledOdd();
+                if (odd == null) return null;
+                boolean caller = t.players().getFirst().equals(me);
+                return Lang.raw("hwatu.line.call", "call", Lang.raw(HwatuModule.HAND + ((odd == caller) ? "odd" : "even")));
+            }
+        }
+        return null;
     }
 
     // ------------------------------------------------------------------------------------------ 시험 판
@@ -489,6 +581,7 @@ final class HallTable implements Table.Listener, Table.Bank {
         table.abandon();
         table = new Table(mod.nextTableId(), game, room, mod.spec(), mod.rng());
         lastTurn = actedBy = null;
+        lastMove = null;
         out.clear();
         resit.clear();
         List<Integer> usable = usableSeats();
@@ -543,6 +636,7 @@ final class HallTable implements Table.Listener, Table.Bank {
         }
         table = new Table(mod.nextTableId(), game, room, mod.spec(), mod.rng());
         lastTurn = actedBy = null;
+        lastMove = null;
         Player p = Bukkit.getPlayer(x.admin);
         if (p != null && tell) p.sendMessage(Lang.msg("hwatu.test-end", "net", (x.net >= 0 ? "+" : "") + fmt(x.net)));
         if (scene != null) scene.sync();
@@ -561,7 +655,7 @@ final class HallTable implements Table.Listener, Table.Bank {
         final Map<UUID, Long> chips = new HashMap<>();
         final Map<UUID, Entity> bodies = new HashMap<>();
         long net;
-        private UUID thinking;
+        private String thinking;
         private long actAt;
 
         Test(UUID admin) {
@@ -636,9 +730,10 @@ final class HallTable implements Table.Listener, Table.Bank {
                 thinking = null;
                 return;
             }
-            if (!turn.equals(thinking)) {   // a bot's turn began: it thinks a little (well inside the turn timer)
-                thinking = turn;
-                actAt = now + HwatuBot.delay(mod.spec().turnSeconds(), mod.rng().nextDouble());
+            String m0 = move(table);
+            if (!m0.equals(thinking)) {   // a bot's move began: it thinks a little (well inside the timer)
+                thinking = m0;
+                actAt = now + HwatuBot.delay(table.moveSeconds(), mod.rng().nextDouble());
                 return;
             }
             if (now < actAt) return;
@@ -653,12 +748,14 @@ final class HallTable implements Table.Listener, Table.Bank {
 
         private Table.Move botMove(UUID bot) {
             if (table.step() == Table.Step.PICK) return HwatuBot.callsOdd(mod.rng().nextDouble()) ? Table.Move.ODD : Table.Move.EVEN;
+            if (table.step() == Table.Step.ROLL) return Table.Move.ROLL;
             if (table.step() != Table.Step.BET) return null;
             Card[] c = table.cards(bot);
             Betting b = table.betting();
             int seat = table.players().indexOf(bot);
-            if (c == null || b == null || seat < 0 || b.turn() != seat) return null;
-            return Table.move(HwatuBot.sutda(Sutda.of(c[0], c[1]), b, seat, mod.rng().nextDouble()));
+            if (c == null || c.length == 0 || b == null || seat < 0 || b.turn() != seat) return null;
+            double roll = mod.rng().nextDouble();
+            return Table.move(c.length < 2 ? HwatuBot.sutdaFirst(c[0], b, seat, roll) : HwatuBot.sutda(Sutda.of(c[0], c[1]), b, seat, roll));
         }
 
         /** Only the pretend chips move: nothing is stored, logged, burned or counted. */

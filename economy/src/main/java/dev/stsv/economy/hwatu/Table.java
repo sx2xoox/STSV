@@ -16,12 +16,16 @@ import java.util.random.RandomGenerator;
  *
  * <pre>
  * WAITING  2+ seated: after timers.start a hand starts with everyone the bank lets play (the others stand up)
- * PLAYING  everyone in pays the ante, then
- *            홀짝:   the first player calls 홀 or 짝 (turn timer: a random call), the die is rolled after timers.reveal
- *            주사위: everyone's dice are rolled after timers.reveal, the highest total wins (ties split)
- *            섯다:   two cards each, one betting round ({@link Betting}: 삥 · 체크 · 콜 · 따당 · 하프 · 다이, no cap,
- *                    올인 when short; turn timer: 다이 if there is something to match, else 체크), showdown ({@link Sutda})
- *                    of the main pot and each side pot ({@link Pots}); 구사 replays with the same pot (no new ante)
+ * PLAYING  everyone in pays the ante (the order: clockwise round the chairs from the dealer, who moves on each hand), then
+ *            홀짝:   the first player calls 홀 or 짝 (turn timer: a random call), then presses 굴리기 to shake the bowl
+ *                    (timers.roll: rolled for them); the die shows for timers.reveal, then the result
+ *            주사위: each player in turn presses 굴리기 to shake their cup (timers.roll: rolled for them); when all have
+ *                    rolled, timers.reveal to look, then the highest total wins (ties split)
+ *            섯다:   two streets: one card each, a betting round ({@link Betting}: 삥 · 체크 · 콜 · 따당 · 하프 · 다이, no
+ *                    cap, 올인 when short; turn timer: 다이 if there is something to match, else 체크), the second card,
+ *                    a second betting round (체크 again while nobody bet), showdown ({@link Sutda}) of the main pot and
+ *                    each side pot ({@link Pots}); everyone but one folding ends it at once; 구사 replays with the same
+ *                    pot (no new ante), dealt anew street by street
  *          leaving mid-hand folds (the chips put in stay in the pot); one player left wins the pot
  *          a 섯다 player's stake is every chip they hold when the hand starts (the bank's {@link Bank#stack}): they can
  *          never put in more, so chips never go below 0
@@ -48,11 +52,14 @@ public final class Table {
 
     public enum Phase { WAITING, PLAYING, RESULT }
 
-    /** PICK: 홀짝's call; ROLL: the dice are about to show; BET: 섯다's betting round. */
-    public enum Step { PICK, ROLL, BET }
+    /**
+     * PICK: 홀짝's call; ROLL: someone ({@link #turn}) is to press 굴리기 (홀짝's caller, 주사위 each player in turn);
+     * SHOW: everything is rolled, shown for timers.reveal before the result; BET: a 섯다 betting round ({@link #street}).
+     */
+    public enum Step { PICK, ROLL, SHOW, BET }
 
-    /** 홀짝's call and 섯다's actions. */
-    public enum Move { ODD, EVEN, DIE, CHECK, PING, CALL, DDADANG, HALF }
+    /** 홀짝's call, 굴리기 and 섯다's actions. */
+    public enum Move { ODD, EVEN, ROLL, DIE, CHECK, PING, CALL, DDADANG, HALF }
 
     /** The 섯다 action of a move (null: 홀 · 짝). */
     public static Betting.Action action(Move m) {
@@ -86,6 +93,11 @@ public final class Table {
         default long stack(UUID player) {
             return 1_000_000_000L;
         }
+
+        /** The chair a player sits in (seat index: 0 at the table's front, then clockwise): the order of play. */
+        default int chair(UUID player) {
+            return 0;
+        }
     }
 
     /** A 섯다 bet made: who, what, the chips it added, and whether it left them all-in (올인). */
@@ -106,6 +118,12 @@ public final class Table {
 
         /** A 섯다 player bet (or the turn timer did for them); changed() follows. */
         default void bet(Table t, Bet b) {}
+
+        /** 섯다: the second card was dealt (a new betting round); changed() follows. */
+        default void street(Table t) {}
+
+        /** 주사위 · 홀짝: this player rolled (pressed 굴리기, or the timer did for them); changed() follows. */
+        default void rolled(Table t, UUID player) {}
     }
 
     /** One pot of a finished hand (섯다 may have side pots): its chips, its winners, each one's share, what burned. */
@@ -142,7 +160,10 @@ public final class Table {
     private final Map<UUID, Long> stake = new HashMap<>();
     private Bet lastBet;
     private boolean[] out = new boolean[0];
+    /** 섯다: the cards on the table (one after the first deal, two after the second), and both cards of each player. */
     private final Map<UUID, Card[]> cards = new HashMap<>();
+    private final Map<UUID, Card[]> hole = new HashMap<>();
+    private int street, deals, hands;
     private final Map<UUID, int[]> rolls = new HashMap<>();
     private Boolean calledOdd;
     private int die;
@@ -178,6 +199,12 @@ public final class Table {
     public int die() { return die; }
     public Betting betting() { return betting; }
     public int replays() { return replays; }
+    /** 섯다: 1 after the first card, 2 after the second (0: no 섯다 hand). */
+    public int street() { return street; }
+    /** How many times cards were dealt to a fresh deck (a new hand or a 구사 재경기): a change means new cards. */
+    public int deals() { return deals; }
+    /** How many hands this table has started (a change means a new hand). */
+    public int hands() { return hands; }
     /** The last 섯다 bet of this round (null: none yet). */
     public Bet lastBet() { return lastBet; }
 
@@ -199,8 +226,9 @@ public final class Table {
     }
 
     /**
-     * 시험 판 only: deals this player these two cards in the next 섯다 hand (its first deal, not a 구사 재경기). false (nothing
-     * changes) if the two are the same card or a card another forced player already gets.
+     * 시험 판 only: deals this player these two cards in the next 섯다 hand (its first deal, not a 구사 재경기): `a` on the
+     * first street, `b` on the second. false (nothing changes) if the two are the same card or a card another forced
+     * player already gets.
      */
     public boolean force(UUID player, Card a, Card b) {
         if (a == null || b == null || a.equals(b)) return false;
@@ -267,19 +295,39 @@ public final class Table {
         return p;
     }
 
+    /** 섯다: the player's cards dealt so far (one on the first street, two on the second), or null. */
     public Card[] cards(UUID u) {
         return cards.get(u);
+    }
+
+    /** 섯다: the player's two cards when both are dealt (their hand), else null. */
+    public Sutda.Hand hand(UUID u) {
+        Card[] c = cards.get(u);
+        return c == null || c.length < 2 ? null : Sutda.of(c[0], c[1]);
+    }
+
+    /** How long the current move may take (seconds): 굴리기 has its own timer (timers.roll), the rest timers.turn. */
+    public int moveSeconds() {
+        return step == Step.ROLL ? spec.rollSeconds() : spec.turnSeconds();
     }
 
     public int[] rolls(UUID u) {
         return rolls.get(u);
     }
 
-    /** Whose move it is (홀짝's caller, 섯다's turn), or null. */
+    /** Whose move it is (홀짝's caller, who rolls next, 섯다's turn), or null. */
     public UUID turn() {
         if (phase != Phase.PLAYING) return null;
         if (step == Step.PICK) return players.getFirst();
+        if (step == Step.ROLL) return nextRoller();
         if (step == Step.BET && betting.turn() >= 0) return players.get(betting.turn());
+        return null;
+    }
+
+    /** 홀짝: the caller (until the die is rolled); 주사위: the first player in order still in who has not rolled. */
+    private UUID nextRoller() {
+        if (game == Game.HOLJJAK) return die == 0 && !out[0] ? players.getFirst() : null;
+        for (int i = 0; i < players.size(); i++) if (!out[i] && !rolls.containsKey(players.get(i))) return players.get(i);
         return null;
     }
 
@@ -303,8 +351,10 @@ public final class Table {
                 betting.fold(i);
                 afterBet(now, l);
             } else {
+                UUID before = turn();
                 out[i] = true;
                 if (active() <= 1) finishUncontested(now, l);
+                else if (step == Step.ROLL && u.equals(before)) afterRoll(now, l);   // the next one rolls (a fresh timer)
             }
         }
         l.changed(this);
@@ -351,6 +401,7 @@ public final class Table {
                     l.changed(this);
                     return;
                 }
+                ok.sort(java.util.Comparator.comparingInt(bank::chair));   // clockwise round the table
                 start(ok, now, bank, l);
                 l.changed(this);
             }
@@ -367,11 +418,14 @@ public final class Table {
     }
 
     private void start(List<UUID> ok, long now, Bank bank, Listener l) {
+        hands++;
         players.clear();
         put.clear();
         stake.clear();
         lastBet = null;
         cards.clear();
+        hole.clear();
+        street = 0;
         rolls.clear();
         calledOdd = null;
         die = 0;
@@ -394,7 +448,7 @@ public final class Table {
             }
             case DICE -> {
                 step = Step.ROLL;
-                deadline = now + spec.revealSeconds() * 1000L;
+                deadline = now + spec.rollSeconds() * 1000L;
             }
             case SUTDA -> {
                 deal(null, forced);
@@ -402,7 +456,7 @@ public final class Table {
                 betting = round(null);
                 step = Step.BET;
                 deadline = now + spec.turnSeconds() * 1000L;
-                if (betting.done()) afterBet(now, l);   // nobody can bet (all-in on the ante): straight to the showdown
+                if (betting.done()) afterBet(now, l);   // nobody can bet (all-in on the ante): the second card, the showdown
             }
         }
     }
@@ -419,11 +473,17 @@ public final class Table {
         return new Betting(ante(), pot(), left, out);
     }
 
-    /** Two cards each to the players still in (folded: null), from a fresh shuffled deck; `fixed`: these players' cards. */
+    /**
+     * A fresh shuffled deck: two cards each to the players still in (folded: none), of which the first is on the table
+     * (street 1) and the second comes with {@link #secondStreet}; `fixed`: these players' cards, in that order.
+     */
     private void deal(Betting folds, Map<UUID, Card[]> fixed) {
         List<Card> deck = Card.deck();
         Collections.shuffle(deck, rng);
         cards.clear();
+        hole.clear();
+        street = 1;
+        deals++;
         Map<UUID, Card[]> use = new HashMap<>();
         for (Map.Entry<UUID, Card[]> e : fixed.entrySet()) {
             if (!players.contains(e.getKey())) continue;
@@ -435,8 +495,26 @@ public final class Table {
             if (folds != null && folds.folded(i)) continue;
             UUID u = players.get(i);
             Card[] mine = use.get(u);
-            cards.put(u, mine != null ? mine.clone() : new Card[]{deck.get(k++), deck.get(k++)});
+            Card[] two = mine != null ? mine.clone() : new Card[]{deck.get(k++), deck.get(k++)};
+            hole.put(u, two);
+            cards.put(u, new Card[]{two[0]});
         }
+    }
+
+    /** The first street's betting is over with two or more still in: each of them gets their second card, a new round. */
+    private void secondStreet(long now, Listener l) {
+        street = 2;
+        for (int i = 0; i < players.size(); i++) {
+            UUID u = players.get(i);
+            if (betting.folded(i) || !hole.containsKey(u)) continue;
+            cards.put(u, hole.get(u).clone());
+        }
+        betting = round(betting);
+        lastBet = null;
+        deadline = now + spec.turnSeconds() * 1000L;
+        l.street(this);
+        l.changed(this);
+        if (betting.done()) afterBet(now, l);   // everyone left is all-in: straight to the showdown
     }
 
     private void timeout(long now, Listener l) {
@@ -444,10 +522,15 @@ public final class Table {
             case PICK -> {
                 calledOdd = rng.nextBoolean();
                 step = Step.ROLL;
-                deadline = now + spec.revealSeconds() * 1000L;
+                deadline = now + spec.rollSeconds() * 1000L;
                 l.changed(this);
             }
-            case ROLL -> roll(now, l);
+            case ROLL -> {
+                UUID u = turn();
+                if (u == null) afterRoll(now, l);
+                else roll(u, now, l);
+            }
+            case SHOW -> settleRolls(now, l);
             case BET -> {
                 int seat = betting.turn();
                 if (seat < 0) afterBet(now, l);
@@ -466,8 +549,13 @@ public final class Table {
             if (m != Move.ODD && m != Move.EVEN) return "hwatu.not-your-turn";
             calledOdd = m == Move.ODD;
             step = Step.ROLL;
-            deadline = now + spec.revealSeconds() * 1000L;
+            deadline = now + spec.rollSeconds() * 1000L;
             l.changed(this);
+            return null;
+        }
+        if (step == Step.ROLL) {
+            if (m != Move.ROLL) return "hwatu.not-your-turn";
+            roll(u, now, l);
             return null;
         }
         Betting.Action a = action(m);
@@ -504,18 +592,19 @@ public final class Table {
             finishUncontested(now, l);
             return;
         }
-        showdown(now, l);
+        if (street < 2) secondStreet(now, l);
+        else showdown(now, l);
     }
 
     private void showdown(long now, Listener l) {
         List<Integer> in = betting.in();
         List<Sutda.Hand> hands = new ArrayList<>();
         for (int i : in) {
-            Card[] c = cards.get(players.get(i));
+            Card[] c = hole.get(players.get(i));
             hands.add(Sutda.of(c[0], c[1]));
         }
         Sutda.Outcome o = Sutda.showdown(hands, replays < spec.game(Game.SUTDA).replays());
-        if (o.replay()) {
+        if (o.replay()) {   // 구사: dealt anew, one card, a betting round, the second card, a betting round
             replays++;
             Betting next = round(betting);
             deal(next, Map.of());
@@ -559,7 +648,7 @@ public final class Table {
             else if (e.size() > 1) {
                 List<Sutda.Hand> hands = new ArrayList<>();
                 for (int i : e) {
-                    Card[] cs = cards.get(players.get(i));
+                    Card[] cs = hole.get(players.get(i));
                     hands.add(Sutda.of(cs[0], cs[1]));
                 }
                 for (int k : Sutda.showdown(hands, false).winners()) won.add(players.get(e.get(k)));
@@ -570,28 +659,47 @@ public final class Table {
         finishPots(results, detail, uncontested, now, l);
     }
 
-    private void roll(long now, Listener l) {
+    /** 굴리기: 홀짝's die under the bowl, or this player's dice under their cup. */
+    private void roll(UUID u, long now, Listener l) {
+        if (game == Game.HOLJJAK) die = 1 + rng.nextInt(6);
+        else {
+            int[] r = new int[spec.game(Game.DICE).dice()];
+            for (int k = 0; k < r.length; k++) r[k] = 1 + rng.nextInt(6);
+            rolls.put(u, r);
+        }
+        l.rolled(this, u);
+        afterRoll(now, l);
+    }
+
+    /** After a roll (or the roller left): the next one rolls with a fresh timer, or everything shows for timers.reveal. */
+    private void afterRoll(long now, Listener l) {
+        if (turn() != null) deadline = now + spec.rollSeconds() * 1000L;
+        else {
+            step = Step.SHOW;
+            deadline = now + spec.revealSeconds() * 1000L;
+        }
+        l.changed(this);
+    }
+
+    /** The rolls have been looked at: 홀짝's call against the die, or the highest dice total. */
+    private void settleRolls(long now, Listener l) {
         Map<UUID, String> detail = new LinkedHashMap<>();
         if (game == Game.HOLJJAK) {
-            die = 1 + rng.nextInt(6);
             UUID caller = players.get(0), other = players.get(1);
             detail.put(caller, calledOdd ? "odd" : "even");
             detail.put(other, calledOdd ? "even" : "odd");
             finish(List.of(HwatuRules.callerWins(calledOdd, die) ? caller : other), detail, false, now, l);
             return;
         }
-        int n = spec.game(Game.DICE).dice();
         List<UUID> in = new ArrayList<>();
         int[] totals = new int[players.size()];
         for (int i = 0; i < players.size(); i++) {
             UUID u = players.get(i);
-            if (out[i]) {
+            int[] r = rolls.get(u);
+            if (out[i] || r == null) {
                 detail.put(u, "die");
                 continue;
             }
-            int[] r = new int[n];
-            for (int k = 0; k < n; k++) r[k] = 1 + rng.nextInt(6);
-            rolls.put(u, r);
             in.add(u);
             int t = 0;
             StringBuilder b = new StringBuilder();
@@ -658,6 +766,7 @@ public final class Table {
             stake.clear();
         }
         lastBet = null;
+        street = 0;
         phase = Phase.WAITING;
         deadline = 0;
     }

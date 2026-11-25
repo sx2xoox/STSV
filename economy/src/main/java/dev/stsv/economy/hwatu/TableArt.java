@@ -18,8 +18,8 @@ import java.util.UUID;
  *       then points the given yaw's way (the core's furniture rule, {@link #MODEL_TURN}).</li>
  *   <li>Every display model reads upright for a viewer on its north side (tools/assetgen/models/gamble.py): cards and
  *       buttons are turned to face their seat.</li>
- *   <li>Cards (6 x 8 px, lying flat), chip piles and the bowl have their bottom on the display's position; the die
- *       (4 px) and the buttons (12 x 6 px plates, standing) are centred on it.</li>
+ *   <li>Cards (6 x 8 px, lying flat), chip piles, the bowl and the dice cup have their bottom on the display's
+ *       position; the die (4 px) and the buttons (12 x 6 px plates, standing) are centred on it.</li>
  *   <li>The die (gamble_die) shows 1 up in its own pose; {@link #DIE_FACES} is where each face points then.</li>
  * </ul>
  */
@@ -111,6 +111,13 @@ public final class TableArt {
     }
 
     // ------------------------------------------------------------------------------------------ the table top
+
+    /**
+     * How high the sign over a table floats, from the FLOOR the table stands on (not its top: the two tables differ):
+     * between the bulb hanging over the table (its block 2 .. 3 over the floor) and the ceiling (4 over the floor; the
+     * sign's three lines at its scale rise about 0.38 over this), as HallLayout.Table#sign.
+     */
+    public static final double SIGN_UP = 2.58;
 
     /** Spots on a table top: x z on the ground plane (y is the top's height, the same for all). */
     public record Spot(double x, double z, float yaw) {}

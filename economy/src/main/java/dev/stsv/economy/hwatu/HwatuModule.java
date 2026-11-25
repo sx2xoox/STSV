@@ -138,7 +138,11 @@ public final class HwatuModule extends EcoModule {
                 "도박장 짓기 · 테이블 묶기 (보고 있는 테이블) · /화투방 위치 · 혼자 봇과 시험 판 (진짜 칩 · 골드 · 기록 없음) · 판 기록 (세탁 감시) · 칩 보기·정하기",
                 this::admin, this::adminComplete);
         purgeStrays();
-        if (core.hud() != null) core.hud().board(HUD, this::board);
+        if (core.hud() != null) {
+            // seated: this table's 족보 over anything shown to everyone (a fishing tournament keeps the others' corner)
+            core.hud().board(HUD, HudModule.BOARD_SEATED, p -> seated.containsKey(p.getUniqueId()), this::board);
+            core.hud().line(HUD, 0, this::actionLine);
+        }
         every(20, this::second);
         every(1, this::frame);
     }
@@ -152,7 +156,10 @@ public final class HwatuModule extends EcoModule {
         seated.clear();
         bots.clear();
         removeHallNpcs();
-        if (core.hud() != null) core.hud().removeBoard(HUD);
+        if (core.hud() != null) {
+            core.hud().removeBoard(HUD);
+            core.hud().removeLine(HUD);
+        }
     }
 
     @Override
@@ -601,10 +608,16 @@ public final class HwatuModule extends EcoModule {
         p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1f);
     }
 
-    /** The board (bottom right) of whoever sits at a table. */
+    /** The board (bottom right) of whoever sits at a table: the game's 족보 / rules. */
     private HudLayout.Board board(Player viewer) {
         HallTable t = seated.get(viewer.getUniqueId());
         return t == null ? null : t.board(viewer);
+    }
+
+    /** The action bar's line of whoever sits at a table: the hand as it stands for them (null: not seated). */
+    private net.kyori.adventure.text.Component actionLine(Player viewer) {
+        HallTable t = seated.get(viewer.getUniqueId());
+        return t == null ? null : t.actionLine(viewer);
     }
 
     // ------------------------------------------------------------------------------------------

@@ -36,8 +36,9 @@ import java.util.UUID;
 
 /**
  * What a 도박장 table shows (README "도박장"): the sign over it, the cards before each seat (the owner sees the face, everyone
- * else the back: two displays a card, hidden per viewer), the chip pile in the middle, the dice and the 홀짝 bowl, the turn
- * timer and the buttons of whoever's turn it is (seen and clicked by them alone). Every entity here is not saved
+ * else the back: two displays a card, hidden per viewer; 섯다 deals them one street at a time), the chip pile in the
+ * middle, each 주사위 player's cup over their dice (shaken and lifted when they roll), the 홀짝 bowl (shaken and lifted
+ * when the caller rolls), the turn timer and the buttons of whoever's turn it is (seen and clicked by them alone). Every entity here is not saved
  * (setPersistent(false)) and tagged {@link #TAG}: a chunk unloading or the server stopping takes them away, and
  * {@link HallTable} draws the table again when its furniture is back. Animations are interpolated transformations, stepped
  * by {@link #tick()} every tick. Where things go: {@link TableArt}.
@@ -50,7 +51,9 @@ final class TableScene {
     static final NamespacedKey BUTTON = new NamespacedKey("economy", "hwatu_button");
 
     /** Sizes of the models on the table (scale of a display; the models are drawn at their own size, 16 px a block). */
-    static final float CARD_SCALE = 0.75f, BUTTON_SCALE = 0.4f, DIE_SCALE = 0.6f, CHIPS_SCALE = 0.45f, BOWL_SCALE = 0.8f;
+    static final float CARD_SCALE = 0.75f, BUTTON_SCALE = 0.4f, DIE_SCALE = 0.6f, CHIPS_SCALE = 0.45f, BOWL_SCALE = 0.8f, CUP_SCALE = 0.9f;
+    /** How long a cup or the bowl is shaken before it is lifted off the roll (ticks). */
+    static final int SHAKE_TICKS = 18;
     /** Half of the centred models (the die is 4 px, a button plate 6 px tall): how high their middle stands. */
     static final double DIE_HALF = 0.125 * DIE_SCALE, BUTTON_HALF = 0.1875 * BUTTON_SCALE;
     /** Buttons lean back (degrees round their own left-right axis) to face someone sitting at the table. */
@@ -63,7 +66,7 @@ final class TableScene {
     private final World world;
     private final List<double[]> seats = new ArrayList<>();
     private final double[] center;
-    private final double top;
+    private final double top, floor;
     private final TableArt.Reach reach;
     private final Random rng = new Random();
     private final List<Entity> owned = new ArrayList<>();
@@ -72,21 +75,36 @@ final class TableScene {
     private ItemDisplay pile;
     private int pileLevel;
     private final Map<UUID, Hand> hands = new LinkedHashMap<>();
-    private final Map<UUID, List<ItemDisplay>> dice = new HashMap<>();
+    /** the deal the cards on the table are from (Table.deals; a new hand or a 구사 재경기 sweeps them) */
+    private int dealt = -1;
+    /** 주사위: each player's cup and dice, of the hand {@link #cupHand} */
+    private final Map<UUID, Cup> cups = new HashMap<>();
+    private int cupHand = -1;
     private ItemDisplay bowl, bowlDie;
+    /** 홀짝: the bowl is being shaken until this tick, then lifted (the die is out once lifted) */
+    private long shakeUntil = -1;
+    private boolean bowlUp;
     private TextDisplay call;
     private final Map<UUID, Pad> pads = new HashMap<>();
     /** queued animation steps: tick → what */
     private final List<Object[]> queue = new ArrayList<>();
     private long tick;
-    private boolean rolling, shaking;
 
-    /** One player's two cards: faces (seen by the owner) and backs (seen by everyone else), as dealt. */
+    /** One player's cards (up to two, one a street): faces (seen by the owner) and backs (seen by everyone else). */
     private static final class Hand {
-        Card[] cards;
         int seat;
         final ItemDisplay[] face = new ItemDisplay[2], back = new ItemDisplay[2];
         boolean folded, revealed;
+        /** the tick its last card is in place */
+        long ready;
+    }
+
+    /** One 주사위 player's cup and, once rolled, their dice under it. */
+    private static final class Cup {
+        int seat;
+        ItemDisplay cup;
+        final List<ItemDisplay> dice = new ArrayList<>();
+        boolean rolled;
     }
 
     /** A viewer's buttons: what they are (to see a change) and their entities. */
@@ -96,12 +114,14 @@ final class TableScene {
         final Map<Controls.Button, ItemDisplay> displays = new HashMap<>();
     }
 
-    TableScene(HallTable host, Plugin plugin, World world, List<Location> seatSpots, double top, TableKind kind) {
+    /** floor: the y the table stands on; top: its top's (where cards and chips lie). */
+    TableScene(HallTable host, Plugin plugin, World world, List<Location> seatSpots, double floor, double top, TableKind kind) {
         this.host = host;
         this.plugin = plugin;
         this.world = world;
         for (Location l : seatSpots) seats.add(new double[]{l.getX(), l.getZ()});
         this.center = TableArt.center(seats);
+        this.floor = floor;
         this.top = top;
         this.reach = TableArt.reach(kind);
     }
@@ -196,6 +216,11 @@ final class TableScene {
         return at(center[0], top + up, center[1]);
     }
 
+    /** The sign's place: over the middle, {@link TableArt#SIGN_UP} over the floor (under the ceiling, over the bulb). */
+    private Location signSpot() {
+        return at(center[0], floor + TableArt.SIGN_UP, center[1]);
+    }
+
     private void sound(Location l, Sound s, float volume, float pitch) {
         world.playSound(l, s, volume, pitch);
     }
@@ -204,24 +229,31 @@ final class TableScene {
 
     /** Draws the table as it is now (spawned with its furniture, or again after a reload). */
     void spawn() {
-        sign = text(middle(1.75), Component.empty(), 0.6f, true);
+        sign = text(signSpot(), Component.empty(), SIGN_SCALE, true);
         sync();
     }
+
+    /** The sign's text size (three lines: about 0.38 block tall). */
+    static final float SIGN_SCALE = 0.5f;
 
     /** Takes everything away (the furniture went, or the hall stops). */
     void remove() {
         for (Entity e : new ArrayList<>(owned)) if (e.isValid()) e.remove();
         owned.clear();
         hands.clear();
-        dice.clear();
+        dealt = -1;
+        cups.clear();
+        cupHand = -1;
         pads.clear();
         queue.clear();
         sign = potLabel = timer = call = null;
         pile = bowl = bowlDie = null;
         pileLevel = 0;
+        shakeUntil = -1;
+        bowlUp = false;
     }
 
-    /** Every tick: due animation steps, the rolling dice and the shaken bowl. */
+    /** Every tick: due animation steps and the shaken bowl. */
     void tick() {
         tick++;
         if (!queue.isEmpty()) {
@@ -235,8 +267,14 @@ final class TableScene {
             }
             for (Object[] q : due) ((Runnable) q[1]).run();
         }
-        if (rolling && tick % 3 == 0) tumble();
-        if (shaking && tick % 3 == 0) shake();
+        if (shakeUntil >= 0) {
+            if (tick < shakeUntil) {
+                if (tick % 3 == 0) shake();
+            } else {
+                shakeUntil = -1;
+                liftBowl();
+            }
+        }
     }
 
     /** Brings the displays in line with the table (after every change, and once a second for the timer). */
@@ -254,12 +292,14 @@ final class TableScene {
     // ------------------------------------------------------------------------------------------ the sign
 
     private void drawSign(Table t) {
-        if (sign == null || !sign.isValid()) sign = text(middle(1.75), Component.empty(), 0.6f, true);
+        if (sign == null || !sign.isValid()) sign = text(signSpot(), Component.empty(), SIGN_SCALE, true);
         String state = switch (t.phase()) {
             case WAITING -> t.seats().size() < 2 ? Lang.raw("hwatu.sign-alone")
                     : Lang.raw("hwatu.sign-starting", "seconds", host.secondsLeft());
-            case PLAYING -> t.step() == Table.Step.ROLL ? Lang.raw("hwatu.sign-rolling")
+            case PLAYING -> t.step() == Table.Step.ROLL ? Lang.raw("hwatu.sign-rolling", "player", t.turn() == null ? "" : host.mini(t.turn()))
+                    : t.step() == Table.Step.SHOW ? Lang.raw("hwatu.sign-showing")
                     : t.lastBet() != null ? Lang.raw("hwatu.sign-bet", "player", host.mini(t.lastBet().player()), "act", HallTable.act(t.lastBet()))
+                    : t.game() == Table.Game.SUTDA ? Lang.raw("hwatu.sign-street", "n", t.street())
                     : Lang.raw("hwatu.sign-playing");
             case RESULT -> Lang.raw("hwatu.sign-result", "seconds", host.secondsLeft());
         };
@@ -271,13 +311,10 @@ final class TableScene {
 
     private void drawCards(Table t) {
         boolean show = t.game() == Table.Game.SUTDA && t.phase() != Table.Phase.WAITING;
-        for (Iterator<Map.Entry<UUID, Hand>> it = hands.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<UUID, Hand> e = it.next();
-            Card[] now = show ? t.cards(e.getKey()) : null;
-            if (now != e.getValue().cards) {
-                sweep(e.getValue());
-                it.remove();
-            }
+        if (!show || t.deals() != dealt) {   // a new hand or a 구사 재경기: the old cards go
+            for (Hand h : hands.values()) sweep(h);
+            hands.clear();
+            dealt = show ? t.deals() : -1;
         }
         if (!show) return;
         int order = 0;
@@ -287,9 +324,17 @@ final class TableScene {
             if (c == null || seat == null) continue;
             Hand h = hands.get(u);
             if (h == null) {
-                h = deal(u, seat, c, order++);
+                h = new Hand();
+                h.seat = seat;
                 hands.put(u, h);
             }
+            boolean dealtNow = false;
+            for (int k = 0; k < c.length && k < 2; k++) {
+                if (h.face[k] != null) continue;
+                deal(u, h, k, c[k], order, dealtNow ? 2 : 0);   // a street's card: one each, round the table
+                dealtNow = true;
+            }
+            if (dealtNow) order++;
             if (t.folded(u) && !h.folded) fold(h);
             if (TableArt.revealed(t, u) && !h.revealed) reveal(h);
         }
@@ -300,38 +345,35 @@ final class TableScene {
         return TableArt.along(center, seat(seat), reach.card(), side, true);
     }
 
-    private Hand deal(UUID owner, int seat, Card[] cards, int order) {
-        Hand h = new Hand();
-        h.cards = cards;
-        h.seat = seat;
+    /** Deals card k of a player's hand: it slides from the middle to its spot (the owner sees its face). */
+    private void deal(UUID owner, Hand h, int k, Card card, int order, int extra) {
         Player p = Bukkit.getPlayer(owner);
-        for (int k = 0; k < 2; k++) {
-            TableArt.Spot s = cardSpot(seat, k);
-            Location l = at(s, 0.002 + k * 0.004);
-            Quaternionf rot = TableArt.facing(s.yaw());
-            Vector3f from = offsetTo(center, s.x(), s.z(), 0.05);
-            String faceModel = "economy:gamble_card_" + cards[k].item().substring("economy:hwatu_".length());
-            h.face[k] = item(l, faceModel, CARD_SCALE, rot, from, false);
-            h.back[k] = item(l, "economy:gamble_card_back", CARD_SCALE, rot, from, true);
-            if (p != null) {
-                p.showEntity(plugin, h.face[k]);
-                p.hideEntity(plugin, h.back[k]);
-            }
-            ItemDisplay f = h.face[k], b = h.back[k];
-            int delay = 2 + order * 4 + k * 2;
-            later(delay, () -> {
-                animate(f, pose(CARD_SCALE, rot, null), 5);
-                animate(b, pose(CARD_SCALE, rot, null), 5);
-                sound(l, Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.3f + rng.nextFloat() * 0.3f);
-            });
+        TableArt.Spot s = cardSpot(h.seat, k);
+        Location l = at(s, 0.002 + k * 0.004);
+        Quaternionf rot = TableArt.facing(s.yaw());
+        Vector3f from = offsetTo(center, s.x(), s.z(), 0.05);
+        String faceModel = "economy:gamble_card_" + card.item().substring("economy:hwatu_".length());
+        h.face[k] = item(l, faceModel, CARD_SCALE, rot, from, false);
+        h.back[k] = item(l, "economy:gamble_card_back", CARD_SCALE, rot, from, true);
+        if (p != null) {
+            p.showEntity(plugin, h.face[k]);
+            p.hideEntity(plugin, h.back[k]);
         }
-        return h;
+        ItemDisplay f = h.face[k], b = h.back[k];
+        int delay = 2 + order * 4 + extra;
+        h.ready = Math.max(h.ready, tick + delay + 5);
+        later(delay, () -> {
+            animate(f, pose(CARD_SCALE, rot, null), 5);
+            animate(b, pose(CARD_SCALE, rot, null), 5);
+            sound(l, Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.3f + rng.nextFloat() * 0.3f);
+        });
     }
 
     /** 다이: the cards slide a little towards the middle, still face down. */
     private void fold(Hand h) {
         h.folded = true;
         for (int k = 0; k < 2; k++) {
+            if (h.face[k] == null) continue;
             TableArt.Spot s = cardSpot(h.seat, k);
             Quaternionf rot = TableArt.facing(s.yaw()).rotateY((float) Math.toRadians(k == 0 ? 12 : -9));
             Vector3f in = offsetTo(center, s.x(), s.z(), 0).mul(0.25f);
@@ -341,18 +383,20 @@ final class TableScene {
         sound(middle(0), Sound.ITEM_BOOK_PUT, 0.5f, 0.8f);
     }
 
-    /** The showdown: everyone's back flips over to the face (lifted, edge on, swapped, down again). */
+    /** The showdown: everyone's back flips over to the face (lifted, edge on, swapped, down again), after the last deal. */
     private void reveal(Hand h) {
         h.revealed = true;
+        int wait = (int) Math.max(0, h.ready - tick);
         for (int k = 0; k < 2; k++) {
+            if (h.face[k] == null) continue;
             TableArt.Spot s = cardSpot(h.seat, k);
             Quaternionf flat = TableArt.facing(s.yaw());
             Vector3f axis = new Vector3f((float) (center[0] - s.x()), 0, (float) (center[1] - s.z())).normalize();
             Quaternionf edge = new Quaternionf().rotateAxis((float) Math.toRadians(90), axis.x, axis.y, axis.z).mul(flat);
             Quaternionf edgeBack = new Quaternionf().rotateAxis((float) Math.toRadians(-90), axis.x, axis.y, axis.z).mul(flat);
             ItemDisplay back = h.back[k], face = h.face[k];
-            ItemStack faceItem = face == null ? null : face.getItemStack();
-            int delay = 1 + h.seat * 2 + k * 3;
+            ItemStack faceItem = face.getItemStack();
+            int delay = wait + 1 + h.seat * 2 + k * 3;
             float pitch = 1.0f + k * 0.2f;
             Vector3f up = new Vector3f(0, 0.18f, 0);
             later(delay, () -> {
@@ -360,9 +404,9 @@ final class TableScene {
                 animate(face, pose(CARD_SCALE, edge, up), 3);
             });
             later(delay + 3, () -> {
-                if (back != null && back.isValid() && faceItem != null) back.setItemStack(faceItem);
-                if (back != null && back.isValid()) back.setTransformation(pose(CARD_SCALE, edgeBack, up));
-                if (face != null && face.isValid()) face.setTransformation(pose(CARD_SCALE, edgeBack, up));
+                if (back.isValid()) back.setItemStack(faceItem);
+                if (back.isValid()) back.setTransformation(pose(CARD_SCALE, edgeBack, up));
+                if (face.isValid()) face.setTransformation(pose(CARD_SCALE, edgeBack, up));
             });
             later(delay + 4, () -> {
                 animate(back, pose(CARD_SCALE, flat, null), 3);
@@ -375,6 +419,7 @@ final class TableScene {
     /** The hand is over: the cards slide into the middle and go. */
     private void sweep(Hand h) {
         for (int k = 0; k < 2; k++) {
+            if (h.face[k] == null) continue;
             TableArt.Spot s = cardSpot(h.seat, k);
             Vector3f in = offsetTo(center, s.x(), s.z(), 0.01);
             Quaternionf rot = TableArt.facing(s.yaw());
@@ -386,6 +431,11 @@ final class TableScene {
                 kill(b);
             });
         }
+    }
+
+    /** 섯다's second card is coming (the cards themselves are dealt by the next sync): a shuffle of the deck. */
+    void street() {
+        sound(middle(0), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 0.9f);
     }
 
     // ------------------------------------------------------------------------------------------ the chip pile
@@ -429,29 +479,51 @@ final class TableScene {
         return TableArt.along(center, seat(seat), reach.dice(), side, true);
     }
 
+    /** Where a player's cup stands over their dice (the middle of the row), and where it is set down once lifted. */
+    private TableArt.Spot cupSpot(int seat, boolean aside) {
+        return TableArt.along(center, seat(seat), reach.dice() + (aside ? TableArt.CUP_ASIDE : 0), aside ? TableArt.CUP_SIDE : 0, true);
+    }
+
+    /** 주사위: a cup before each player in the hand (put down when the hand starts); a rolled player's dice beside it. */
     private void drawDice(Table t) {
         boolean on = t.game() == Table.Game.DICE && t.phase() != Table.Phase.WAITING;
-        if (!on) {
-            rolling = false;
-            for (List<ItemDisplay> l : dice.values()) for (ItemDisplay d : l) kill(d);
-            dice.clear();
-            return;
-        }
-        if (t.phase() == Table.Phase.PLAYING && t.step() == Table.Step.ROLL) {
-            int n = host.spec().game(Table.Game.DICE).dice();
-            for (UUID u : t.players()) {
-                Integer seat = host.seatOf(u);
-                if (seat == null || dice.containsKey(u) || !t.inHand(u)) continue;
-                List<ItemDisplay> mine = new ArrayList<>();
-                for (int k = 0; k < n; k++) {
-                    TableArt.Spot s = dieSpot(seat, k, n);
-                    Vector3f from = offsetTo(seat(seat), s.x(), s.z(), 0.35).mul(0.6f);
-                    mine.add(item(at(s, DIE_HALF), "economy:gamble_die", DIE_SCALE, randomTurn(), from, true));
-                }
-                dice.put(u, mine);
-                sound(middle(0), Sound.BLOCK_BAMBOO_WOOD_HIT, 0.7f, 1.4f);
+        if (!on || t.hands() != cupHand) {
+            for (Cup c : cups.values()) {
+                kill(c.cup);
+                for (ItemDisplay d : c.dice) kill(d);
             }
-            rolling = true;
+            cups.clear();
+            cupHand = on ? t.hands() : -1;
+        }
+        if (!on) return;
+        int n = host.spec().game(Table.Game.DICE).dice();
+        int order = 0;
+        for (UUID u : t.players()) {
+            Integer seat = host.seatOf(u);
+            if (seat == null || cups.containsKey(u)) continue;
+            Cup c = new Cup();
+            c.seat = seat;
+            TableArt.Spot s = cupSpot(seat, false);
+            Quaternionf rot = TableArt.facing(s.yaw());
+            c.cup = item(at(s, 0.001), "economy:gamble_cup", CUP_SCALE, rot, new Vector3f(0, 0.4f, 0), true);
+            ItemDisplay cup = c.cup;
+            later(2 + order++ * 3, () -> {
+                animate(cup, pose(CUP_SCALE, rot, null), 5);
+                sound(at(s, 0), Sound.BLOCK_BAMBOO_WOOD_PLACE, 0.6f, 1.2f);
+            });
+            cups.put(u, c);
+            int[] roll = t.rolls(u);
+            if (roll != null) {   // drawn again mid-hand (a reload): already rolled, the dice out, the cup aside
+                c.rolled = true;
+                showDice(c, roll, n, 0);
+                setAside(c, 0);
+            }
+        }
+        for (Map.Entry<UUID, Cup> e : cups.entrySet()) {
+            if (t.folded(e.getKey()) && e.getValue().cup != null && !e.getValue().rolled) {   // left: their cup goes
+                kill(e.getValue().cup);
+                e.getValue().cup = null;
+            }
         }
     }
 
@@ -459,34 +531,79 @@ final class TableScene {
         return new Quaternionf().rotationXYZ(rng.nextFloat() * 6.283f, rng.nextFloat() * 6.283f, rng.nextFloat() * 6.283f);
     }
 
-    /** Rolling: every die tumbles and hops a little (3 ticks a step). */
-    private void tumble() {
-        for (List<ItemDisplay> l : dice.values()) {
-            for (ItemDisplay d : l) {
-                float hop = 0.02f + rng.nextFloat() * 0.08f;
-                Vector3f jitter = new Vector3f((rng.nextFloat() - 0.5f) * 0.06f, hop, (rng.nextFloat() - 0.5f) * 0.06f);
-                animate(d, pose(DIE_SCALE, randomTurn(), jitter), 3);
-            }
+    /** Someone pressed 굴리기 (or the timer did): their cup rattles, then lifts off their dice; or the 홀짝 bowl does. */
+    void rolled(UUID player) {
+        Table t = host.table();
+        if (t.game() == Table.Game.HOLJJAK) {
+            shakeUntil = tick + SHAKE_TICKS;
+            sound(middle(0), Sound.BLOCK_DECORATED_POT_HIT, 0.8f, 1.2f);
+            return;
         }
-        if (!dice.isEmpty() && rng.nextInt(3) == 0) sound(middle(0), Sound.BLOCK_BAMBOO_WOOD_HIT, 0.4f, 1.2f + rng.nextFloat() * 0.6f);
+        Cup c = cups.get(player);
+        int[] roll = t.rolls(player);
+        if (c == null || roll == null || c.rolled) return;
+        c.rolled = true;
+        TableArt.Spot s = cupSpot(c.seat, false);
+        Quaternionf rot = TableArt.facing(s.yaw());
+        ItemDisplay cup = c.cup;
+        // the shake: the cup jumps and tips side to side, rattling
+        for (int i = 0; i < SHAKE_TICKS; i += 3) {
+            later(1 + i, () -> {
+                float a = (float) Math.toRadians((rng.nextFloat() - 0.5f) * 24);
+                Quaternionf wob = new Quaternionf(rot).rotateX(a).rotateZ(-a * 0.6f);
+                animate(cup, pose(CUP_SCALE, wob, new Vector3f((rng.nextFloat() - 0.5f) * 0.05f, 0.02f + rng.nextFloat() * 0.08f,
+                        (rng.nextFloat() - 0.5f) * 0.05f)), 3);
+                sound(at(s, 0.1), Sound.BLOCK_BAMBOO_WOOD_HIT, 0.6f, 1.1f + rng.nextFloat() * 0.7f);
+            });
+        }
+        later(SHAKE_TICKS + 1, () -> animate(cup, pose(CUP_SCALE, rot, null), 2));   // slammed down
+        later(SHAKE_TICKS + 3, () -> sound(at(s, 0), Sound.BLOCK_WOOD_HIT, 0.9f, 0.9f));
+        int n = roll.length;
+        showDice(c, roll, n, SHAKE_TICKS + 6);
+        setAside(c, SHAKE_TICKS + 6);
     }
 
-    /** The result: each die lands on its rolled face. */
-    private void landDice(Table.Result r) {
-        rolling = false;
-        Table t = host.table();
-        for (Map.Entry<UUID, List<ItemDisplay>> e : dice.entrySet()) {
-            int[] roll = t.rolls(e.getKey());
-            if (roll == null) continue;
-            List<ItemDisplay> l = e.getValue();
-            for (int k = 0; k < l.size() && k < roll.length; k++) {
-                ItemDisplay d = l.get(k);
-                Quaternionf face = TableArt.dieFace(roll[k], rng.nextFloat() * 360f);
-                animate(d, pose(DIE_SCALE, face, new Vector3f(0, 0.05f, 0)), 3);
-                later(3, () -> animate(d, pose(DIE_SCALE, face, null), 2));
+    /** The dice under a cup, on their rolled faces, appearing as it lifts (`delay` ticks from now). */
+    private void showDice(Cup c, int[] roll, int n, int delay) {
+        for (int k = 0; k < roll.length && k < n; k++) {
+            TableArt.Spot s = dieSpot(c.seat, k, n);
+            Quaternionf face = TableArt.dieFace(roll[k], rng.nextFloat() * 360f);
+            if (delay <= 0) {
+                c.dice.add(item(at(s, DIE_HALF), "economy:gamble_die", DIE_SCALE, face, null, true));
+                continue;
             }
+            int k0 = k;
+            later(delay, () -> {
+                ItemDisplay d = item(at(s, DIE_HALF), "economy:gamble_die", DIE_SCALE, randomTurn(), new Vector3f(0, 0.08f, 0), true);
+                c.dice.add(d);
+                later(1, () -> animate(d, pose(DIE_SCALE, face, new Vector3f(0, 0.03f, 0)), 3));
+                later(4, () -> animate(d, pose(DIE_SCALE, face, null), 2));
+                if (k0 == 0) later(5, () -> sound(at(s, 0), Sound.BLOCK_WOOD_HIT, 0.7f, 1.6f));
+            });
         }
-        later(4, () -> sound(middle(0), Sound.BLOCK_WOOD_HIT, 0.8f, 1.5f));
+    }
+
+    /** The cup lifts off the dice, tips back towards its player and is put down beside them, mouth up. */
+    private void setAside(Cup c, int delay) {
+        if (c.cup == null) return;
+        TableArt.Spot from = cupSpot(c.seat, false), to = cupSpot(c.seat, true);
+        Quaternionf rot = TableArt.facing(from.yaw());
+        Vector3f lifted = new Vector3f(0, 0.45f, 0);
+        Vector3f aside = new Vector3f((float) (to.x() - from.x()), 0, (float) (to.z() - from.z()));
+        // mouth up: turned over (half round its own left-right axis), its rim then on the table at the model's height
+        Quaternionf over = new Quaternionf(rot).rotateX((float) Math.PI);
+        Vector3f down = new Vector3f(aside).add(0, (float) (TableArt.CUP_HEIGHT * CUP_SCALE), 0);
+        ItemDisplay cup = c.cup;
+        if (delay <= 0) {
+            cup.setTransformation(pose(CUP_SCALE, over, down));
+            return;
+        }
+        later(delay - 3, () -> animate(cup, pose(CUP_SCALE, new Quaternionf(rot).rotateX((float) Math.toRadians(-35)), lifted), 4));
+        later(delay + 2, () -> animate(cup, pose(CUP_SCALE, over, new Vector3f(aside).add(0, 0.5f, 0)), 5));
+        later(delay + 7, () -> {
+            animate(cup, pose(CUP_SCALE, over, down), 3);
+            sound(at(to, 0), Sound.BLOCK_BAMBOO_WOOD_PLACE, 0.6f, 0.9f);
+        });
     }
 
     // ------------------------------------------------------------------------------------------ the bowl (홀짝)
@@ -495,21 +612,18 @@ final class TableScene {
         boolean on = t.game() == Table.Game.HOLJJAK;
         if (!on) return;
         if (bowl == null || !bowl.isValid()) bowl = item(middle(0.001), "economy:gamble_bowl", BOWL_SCALE, new Quaternionf(), null, true);
-        boolean roll = t.phase() == Table.Phase.PLAYING && t.step() == Table.Step.ROLL;
-        if (roll && !shaking) {
-            shaking = true;
-            sound(middle(0), Sound.BLOCK_DECORATED_POT_HIT, 0.8f, 1.2f);
+        boolean fresh = t.phase() == Table.Phase.WAITING || (t.phase() == Table.Phase.PLAYING && (t.step() == Table.Step.PICK || t.step() == Table.Step.ROLL));
+        if (fresh && (bowlDie != null || bowlUp)) {   // a new hand: the bowl comes down over the die, which goes
+            ItemDisplay d = bowlDie;
+            bowlDie = null;
+            bowlUp = false;
+            shakeUntil = -1;
+            animate(bowl, pose(BOWL_SCALE, new Quaternionf(), null), 6);
+            later(6, () -> kill(d));
+            later(6, () -> sound(middle(0), Sound.BLOCK_DECORATED_POT_PLACE, 0.7f, 1f));
         }
-        if (!roll) shaking = false;
-        if (t.phase() == Table.Phase.WAITING || (t.phase() == Table.Phase.PLAYING && t.step() == Table.Step.PICK)) {
-            if (bowlDie != null) {   // a new hand: the bowl comes down over the die, which goes
-                ItemDisplay d = bowlDie;
-                bowlDie = null;
-                animate(bowl, pose(BOWL_SCALE, new Quaternionf(), null), 6);
-                later(6, () -> kill(d));
-                later(6, () -> sound(middle(0), Sound.BLOCK_DECORATED_POT_PLACE, 0.7f, 1f));
-            }
-        }
+        // drawn again mid-reveal (a reload): the die is already out
+        if (t.phase() != Table.Phase.WAITING && t.die() > 0 && !bowlUp && shakeUntil < 0) liftBowl();
         // the call (홀 / 짝) floats before the caller's seat
         Boolean odd = t.phase() == Table.Phase.WAITING ? null : t.calledOdd();
         if (odd == null) {
@@ -528,17 +642,18 @@ final class TableScene {
         if (bowl == null) return;
         float a = (float) Math.toRadians((rng.nextFloat() - 0.5f) * 18);
         Quaternionf wob = new Quaternionf().rotationXYZ(a, rng.nextFloat() * 0.5f, -a * 0.7f);
-        Vector3f slide = new Vector3f((rng.nextFloat() - 0.5f) * 0.05f, 0.01f, (rng.nextFloat() - 0.5f) * 0.05f);
+        Vector3f slide = new Vector3f((rng.nextFloat() - 0.5f) * 0.05f, 0.01f + rng.nextFloat() * 0.06f, (rng.nextFloat() - 0.5f) * 0.05f);
         animate(bowl, pose(BOWL_SCALE, wob, slide), 3);
-        if (rng.nextInt(2) == 0) sound(middle(0), Sound.BLOCK_DECORATED_POT_HIT, 0.5f, 1.1f + rng.nextFloat() * 0.4f);
+        sound(middle(0), Sound.BLOCK_DECORATED_POT_HIT, 0.5f, 1.1f + rng.nextFloat() * 0.4f);
     }
 
-    /** The result: the bowl is lifted and tipped, the die shows its face. */
-    private void liftBowl(Table.Result r) {
-        shaking = false;
-        if (bowl == null || r.die() <= 0) return;
+    /** The shaking is over: the bowl is put down, then lifted and tipped, the die shows its face. */
+    private void liftBowl() {
+        int face = host.table().die();
+        if (bowl == null || face <= 0 || bowlUp) return;
+        bowlUp = true;
         kill(bowlDie);
-        bowlDie = item(middle(DIE_HALF * 1.3), "economy:gamble_die", DIE_SCALE * 1.3f, TableArt.dieFace(r.die(), rng.nextFloat() * 360f), null, true);
+        bowlDie = item(middle(DIE_HALF * 1.3), "economy:gamble_die", DIE_SCALE * 1.3f, TableArt.dieFace(face, rng.nextFloat() * 360f), null, true);
         animate(bowl, pose(BOWL_SCALE, new Quaternionf(), null), 2);
         ItemDisplay b = bowl;
         Vector3f axis = new Vector3f(1, 0, 0);
@@ -547,6 +662,7 @@ final class TableScene {
                     new Vector3f(0, 0.55f, 0.18f)), 8);
             sound(middle(0), Sound.BLOCK_DECORATED_POT_PLACE, 0.8f, 1.4f);
         });
+        later(11, () -> sound(middle(0), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.7f, face % 2 == 1 ? 1.4f : 1.0f));
     }
 
     // ------------------------------------------------------------------------------------------ the turn timer
@@ -560,7 +676,7 @@ final class TableScene {
             return;
         }
         long left = host.secondsLeft();
-        int total = Math.max(1, host.spec().turnSeconds());
+        int total = Math.max(1, t.moveSeconds());
         int full = (int) Math.round(8.0 * Math.min(left, total) / total);
         String bar = "▮".repeat(full) + "<dark_gray>" + "▮".repeat(8 - full) + "</dark_gray>";
         Component c = Lang.mm(left <= 5 ? "hwatu.timer-hurry" : "hwatu.timer", "player", host.mini(turn), "seconds", left, "bar", bar);
@@ -717,13 +833,14 @@ final class TableScene {
     /** A hand ended: dice land / the bowl lifts, then the pile slides to the winner(s) with what each won. */
     void finished(Table.Result r, boolean big) {
         int wait = 0;
-        if (r.game() == Table.Game.DICE) {
-            landDice(r);
-            wait = 8;
-        } else if (r.game() == Table.Game.HOLJJAK) {
-            liftBowl(r);
-            wait = 12;
-        } else if (!r.uncontested()) wait = 14;   // the 섯다 cards flip first (sync after this)
+        if (r.game() == Table.Game.SUTDA && !r.uncontested()) {   // the 섯다 cards flip first (sync after this), after the last deal
+            long ready = tick;
+            for (Hand h : hands.values()) ready = Math.max(ready, h.ready);
+            wait = 14 + (int) (ready - tick);
+        } else if (r.game() == Table.Game.HOLJJAK && !r.uncontested()) {
+            liftBowl();   // already up after the shake; at once if the result came first
+            wait = 4;
+        }
         ItemDisplay from = pile;
         pile = null;
         pileLevel = 0;

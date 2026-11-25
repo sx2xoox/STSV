@@ -17,7 +17,7 @@ import java.util.Map;
  * daily-loss-cap: 0             # chips lost (net) in a day before the player can't sit until 05시; 0: no cap
  * min-account-hours: 0          # 0: no account-age rule
  * test-chips: 100000            # /관리자 화투방 시험: each seat's pretend chips (never real)
- * timers: { turn: 20, start: 10, reveal: 3, result: 6 }
+ * timers: { turn: 20, start: 10, roll: 10, reveal: 3, result: 6 }   # roll: 굴리기 (주사위 · 홀짝) before it rolls itself
  * rooms:  [ { id: beginner, name: "초보방", ante: 10 }, ... ]     # exactly three, in order
  * games:
  *   holjjak: { name: "홀짝", max: 2 }
@@ -26,7 +26,7 @@ import java.util.Map;
  * </pre>
  */
 public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePercent, long lossCap, long minAgeMs,
-                        int turnSeconds, int startSeconds, int revealSeconds, int resultSeconds,
+                        int turnSeconds, int startSeconds, int revealSeconds, int resultSeconds, int rollSeconds,
                         List<Room> rooms, Map<Table.Game, GameSpec> games, long testChips) {
 
     public record Room(String id, String name, long ante) {}
@@ -58,6 +58,8 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
         int turn = c.getInt("timers.turn"), start = c.getInt("timers.start"), reveal = c.getInt("timers.reveal"), result = c.getInt("timers.result");
         if (turn < 5) problems.add("timers.turn: 5초 이상");
         if (start < 1 || reveal < 1 || result < 1) problems.add("timers: start · reveal · result 는 1초 이상");
+        int roll = c.getInt("timers.roll", 10);
+        if (roll < 3) problems.add("timers.roll: 3초 이상 (굴리기를 누를 시간)");
         List<Room> rooms = new ArrayList<>();
         for (Map<?, ?> m : c.getMapList("rooms")) {
             Object id = m.get("id"), name = m.get("name"), ante = m.get("ante");
@@ -97,7 +99,7 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
             if (daily > 0 && sit > daily) problems.add("chips.daily-buy 가 큰손방 섯다에 앉는 칩(" + sit + "칩)보다 작음");
         }
         return new HwatuSpec(Math.max(1, buy), Math.clamp(cash, 1, Math.max(1, buy)), Math.max(0, daily), Math.clamp(rake, 1, 50), Math.max(0, cap),
-                Math.max(0, hours) * 3_600_000L, Math.max(5, turn), Math.max(1, start), Math.max(1, reveal), Math.max(1, result), rooms, games,
+                Math.max(0, hours) * 3_600_000L, Math.max(5, turn), Math.max(1, start), Math.max(1, reveal), Math.max(1, result), Math.max(3, roll), rooms, games,
                 Math.max(1, test));
     }
 }
