@@ -57,7 +57,7 @@ the model's north side (the same yaw that turns a sign to a player turns these t
                        its face (north) gamble_art.button: 콜 다이 레이즈 홀 짝 준비 일어나기 in stencil. Lit (light
                        emission): readable in the dim hall.
   gamble_whiteboard    a wall whiteboard 2.5 x 1.5 blocks in an aluminium frame, marker tray with markers and an eraser,
-                       old smudges and a wiped tally (正) bottom right, a receipt under a magnet top left (as seen from in
+                       old smudges, half-wiped marker scribbles (a blue scrawl, a red ring) and a tally (正), three magnets, a receipt under a magnet top left (as seen from in
                        front). Centred on the display's position side to side and up and down. Drawn with its back at z 16
                        and moved 11.5 px forward (shift), so in the model: the writing surface is x -11.5..27.5,
                        y -3.5..19.5 at z 3.5 (2.44 x 1.44 blocks, 0.28 block IN FRONT of the display's position: a text
@@ -368,17 +368,17 @@ def table_round():
             if c.face == "up" or c.face == "down":
                 if math.floor(c.p[0]) % 5 == 0:
                     return ("wood_dark", 1)
-                if r > 22.5:
+                if r > 22:
                     return ("wood", 0)
             return None
         return Paint("wood", 1, "grain", axis="z", noise=0.06, decal=boards, seed=seed)
     cyl(m, "flange_low", (cx, cz), 46, 0, 2, flange_paint(1))
     cyl(m, "core", (cx, cz), 34, 2, 11, Paint("rubber", 2, noise=0.0, decal=cable_wound, rim=0.5))
-    cyl(m, "flange_top", (cx, cz), 50, 11, 13, flange_paint(2))
+    cyl(m, "flange_top", (cx, cz), 48, 11, 13, flange_paint(2))
     # the bolts through both flanges: square nuts on washers on the wooden rim, and on the lower flange
     for k in range(12):
         a = 2 * math.pi * (k + 0.5) / 12
-        x, z = cx + 23.75 * math.cos(a), cz + 23.75 * math.sin(a)
+        x, z = cx + 22.9 * math.cos(a), cz + 22.9 * math.sin(a)
         m.box("washer", (x - 0.75, 13, z - 0.75), (x + 0.75, 13.25, z + 0.75), flat("steel", 2))
         m.box("nut", (x - 0.5, 13.25, z - 0.5), (x + 0.5, 13.75, z + 0.5), flat("iron", 3, rim=1.3))
     for k in range(8):
@@ -434,18 +434,35 @@ def table_round():
 # ================================================================================================
 
 def table_duel():
-    m = BModel("gamble_table_duel", floor=0)
+    """1:1 탁자: a slatted lumber crate (각목 상자): four square corner posts, three boards a side nailed over them with
+    gaps between (the dark inside showing), "취급주의" stencilled in faded red on the front, a plywood top with its plies
+    on the edge, a square of felt tacked on; a plastic chair each side."""
+    m = HModel("gamble_table_duel", floor=0)
     m.group("crate")
-    post = Paint("wood", 2, "grain", axis="y", noise=0.05)
-    for (x, z) in ((1, 1), (13, 1), (1, 13), (13, 13)):
+    post = Paint("wood", 1, "grain", axis="y", noise=0.05)
+    for (x, z) in ((1.25, 1.25), (12.75, 1.25), (1.25, 12.75), (12.75, 12.75)):
         m.box("post", (x, 0, z), (x + 2, 11, z + 2), post)
+    m.box("inside", (3.25, 0.5, 3.25), (12.75, 10.5, 12.75), flat("wood_dark", 0))
 
+    def nails(axis):
+        def decal(c):
+            u = c.p[0] if axis == "x" else c.p[2]
+            v = c.p[1] - math.floor(c.p[1] / 3.5) * 3.5
+            if c.face in SIDES and (abs(u - 2.25) < 0.5 or abs(u - 13.75) < 0.5) and 0.9 < (c.p[1] % 3.5) < 2.1 and (c.i[1] % 2 == 1):
+                return ("iron", 3)                         # nail heads over the posts
+            if c.face in SIDES and h3(c.i[0], c.i[1], c.i[2], 5) < 0.04:
+                return ("wood_dark", 2)                    # knots
+            return None
+        return decal
     for i, y in enumerate((0.5, 4, 7.5)):
-        m.box("board_n", (3, y, 1.25), (13, y + 3, 2.25), Paint("wood", 2, "grain", axis="x", seed=i))
-        m.box("board_s", (3, y, 13.75), (13, y + 3, 14.75), Paint("wood", 2, "grain", axis="x", seed=i + 3))
-        m.box("board_w", (1.25, y, 3), (2.25, y + 3, 13), Paint("wood", 2, "grain", axis="z", seed=i + 6))
-        m.box("board_e", (13.75, y, 3), (14.75, y + 3, 13), Paint("wood", 2, "grain", axis="z", seed=i + 9))
-    m.box("inside", (3, 0.5, 3), (13, 10.5, 13), flat("wood_dark", 0))
+        m.box("board_n", (1, y, 0.5), (15, y + 3, 1.25), Paint("wood", 2, "grain", axis="x", seed=i, decal=nails("x")))
+        m.box("board_s", (1, y, 14.75), (15, y + 3, 15.5), Paint("wood", 2, "grain", axis="x", seed=i + 3, decal=nails("x")))
+        m.box("board_w", (0.5, y, 1.25), (1.25, y + 3, 14.75), Paint("wood", 2, "grain", axis="z", seed=i + 6, decal=nails("z")))
+        m.box("board_e", (14.75, y, 1.25), (15.5, y + 3, 14.75), Paint("wood", 2, "grain", axis="z", seed=i + 9, decal=nails("z")))
+    stencil = _surface("gamble_crate_stencil", lambda: ART.stencil_print("취급주의", 80, 16, seed=3))
+    _print_plate(m, "stencil", (1.5, 4.25, 0.48), (14.5, 6.75, 0.48), stencil, 80, 16)
+    arrows = _surface("gamble_crate_arrows", lambda: ART.arrows_print(32, 16))
+    m.plate("arrows", (15.52, 7.75, 3), (15.52, 10.25, 13), {"east": (arrows, [0, 0, 32, 16]), "west": (arrows, [32, 0, 0, 16])})
 
     def plywood(c):
         if c.face in SIDES:
@@ -456,7 +473,7 @@ def table_duel():
     m.box("felt", (2, 12, 2), (14, 12.25, 14), Paint("felt", 2, "weave", noise=0.02, rim=0.4,
                                                        decal=felt_top(8, 8, 9, [(3.5, -3, 1.0), (-4, 4, 0.8)],
                                                                       [("silver", (-6, -6), (-2, -6), 1.6)])))
-    for (x, z) in ((2.25, 2.25), (13.25, 2.25), (2.25, 13.25), (13.25, 13.25)):
+    for (x, z) in ((2.25, 2.25), (13.25, 2.25), (2.25, 13.25), (13.25, 13.25), (7.75, 2.25), (7.75, 13.25), (2.25, 7.75), (13.25, 7.75)):
         m.box("tack", (x, 12.25, z), (x + 0.5, 12.5, z + 0.5), flat("steel", 4))
     plastic_chair(m, "seat0_chair", 8, -8, "n", plastic("signal_blue", 1))
     plastic_chair(m, "seat1_chair", 8, 24, "s", plastic("pepper", 2))
@@ -697,6 +714,15 @@ def whiteboard():
         v = vnoise(x * 0.5, y * 2.0, 0, 2.5, 91)
         if v > 0.78:
             return ("car_white", 2)
+        # half-wiped blue marker: an old scrawled line along the bottom (viewer's left), a red ring with a tick
+        if -11 < x < 4 and -3 < y < 0.5:
+            wave = -1.3 + 0.9 * math.sin(x * 0.9)
+            if abs(y - wave) < 0.55 and h3(c.i[0], c.i[1], 0, 41) < 0.6:
+                return ("sapphire", 3)
+        if 13 < x < 19 and 12 < y < 18.5:
+            r = math.hypot(x - 16, y - 15.25)
+            if abs(r - 2.4) < 0.5 and h3(c.i[0], c.i[1], 0, 42) < 0.55:
+                return ("pepper", 3)
         # a ghost tally (正) bottom right, wiped but still there
         u, w = c.i[0] + 10, c.i[1] + 2
         if 0 <= u < 5 and 0 <= w < 5 and (w in (0, 4) or u == 2 or (w == 2 and u > 2) or (u == 0 and w <= 2)):
@@ -728,6 +754,8 @@ def whiteboard():
         return None
     m.box("receipt", (22.25, 13, 14.85), (26.75, 18.75, 15), Paint("paper", 2, "paper", decal=receipt, rim=0.3))
     cyl(m, "magnet", (24.5, 17.25), 2, 14.35, 14.85, flat("pepper", 2, rim=1.0), axis="z")
+    cyl(m, "magnet", (4.5, 17.5), 2, 14.35, 15, flat("sapphire", 2, rim=1.0), axis="z")
+    cyl(m, "magnet", (-9, 1), 2, 14.35, 15, flat("hazard", 1, rim=1.0), axis="z")
     return gui(m)
 
 
@@ -735,46 +763,65 @@ def whiteboard():
 # Props (furniture)
 # ================================================================================================
 
-def _sack(m, name, x0, y0, z0, x1, y1, z1, seed, along="x", torn=False):
-    """A cement sack: kraft paper, puffy (a core and two caps a little smaller), a red band printed across its top
-    with white marks for the words, the sewn ends darker."""
+def _sack(m, name, x0, y0, z0, x1, y1, z1, seed, along="x", rot=None, sag=0.0):
+    """A 40 kg cement sack, a pillow of kraft paper: a full core, rounded top and bottom (caps inset), the sewn ends
+    pinched into a seam strip, the middle sagging by `sag` (a sack lying over the gap between two); a red band
+    printed across it with white specks for the words. rot: the same turn for all its parts."""
     def print_(c):
         x, z = c.p[0], c.p[2]
         if c.face == "up":
             u = x if along == "z" else z
             mid = (x0 + x1) / 2 if along == "z" else (z0 + z1) / 2
-            if abs(u - mid) < 1.3:
-                return ("car_white", 3) if h3(c.i[0], c.i[2], 0, seed) < 0.35 else ("pepper", 2)
-        if torn and c.face == "north" and 1 <= c.p[0] - x0 < 4 and c.p[1] > y0 + 0.5:
-            return ("stone", 2)                            # the tear, cement showing
-        ends = ("east", "west") if along == "x" else ("north", "south")
-        if c.face in ends:
-            return ("bean", 1)
+            w = (x1 - x0) if along == "z" else (z1 - z0)
+            along_u = z if along == "z" else x
+            lo, hi = (z0, z1) if along == "z" else (x0, x1)
+            if abs(along_u - (lo + hi) / 2) < 1.5:
+                return ("car_white", 3) if h3(c.i[0], c.i[2], 0, seed) < 0.15 else ("pepper", 2)
+            if abs(u - mid) > w / 2 - 0.9:
+                return ("bean", 1)                         # the crease along the sides
+        if c.face in SIDES and h3(c.i[0], c.i[1], c.i[2], seed + 1) < 0.08:
+            return ("stone", 3)                            # cement dust on the paper
         return None
     p = Paint("bean", 2, "paper", noise=0.05, decal=print_, seed=seed)
-    m.box(name, (x0, y0 + 0.5, z0), (x1, y1 - 0.5, z1), p)
-    m.box(name + "_top", (x0 + 0.5, y1 - 0.5, z0 + 0.5), (x1 - 0.5, y1, z1 - 0.5), p)
+    seam = Paint("bean", 1, "paper", noise=0.05)
+    L = (x1 - x0) if along == "x" else (z1 - z0)
+    parts = [(0, 0.3, 0), (0.3, 0.7, sag), (0.7, 1.0, 0)] if sag else [(0, 1, 0)]
+    for (a, b, dy) in parts:
+        if along == "x":
+            ax0, ax1 = x0 + 0.5 + (L - 1) * a, x0 + 0.5 + (L - 1) * b
+            m.box(name, (ax0, y0 + 0.5 - dy, z0), (ax1, y1 - 0.5 - dy, z1), p, rotation=rot)
+            m.box(name + "_top", (ax0, y1 - 0.5 - dy, z0 + 0.75), (ax1, y1 - dy, z1 - 0.75), p, rotation=rot)
+            m.box(name + "_bot", (ax0, y0 - dy, z0 + 0.75), (ax1, y0 + 0.5 - dy, z1 - 0.75), p, rotation=rot)
+        else:
+            az0, az1 = z0 + 0.5 + (L - 1) * a, z0 + 0.5 + (L - 1) * b
+            m.box(name, (x0, y0 + 0.5 - dy, az0), (x1, y1 - 0.5 - dy, az1), p, rotation=rot)
+            m.box(name + "_top", (x0 + 0.75, y1 - 0.5 - dy, az0), (x1 - 0.75, y1 - dy, az1), p, rotation=rot)
+            m.box(name + "_bot", (x0 + 0.75, y0 - dy, az0), (x1 - 0.75, y0 + 0.5 - dy, az1), p, rotation=rot)
+    if along == "x":
+        for (sx0, sx1) in ((x0, x0 + 0.5), (x1 - 0.5, x1)):
+            m.box(name + "_seam", (sx0, y0 + 0.75, z0 + 0.5), (sx1, y1 - 0.75, z1 - 0.5), seam, rotation=rot)
+    else:
+        for (sz0, sz1) in ((z0, z0 + 0.5), (z1 - 0.5, z1)):
+            m.box(name + "_seam", (x0 + 0.5, y0 + 0.75, sz0), (x1 - 0.5, y1 - 0.75, sz1), seam, rotation=rot)
 
 
 def prop_cement():
-    m = BModel("gamble_prop_cement", floor=0)
+    m = HModel("gamble_prop_cement", floor=0)
     m.group("sacks")
-    _sack(m, "sack", 2.5, 0, 1.75, 13.5, 2.5, 8, 1)
-    _sack(m, "sack", 2.5, 0, 8, 13.5, 2.5, 14.25, 2)
-    _sack(m, "sack", 2, 2.5, 2.5, 8, 5, 13.5, 3, along="z")
-    _sack(m, "sack", 8, 2.5, 2.5, 14, 5, 13.5, 4, along="z")
+    _sack(m, "sack", 2.5, 0, 1.75, 13.5, 2.5, 7.75, 1)
+    _sack(m, "sack", 2.5, 0, 8.25, 13.5, 2.5, 14.25, 2)
+    _sack(m, "sack", 2, 2.5, 2.5, 7.75, 5, 13.5, 3, along="z")
+    _sack(m, "sack", 8.25, 2.5, 2.5, 14, 5, 13.5, 4, along="z")
     m.group("top")
-    turn = ("y", 22.5, (8, 6, 8))
-    p = Paint("bean", 2, "paper", noise=0.05, seed=9)
-    m.box("sack_askew", (3, 5.5, 5), (13, 7, 11), p, rotation=turn)
-    m.box("sack_askew_top", (3.5, 7, 5.5), (12.5, 7.5, 10.5), p, rotation=turn)
-    m.box("band", (7, 7.5, 5.5), (9, 7.6, 10.5), flat("pepper", 2), rotation=turn)
-    m.box("sack_askew_low", (3.5, 5, 5.5), (12.5, 5.5, 10.5), p, rotation=turn)
+    _sack(m, "sack_top", 3, 5.25, 5, 13, 7.5, 11, 9, rot=("y", 22.5, (8, 6, 8)), sag=0.5)
+    m.group("print")
+    label = _surface("gamble_cement_print", lambda: ART.stencil_print("시멘트", 48, 16, ("pepper", 2), seed=7, wear=0.05))
+    _print_plate(m, "print", (4.75, 0.5, 1.73), (11.25, 2.25, 1.73), label, 48, 16)
     m.group("spill")
     powder = Paint("stone", 3, "speckle", noise=0.05)
-    m.box("powder", (9, 0, 0.5), (14, 0.5, 1.75), powder)
-    m.box("powder", (10, 0.5, 0.75), (13, 1, 1.75), powder)
-    m.box("powder_tear", (9.5, 2.5, 1.25), (12.5, 3, 2.5), powder)
+    m.box("powder", (9, 0, 0.25), (14, 0.5, 1.5), powder)
+    m.box("powder", (10, 0.5, 0.5), (13, 1, 1.5), powder)
+    m.box("powder_tear", (9.5, 2.5, 1.25), (12.5, 2.75, 2.5), powder)
     return gui(m)
 
 
@@ -815,81 +862,137 @@ def prop_rebar():
 
 
 def prop_cone():
+    """안전 고깔: a square black rubber base with cut corners, an orange cone tapering in half px steps, two wide
+    retro-reflective bands (silvery white with a diagonal glint), scuffed and dirty near the bottom, an open top."""
     m = BModel("gamble_prop_cone", floor=0)
     m.group("base")
-    rub = Paint("rubber", 2, noise=0.04)
+
+    def base_d(c):
+        if c.face == "up" and h3(c.i[0], c.i[2], 0, 6) < 0.15:
+            return ("rubber", 3)
+        return None
+    rub = Paint("rubber", 2, noise=0.04, decal=base_d)
     m.box("base", (2.5, 0, 2), (13.5, 1, 14), rub)
     m.box("base", (2, 0, 2.5), (2.5, 1, 13.5), rub)
     m.box("base", (13.5, 0, 2.5), (14, 1, 13.5), rub)
+    m.box("base_ring", (4, 1, 4), (12, 1.5, 12), flat("rubber", 2))
     m.group("cone")
 
     def grime(c):
-        if c.face in SIDES and c.p[1] < 3 and h3(c.i[0], c.i[1], c.i[2], 3) < 0.35:
-            return ("fox", 1)
+        if c.face in SIDES and c.p[1] < 4 and h3(c.i[0], c.i[1], c.i[2], 3) < 0.4 - c.p[1] * 0.08:
+            return ("fox", 0)
         return None
-    orange = Paint("fox", 2, "lacquer", noise=0.03, rim=1.1, decal=grime)
-    band = Paint("car_white", 3, noise=0.0, rim=1.3)
-    for (d, lo, hi, p) in ((9, 1, 3, orange), (8, 3, 5, orange), (7, 5, 7, band), (6, 7, 8.5, orange), (5, 8.5, 10, band),
-                           (4, 10, 12, orange), (3, 12, 13.5, orange), (2, 13.5, 14, orange)):
-        cyl(m, "cone", (8, 8), d, lo, hi, p)
+
+    def glint(c):
+        if c.face in SIDES and (math.floor(c.p[0] + c.p[2] + c.p[1] * 1.5) % 5 == 0):
+            return ("snow", 2)
+        if c.face in SIDES and h3(c.i[0], c.i[1], c.i[2], 4) < 0.15:
+            return ("car_white", 2)
+        return None
+    orange = Paint("fox", 2, noise=0.0, rim=0.5, grad=0.3, decal=grime)
+    band = Paint("car_white", 3, noise=0.0, rim=0.5, grad=0.3, decal=glint)
+    y = 1.5
+    while y < 15:
+        d = max(2.5, round((9.5 - (y - 1.5) * 0.52) * 2) / 2)
+        p = band if (5 <= y < 7.5 or 9.5 <= y < 11) else orange
+        cyl(m, "cone", (8, 8), d, y, y + 0.5 if y < 14.5 else 15, p)
+        y += 0.5
+    cyl(m, "top", (8, 8), 2, 15, 15.25, flat("rubber", 1))
     return gui(m)
 
 
 def prop_worklight():
+    """삼각대 작업등: a telescopic tripod (three legs from a collar, rubber feet), a yellow mast with a clamp knob, a T
+    bar with two halogen floodlights tilted down to the front: yellow die-cast housings with a carry handle, cooling
+    fins behind, the lit glass behind a wire guard; their cables into a junction box on the mast and down to a coil and
+    an orange plug on the ground."""
     m = BModel("gamble_prop_worklight", floor=0)
     steel = Paint("steel", 3, "metal", rim=1.2)
     m.group("stand")
-    # three legs: one forward, two back to the sides, from a collar on the mast
     m.box("leg", (7.5, 0, 7.5), (8.5, 10, 8.5), steel, rotation=("x", -22.5, (8, 10, 8)))
     m.box("leg", (7.5, 0, 9.75), (8.5, 10, 10.75), steel, rotation=("z", 22.5, (8, 10, 10.25)))
     m.box("leg", (7.5, 0, 9.75), (8.5, 10, 10.75), steel, rotation=("z", -22.5, (8, 10, 10.25)))
+    m.box("foot", (7.25, -0.0, 3.5), (8.75, 0.5, 5), flat("rubber", 2))
+    m.box("foot", (3.5, 0, 9.5), (5, 0.5, 11), flat("rubber", 2))
+    m.box("foot", (11, 0, 9.5), (12.5, 0.5, 11), flat("rubber", 2))
     m.box("collar", (7, 9, 7), (9, 11, 11), Paint("iron", 3, "metal", rim=1.2))
     m.box("mast", (7.25, 1, 7.25), (8.75, 17, 8.75), Paint("hazard", 1, "metal", rim=1.1))
-    m.box("mast_up", (7.5, 17, 7.5), (8.5, 27, 8.5), steel)
+    m.box("mast_up", (7.5, 17, 7.5), (8.5, 26.5, 8.5), steel)
     m.box("clamp", (6, 16, 7.5), (7.25, 17.5, 8.5), flat("rubber", 2))
+    m.box("knob", (5.5, 16.25, 7.75), (6, 17.25, 8.25), flat("rubber", 3))
+    m.box("junction", (8.75, 19, 7.25), (10.25, 21.5, 8.75), Paint("hazard", 1, "metal", rim=1.2))
+    m.box("junction_lid", (8.75, 21.5, 7.5), (10, 21.75, 8.5), flat("iron", 2))
     m.group("lamps")
     m.box("tbar", (4, 26.5, 7.25), (12, 27.5, 8.75), steel)
     tilt = -22.5
     for (x0, x1) in ((4, 7.5), (8.5, 12)):
         rot = ("x", tilt, ((x0 + x1) / 2, 28, 8))
-        m.box("housing", (x0, 27.5, 6.5), (x1, 31, 9), Paint("hazard", 1, "metal", rim=1.2), rotation=rot)
+        m.box("housing", (x0, 27.5, 6.5), (x1, 31, 9), Paint("hazard", 1, "metal", rim=1.3), rotation=rot)
         m.box("glass", (x0 + 0.5, 28, 6.25), (x1 - 0.5, 30.5, 6.5), glow("lamp", 3), rotation=rot)
-        m.box("fins", (x0 + 0.5, 28, 9), (x1 - 0.5, 30.5, 9.75), Paint("iron", 2, "metal"), rotation=rot)
+        for k in range(3):
+            gx = x0 + 0.75 + k * (x1 - x0 - 1.75) / 2
+            m.box("guard", (gx, 27.75, 5.75), (gx + 0.25, 30.75, 6), flat("iron", 2), rotation=rot)
+        m.box("guard", (x0 + 0.5, 29.125, 5.75), (x1 - 0.5, 29.375, 6), flat("iron", 2), rotation=rot)
+        m.box("fins", (x0 + 0.5, 28, 9), (x1 - 0.5, 30.5, 9.75), Paint("iron", 2, "metal",
+              decal=lambda c: ("iron", 0) if c.face == "south" and math.floor(c.p[1] * 2) % 2 else None), rotation=rot)
+        m.box("handle", (x0 + 0.5, 31, 7.5), (x0 + 1, 31.75, 8), flat("rubber", 2), rotation=rot)
+        m.box("handle", (x1 - 1, 31, 7.5), (x1 - 0.5, 31.75, 8), flat("rubber", 2), rotation=rot)
+        m.box("handle", (x0 + 0.5, 31.75, 7.5), (x1 - 0.5, 32, 8), flat("rubber", 2), rotation=rot)
     m.group("cable")
-    m.box("cable", (8.75, 1, 8.25), (9.25, 26.5, 8.75), flat("rubber", 2))
-    ring(m, "coil", (11.5, 12), 5, 3, 0, 0.75, flat("rubber", 2, rim=0.6))
+    m.box("lead", (6.5, 26, 9.5), (7, 27.5, 10), flat("rubber", 2))
+    m.box("lead", (9, 26, 9.5), (9.5, 27.5, 10), flat("rubber", 2))
+    m.box("lead", (7, 26, 9.5), (9, 26.5, 10), flat("rubber", 2))
+    m.box("cable", (9.25, 1, 8.75), (9.75, 26, 9.25), flat("rubber", 2))
+    ring(m, "coil", (4.5, 13.5), 5, 3, 0, 0.75, flat("rubber", 2, rim=0.6))
+    ring(m, "coil", (4.5, 13.5), 4, 3, 0.75, 1.25, flat("rubber", 2, rim=0.6))
+    m.box("cable", (7, 0, 13.25), (9.25, 0.5, 13.75), flat("rubber", 2))
+    m.box("cable", (9.25, 0, 9.25), (9.75, 1, 13.75), flat("rubber", 2))
+    m.box("plug", (9.75, 0, 13), (11.25, 1.25, 14.5), Paint("fox", 2, "lacquer", rim=1.2))
+    m.box("plug_pin", (11.25, 0.5, 13.5), (11.75, 0.75, 14), flat("brass", 2))
     return gui(m)
 
 
 def prop_drumfire():
+    """드럼통 모닥불: a 200 l steel drum gone rusty under its old blue paint (rust streaks running down from the rolling
+    hoops, the bottom eaten through), two rows of holes punched round its foot glowing orange, the rim blackened; split
+    logs crossed in it on a bed of embers, flames over the rim (animated), sparks over them; ash and soot on the
+    ground round it, a spare log leaning on it."""
     m = BModel("gamble_prop_drumfire", floor=0)
 
     def rust(c):
         if c.face == "down":
             return None
-        v = vnoise(c.p[0], c.p[1] * 1.5, c.p[2], 2.2, 13)
-        if v > 0.74 or (c.p[1] < 2 and v > 0.45):
-            return ("copper", 0)
-        if v > 0.62:
-            return ("soil", 1)
-        if c.p[1] > 12 and c.face in SIDES and h3(c.i[0], c.i[1], c.i[2], 2) < 0.4:
-            return ("soot", 1)                             # soot licked up over the rim
+        y = c.p[1]
+        a = math.atan2(c.p[2] - 8, c.p[0] - 8)
+        k = math.floor((a + math.pi) / (2 * math.pi) * 36)
+        if c.face in SIDES and (math.floor(y) == 1 and k % 4 == 0 or math.floor(y) == 3 and k % 4 == 2):
+            return ("raw", tuple(ramp_rgb("fire", 3)) + (255,))   # the punched holes, the fire seen through
+        v = vnoise(c.p[0], y * 1.5, c.p[2], 2.2, 13)
+        streak = h3(k, 0, 0, 77) < 0.14 and (5.5 < y < 9 or 10 < y < 12)
+        if v > 0.82 or (y < 1 and v > 0.5) or (streak and h3(k, math.floor(y), 0, 78) < 0.8):
+            return ("copper", 1)
+        if v > 0.7:
+            return ("soil", 2)
+        if y > 11.5 and c.face in SIDES and h3(c.i[0], c.i[1], c.i[2], 2) < 0.6:
+            return ("soot", 0 if y > 13 else 1)
         return None
     drum = Paint("police_blue", 2, "metal", noise=0.04, decal=rust)
     m.group("drum")
     for (d, lo, hi) in ((12, 0, 4.5), (13, 4.5, 5.5), (12, 5.5, 9), (13, 9, 10), (12, 10, 13.5)):
         cyl(m, "drum", (8, 8), d, lo, hi, drum)
-    ring(m, "rim", (8, 8), 12, 10, 13.5, 14, Paint("police_blue", 1, "metal", decal=rust))
+    ring(m, "rim", (8, 8), 12, 10, 13.5, 14, Paint("soot", 1, "metal"))
     m.group("fire")
     embers = glow("fire", 3, decal=lambda c: ("fire", 4 if h3(c.i[0], c.i[2], 0, 4) < 0.3 else 2 if h3(c.i[0], c.i[2], 1, 4) < 0.3 else 3))
     cyl(m, "embers", (8, 8), 10, 12, 12.5, embers)
-    log = Paint("bark", 1, "grain", axis="long", noise=0.06)
+    log = Paint("bark", 1, "grain", axis="long", noise=0.06,
+                decal=lambda c: ("soot", 0) if h3(c.i[0], c.i[1], c.i[2], 9) < 0.35 else None)
     m.box("log", (3.5, 12.5, 7), (12.5, 14, 8.5), log, rotation=("y", 22.5, (8, 13, 8)))
     m.box("log", (7, 12.5, 3.5), (8.5, 14, 12.5), log, rotation=("y", -22.5, (8, 13, 8)))
+    m.box("log", (4.5, 13.25, 4.5), (11.5, 14.5, 5.75), log, rotation=("y", 45, (8, 13, 8)))
     m.box("char", (11.5, 12.75, 7.25), (12.5, 13.75, 8.25), glow("fire", 3), rotation=("y", 22.5, (8, 13, 8)))
+    m.box("char", (7.25, 12.75, 3.5), (8.25, 13.75, 4.5), glow("fire", 4), rotation=("y", -22.5, (8, 13, 8)))
 
     def flame(c):
-        # the flames' colours rise through the fire ramp, each frame a step on: the tips flicker
         t = (c.p[1] - 12.5) / 10 + 0.15 * math.sin(c.frame * 1.7 + c.p[0] * 0.9 + c.p[2] * 1.3)
         return ("fire", 5 if t < 0.25 else 4 if t < 0.55 else 3 if t < 0.8 else 2)
     fl = glow("fire", 4, decal=flame, frames=4, frametime=3)
@@ -898,11 +1001,18 @@ def prop_drumfire():
     m.box("flame", (7.5, 19.5, 7.5), (8.5, 22, 8.5), fl)
     m.box("flame", (4.75, 14, 8.75), (6, 17.5, 9.75), fl)
     m.box("flame", (10, 14, 6.5), (11.25, 18, 7.5), fl)
+    m.box("flame", (8.75, 16, 9.25), (9.75, 18.5, 10.25), fl)
+    for (x, y, z) in ((6.25, 23, 7.5), (9.25, 24.5, 8.75), (7.75, 26, 6.75), (8.5, 22.75, 10)):
+        m.box("spark", (x, y, z), (x + 0.25, y + 0.25, z + 0.25), glow("fire", 5))
     m.group("holes")
     hole = glow("fire", 4)
     for (x0, z0, x1, z1) in ((7.5, 1.75, 8.5, 2), (4.5, 2.75, 5.5, 3), (10.5, 2.75, 11.5, 3), (7.5, 14, 8.5, 14.25),
                              (1.75, 7.5, 2, 8.5), (14, 7.5, 14.25, 8.5)):
         m.box("hole", (x0, 1, z0), (x1, 2.5, z1), hole)
+    m.group("ground")
+    ring(m, "ash", (8, 8), 16, 12, 0, 0.25, Paint("stone", 1, "speckle", noise=0.05,
+                                                  decal=lambda c: ("soot", 1) if h3(c.i[0], c.i[2], 0, 3) < 0.35 else None))
+    m.box("spare_log", (13, 0.25, 3), (14.5, 9, 4.5), Paint("bark", 2, "grain", axis="y", noise=0.06), rotation=("z", 22.5, (13.75, 0.25, 3.75)))
     return gui(m)
 
 
@@ -937,42 +1047,77 @@ def prop_sign():
 
 
 def prop_pallet():
+    """자재 팔레트: a block pallet of raw pine (three bottom boards, nine blocks with a burnt-in stamp on the middle one,
+    three stringer boards, five deck boards, nail heads), stacked with red bricks in courses, every other one
+    shifted, strapped both ways with blue PP bands crimped with steel seals; one brick left lying askew on top."""
     m = BModel("gamble_prop_pallet", floor=0)
-    wood = Paint("hinoki", 2, "grain", axis="x", noise=0.06)
+    wood = Paint("hinoki", 2, "grain", axis="x", noise=0.06,
+                 decal=lambda c: ("iron", 3) if c.face == "up" and (abs(c.p[0] - 1.5) < 0.5 or abs(c.p[0] - 8) < 0.5 or abs(c.p[0] - 14.5) < 0.5)
+                 and (c.i[2] % 3 == 1) else None)
     m.group("pallet")
     for (z0, z1) in ((0.5, 3), (6.75, 9.25), (13, 15.5)):
         m.box("bottom", (0.5, 0, z0), (15.5, 0.75, z1), wood)
-    for (x0, x1) in ((0.5, 2.5), (7, 9), (13.5, 15.5)):
-        m.box("stringer", (x0, 0.75, 0.5), (x1, 2.25, 15.5), Paint("hinoki", 1, "grain", axis="z", noise=0.06))
+
+    def stamp(c):
+        if c.face == "north" and 6.75 < c.p[0] < 9.25 and (abs(c.p[0] - 8) > 0.9 or abs(c.p[1] - 1.5) > 0.4):
+            return ("wood_dark", 1)
+        return None
+    for x0 in (0.5, 6.75, 13):
+        for (z0, z1) in ((0.5, 3), (6.75, 9.25), (13, 15.5)):
+            m.box("block", (x0, 0.75, z0), (x0 + 2.5, 2.25, z1), Paint("hinoki", 1, "grain", axis="y", noise=0.06,
+                                                                         decal=stamp if (x0, z0) == (6.75, 0.5) else None))
+    for (x0, x1) in ((0.5, 3), (6.75, 9.25), (13, 15.5)):
+        m.box("stringer", (x0, 2.25, 0.5), (x1, 2.5, 15.5), Paint("hinoki", 2, "grain", axis="z", noise=0.06))
     for (z0, z1) in ((0.5, 3), (3.5, 6), (6.75, 9.25), (10, 12.5), (13, 15.5)):
-        m.box("deck", (0.5, 2.25, z0), (15.5, 3, z1), wood)
+        m.box("deck", (0.5, 2.5, z0), (15.5, 3, z1), wood)
     m.group("bricks")
 
     def bond(c):
-        # bricks 4 px long and 2 high, every other course shifted 2, a dark joint round each, each brick its own shade
+        # bricks 4 texels long and 2 high, every other course shifted by 2: a dark joint texel between bricks, each
+        # brick its own shade, each course's top row a touch lighter (the bed of mortar under the next one shows dark)
         if c.face == "up":
-            row, along = math.floor(c.p[2] / 2), c.p[0]
-            sub = c.p[2] - row * 2
+            row, along, sub = c.i[2] // 2, c.i[0], 1
         elif c.face in ("north", "south"):
-            row, along = math.floor(c.p[1] / 2), c.p[0]
-            sub = c.p[1] - row * 2
+            row, along, sub = (c.i[1] - 3) // 2, c.i[0], (c.i[1] - 3) % 2
         else:
-            row, along = math.floor(c.p[1] / 2), c.p[2]
-            sub = c.p[1] - row * 2
+            row, along, sub = (c.i[1] - 3) // 2, c.i[2], (c.i[1] - 3) % 2
         off = 2 * (row % 2)
-        k = math.floor((along + off) / 4)
-        if (along + off) % 4 < 0.5 or sub < 0.5:
+        k = (along + off) // 4
+        if (along + off) % 4 == 0:
             return ("brick", 0)
-        return ("brick", 1 + int(h3(row, k, 0, 8) * 3))
+        shade = 1 + int(h3(row, k, c.i[1] if c.face == "up" else 0, 8) * 3)
+        return ("brick", min(4, shade + (1 if sub == 1 and c.face != "up" else 0)))
     m.box("stack", (1.5, 3, 1.5), (14.5, 11, 14.5), Paint("brick", 2, noise=0, decal=bond, rim=0.8))
+    m.box("loose_brick", (4, 11.25, 9), (8, 12.25, 11), Paint("brick", 2, noise=0.05, rim=1.0), rotation=("y", 22.5, (6, 11.5, 10)))
     m.group("straps")
     band = flat("signal_blue", 1, rim=0.8)
     for z in (4.5, 10.5):
-        m.box("strap", (1.25, 3, z), (14.75, 3.25, z + 1), band)
+        m.box("strap", (1.25, 3, z), (1.5, 11, z + 1), band)
+        m.box("strap", (14.5, 3, z), (14.75, 11, z + 1), band)
         m.box("strap", (1.25, 11, z), (14.75, 11.25, z + 1), band)
-        m.box("strap", (1.25, 3.25, z), (1.5, 11, z + 1), band)
-        m.box("strap", (14.5, 3.25, z), (14.75, 11, z + 1), band)
+        m.box("seal", (7, 11.25, z - 0.125), (8.5, 11.5, z + 1.125), flat("steel", 4, rim=1.2))
+    x = 4.5
+    m.box("strap", (x, 3, 1.25), (x + 1, 11, 1.5), band)
+    m.box("strap", (x, 3, 14.5), (x + 1, 11, 14.75), band)
+    m.box("strap", (x, 11.25, 1.25), (x + 1, 11.5, 14.75), band)
+    m.box("strap", (x, 11, 1.25), (x + 1, 11.25, 4.5), band)
+    m.box("strap", (x, 11, 5.5), (x + 1, 11.25, 10.5), band)
+    m.box("strap", (x, 11, 11.5), (x + 1, 11.25, 14.75), band)
     return gui(m)
+
+
+def _print_plate(m, name, frm, to, tex, w, h):
+    """A cut-out print (stencil paint, sack print) a hair in front of a surface facing north (or up when frm/to are
+    flat in y), its picture on both sides."""
+    if frm[1] == to[1]:
+        m.plate(name, frm, to, {"up": (tex, [0, 0, w, h]), "down": (tex, [0, 0, w, h])})
+    else:
+        m.plate(name, frm, to, {"north": (tex, [0, 0, w, h]), "south": (tex, [w, 0, 0, h])})
+
+
+def ramp_rgb(name, i):
+    from stsv_assets.palette import ramp
+    return ramp(name, i)[:3]
 
 
 # ================================================================================================

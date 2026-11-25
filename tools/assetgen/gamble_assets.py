@@ -150,9 +150,9 @@ def sheet(path=SHEET):
     els.append(_plane("feltbg", 3980, -12, 4080, 40))
     view(0, y0, 820, 420, [4027, 0, 12], 36, 0, 62, 1.75, "gamble_card_1a … 10b, gamble_card_back · 6×8 px, 앞면 4텍셀/px")
     for n in range(1, 6):
-        els.extend(_placed(pv[f"gamble_chips_{n}"], (4520 - (n - 1) * 30, 0, 0), 1))
+        els.extend(_placed(pv[f"gamble_chips_{n}"], (4520 - (n - 1) * 33, 0, 0), 1))
     els.append(_plane("feltbg", 4370, -30, 4550, 30))
-    view(820, y0, 780, 420, [4460, 4, 2], 58, 0, 38, 2.0, "gamble_chips_1 … 5")
+    view(820, y0, 780, 420, [4455, 4, 2], 66, 0, 38, 2.0, "gamble_chips_1 … 5")
 
     # row 4: dice (each face up by DIE_UP), the bowl, the whiteboard
     y0 = 1350

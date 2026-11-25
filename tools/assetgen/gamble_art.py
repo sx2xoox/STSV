@@ -430,6 +430,22 @@ def stencil_print(text, w, h, ramp_step=("pepper", 1), seed=0, wear=0.18, scale=
     return im
 
 
+def arrows_print(w, h):
+    """w x h, transparent: two "this way up" arrows in faded red stencil, for the crate's side."""
+    from stsv_assets.bake import h3
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px = im.load()
+    for cx in (w // 4, 3 * w // 4):
+        for y in range(2, h - 2):
+            for x in range(w):
+                dx = x - cx + 0.5
+                head = y < 7 and abs(dx) <= (y - 1) * 0.9
+                shaft = y >= 7 and abs(dx) <= 1.5
+                if (head or shaft) and h3(x, y, cx, 5) > 0.15:
+                    px[x, y] = _c("pepper", 1)
+    return im
+
+
 def main(out):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
