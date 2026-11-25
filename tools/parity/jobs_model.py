@@ -183,6 +183,9 @@ def wait_s(lure, cut):
     return (lo + hi) / 2 * (1 - min(max(cut, 0.0), 0.8)) / 20
 
 
+FISHER_RARE_BONUS = 1.15   # a fisher's rare and legend bites from Lv20 (FishSpec.FISHER_RARE_BONUS)
+
+
 def fishing_hour(W_, lv, habitat, fisher=True):
     """Expected catches of one active hour: {item: (count, mean price factor)}. Lure III.
 
@@ -192,6 +195,8 @@ def fishing_hour(W_, lv, habitat, fisher=True):
     cut = W_.lin("fisher", "bite", lv) if fisher else 0.0
     finds = W_.jobs["jobs"]["fisher"]["finds"]
     rare = (finds["chance"][0] + (finds["chance"][1] - finds["chance"][0]) * (lv - 1) / 29) if fisher else finds["outsider"]
+    if fisher and lv >= 20:
+        rare = min(1.0, rare * FISHER_RARE_BONUS)   # FishSpec.FISHER_RARE_BONUS (2026-11, in place of the +17% size)
     ls = f["legend-share"]
     p = {"legend": rare * ls, "rare": rare * (1 - ls), "uncommon": (1 - rare) * 0.35, "common": (1 - rare) * 0.65}
     order = ["common", "uncommon", "rare", "legend"]
@@ -209,7 +214,6 @@ def fishing_hour(W_, lv, habitat, fisher=True):
     secs = wait_s(3, cut) + SWIM_S + REEL_S + CAST_S
     n = 3600 / secs
     out = defaultdict(lambda: [0.0, 0.0])
-    case = "lv20" if (fisher and lv >= 20) else "lv1"
     for r in order:
         rr, ps = pool(r)
         if not ps:
@@ -224,8 +228,7 @@ def fishing_hour(W_, lv, habitat, fisher=True):
             c = cnt / len(ps)
             if fisher and lv >= 20 and k in ("bluefin_tuna", "sturgeon"):
                 c *= 2
-            fac_ = W_.w.factor(item, case) if W_.w.sized(item) else 1.0
-            add(out, item, c, fac_)
+            add(out, item, c, 1.0)   # no fish has a size since 2026-11: every fish at base
     return {k: tuple(v) for k, v in out.items()}, n
 
 
@@ -239,7 +242,7 @@ def add(out, item, c, fac):
 # ------------------------------------------------------------------------------------------------ traps and pens
 # The rod (fishing_hour) is a stopwatch rate: a bite, the reel and a recast back to back, about 8.3-9.6 s a fish all hour. A real
 # fishing hour also moves between the three waters (one an hour, often far apart: deep ocean, warm ocean, mushroom fields), takes
-# the catch somewhere (rare and legend fish keep their size and do not stack: at Lv30 about 90 unstackable fish an hour) and loses
+# the catch somewhere (rare and legend fish kept their size and did not stack until 2026-11; they stack now) and loses
 # casts to the shore, a mob or a boat. The miner's ORES and the farmer's CLICKS_PER_H are hours with the walking in; the rod's
 # share of a fishing hour is ROD_HOUR (45 minutes of the 60).
 ROD_HOUR = 0.75
@@ -296,7 +299,7 @@ def trap_catch(W_, lv, habitat, n, fisher=True):
         ps = pool[TRAP_ORDER[i]]
         for k, s in ps:
             item = M.norm(s["item"]) if "item" in s else "economy:" + k
-            fac = W_.w.factor(item, "lv1") if W_.w.sized(item) else 1.0
+            fac = 1.0   # no sizes since 2026-11
             add(out, item, n * p[r] / len(ps), fac)
     return {k: tuple(v) for k, v in out.items()}
 

@@ -11,8 +11,8 @@ Valuation (the framework's "what a player sees"):
   * a vanilla tag is worth TAG_VALUE (fixed table).
 World.valued(r, pick, case) values one recipe again under a scenario: every group input at its typical (median), cheapest or
 dearest member (pick = "typ" / "lo" / "hi"), and every sized fish (rare, legend: it keeps its size and the shop pays base x
-FishSpec.priceFactor) at the mean price factor of a typical catch (case = None: base, "lv1": any player, "lv20": a Lv20 fisher
-with +17% size). The rules compare recipes under each scenario (R4d, R5c, R9a, R9b).
+FishSpec.priceFactor) at the mean price factor of a typical catch until 2026-11; fish have no size since, so factor() is 1.0 in
+every case. The rules compare recipes under each scenario (R4d, R5c, R9a, R9b).
 """
 import statistics
 from pathlib import Path
@@ -146,13 +146,9 @@ class World:
         return bool(s) and s["rarity"] in SIZED_RARITIES
 
     def factor(self, item, case):
-        """The size price factor an item is worth in a case: 1.0 for anything unsized or case None."""
-        if case is None or not self.sized(item):
-            return 1.0
-        key = (item, case)
-        if key not in self._factor:
-            self._factor[key] = mean_factor(self.species[item], case)
-        return self._factor[key]
+        """The price factor an item is worth: 1.0 (no fish has a size since 2026-11; it sold for 0.7 - 1.5x by it before, see
+        size_of / price_factor, kept for comparing an older content tree)."""
+        return 1.0
 
     def member_values(self, key, case=None):
         """Values of everything an input key takes, each sized fish at its typical size in the case."""

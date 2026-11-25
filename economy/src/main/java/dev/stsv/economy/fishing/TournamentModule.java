@@ -305,16 +305,25 @@ public final class TournamentModule extends EcoModule {
         for (int i = 0; i < Math.min(TOP, rank.size()); i++) {
             Entry e = rank.get(i);
             lines.add(Lang.mm(e.id.equals(viewer.getUniqueId()) ? "tournament.board-me-line" : "tournament.board-line",
-                    "place", i + 1, "name", Names.plain(e.id), "score", score(r.kind, e.score)));
+                    "place", i + 1, "name", shortName(Names.plain(e.id)), "score", score(r.kind, e.score)));
         }
         if (rank.isEmpty()) lines.add(Lang.mm("tournament.board-empty"));
         Entry mine = r.entries.get(viewer.getUniqueId());
         int place = mine == null ? 0 : rank.indexOf(mine) + 1;
-        if (mine == null) lines.add(Lang.mm("tournament.board-join"));
+        if (mine == null) lines.addAll(Lang.items("tournament.board-join"));
         else if (place == 0) lines.add(Lang.mm("tournament.board-me-none", "catches", mine.catches));
         else if (place > TOP) lines.add(Lang.mm("tournament.board-me", "place", place, "score", score(r.kind, mine.score)));
         return new HudLayout.Board(Lang.mm("tournament.board-title", "title", title(r.kind, r.target)), lines,
                 Lang.mm("tournament.board-footer", "time", clock(r.end - now())));
+    }
+
+    /** The board is narrow (about 12 Hangul letters): a name longer than NAME_MAX ends in "…". */
+    static final int NAME_MAX = 6;
+
+    static String shortName(String name) {
+        if (name == null) return "?";
+        return name.codePointCount(0, name.length()) <= NAME_MAX ? name
+                : name.substring(0, name.offsetByCodePoints(0, NAME_MAX - 1)) + "…";
     }
 
     /** m:ss */

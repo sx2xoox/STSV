@@ -783,13 +783,16 @@ tournament:
   catch-score: "<gray>내 기록 <white>{score}</white> <yellow>{place}위"
   catch-no-score: "<gray>이 종목 점수는 아직 없음"
   # 순위표 (화면 오른쪽 아래, 대회 동안 모두에게). 탭(\t) 뒤는 오른쪽 끝에 붙음
-  board-title: "<aqua>낚시대회</aqua> <white>{title}"
-  board-line: "<gray>{place}. <white>{name}\t<aqua>{score}"
-  board-me-line: "<yellow>{place}. {name}\t<aqua>{score}"
+  # 순위표는 좁음 (한 줄에 한글 12자쯤): 짧게
+  board-title: "<aqua>{title}"
+  board-line: "<gray>{place} <white>{name}\t<aqua>{score}"
+  board-me-line: "<yellow>{place} {name}\t<aqua>{score}"
   board-me: "<yellow>나 {place}위\t<aqua>{score}"
-  board-me-none: "<gray>나: {catches}마리 · 점수 없음"
+  board-me-none: "<gray>나 {catches}마리\t<dark_gray>점수 없음"
   board-empty: "<gray>아직 기록이 없어요"
-  board-join: "<gray>참가하려면 낚시를 해 보세요"
+  board-join:
+    - "<gray>참가하려면"
+    - "<gray>낚시를 해 보세요"
   board-footer: "<gray>남은 시간\t<white>{time}"
   result-header: "<gold><b>낚시대회 결과</b></gold> <white>{title}</white> <dark_gray>(참가 {count}명)"
   result-line: " <yellow>{place}등</yellow> {name} <aqua>{score}</aqua>{prize}"
