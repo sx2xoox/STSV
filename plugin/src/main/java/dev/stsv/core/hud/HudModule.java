@@ -874,7 +874,9 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
     /** The sample of /관리자 사이드바 보드시험 (a fishing tournament's ranking). */
     private static HudLayout.Board sampleBoard() {
         List<Component> lines = new ArrayList<>();
-        for (int i = 1; i <= 5; i++) lines.add(Lang.mm("hud.board-sample-" + i));
+        for (String key : List.of("hud.board-sample-1", "hud.board-sample-2", "hud.board-sample-3", "hud.board-sample-4", "hud.board-sample-5")) {
+            lines.add(Lang.mm(key));
+        }
         return new HudLayout.Board(Lang.mm("hud.board-sample-title"), lines, Lang.mm("hud.board-sample-footer"));
     }
 

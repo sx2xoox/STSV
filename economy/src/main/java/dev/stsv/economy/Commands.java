@@ -219,6 +219,7 @@ final class Commands {
             return out;
         }));
         eco.command("도감", new Simple(player((p, a) -> eco.codex().open(p)), (s, a) -> List.of()));
+        eco.command("낚시대회", new Simple((s, a) -> eco.tournament().info(s), (s, a) -> List.of()));
         eco.command("장신구", new Simple(player((p, a) -> {
             if (a.length > 0 && a[0].equals("공방")) eco.accessories().openWorkshop(p);
             else if (a.length > 0 && a[0].equals("효과")) eco.accessories().openEffects(p);

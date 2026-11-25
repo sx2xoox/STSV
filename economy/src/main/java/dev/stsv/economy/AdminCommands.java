@@ -239,6 +239,8 @@ final class AdminCommands {
             }
         }, (s, args) -> args.length == 1 ? List.of("시작", "종료", "취소") : List.of());
 
+        add("낚시대회", "시작 [종목] | 끝 | 상태", "낚시대회 바로 시작 (종목을 안 적으면 뽑기, 10분) · 지금 대회를 바로 끝내고 결과·상 · 지금 상태 (테스트)",
+                (s, args) -> eco.tournament().admin(s, args), (s, args) -> eco.tournament().adminComplete(s, args));
         add("낚시", "등급 <흔함|보통|희귀|전설|진주> [플레이어] [횟수] | 물고기 <이름> [플레이어] [횟수] | 취소 [플레이어] | 확인 [플레이어]",
                 "다음 입질을 그 등급·그 물고기로 (테스트, 보물·쓰레기 입질도 바꿈. 물고기는 사는 곳·때와 상관없이)", (s, args) -> {
             var fishing = eco.fishing();

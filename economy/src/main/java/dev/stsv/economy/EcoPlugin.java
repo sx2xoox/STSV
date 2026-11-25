@@ -74,6 +74,7 @@ public final class EcoPlugin extends JavaPlugin {
     private StockModule stocks;
     private FishingModule fishing;
     private dev.stsv.economy.fishing.TrapModule traps;
+    private dev.stsv.economy.fishing.TournamentModule tournament;
     private dev.stsv.economy.codex.CodexModule codex;
     private dev.stsv.economy.accessory.AccessoryModule accessories;
     private TradeRules rules;
@@ -125,6 +126,7 @@ public final class EcoPlugin extends JavaPlugin {
         add(stocks = new StockModule(this));
         add(fishing = new FishingModule(this));
         add(traps = new dev.stsv.economy.fishing.TrapModule(this));   // after fishing: it reads the fish
+        add(tournament = new dev.stsv.economy.fishing.TournamentModule(this));   // after fishing: it reads the fish
         add(codex = new dev.stsv.economy.codex.CodexModule(this));
         add(accessories = new dev.stsv.economy.accessory.AccessoryModule(this));
         add(new dev.stsv.economy.skin.SkinBoxModule(this));
@@ -239,6 +241,7 @@ public final class EcoPlugin extends JavaPlugin {
     public FishingModule fishing() { return fishing; }
     public dev.stsv.economy.accessory.AccessoryModule accessories() { return accessories; }
     public dev.stsv.economy.fishing.TrapModule traps() { return traps; }
+    public dev.stsv.economy.fishing.TournamentModule tournament() { return tournament; }
     public dev.stsv.economy.codex.CodexModule codex() { return codex; }
     public MarketModule market() { return market; }
     /** 거래소 구매 주문 */

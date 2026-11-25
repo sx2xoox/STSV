@@ -1009,28 +1009,22 @@ class RulesTest {
         assertEquals(0.15 * 0.05, n[3] / 100_000.0, 0.003, "legend: 15% x 0.05 (legend-share)");
         assertEquals(0.85 * 0.35, n[1] / 100_000.0, 0.006, "uncommon: 35% of the rest");
 
+        // the 낚시대회's text-only size: the species' range, towards the small end (no fisher bonus: a fish has no size of its own)
         FishSpec.Species s = f.species().values().stream().filter(x -> x.rarity().equals("legend")).findFirst().orElseThrow();
-        assertEquals(s.min(), FishSpec.size(s, 0, 0), 0.05);
-        assertEquals(s.max(), FishSpec.size(s, 1, 0), 0.05);
-        assertEquals(Math.round(s.min() * 1.17 * 10) / 10.0, FishSpec.size(s, 0, FishSpec.FISHER_SIZE_BONUS), 1e-9, "a Lv20 fisher: +17%");
-        assertEquals(Math.round(s.max() * 1.15 * 10) / 10.0, FishSpec.size(s, 1, FishSpec.FISHER_SIZE_BONUS), 1e-9, "at most 15% past the biggest");
-        assertTrue(FishSpec.size(s, 0.5, 0) < (s.min() + s.max()) / 2, "towards the small end");
-        assertEquals(0.7, FishSpec.priceFactor(s, s.min()), 1e-9);
-        assertEquals(1.5, FishSpec.priceFactor(s, s.max() * 1.1), 1e-9);
+        assertEquals(s.min(), FishSpec.size(s, 0), 0.05);
+        assertEquals(s.max(), FishSpec.size(s, 1), 0.05);
+        assertEquals(s.max(), FishSpec.size(s, 2), 0.05, "never past the biggest");
+        assertTrue(FishSpec.size(s, 0.5) < (s.min() + s.max()) / 2, "towards the small end");
     }
 
-    /** A fish stripped of its size in a machine slot sells as the smallest of its kind: taking it back out never raises its price. */
+    /** A Lv20 fisher's rare and legend bites: x1.15 (the old +17% size made them worth about that much more), boat bonus included. */
     @Test
-    void aStrippedFishNeverSellsForMore() {
-        for (FishSpec.Species s : fish().species().values()) {
-            for (int i = 0; ; i++) {
-                double size = s.min() + i * 0.1;
-                if (size > s.max() * 1.15 + 1e-9) break;
-                double f = FishSpec.priceFactor(s, size);
-                if (i == 0) assertEquals(FishSpec.STRIPPED_FACTOR, f, 1e-9, s.id() + " at its smallest");
-                else assertTrue(FishSpec.STRIPPED_FACTOR < f, s.id() + " " + size + " cm: " + f);
-            }
-        }
+    void fisherRareBonus() {
+        assertEquals(1.15, FishSpec.FISHER_RARE_BONUS, 1e-12);
+        assertEquals(0.30 * 1.15, dev.stsv.economy.fishing.FishingModule.rareChance(0.30, 0, false, FishSpec.FISHER_RARE_BONUS), 1e-12);
+        assertEquals((0.30 + 0.04) * 1.15, dev.stsv.economy.fishing.FishingModule.rareChance(0.30, 0.04, true, FishSpec.FISHER_RARE_BONUS), 1e-12);
+        assertEquals(1.0, dev.stsv.economy.fishing.FishingModule.rareChance(0.95, 0, false, FishSpec.FISHER_RARE_BONUS), 1e-12, "at most 1");
+        assertEquals(0.01, dev.stsv.economy.fishing.FishingModule.rareChance(0.01, 0, false), 1e-12, "anyone else: as it was");
     }
 
     /** The catch title: the fish's picture glyph (font economy:fishicon) by its place in fish.yml, then its name in the usual style. */
