@@ -997,6 +997,7 @@ c2ccd754f9dffe056d20a43e68a2f600da952b88 economy/guide/topics/shop.yml
 66142fc56e112fe688709b36e782cf60ab1731c6 economy/guide/topics/stocks.yml
 719c022201812d1ba14c9bd0f350016eb4d46095 economy/guide/topics/trade.yml
 95793403d9fa2eef3d1062e804928101448f17b4 economy/guide/topics/trade.yml
+009cf1a2e7dd4dd3ea0fba35d0376dacb16dd109 economy/hwatu.yml
 0d94f0d3f80a8da2a4e875229ed3a79db21b89e9 economy/hwatu.yml
 4c8c61c5e2bc7f3b0944b9c2952dfb2aae124115 economy/hwatu.yml
 5a8a20c424b595dd80663dd7aa8927f145c8e5ed economy/hwatu.yml
