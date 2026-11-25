@@ -1,6 +1,6 @@
-# /의뢰: 아래 8건 = 오늘 의뢰, 위 = 이번 주 공동 의뢰
+# /의뢰 (주민의 부탁): 가운데 8칸 = 이어지는 주간 의뢰 · 명인 의뢰 · 오늘의 부탁 6건 (내 단계의 것), 위 = 이번 주 공동 의뢰
 requests:
-  title: "<#f0e2b0>의뢰 게시판 <#b9a6d6>· {day}일차"
+  title: "<#f0e2b0>주민의 부탁 <#b9a6d6>· {day}일차"
   rows: 3
   background: economy:gui/requests
   layout:
@@ -13,8 +13,13 @@ requests:
       action: ""
       icon: stsv:gui/info
       material: BOOK
-      name: "<white>오늘 완료 {done} / {max}"
-      lore: ["<gray>매일 05시 새 의뢰 8건", "<yellow>의뢰 클릭: 인벤토리에서 납품"]
+      name: "<white>오늘 들어준 부탁 {done} / {max}"
+      lore:
+        - "<gray>매일 05시 새 부탁 {count}건 <dark_gray>(내 단계: {tier}단계)"
+        - "<gray>왼쪽 두 칸: 이어지는 주간 의뢰 · 명인 의뢰"
+        - "<gray>들어주면 그 주민과 친밀도가 올라요 <dark_gray>(인물 도감)"
+        - "<yellow>부탁 클릭: 인벤토리에서 납품"
+        - "<#ffd166>도장 · 도장판 · 도장 가게: /도장"
     C:
       action: "request:community"
       icon: economy:gui/trophy

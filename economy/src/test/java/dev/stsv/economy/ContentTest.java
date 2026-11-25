@@ -418,7 +418,7 @@ class ContentTest {
         List<String> problems = new ArrayList<>();
         List<MenuSpec> menus = MenuSpec.loadAll(List.of(new ContentPack("economy", "economy", PACK)), problems);
         assertTrue(problems.isEmpty(), String.join("\n", problems));
-        assertEquals(36, menus.size());   // 버스 내비 and 길라잡이 share the mail background; the hub is 7 menus (the first screen, 4 category pages, 2 minigame pages); 장신구 3 (칸 · 공방 · 효과); 인물 도감
+        assertEquals(37, menus.size());   // 도장 (the people background); 버스 내비 and 길라잡이 share the mail background; the hub is 7 menus (the first screen, 4 category pages, 2 minigame pages); 장신구 3 (칸 · 공방 · 효과); 인물 도감
         for (MenuSpec m : menus) {
             // the button grid is mirror-symmetric, row by row (the machine's lanes are fixed by its code; their
             // empty cells hold arrows, so they read as full rows)
@@ -565,7 +565,9 @@ class ContentTest {
         Set<String> ours = ourItems();
         Set<String> stats = new HashSet<>(List.of("ores_mined", "crops_harvested", "animals_bred", "fish_caught", "rare_finds",
                 "machine_made", "job_xp", "shop_sold", "shop_income", "requests_done", "stock_trades", "market_sold",
-                "playtime", "mob_kills", "blocks_broken", "blocks_placed"));
+                "playtime", "mob_kills", "blocks_broken", "blocks_placed",
+                // counted for the "try something new" missions (README "미션"): PeopleModule, DockModule, CodexModule, TradeModule, StampModule
+                "people_met", "people_new", "dock_sales", "codex_new", "trades_direct", "tournaments"));
         for (String j : jobs.jobs().keySet()) stats.add("made_" + j);
         for (var period : dev.stsv.economy.mission.MissionSpec.Period.values()) {
             var k = spec.kind(period);

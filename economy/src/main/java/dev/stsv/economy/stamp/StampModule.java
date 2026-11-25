@@ -136,7 +136,12 @@ public final class StampModule extends EcoModule implements DailyListener {
 
     /** Gives stamps from a source capped per day (stamps.yml `<source>` and `<source>-daily`). */
     public void giveCapped(UUID player, String source, String why) {
-        int fit = StampSpec.capped(spec.earn(source), store.capped(player, source), spec.earn(source + "-daily"));
+        giveCapped(player, source, spec.earn(source), spec.earn(source + "-daily"), why);
+    }
+
+    /** Gives up to `want` stamps from a source that gives at most `cap` a day (cap <= 0: none). */
+    public void giveCapped(UUID player, String source, int want, int cap, String why) {
+        int fit = StampSpec.capped(want, store.capped(player, source), cap);
         if (fit <= 0) return;
         store.addCapped(player, source, fit);
         give(player, fit, why);

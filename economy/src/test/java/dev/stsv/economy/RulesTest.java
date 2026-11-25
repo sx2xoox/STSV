@@ -892,8 +892,8 @@ class RulesTest {
         RequestSpec spec = RequestSpec.parse(ContentTest.yaml("requests.yml"), new ArrayList<>());
         List<RequestSpec.Request> a = spec.draw(5, 42, id -> 10), b = spec.draw(5, 42, id -> 10);
         assertEquals(a, b, "same day, same board (also after a restart)");
-        assertEquals(8, a.size());
-        assertEquals(8, new HashSet<>(a.stream().map(RequestSpec.Request::item).toList()).size(), "no item twice");
+        assertEquals(spec.dailyCount(), a.size());
+        assertEquals(a.size(), new HashSet<>(a.stream().map(RequestSpec.Request::item).toList()).size(), "no item twice");
         assertTrue(spec.draw(2, 42, id -> 10).stream().noneMatch(r -> r.item().equals("economy:steel_ingot")), "Lv2 goods not on day 2");
         for (RequestSpec.Request r : spec.draw(20, 42, id -> 2)) {
             RequestSpec.Entry e = spec.pool().stream().filter(x -> x.item().equals(r.item())).findFirst().orElseThrow();

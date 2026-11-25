@@ -87,6 +87,9 @@ mail:
     stall_evicted: "노점 임대료 미납"
     mission: "미션 보상"
     mission_bonus: "미션 완료 보너스"
+    stamp_board: "이달의 도장판 선물"
+    stamp_shop: "도장 가게"
+    request_gift: "주민의 선물"
     vehicle_return: "관리자가 돌려보낸 탈것"
     fish_trap_reset: "야생월드 초기화로 돌려받은 통발·가두리"
     starter: "기본템"
@@ -606,14 +609,42 @@ land:
   vault-low: "<yellow>땅 금고 부족:</yellow> {vault} <gray>(하루 {tax} · {days}일치)</gray> <white>/땅 금고 입금 <금액>"
 
 request:
-  new-day: "<gold>의뢰 게시판</gold> <gray>새 의뢰 {count}건이 올라왔습니다. <white>/의뢰"
+  new-day: "<gold>주민의 부탁</gold> <gray>마을 사람들의 새 부탁이 {count}건씩 올라왔습니다. <white>/의뢰"
+  someone: "<white>마을 사람"
   no-such: "<red>없는 의뢰입니다."
   already: "<yellow>이미 완료한 의뢰입니다."
   limit: "<red>오늘은 의뢰를 {max}건까지만 할 수 있습니다."
   missing: "<red>납품할 물건이 부족합니다."
-  done: "<green>의뢰 완료</green> <white>{item} ×{count}</white> <gray>→</gray> {reward} <dark_gray>(오늘 남은 {left}건)"
-  name: "<white>{item} ×{count}"
+  done: "<green>부탁 완료</green> {person}<gray>에게 <white>{item} ×{count}</white> <gray>→</gray> {reward} <dark_gray>(오늘 남은 {left}건)"
+  name: "{person}<gray>의 부탁 · <white>{item} ×{count}"
+  story: "<#e8dcc0>“{story}”"
   lore: ["", "<gray>보상: </gray>{reward}", "<gray>가진 것: <white>{have} / {count}"]
+  lore-stamps: "<gray>+ <#ffd166>도장 {n}개 <dark_gray>(부탁 도장은 하루 몇 개까지)"
+  lore-bond: "<gray>친밀도 <#ff9ec4>♥ {bond}"
+  gift: "{person}<#ff9ec4>이(가) 고맙다며 선물을 건넸어요 <dark_gray>(친밀도 {bond})</dark_gray> <gray>→</gray> {gifts}"
+  bond-line: "<gray>친밀도 <#ff9ec4>♥ {bond}</#ff9ec4> <dark_gray>(다음 선물: {next})"
+  bond-line-max: "<gray>친밀도 <#ff9ec4>♥ {bond}</#ff9ec4> <dark_gray>(선물을 다 받음)"
+  regulars-line: "<#ffd166>단골 일꾼: {names}"
+  master-none: "<gray>이번 주 명인 의뢰가 아직 없습니다."
+  master-locked: "<red>명인 의뢰는 직업을 더 키운 고참만 받을 수 있습니다."
+  master-done: "<yellow>이번 주 명인 의뢰는 이미 끝냈습니다."
+  master-broadcast: "<gold><b>명인 의뢰</b></gold> {player}<gray>님이 {person}<gray>의 어려운 부탁(<white>{item} ×{count}</white>)을 들어주었습니다! 인물 도감에 단골 일꾼으로 이름이 남았어요."
+  master-none-name: "<dark_gray>명인 의뢰 없음"
+  master-name: "<gold><b>명인 의뢰</b></gold> <gray>· {person}"
+  master-lore-locked: ["<gray>고참을 위한 한 주에 한 번의 어려운 부탁.", "<gray>가장 높은 직업 레벨 <white>Lv{level}</white><gray>부터 열려요."]
+  master-lore: ["", "<gray>필요: <white>{item} ×{count}", "<gray>보상: </gray>{reward} <gray>+ <#ffd166>도장 {stamps}개", "<gray>인물 도감의 이 주민 칸에 <#ffd166>단골 일꾼</#ffd166><gray>으로 이름이 남아요", "<gray>가진 것: <white>{have} / {count}"]
+  chain-none: "<gray>이번 주 이어지는 의뢰가 없습니다."
+  chain-done: "<yellow>이번 주 이어지는 의뢰를 모두 끝냈습니다."
+  chain-step: "<gold>이어지는 의뢰</gold> <white>{name}</white> <gray>{step}/{steps}단계 완료: <white>{item} ×{count}</white> <gray>→</gray> {reward} <dark_gray>(다음 단계가 열렸어요)"
+  chain-finished: "<gold><b>이어지는 의뢰 완료!</b></gold> <white>{name}</white> <gray>마지막 단계: <white>{item} ×{count}</white> <gray>→</gray> {reward}"
+  chain-none-name: "<dark_gray>이어지는 의뢰 없음"
+  chain-name: "<gold>이어지는 의뢰: {name}</gold> <gray>{step}/{steps}"
+  chain-person: "<gray>부탁한 사람: {person}"
+  chain-line-done: "<green>✔ {n}. {item} ×{count}"
+  chain-line-now: "<yellow>▶ {n}. <white>{item} ×{count}"
+  chain-line-locked: "<dark_gray>· {n}. {item} ×{count} (잠김)"
+  chain-lore: ["<gray>이 단계 보상: </gray>{reward} <gray>+ <#ffd166>도장 {stamps}개", "<gray>세 단계를 다 끝내면 <#ffd166>도장 {done_stamps}개</#ffd166><gray> 더", "<gray>가진 것: <white>{have} / {count}"]
+  chain-lore-done: ["<green>✔ 이번 주 이어지는 의뢰 완료", "<gray>다음 주 월요일 05시에 새 의뢰"]
   lore-xp: ["<gray>+ <{color}>{job}<gray> 경험치 {xp}"]
   lore-ready: ["<yellow>클릭: 납품"]
   lore-missing: ["<red>물건이 부족합니다"]
@@ -623,9 +654,9 @@ request:
   community-missing: "<red>{item}을(를) 들고 있지 않습니다."
   contributed: "<green>공동 의뢰</green> <white>{item} ×{count}</white> <gray>납품 ({progress} / {target})"
   community-name: "<gold><b>공동 의뢰: {name}</b>"
-  community-lore: ["<gray>{item} {progress} / {target} <white>({pct}%)", "{bar}", "<gray>내 기여 <white>{mine}</white> <dark_gray>· {contributors}명", "<gray>{min}개 이상 내면 </gray>{reward}", "<yellow>클릭: 가진 {item} 전부 납품"]
-  community-lore-done: ["<green>✔ 달성 ({target})", "<gray>{min}개 이상 낸 {paid}명 각자 </gray>{reward}"]
-  community-complete: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>{min}개 이상 낸 {count}명에게 </gray>{reward}"
+  community-lore: ["<gray>{item} {progress} / {target} <white>({pct}%)", "{bar}", "<gray>내 기여 <white>{mine}</white> <dark_gray>· {contributors}명", "<gray>{min}개 이상 내면 </gray>{reward} <gray>+ <#ffd166>도장 {stamps}개", "<yellow>클릭: 가진 {item} 전부 납품"]
+  community-lore-done: ["<green>✔ 달성 ({target})", "<gray>{min}개 이상 낸 {paid}명 각자 </gray>{reward} <gray>+ <#ffd166>도장 {stamps}개"]
+  community-complete: "<gold><b>공동 의뢰 달성!</b></gold> <white>{name}</white> <gray>{min}개 이상 낸 {count}명에게 </gray>{reward} <gray>와 <#ffd166>도장"
 
 mission:
   daily: "일일"
@@ -641,7 +672,9 @@ mission:
   bonus-weekly-broadcast: "<gold>{player}</gold><gray>님이 이번 주 미션을 모두 끝냈습니다!"
   reward-xp: "<{color}>{job}<gray> 경험치 <white>{xp}"
   reward-xp-none: "<gray>직업 경험치 <white>{xp}</white> <dark_gray>(직업이 있을 때)"
+  reward-stamps: "<#ffd166>도장 {n}개"
   rerolled: "<gold>미션</gold> <gray>{old} →</gray> <white>{new}</white> <dark_gray>(다시 뽑기 {left}번 남음)"
+  rerolled-ticket: "<gold>미션</gold> <gray>{old} →</gray> <white>{new}</white> <dark_gray>(다시 뽑기권 사용, {left}장 남음)"
   reroll-done: "<red>끝낸 미션은 바꿀 수 없습니다."
   reroll-none: "<red>다시 뽑기를 다 썼습니다."
   reroll-empty: "<red>바꿀 수 있는 다른 미션이 없습니다."
@@ -656,7 +689,8 @@ mission:
   lore-rewards: "<gray>보상"
   lore-done: "<green>✔ 완료 · 보상 받음"
   lore-reroll: "<yellow>우클릭: 다른 미션으로 <dark_gray>({left}번 남음)"
-  lore-reroll-none: "<dark_gray>다시 뽑기를 다 썼습니다"
+  lore-reroll-none: "<dark_gray>다시 뽑기를 다 썼습니다 <dark_gray>(/도장 가게의 다시 뽑기권)"
+  lore-reroll-ticket: "<yellow>우클릭: 다른 미션으로 <dark_gray>(다시 뽑기권 {tickets}장)"
   bonus-lore: ["<gray>미션 {count}개를 모두 끝내면"]
   bonus-lore-progress: "<gray>진행 <white>{done} / {count}"
   bonus-lore-done: "<green>✔ 받음"
@@ -1811,3 +1845,36 @@ people:
     - "<gray>아주 드물게 <#ffe08a>✦ 별난 손님<gray>이 나타나요."
     - "<gray>모두 만나면 <#ffb37a>[마을 사람 박사]<gray>,"
     - "<gray>별난 모습을 모두 모으면 <#ffe08a>[✦ 별난 사람 수집가]<gray>."
+
+stamp:
+  got: "<#ffd166>도장 +{n}</#ffd166> <gray>{why} <dark_gray>· 도장 {balance}개 · 도장판 {filled}/{cells}"
+  board-cell: "<#ffd166>도장판 {cell}칸!</#ffd166> <gray>선물 →</gray> {rewards}"
+  board-done: "<gold><b>이달의 도장판을 다 채웠어요!</b></gold> <gray>→</gray> {rewards}"
+  why-mission: "미션"
+  why-mission-bonus: "미션 모두 완료"
+  why-request: "주민의 부탁"
+  why-master: "명인 의뢰"
+  why-chain: "이어지는 의뢰"
+  why-chain-done: "이어지는 의뢰 완료"
+  why-gift: "주민의 선물"
+  why-community: "공동 의뢰 달성"
+  why-tournament: "낚시대회 참가"
+  why-event: "행사 참가"
+  why-admin: "관리자"
+  reward-title: "<gray>칭호 </gray>{title}"
+  reward-cosmetic: "<gray>치장 <white>{name}"
+  reward-rerolls: "<#ffd166>미션 다시 뽑기권 ×{n}"
+  shop-owned: "<yellow>이미 가지고 있습니다."
+  shop-short: "<red>도장이 모자랍니다."
+  bought: "<#ffd166>도장 가게</#ffd166> <gray>도장 {price}개 →</gray> {rewards} <dark_gray>(남은 도장 {balance}개)"
+  toggle-shop: "<#ffd166>도장 가게 보기"
+  toggle-board: "<#ffd166>이달의 도장판 보기"
+  cell: "<gray>{n}번째 칸"
+  cell-done: "<#ff6b6b>✔ {n}번째 칸"
+  cell-gift: "<gray>이 칸을 채우면"
+  cell-last: "<gold>마지막 칸: 이달의 선물"
+  cell-next: "<yellow>다음 도장이 여기에 찍혀요"
+  shop-price: "<gray>값: <#ffd166>도장 {price}개"
+  shop-lore-buy: "<yellow>클릭: 바꾸기"
+  shop-lore-short: "<red>도장이 {need}개 모자라요"
+  shop-lore-owned: "<green>✔ 가지고 있음"

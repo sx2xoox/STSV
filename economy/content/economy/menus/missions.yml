@@ -14,7 +14,7 @@ missions:
       action: ""
       material: CLOCK
       name: "<gold>오늘의 미션"
-      lore: ["<gray>새 미션까지 <white>{daily_left} <dark_gray>(매일 05시)", "<gray>다시 뽑기 <white>{daily_rerolls}번</white> 남음"]
+      lore: ["<gray>새 미션까지 <white>{daily_left} <dark_gray>(매일 05시)", "<gray>다시 뽑기 <white>{daily_rerolls}번</white> 남음", "<#ffd166>도장 · 다시 뽑기권: /도장"]
     W:
       action: ""
       icon: economy:gui/ledger

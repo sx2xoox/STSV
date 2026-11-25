@@ -304,14 +304,14 @@ hub_work:
       name: "<white>미션"
       lore: ["<gray>일일 · 주간 미션", "<yellow>우클릭: 길라잡이 <gray>(직접 해 보며 배우기)"]
     K:
-      action: "command:의뢰"
+      action: "hub:run:의뢰|run:도장"
       icon: stsv:gui/blank
       material: PAPER
       art: hub:request
       label: "의뢰"
       accent: "#7ec85c"
-      name: "<white>의뢰"
-      lore: ["<gray>모아서 납품하고 보상"]
+      name: "<white>주민의 부탁"
+      lore: ["<gray>마을 사람들의 부탁을 들어주기", "<yellow>우클릭: 도장 <gray>(도장판 · 도장 가게)"]
     L:
       action: "hub:run:도감|run:낚시대회"
       icon: stsv:gui/blank

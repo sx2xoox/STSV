@@ -1,10 +1,242 @@
-# 의뢰 게시판 /의뢰
-# 매일 05시 daily-count 건을 pool 에서 뽑음 (weight 클수록 자주). 보상 = 관리자 상점 기준가(없으면 value) × 개수 × reward-multiplier
-# 한 사람은 하루 per-player 건까지. job 이 있으면 그 직업인 사람에게 xp 도 줌. from-day 일차(서버를 처음 연 날 = 1일차)부터 나옴.
-daily-count: 8
+# 주민의 부탁 /의뢰 (README "주민의 부탁")
+# 매일 05시 단계(tiers)마다 daily-count 건을 pool 에서 뽑음 (weight 클수록 자주). 같은 단계 사람은 같은 부탁을 봄.
+# 부탁마다 의뢰인 = 인물 도감의 주민 한 명 (버스 손님 종류; 숨은 비밀의 손님은 안 나옴)과 한 줄 사연 (stories: 주민마다, 없으면 default).
+# 보상 = 관리자 상점 기준가(없으면 value) × 개수 × 그 단계의 multiplier + 도장. 한 사람은 하루 per-player 건까지.
+# job 이 있으면 그 직업인 사람에게 xp 도 줌. from-day 일차(서버를 처음 연 날 = 1일차)부터 나옴. tier = 그 부탁이 나오는 단계 (기본 1).
+# 그 단계의 부탁이 모자라면 아래 단계 것으로 채움.
+daily-count: 6
 per-player: 3
 reward-multiplier: 1.3
+# 단계: 가장 높은 직업 레벨이 from 이상이면 그 단계. 신규(1단계)는 1세대 물건, 고참(4단계)은 4강 · 4세대 물건을 찾는 주민을 만남.
+# 신규에게는 지금처럼 돈이 의미 있으니 1.3배 그대로, 고참에게는 돈 대신 도장 (상점가 그대로 + 도장)
+# stamps = 부탁 하나의 도장, stamps-daily = 부탁으로 받는 도장은 하루 이만큼까지
+tiers:
+  - { from: 1, multiplier: 1.3, stamps: 1 }
+  - { from: 10, multiplier: 1.3, stamps: 1 }
+  - { from: 20, multiplier: 1.15, stamps: 1 }
+  - { from: 31, multiplier: 1.0, stamps: 2 }
+stamps-daily: 2
 
+# 친밀도: 그 주민의 부탁을 들어주면 오름 (인물 도감 그 사람 칸에 보임). gifts = 그만큼이 되면 한 번 받는 작은 선물
+bond:
+  request: 1
+  chain-step: 1
+  master: 5
+  gifts:
+    5:  { items: ["minecraft:cookie x8"] }
+    20: { items: ["minecraft:cake x1"], stamps: 2 }
+    50: { items: ["minecraft:experience_bottle x16"], stamps: 5 }
+
+# 명인 의뢰: 주 1건 (월요일 05시), tier 이상인 고참만. 그 단계 pool 에서 하나를 골라 개수 = 그 물건의 max × amount.
+# 보상 = 기준가 × 개수 × multiplier + 도장 stamps + 친밀도, 그리고 인물 도감의 그 주민 칸에 "단골 일꾼"으로 이름이 남음 (최근 regulars 명)
+master:
+  tier: 4
+  amount: 3
+  multiplier: 1.0
+  stamps: 8
+  regulars: 5
+
+# 이어지는 주간 의뢰: 한 주에 하나, 세 단계 (앞 단계를 끝내야 다음이 열림). 여러 직업의 물건이라 혼자 다 만들거나 거래소에서 삼
+# (고참이 신규의 물건을 사는 길). 단계 보상 = 기준가 × 개수 × reward-multiplier + 도장 step-stamps, 다 끝내면 도장 done-stamps 더.
+# 목록을 차례대로 돌아가며 씀 (1주차 = 첫 줄). person = 부탁하는 주민 (bus.yml 손님 종류)
+chain-stamps: { step: 1, done: 3 }
+chains:
+  - name: "잔치 준비"
+    person: grandma
+    steps:
+      - { item: economy:rice, amount: 32, text: "손주 돌잔치를 열려고 하네. 우선 쌀부터 모아 주겠나?" }
+      - { item: economy:hobakjeon, amount: 12, text: "쌀은 됐고, 손님상에 올릴 호박전을 부쳐 주게." }
+      - { item: economy:makgeolli, amount: 6, text: "마지막으로 어른들 드릴 막걸리 몇 병만 부탁하네." }
+  - name: "바닷가 축제"
+    person: haenyeo
+    steps:
+      - { item: economy:fish_meat, amount: 24, text: "바닷가 축제에 회를 낼 거예요. 생선살부터 부탁해요." }
+      - { item: economy:iron_pan, amount: 3, text: "전 부칠 철판이 모자라요. 대장간 솜씨 좀 빌려 줘요." }
+      - { item: economy:fish_platter, amount: 8, text: "이제 한 상 차려야죠. 모둠 생선 접시를 부탁해요." }
+  - name: "겨울 채비"
+    person: uncle
+    steps:
+      - { item: coal, amount: 96, text: "올겨울은 춥다더라. 아궁이에 넣을 석탄부터 좀 구해 줘." }
+      - { item: economy:iron_plate, amount: 6, text: "난로 덮개가 다 녹슬었어. 철판 몇 장만 두드려 줘." }
+      - { item: economy:kimchi, amount: 8, text: "김장 끝나면 동네에 돌릴 김치가 필요해." }
+  - name: "소풍 도시락"
+    person: kinder
+    steps:
+      - { item: economy:strawberry, amount: 48, text: "선생님이랑 소풍 가요! 딸기 많이 많이요!" }
+      - { item: economy:gyeranmari, amount: 8, text: "도시락에 계란말이가 꼭 있어야 해요!" }
+      - { item: economy:sikhye, amount: 6, text: "목마를 때 마실 식혜도요! 시원한 걸로요!" }
+  - name: "공사장 새참"
+    person: worker
+    steps:
+      - { item: iron_ingot, amount: 32, text: "다리 보수에 쓸 철이 모자라. 철 주괴 좀 구해 주게." }
+      - { item: economy:jeyuk, amount: 8, text: "일꾼들 새참으로 제육볶음이 최고지." }
+      - { item: economy:flower_tea, amount: 6, text: "일 끝나고 마실 꽃잎 차 몇 잔이면 다들 좋아할 거야." }
+
+# 한 줄 사연 ({item} = 물건, {count} = 개수). 주민마다 여러 줄이면 그중 하나
+stories:
+  default:
+    - "요즘 {item} {count}개가 좀 필요해서요. 구해 줄 수 있어요?"
+    - "부탁 하나만 할게요. {item} {count}개면 돼요."
+    - "{item} {count}개가 급하게 필요해요. 사례는 꼭 할게요."
+    - "버스에서 봤던 그 기사님 맞죠? {item} {count}개만 부탁해요."
+  resident:
+    - "동네 반상회에 {item} {count}개를 돌리기로 했어요."
+    - "옆집에 이사 온 분께 {item} {count}개를 선물하려고요."
+  student:
+    - "학교 발표 준비에 {item} {count}개가 필요해요!"
+    - "동아리 행사에 쓸 {item} {count}개, 도와주세요!"
+  grandma:
+    - "손주 생일이라 {item} {count}개가 필요하구먼."
+    - "장날에 내다 팔 {item} {count}개만 마련해 주겠나?"
+  office:
+    - "회식 자리에 {item} {count}개를 가져가야 해요. 야근 때문에 못 사서요."
+    - "거래처 선물로 {item} {count}개가 필요합니다."
+  tourist:
+    - "고향에 가져갈 기념품으로 {item} {count}개를 사고 싶어요."
+    - "여행 마지막 날이에요. {item} {count}개만 구해 주실래요?"
+  vip:
+    - "{item} {count}개를 준비하게. 값은 넉넉히 치르지."
+    - "손님 접대에 {item} {count}개가 필요하오. 최고급으로."
+  farmer:
+    - "올해 농사 준비에 {item} {count}개가 모자라."
+    - "장터에 낼 {item} {count}개, 일손이 부족해서 그래."
+  hiker:
+    - "산행 가기 전에 {item} {count}개를 챙기려고요."
+    - "정상에서 나눠 먹을 {item} {count}개면 좋겠어요."
+  fisher:
+    - "낚시터 사람들과 나눌 {item} {count}개가 필요해."
+    - "배 띄우기 전에 {item} {count}개만 구해 주게."
+  soldier:
+    - "부대 동기들 몫으로 {item} {count}개가 필요합니다!"
+    - "휴가 나온 김에 집에 {item} {count}개를 가져가고 싶습니다."
+  couple:
+    - "기념일이라 {item} {count}개를 준비하고 싶어요."
+    - "둘이서 소풍 가는데 {item} {count}개가 있으면 좋겠어요."
+  drunk:
+    - "딸꾹... {item} {count}개... 그거면 돼... 딸꾹."
+    - "집에 가져가면 마누라가 덜 혼낼 거야. {item} {count}개!"
+  courier:
+    - "배송 사고가 나서 {item} {count}개를 다시 보내야 해요."
+    - "명절 물량이에요. {item} {count}개만 급히 부탁해요."
+  kinder:
+    - "선생님이 {item} {count}개 가져오래요!"
+    - "친구들이랑 나눠 먹을 {item} {count}개요!"
+  camper:
+    - "이번 캠핑엔 {item} {count}개를 꼭 챙길 거예요."
+    - "모닥불 앞에서 쓸 {item} {count}개, 부탁해요."
+  haenyeo:
+    - "물질 끝나고 해녀들끼리 나눌 {item} {count}개가 필요해요."
+    - "바다 일이 바빠서요. {item} {count}개만 구해 줘요."
+  fan:
+    - "응원석에서 나눠 줄 {item} {count}개가 필요해요! 이기면 또 올게요!"
+    - "결승전이에요! {item} {count}개로 기운 좀 내야겠어요."
+  nurse:
+    - "병동 환자분들께 드릴 {item} {count}개가 필요해요."
+    - "야간 근무 동료들 몫으로 {item} {count}개면 돼요."
+  chatty:
+    - "글쎄 옆 동네에선 {item} {count}개 구하기가 그렇게 힘들대요! 좀 구해 줘요."
+    - "계모임에 {item} {count}개를 가져가기로 했지 뭐예요."
+  motionsick:
+    - "멀미 나서 장을 못 봤어요... {item} {count}개만 부탁해요."
+    - "{item} {count}개... 버스 말고 다른 길로 가져다줄 수 있어요?"
+  mom:
+    - "아기 보느라 시장에 못 가요. {item} {count}개만 부탁해요."
+    - "아기 백일상에 {item} {count}개를 올리려고요."
+  dogwalker:
+    - "바둑이랑 산책 나왔다가 생각났네. {item} {count}개가 필요하구먼."
+    - "할멈이 좋아하던 거라서. {item} {count}개쯤 두고 싶구먼."
+  santa:
+    - "호호호! 착한 아이들 선물로 {item} {count}개가 필요하단다."
+    - "썰매가 고장 나서 말이지. {item} {count}개만 부탁하마."
+  ghost:
+    - "...{item}... {count}개... 오래전에 약속했었는데..."
+    - "새벽까지 기다릴게요... {item} {count}개..."
+  rider:
+    - "주문이 밀렸어요! {item} {count}개 빨리요!"
+    - "단골 가게 재료가 떨어졌대요. {item} {count}개만요!"
+  monk:
+    - "절 공양에 쓸 {item} {count}개를 시주받고 있습니다."
+    - "산사 식구들과 나눌 {item} {count}개면 족합니다."
+  youtuber:
+    - "{item} {count}개 언박싱 영상 찍으려고요! 구독 좋아요!"
+    - "이번 콘텐츠는 {item} {count}개 챌린지예요!"
+  market:
+    - "장날 좌판에 올릴 {item} {count}개가 모자라요."
+    - "단골손님이 찾는 게 있어서요. {item} {count}개만 구해 줘요."
+  uncle:
+    - "동네 평상에 모여 먹을 {item} {count}개가 필요해."
+    - "경로당에 {item} {count}개를 들여놓기로 했어."
+  univ:
+    - "과제 마감인데 {item} {count}개가 필요해요... 내일까지요."
+    - "MT 가는데 {item} {count}개를 맡았어요."
+  worker:
+    - "현장에 {item} {count}개가 모자라. 공사가 멈추게 생겼어."
+    - "새참으로 {item} {count}개면 다들 힘이 날 거야."
+  kid:
+    - "학교 숙제로 {item} {count}개를 가져가야 해요!"
+    - "엄마 생신 선물로 {item} {count}개를 모으고 있어요!"
+  chicken:
+    - "꼬순이 먹이랑 바꿀 {item} {count}개가 필요하구먼. 꼬꼬댁!"
+    - "달걀 팔아 모은 돈으로 {item} {count}개를 사려네."
+  tardy:
+    - "또 늦었어요! {item} {count}개 가져가야 하는데 대신 좀요!"
+    - "알람을 다섯 개 맞췄는데도... {item} {count}개 부탁해요!"
+  interview:
+    - "면접 끝나고 인사드릴 분께 {item} {count}개를 드리려고요."
+    - "첫 출근 날 돌릴 {item} {count}개가 필요해요. 붙었거든요!"
+  yeot:
+    - "엿이랑 바꿔 줄 {item} {count}개를 모으고 있소. 철컥철컥!"
+    - "장터 공연에 쓸 {item} {count}개가 필요하오."
+  traveler:
+    - "저, {item}... {count}개... 사고 싶어요! 한국 최고예요!"
+    - "친구들 선물이에요. {item} {count}개, 부탁해요!"
+  phone:
+    - "어 엄마! 응, {item} {count}개 구하고 있어! (네, 부탁해요!)"
+    - "여보세요?! 아 네, {item} {count}개요! 크게 말할게요!"
+  rude:
+    - "어이, {item} {count}개. 빨리 가져와."
+    - "{item} {count}개도 못 구해? ...아니, 부탁 좀 하자고."
+  dodger:
+    - "지난번 운임은... 이걸로 갚을게요. {item} {count}개만요."
+    - "{item} {count}개 구해 주시면 이번엔 진짜 앞문으로 탈게요."
+  prankster:
+    - "{item} {count}개 가져오면 벨 장난 안 칠게요! 진짜로!"
+    - "비밀 기지 만들 거예요. {item} {count}개 필요해요!"
+  spread:
+    - "자리 좀 넓게 쓰려면 {item} {count}개가 있어야 해서."
+    - "{item} {count}개만 구해 주쇼. 다리는... 오므릴게."
+  complainer:
+    - "{item} {count}개. 상태 좋은 걸로. 지난번 건 별로였어요."
+    - "{item} {count}개가 왜 이렇게 구하기 힘든지 원..."
+  crumbs:
+    - "과자 말고 {item} {count}개도 먹어 보고 싶어서요."
+    - "{item} {count}개면 부스러기 안 흘릴게요."
+  gentleman:
+    - "실례지만 {item} {count}개를 부탁드려도 되겠습니까?"
+    - "이웃들께 대접할 {item} {count}개가 필요합니다. 감사히 받지요."
+  shaman:
+    - "굿판에 올릴 {item} {count}개가 필요하오."
+    - "액운을 막으려면 {item} {count}개가 있어야 하오."
+  mailman:
+    - "편지 대신 {item} {count}개를 전해 달라는 부탁을 받았어요."
+    - "우체국 송년회에 쓸 {item} {count}개요."
+  bungeo:
+    - "붕어빵 반죽에 넣어 볼 {item} {count}개가 필요해요."
+    - "겨울 장사 밑천으로 {item} {count}개면 돼요."
+  bride:
+    - "신혼집 집들이에 {item} {count}개를 내려고요."
+    - "결혼식 답례품으로 {item} {count}개가 필요해요."
+  police:
+    - "파출소 야식으로 {item} {count}개를 부탁합니다."
+    - "순찰 돌며 나눠 드릴 {item} {count}개가 필요합니다."
+  magician:
+    - "모자에서 {item} {count}개를 꺼내 보이려면 먼저 넣어 둬야 해서요."
+    - "다음 공연 소품으로 {item} {count}개가 필요합니다. 짠!"
+  wrestler:
+    - "천하장사 대회 전에 {item} {count}개로 힘을 내야겠소!"
+    - "모래판 동료들과 나눌 {item} {count}개가 필요하오."
+
+# 1단계: 원재료와 기본 물건 (tier 를 안 쓰면 1)
 pool:
   - { item: iron_ingot, min: 16, max: 48, job: miner, xp: 30 }
   - { item: coal, min: 32, max: 64, job: miner, xp: 15 }
@@ -44,30 +276,75 @@ pool:
   # 직업 생산품 (직업 기계)
   - { item: economy:ruby, min: 2, max: 6, job: miner, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:coke, min: 2, max: 6, job: miner, xp: 30, from-day: 2, weight: 6 }
-  - { item: economy:ruby_ring, min: 1, max: 2, job: miner, xp: 80, from-day: 8, weight: 4 }
+  - { item: economy:ruby_ring, min: 1, max: 2, job: miner, xp: 80, from-day: 8, weight: 4, tier: 2 }
   - { item: economy:rice, min: 4, max: 12, job: farmer, xp: 25, from-day: 2, weight: 6 }
   - { item: economy:chili_powder, min: 2, max: 8, job: farmer, xp: 25, from-day: 2, weight: 6 }
-  - { item: economy:doenjang, min: 1, max: 4, job: farmer, xp: 60, from-day: 8, weight: 4 }
+  - { item: economy:doenjang, min: 1, max: 4, job: farmer, xp: 60, from-day: 8, weight: 4, tier: 3 }
   - { item: economy:fish_meat, min: 8, max: 24, job: fisher, xp: 25, from-day: 2, weight: 6 }
-  - { item: economy:prime_fish_meat, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 4 }
+  - { item: economy:prime_fish_meat, min: 2, max: 6, job: fisher, xp: 50, from-day: 5, weight: 4, tier: 2 }
   - { item: economy:fine_fish_meat, min: 4, max: 12, job: fisher, xp: 30, from-day: 2, weight: 3 }
   - { item: economy:iron_plate, min: 2, max: 6, job: blacksmith, xp: 30, from-day: 2, weight: 6 }
-  - { item: economy:steel_ingot, min: 1, max: 4, job: blacksmith, xp: 60, from-day: 8, weight: 4 }
+  - { item: economy:steel_ingot, min: 1, max: 4, job: blacksmith, xp: 60, from-day: 8, weight: 4, tier: 2 }
   - { item: economy:kimchi, min: 2, max: 8, job: cook, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:hobakjeon, min: 4, max: 12, job: cook, xp: 25, from-day: 2, weight: 6 }
-  - { item: economy:maeuntang, min: 1, max: 4, job: cook, xp: 40, from-day: 4, weight: 4 }
-  - { item: economy:braised_mackerel, min: 1, max: 4, job: cook, xp: 40, from-day: 8, weight: 4 }
-  - { item: economy:bibimbap, min: 1, max: 2, job: cook, xp: 100, from-day: 15, weight: 3 }
+  - { item: economy:maeuntang, min: 1, max: 4, job: cook, xp: 40, from-day: 4, weight: 4, tier: 2 }
+  - { item: economy:braised_mackerel, min: 1, max: 4, job: cook, xp: 40, from-day: 8, weight: 4, tier: 2 }
+  - { item: economy:bibimbap, min: 1, max: 2, job: cook, xp: 100, from-day: 15, weight: 3, tier: 3 }
   - { item: economy:makgeolli, min: 2, max: 6, job: alchemist, xp: 30, from-day: 2, weight: 6 }
   - { item: economy:soju, min: 1, max: 3, job: alchemist, xp: 60, from-day: 8, weight: 4 }
-  - { item: economy:wine, min: 1, max: 2, job: alchemist, xp: 80, from-day: 15, weight: 3 }
+  - { item: economy:wine, min: 1, max: 2, job: alchemist, xp: 80, from-day: 15, weight: 3, tier: 2 }
   # 새 생산품 (특별 재료·도매 생선)
   - { item: economy:cut_crystal, min: 2, max: 6, job: miner, xp: 30, from-day: 2, weight: 4 }
   - { item: economy:iron_pan, min: 1, max: 4, job: blacksmith, xp: 40, from-day: 2, weight: 4 }
   - { item: economy:fish_platter, min: 4, max: 12, job: cook, xp: 25, from-day: 2, weight: 4 }
   - { item: economy:sikhye, min: 2, max: 8, job: alchemist, xp: 30, from-day: 2, weight: 4 }
 
-# 주간 공동 의뢰: 서버 전체 목표 (월요일 05시에 바뀜). 달성하면 최소량 이상 낸 참여자 모두 reward.
+  # 2단계 (Lv10~): 1강 물건
+  - { item: economy:cut_diamond, min: 2, max: 6, job: miner, xp: 30, from-day: 4, weight: 6, tier: 2 }
+  - { item: economy:sapphire_brooch, min: 1, max: 3, job: miner, xp: 40, from-day: 4, weight: 5, tier: 2 }
+  - { item: economy:jocheong, min: 2, max: 6, job: farmer, xp: 30, from-day: 4, weight: 6, tier: 2 }
+  - { item: economy:soy_sauce, min: 4, max: 12, job: farmer, xp: 25, from-day: 4, weight: 6, tier: 2 }
+  - { item: economy:oak_barrel, min: 1, max: 3, job: blacksmith, xp: 40, from-day: 4, weight: 6, tier: 2 }
+  - { item: economy:gamasot, min: 1, max: 3, job: blacksmith, xp: 40, from-day: 4, weight: 5, tier: 2 }
+  - { item: economy:iron_lantern, min: 1, max: 3, job: blacksmith, xp: 40, from-day: 4, weight: 5, tier: 2 }
+  - { item: economy:kimchi_jjigae, min: 2, max: 6, job: cook, xp: 30, from-day: 4, weight: 6, tier: 2 }
+  - { item: economy:strawberry_cake, min: 2, max: 6, job: cook, xp: 30, from-day: 4, weight: 5, tier: 2 }
+  - { item: economy:strawberry_wine, min: 4, max: 10, job: alchemist, xp: 30, from-day: 4, weight: 6, tier: 2 }
+  - { item: economy:mead, min: 4, max: 10, job: alchemist, xp: 30, from-day: 4, weight: 5, tier: 2 }
+  # 3단계 (Lv20~): 2강 · 3강 물건
+  - { item: economy:gochujang, min: 2, max: 6, job: farmer, xp: 60, from-day: 8, weight: 6, tier: 3 }
+  - { item: economy:jang_set, min: 1, max: 2, job: farmer, xp: 120, from-day: 15, weight: 4, tier: 3 }
+  - { item: economy:pearl_necklace, min: 1, max: 2, job: miner, xp: 100, from-day: 15, weight: 5, tier: 3 }
+  - { item: economy:diamond_ring, min: 1, max: 3, job: miner, xp: 80, from-day: 8, weight: 5, tier: 3 }
+  - { item: economy:treasure_fish_meat, min: 2, max: 6, job: fisher, xp: 80, from-day: 8, weight: 6, tier: 3 }
+  - { item: economy:polished_pearl, min: 2, max: 6, job: fisher, xp: 60, from-day: 8, weight: 5, tier: 3 }
+  - { item: economy:steel_toolset, min: 1, max: 2, job: blacksmith, xp: 100, from-day: 8, weight: 5, tier: 3 }
+  - { item: economy:ornamental_sword, min: 1, max: 2, job: blacksmith, xp: 100, from-day: 8, weight: 5, tier: 3 }
+  - { item: economy:grilled_eel, min: 1, max: 3, job: cook, xp: 80, from-day: 15, weight: 5, tier: 3 }
+  - { item: economy:tteokbokki, min: 2, max: 4, job: cook, xp: 60, from-day: 15, weight: 5, tier: 3 }
+  - { item: economy:cheongju, min: 2, max: 4, job: alchemist, xp: 70, from-day: 8, weight: 6, tier: 3 }
+  - { item: economy:vintage_wine, min: 1, max: 3, job: alchemist, xp: 100, from-day: 15, weight: 4, tier: 3 }
+  # 4단계 (Lv31~, 승급): 4세대 재료와 4강 물건. 상점이 사지 않는 재료는 value = jobs.yml 의 거래 참고가
+  - { item: economy:gem_dust, min: 8, max: 16, job: miner, xp: 120, from-day: 15, value: 82, weight: 6, tier: 4 }
+  - { item: economy:najeon_jewel_box, min: 1, max: 1, job: miner, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:gilded_spoon_set, min: 1, max: 1, job: miner, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:hanji, min: 8, max: 16, job: farmer, xp: 120, from-day: 15, value: 54, weight: 6, tier: 4 }
+  - { item: economy:royal_jang_set, min: 1, max: 2, job: farmer, xp: 250, from-day: 15, weight: 4, tier: 4 }
+  - { item: economy:ginseng_jeonggwa, min: 1, max: 2, job: farmer, xp: 250, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:fish_glue, min: 8, max: 16, job: fisher, xp: 120, from-day: 15, value: 68, weight: 6, tier: 4 }
+  - { item: economy:gulbi_dureum, min: 1, max: 2, job: fisher, xp: 250, from-day: 15, weight: 4, tier: 4 }
+  - { item: economy:royal_eoran, min: 1, max: 1, job: fisher, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:tempering_stone, min: 1, max: 3, job: blacksmith, xp: 150, from-day: 15, value: 780, weight: 6, tier: 4 }
+  - { item: economy:master_jangdo, min: 1, max: 1, job: blacksmith, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:bangjja_yugi, min: 1, max: 1, job: blacksmith, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:gosa_tteok, min: 2, max: 6, job: cook, xp: 120, from-day: 15, value: 220, weight: 6, tier: 4 }
+  - { item: economy:royal_surasang, min: 1, max: 1, job: cook, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:gujeolpan, min: 1, max: 1, job: cook, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:mana_ink, min: 2, max: 6, job: alchemist, xp: 120, from-day: 15, value: 245, weight: 6, tier: 4 }
+  - { item: economy:century_yakju, min: 1, max: 1, job: alchemist, xp: 300, from-day: 15, weight: 3, tier: 4 }
+  - { item: economy:gyeongokgo, min: 1, max: 1, job: alchemist, xp: 300, from-day: 15, weight: 3, tier: 4 }
+
+# 주간 공동 의뢰: 서버 전체 목표 (월요일 05시에 바뀜). 달성하면 최소량 이상 낸 참여자 모두 reward 골드와 도장 (stamps.yml earn.community).
 # 최소량 = 목표의 0.5% 와, 낸 물건의 의뢰 값(기준가 × reward-multiplier)이 reward 이상이 되는 양 중 큰 쪽
 # (부계정으로 조금씩 나눠 내도 의뢰로 파는 것보다 더 받지 못함. 검사: BalanceTest R14c).
 # 목록을 차례대로 돌아가며 씀 (1주차 = 첫 줄, 목록이 끝나면 처음부터)
