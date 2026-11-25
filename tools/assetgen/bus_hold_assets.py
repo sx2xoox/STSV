@@ -38,11 +38,21 @@ CHICKEN = REPO / "docs" / "previews" / "bus_chicken_hold.png"
 FONT = HERE / "fonts" / "Sunflower-Medium.ttf"
 
 # the kinds whose skins changed (their held prop is a model now): only these skins are rewritten
-SKIN_TYPES = ["chicken"]
-# what each kind holds per look (bus.yml types.*.hold / hold-off, for the sheet): kind -> [(main, off) per look]
 HOLDS = {
     "chicken": [("bus_hold_chicken", None)] * 3,
+    "interview": [(None, "bus_hold_folder")] * 3,
+    "yeot": [("bus_hold_yeot_scissors", None)] * 3,
+    "traveler": [(None, "bus_hold_map")] * 3,
+    "youtuber": [("bus_hold_selfie", None)] * 3,
+    "crumbs": [(None, "bus_hold_snack")] * 3,
+    "shaman": [("bus_hold_bells", None), (None, "bus_hold_fan"), ("bus_hold_bells", "bus_hold_fan")],
+    "dogwalker": [(None, "bus_hold_leash")] * 3,
+    "motionsick": [(None, None), (None, None), ("bus_hold_towel", "bus_hold_plastic_bag")],
+    "kid": [(None, None), (None, None), (None, "bus_hold_shoe_bag")],
+    "bride": [("bus_hold_bouquet", None), (None, None), (None, None)],
+    "magician": [("bus_hold_wand", None), (None, "bus_hold_cards"), ("bus_hold_wand", "bus_hold_rose")],
 }
+SKIN_TYPES = list(HOLDS)
 
 
 def write_models():

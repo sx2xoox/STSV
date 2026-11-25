@@ -310,8 +310,8 @@ def _plain(ramp, step, **kw):
 
 
 def folder():
-    """면접 청년: a navy document folder, its top edge in the fist, hanging at his side (the papers' edges showing
-    above its top, a silver clip, a white label)."""
+    """면접 청년: a navy document folder held upright on his lap by its bottom edge, clutched (the papers' edges
+    showing above its top, a silver clip, a white label)."""
     m = BModel("bus_hold_folder", floor=None)
 
     def cover(c):
@@ -324,7 +324,7 @@ def folder():
     m.box("cover", (3, 0, 7), (13, 12.5, 9), _plain("indigo", 2, rim=1.2, decal=cover))
     m.box("papers", (3.5, 12.5, 7.5), (12.5, 13.5, 8.5), _plain("paper", 2, decal=lambda c: ("paper", 1) if c.face in SIDES and int(c.p[1] * 2) % 2 else None))
     m.box("clip", (9.5, 10.5, 6.5), (11.5, 13, 7), _plain("blade", 2))
-    held = hold_transform(grip=(8, 12, 8), at=fist(0.5), turn=turn(y=-90, x=-36))
+    held = hold_transform(grip=(8, 1, 8), at=fist(-0.5, 0, -1), turn=turn(x=8, y=-15))
     return displays(m, held)
 
 
@@ -416,9 +416,9 @@ def snack():
 
     def face(c):
         x, y, z = c.i
-        if c.face == "north" and math.hypot(c.p[0] - 8, c.p[1] - 7) < 2.4:
-            a = math.atan2(c.p[1] - 7, c.p[0] - 8)
-            return ("petal_yellow", 1) if math.hypot(c.p[0] - 8, c.p[1] - 7) < 1.6 + 0.6 * math.cos(a * 6) else None
+        r = math.hypot(c.p[0] - 8, c.p[1] - 7.5)
+        if c.face == "north" and r < 2.2:
+            return ("porcelain", 2) if r < 0.8 and c.p[0] < 8 else ("petal_yellow", 1)   # a round yellow badge
         if y in (2, 3):
             return ("petal_yellow", 2)                        # a stripe round the bottom
         return None
@@ -480,27 +480,27 @@ def fan():
         return _plain(rmp, st, decal=d, light=False)
     voxels(m, "panel", cells, pan)
     m.box("handle", (7.25, -4, 7.5), (8.75, 4, 9.5), _plain("wood_dark", 2, kind="grain"))
-    m.box("rivet", (7, 2.5, 7), (9, 4, 10), _plain("brass", 2))
+    m.box("rivet", (7, 2, 7), (9, 3.5, 10), _plain("brass", 2))
     held = hold_transform(grip=(8, 0, 8.5), at=fist(), turn=turn(x=15, z=-10))
     return displays(m, held)
 
 
 def leash():
-    """강아지 할아버지: a red lead looped round the hand, its end hanging down with a silver clip."""
+    """강아지 할아버지: a red lead, its handle loop showing above the fist, the lead hanging from it with a silver clip
+    at its end (the dog walks on its own)."""
     m = BModel("bus_hold_leash", floor=None)
     red = _plain("tomato", 1, rim=0.8)
-    ring = {}
-    for x in range(2, 14):
-        for z in range(2, 14):
-            if x in (2, 13) or z in (2, 13):
-                ring[(x, 8, z)] = "loop"
-    voxels(m, "loop", ring, lambda _l: red)
-    m.box("lead", (7.5, -3, 1.5), (8.5, 8, 2), red)
-    m.box("lead", (7.5, -9, 0.5), (8.5, -3, 1), red)
-    m.box("lead", (7.5, -3.5, 1), (8.5, -2.5, 1.5), red)
-    m.box("clip", (7, -12, 0), (9, -9, 1.5), _plain("blade", 2, kind="metal"))
-    m.box("clip", (7.5, -13, 0.5), (8.5, -12, 1), _plain("blade", 1))
-    held = hold_transform(grip=(8, 8.5, 8), at=fist(0, 0.5), turn=turn())
+    loop = {}
+    for x in range(5, 11):
+        for y in range(8, 15):
+            if (x in (5, 10) and y <= 13) or (y == 14 and 6 <= x <= 9) or (y == 13 and x in (6, 9)):
+                loop[(x, y, 8)] = "loop"
+    voxels(m, "loop", loop, lambda _l: red)
+    m.box("lead", (7.5, 0, 7.5), (8.5, 8, 8.5), red)
+    m.box("lead", (7.5, -6, 6.5), (8.5, 0, 7.5), red)
+    m.box("clip", (7, -9, 6.25), (9, -6, 7.75), _plain("blade", 2, kind="metal"))
+    m.box("clip", (7.5, -10, 6.75), (8.5, -9, 7.25), _plain("blade", 1))
+    held = hold_transform(grip=(8, 8, 8), at=fist(), turn=turn(x=30))
     return displays(m, held)
 
 
@@ -513,12 +513,12 @@ def towel():
             for z in range(2, 14):
                 p = (x + 0.5, y + 0.5, z + 0.5)
                 lump = _ell(p, (8, 8, 8), (5, 3.5, 5)) or _ell(p, (6.5, 10.5, 7), (3, 2.5, 3)) or _ell(p, (10, 5.5, 9), (3, 2.5, 3))
-                tail = 5 <= x <= 10 and -7 <= y <= 5 and abs(z + 0.5 - (8 - (5 - y) * 0.25)) <= 0.6
+                tail = 5 <= x <= 10 and -2 <= y <= 5 and abs(z + 0.5 - (8 - (5 - y) * 0.35)) <= 0.6
                 if lump or tail:
                     cells[(x, y, z)] = "towel"
     voxels(m, "towel", cells, lambda _l: _plain("pink", 2, kind="weave", rim=0.7,
-                                                decal=lambda c: ("pink", 1) if c.p[1] < -6 else None))
-    held = hold_transform(grip=(8, 8, 8), at=fist(), turn=turn())
+                                                decal=lambda c: ("pink", 1) if c.p[1] < -1 else None))
+    held = hold_transform(grip=(8, 8, 8), at=fist(), turn=turn(x=35))
     return displays(m, held)
 
 
@@ -545,7 +545,7 @@ def plastic_bag():
             return ("iron", 4)                                # crinkles catching the light
         return None
     voxels(m, "bag", cells, lambda _l: _plain("iron", 2, rim=1.6, decal=shine))
-    held = hold_transform(grip=(8, 9, 8), at=fist(0, -0.5), turn=turn())
+    held = hold_transform(grip=(8, 9, 8), at=fist(0, -0.5), turn=turn(x=55))
     return displays(m, held)
 
 
@@ -578,7 +578,7 @@ def shoe_bag():
         return None
     paints = {"bag": _plain("denim", 2, kind="weave", decal=patch), "cord": _plain("porcelain", 2)}
     voxels(m, "bag", cells, lambda lab: paints[lab])
-    held = hold_transform(grip=(7.5, 8.5, 8), at=fist(0, -0.5), turn=turn())
+    held = hold_transform(grip=(7.5, 8.5, 8), at=fist(0, -0.5), turn=turn(x=55))
     return displays(m, held)
 
 
@@ -615,10 +615,10 @@ def bouquet():
 def wand():
     """마술사: a black wand with white tips, held near its end, pointing forward."""
     m = BModel("bus_hold_wand", floor=None)
-    m.box("wand", (7.5, 2, 7.5), (8.5, 12, 8.5), _plain("rubber", 2, rim=1.5))
-    m.box("tip", (7.5, 12, 7.5), (8.5, 14, 8.5), _plain("porcelain", 2))
-    m.box("tip", (7.5, 0, 7.5), (8.5, 2, 8.5), _plain("porcelain", 2))
-    held = hold_transform(grip=(8, 4, 8), at=fist(), turn=turn(x=-55))
+    m.box("wand", (7.4, 2.5, 7.4), (8.6, 16.5, 8.6), _plain("rubber", 2, rim=1.5))
+    m.box("tip", (7.4, 16.5, 7.4), (8.6, 19, 8.6), _plain("porcelain", 2))
+    m.box("tip", (7.4, 0, 7.4), (8.6, 2.5, 8.6), _plain("porcelain", 2))
+    held = hold_transform(grip=(8, 5, 8), at=fist(), turn=turn(x=-30))
     return displays(m, held)
 
 
@@ -632,16 +632,16 @@ def cards():
         def face(c, i=i):
             x, y = c.p[0], c.p[1]
             if c.face == "north":
-                if math.hypot(x - 8, y - 6.5) < 0.9:
+                if math.hypot(x - 8, y - 7) < 1.0:
                     return ("tomato", 2) if i % 2 == 0 else ("roe", 1)
-                if (x < 6.6 and y > 8.2):
+                if (x < 6.4 and y > 8.8):
                     return ("tomato", 2) if i % 2 == 0 else ("roe", 1)   # the corner index
                 return None
             if c.face == "south":
                 return ("tomato", 1) if (int(x * 2) + int(y * 2)) % 2 else ("tomato", 2)
             return None
-        m.box("card", (6, 3, z0), (10, 9, z0 + 0.25), _plain("porcelain", 2, decal=face, light=False), rotation=("z", ang, (8, 2.5, 8)))
-    held = hold_transform(grip=(8, 3, 8), at=fist(), turn=turn(x=-10))
+        m.box("card", (5.5, 3, z0), (10.5, 10, z0 + 0.25), _plain("porcelain", 2, decal=face, light=False), rotation=("z", ang, (8, 2.5, 8)))
+    held = hold_transform(grip=(8, 3, 8), at=fist(0, 0, -1), turn=turn(x=-45))
     return displays(m, held)
 
 
