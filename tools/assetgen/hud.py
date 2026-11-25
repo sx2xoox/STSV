@@ -21,8 +21,8 @@ never disagree. Nothing here is a Mojang texture:
     The game's text is not used: the letters are moved up and down per panel row, which a font
     reference cannot do, and the HUD measures every width itself.
   - text7 / hangul7: the same from Galmuri7, for the small sidebar panel (and, drawn twice as big, the
-    large one). The plugin keeps from `hangul` / `hangul7` only the syllables the server's own texts use
-    when it builds the panel's fonts (see HudSheets.subset), so the panel's many rows stay light.
+    large one). Every row font of the plugin holds the whole sheet of its size, so every syllable of
+    KS X 1001 (a nickname too) shows on every row (see HudLayout).
   - digits: the small outlined numbers next to the bars.
   - frame / fill / tick / line / icons: the bars and the 9 x 9 icons.
   - panel_*: the sidebar panel in the menus' charcoal and gold (stsv_assets/menu_theme.py), cut in
@@ -686,7 +686,7 @@ def write(out_dir: Path = OUT):
                                          encoding="utf-8")
     (out_dir / "LICENSE-galmuri.txt").write_text(
         "text.png and hangul.png hold letters drawn from Galmuri9, text7.png and hangul7.png from Galmuri7\n"
-        "(https://galmuri.quiple.dev), version 2.40.3. The pack's hangul_panel*.png hold some of their letters.\n"
+        "(https://galmuri.quiple.dev), version 2.40.3. The pack's *_p<n>.png are copies of them with see-through rows added.\n"
         "The other HUD pictures are STSV's own.\n\n" + galmuri.LICENSE.read_text(encoding="utf-8"),
         encoding="utf-8")
     return {k: len(v[3]) for k, v in built.items()}

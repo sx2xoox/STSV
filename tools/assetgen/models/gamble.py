@@ -560,13 +560,13 @@ GRID = 6.5
 PILES = {
     1: ([(0, 0, 3, "R"), (1, 0, 2, "B")], [], [], [(0.5, -1, "W")]),
     2: ([(0, 0, 5, "R"), (1, 0, 3, "B"), (0.5, 1, 4, "W")], [(0.25, -1.1, 3, "R", (1.25, 0.25))], [], [(2, -1, "B")]),
-    3: ([(0, 0, 7, "R"), (1, 0, 5, "B"), (0.5, 1, 6, "W"), (1.5, 1, 4, "R")], [(0, -1.1, 4, "B", (1.25, 0.25))], [],
+    3: ([(0, 0, 7, "R", 1), (1, 0, 5, "B"), (0.5, 1, 6, "W"), (1.5, 1, 4, "R")], [(0, -1.1, 4, "B", (1.25, 0.25))], [],
         [(2, 0, "W"), (1.5, -1, "R")]),
-    4: ([(0, 0, 10, "R"), (1, 0, 8, "B"), (2, 0, 9, "W"), (0.5, 1, 6, "R"), (1.5, 1, 7, "B"), (2.5, 1, 5, "K")],
-        [(-0.25, -1.1, 5, "W", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5))], [(-0.5, 1, "B")], [(1.15, -1, "K"), (1, 2, "R")]),
-    5: ([(0, 0, 14, "R"), (1, 0, 12, "B"), (2, 0, 13, "W"), (-0.5, 1, 9, "K"), (0.5, 1, 11, "R"), (1.5, 1, 10, "B"),
+    4: ([(0, 0, 10, "R", 1), (1, 0, 8, "B"), (2, 0, 9, "W", 1), (0.5, 1, 6, "R"), (1.5, 1, 7, "B"), (2.5, 1, 5, "K")],
+        [(-0.25, -1.1, 4, "W", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5))], [(-0.5, 1, "B")], [(1.15, -1, "K"), (1, 2, "R")]),
+    5: ([(0, 0, 14, "R", 1), (1, 0, 12, "B"), (2, 0, 13, "W", 1), (-0.5, 1, 9, "K"), (0.5, 1, 11, "R", 1), (1.5, 1, 10, "B"),
          (2.5, 1, 8, "W"), (0, 2, 6, "R"), (1, 2, 7, "K")],
-        [(-0.5, -1.1, 5, "B", (1.25, 0.25)), (2.25, -1.1, 4, "R", (-1.0, 0.5)), (2.25, 2.2, 4, "W", (1.0, 0.75))],
+        [(-0.5, -1.1, 4, "B", (1.25, 0.25)), (2.25, -1.1, 3, "R", (-1.0, 0.5)), (2.25, 2.2, 3, "W", (1.0, 0.75))],
         [(3, 0, "R"), (-1, 0, "W")], [(1, -1.1, "K"), (-1, 2, "B"), (3.5, 0.9, "R")]),
 }
 
@@ -585,15 +585,21 @@ def chips(n):
     m = BModel(f"gamble_chips_{n}", floor=0, shift=(0, 8, 0))
     stacks, fans, edges, loose = PILES[n]
     gx0, gz0 = _pile_centre(n)
+    bx, bz = round((8 - gx0 * GRID) * 4) / 4, round((8 - gz0 * GRID) * 4) / 4
 
     def at(gx, gz):
-        return 8 + (gx - gx0) * GRID, 8 + (gz - gz0) * GRID
+        # on the quarter pixel (the pile's middle snapped, then whole and half steps stay exact): the pack's face
+        # reducer repaints, and so merges, faces only on that grid
+        return round((bx + gx * GRID) * 4) / 4, round((bz + gz * GRID) * 4) / 4
     m.group("stacks")
-    for i, (gx, gz, hgt, col) in enumerate(stacks):
+    for i, (gx, gz, hgt, col, *step) in enumerate(stacks):
         x, z = at(gx, gz)
         for k in range(hgt):
-            jx = (round(h3(i, k, n, 61) * 2) - 1) * 0.25 if k else 0
-            jz = (round(h3(i, k, n, 62) * 2) - 1) * 0.25 if k else 0
+            # hand stacked: the upper part of a tall stack sits a hair off the lower (one step, not every chip: each
+            # step costs the faces of a new solid)
+            up = bool(step) and k >= (hgt + 1) // 2
+            jx = (round(h3(i, 1, n, 61) * 2) - 1) * 0.25 if up else 0
+            jz = (round(h3(i, 1, n, 62) * 2) - 1) * 0.25 if up else 0
             cyl(m, "chip", (x + jx, z + jz), 6, k, k + 1, chip_paint(x + jx, z + jz, col))
     m.group("fans")
     for i, (gx, gz, cnt, col, (sx, sz)) in enumerate(fans):
@@ -601,6 +607,7 @@ def chips(n):
         for k in range(cnt):
             # a run knocked over: each chip a little further along and a layer up, shingled
             px, pz = x + sx * k - sx * (cnt - 1) / 2, z + sz * k - sz * (cnt - 1) / 2
+            px, pz = round(px * 4) / 4, round(pz * 4) / 4      # on the quarter pixel (see at)
             cyl(m, "fan", (px, pz), 6, k * 0.5, k * 0.5 + 0.5, chip_paint(px, pz, col))
     m.group("edges")
     for i, (gx, gz, col) in enumerate(edges):
