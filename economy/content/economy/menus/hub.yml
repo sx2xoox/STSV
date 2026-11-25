@@ -313,14 +313,14 @@ hub_work:
       name: "<white>의뢰"
       lore: ["<gray>모아서 납품하고 보상"]
     L:
-      action: "command:도감"
+      action: "hub:run:도감|run:낚시대회"
       icon: stsv:gui/blank
       material: BOOK
       art: hub:codex
       label: "도감"
       accent: "#7ec85c"
       name: "<white>도감"
-      lore: ["<gray>물건을 1개씩 내고 등록"]
+      lore: ["<gray>물건을 1개씩 내고 등록", "<yellow>우클릭: 낚시대회 <gray>(매시 정각)"]
     M:
       action: "hub:run:땅|run:땅 보기"
       icon: stsv:gui/blank

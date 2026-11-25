@@ -1020,9 +1020,10 @@ class RulesTest {
     /** A Lv20 fisher's rare and legend bites: x1.15 (the old +17% size made them worth about that much more), boat bonus included. */
     @Test
     void fisherRareBonus() {
-        assertEquals(1.15, FishSpec.FISHER_RARE_BONUS, 1e-12);
-        assertEquals(0.30 * 1.15, dev.stsv.economy.fishing.FishingModule.rareChance(0.30, 0, false, FishSpec.FISHER_RARE_BONUS), 1e-12);
-        assertEquals((0.30 + 0.04) * 1.15, dev.stsv.economy.fishing.FishingModule.rareChance(0.30, 0.04, true, FishSpec.FISHER_RARE_BONUS), 1e-12);
+        assertEquals(1.18, FishSpec.FISHER_RARE_BONUS, 1e-12);
+        assertEquals(1.015, FishSpec.FISHER_RARE_BONUS_LOW, 1e-12);
+        assertEquals(0.30 * 1.18, dev.stsv.economy.fishing.FishingModule.rareChance(0.30, 0, false, FishSpec.FISHER_RARE_BONUS), 1e-12);
+        assertEquals((0.30 + 0.04) * 1.18, dev.stsv.economy.fishing.FishingModule.rareChance(0.30, 0.04, true, FishSpec.FISHER_RARE_BONUS), 1e-12);
         assertEquals(1.0, dev.stsv.economy.fishing.FishingModule.rareChance(0.95, 0, false, FishSpec.FISHER_RARE_BONUS), 1e-12, "at most 1");
         assertEquals(0.01, dev.stsv.economy.fishing.FishingModule.rareChance(0.01, 0, false), 1e-12, "anyone else: as it was");
     }

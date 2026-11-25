@@ -183,7 +183,8 @@ def wait_s(lure, cut):
     return (lo + hi) / 2 * (1 - min(max(cut, 0.0), 0.8)) / 20
 
 
-FISHER_RARE_BONUS = 1.15   # a fisher's rare and legend bites from Lv20 (FishSpec.FISHER_RARE_BONUS)
+FISHER_RARE_BONUS = 1.18   # a fisher's rare and legend bites from Lv20 (FishSpec.FISHER_RARE_BONUS)
+FISHER_RARE_BONUS_LOW = 1.015   # below Lv20 (FishSpec.FISHER_RARE_BONUS_LOW)
 
 
 def fishing_hour(W_, lv, habitat, fisher=True):
@@ -195,8 +196,8 @@ def fishing_hour(W_, lv, habitat, fisher=True):
     cut = W_.lin("fisher", "bite", lv) if fisher else 0.0
     finds = W_.jobs["jobs"]["fisher"]["finds"]
     rare = (finds["chance"][0] + (finds["chance"][1] - finds["chance"][0]) * (lv - 1) / 29) if fisher else finds["outsider"]
-    if fisher and lv >= 20:
-        rare = min(1.0, rare * FISHER_RARE_BONUS)   # FishSpec.FISHER_RARE_BONUS (2026-11, in place of the +17% size)
+    if fisher:
+        rare = min(1.0, rare * (FISHER_RARE_BONUS if lv >= 20 else FISHER_RARE_BONUS_LOW))   # FishSpec (2026-11, in place of sizes)
     ls = f["legend-share"]
     p = {"legend": rare * ls, "rare": rare * (1 - ls), "uncommon": (1 - rare) * 0.35, "common": (1 - rare) * 0.65}
     order = ["common", "uncommon", "rare", "legend"]

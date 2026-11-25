@@ -211,9 +211,10 @@ public final class FishingModule extends EcoModule {
         FishSpec.Moment m = new FishSpec.Moment(w.getTime(), w.hasStorm(), w.isThundering(), (int) ((w.getFullTime() / 24000) % 8));
         // a fisher fishing from a boat (sitting in a 통통배) gets the job's boat-rare on top
         boolean onBoat = core.vehicles() != null && core.vehicles().ridingBoat(p);
-        boolean lv20 = "fisher".equals(eco.jobs().job(u)) && eco.jobs().level(u) >= FISHER_RARE_LEVEL;
+        boolean isFisher = "fisher".equals(eco.jobs().job(u));
+        boolean lv20 = isFisher && eco.jobs().level(u) >= FISHER_RARE_LEVEL;
         double rare = rareChance(eco.jobs().findChance(u, "fisher"), eco.jobs().effect(u, "fisher", "boat-rare"), onBoat,
-                lv20 ? FishSpec.FISHER_RARE_BONUS : 1);
+                lv20 ? FishSpec.FISHER_RARE_BONUS : isFisher ? FishSpec.FISHER_RARE_BONUS_LOW : 1);
         FishSpec.Rarity tier = spec.tier(rare, rnd);
         FishSpec.Species s;
         if (force != null) {

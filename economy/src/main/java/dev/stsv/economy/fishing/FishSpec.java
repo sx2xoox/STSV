@@ -203,9 +203,15 @@ public record FishSpec(Map<String, Rarity> rarities, Map<String, Group> groups, 
     /**
      * A fisher's rare and legend bites from Lv20 on are this many times as likely (2026-11, in place of the +17% size the perk gave
      * while fish had sizes: a rare or legend fish then sold for about 15% more at a Lv20 fisher's typical size than at anyone
-     * else's, mean price factor 1.18 against 1.03; now every fish sells at 1.0 and a Lv20 fisher catches 15% more of them).
+     * else's, mean price factor 1.18 against 1.03; now every fish sells at 1.0 and a Lv20 fisher catches 18% more of them).
      */
-    public static final double FISHER_RARE_BONUS = 1.15;
+    public static final double FISHER_RARE_BONUS = 1.18;
+
+    /**
+     * A fisher's rare and legend bites below Lv20 are this many times as likely: part of the mean price factor every catch had (1.033),
+     * as far as the job parity allows (BalanceTest R17: 1.033 put the Lv10 blacksmith at -15.0%, none put the Lv1 miner at +15.1%).
+     */
+    public static final double FISHER_RARE_BONUS_LOW = 1.015;
 
     /**
      * The size of a catch (cm): towards the small end (u^1.4), rounded to 0.1. Only the 낚시대회 rolls one (shown in the catch

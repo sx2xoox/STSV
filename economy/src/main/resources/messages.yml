@@ -238,7 +238,7 @@ order:
   picked-lore: ["", "<yellow>클릭: 다른 물건 <dark_gray>· 인벤토리 클릭: 그 물건"]
   pick-lore: ["", "<gray>상점 매입가 <white>{shop} <dark_gray>(개당)", "<gray>최고 주문가 <white>{best}", "<yellow>클릭: 이 물건 주문"]
   lore: ["", "<gray>개당: </gray>{price} <dark_gray>(남은 {left} / {amount}개)", "<gray>구매자: <white>{buyer}", "<gray>남은 시간: {time}",
-         "<dark_gray>상점 매입가 {shop} · 크기 무관"]
+         "<dark_gray>상점 매입가 {shop}"]
   lore-fill: ["<gray>가진 것 <white>{have}개", "<yellow>두 번 클릭: 한 묶음 <dark_gray>· 쉬프트: 전부"]
   lore-none: ["<dark_gray>내가 가진 것: 없음"]
   lore-confirm: ["<gold><b>한 번 더 클릭: {count}개 넘기기</b>", "<gray>받는 돈 <green>{receive} <dark_gray>(수수료 {fee})"]
@@ -357,8 +357,7 @@ machine:
   group-items: "<dark_gray>{group}: {items}"
   group-items-more: "<dark_gray>  {items}"
   book: "<gold>레시피 목록"
-  book-lore: ["<gray>이 기계로 만들 수 있는 것", "<dark_gray>줄마다 고르기: 그 줄의 상태 칸",
-              "<dark_gray>재료로 넣은 물고기는 크기가 지워짐", "<dark_gray>(매입가 70% · 큰 물고기는 파세요)"]
+  book-lore: ["<gray>이 기계로 만들 수 있는 것", "<dark_gray>줄마다 고르기: 그 줄의 상태 칸"]
   info: "<gold>{machine}</gold> <gray>· <white>{tier}"
   info-lore: ["<gray>설치 <white>{owner}", "<gray>줄 <white>{lanes}</white> · 속도 <white>+{speed}%", "<gray>누구나 사용 · <{color}>{job}<gray>면 보너스", "<dark_gray>재료를 넣은 사람이 그 줄 운영자"]
   shop-bought: "<red>상점에서 산 물건은 기계에 넣을 수 없습니다. <gray>(직접 얻은 것만)"
