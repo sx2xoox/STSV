@@ -790,7 +790,10 @@ fishing:
 
 # 어군 조업 (fish.yml schools): 바다의 물고기 떼, 배의 어군 탐지기, 항구 어황판
 school:
-  gone: "<aqua>{fish} 떼<gray>가 흩어졌어요."
+  gone: "<aqua><b>{fish} 떼를 다 잡았어요!</b> <gray>떼가 흩어졌어요. 탐지기로 다음 떼를 찾아보세요."
+  working: "<aqua>🎣 {fish} 떼 조업 중{dots} <dark_gray>· <gray>남은 {left}마리"
+  haul: "<aqua>🎣 그물을 올렸어요: <white>+{n} {fish} <dark_gray>· <gray>떼에 {left}마리 남음"
+  full: "<red><b>어창이 가득 찼어요!</b> <gray>항구 하역장에 내리고 다시 오세요. (떼는 그대로 있어요)"
   detect-none: "<dark_aqua>어군 탐지기 <gray>· {range}칸 안에 떼 없음"
   detect-direction: "<dark_aqua>어군 탐지기 <white><b>{arrow}</b> <gray>떼가 있어요"
   detect-distance: "<dark_aqua>어군 탐지기 <white><b>{arrow}</b> {distance}칸"

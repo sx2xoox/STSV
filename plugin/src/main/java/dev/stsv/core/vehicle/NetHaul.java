@@ -20,6 +20,15 @@ public interface NetHaul {
      */
     ItemStack haul(Player driver, Block water, Boat boat);
 
+    /**
+     * Whether this water is a place the plugin keeps its own count of (a fish school, 어군 조업): then the core's "this place
+     * gave all it had" rule (net.spot within a radius) neither stops the net there nor counts what comes up, and the core
+     * leaves the catch line on the action bar to the plugin. Default: no.
+     */
+    default boolean ownSpot(Block water, Boat boat) {
+        return false;
+    }
+
     /** The boat that trawls. */
     record Boat(long id, String item, int aboard) {}
 }

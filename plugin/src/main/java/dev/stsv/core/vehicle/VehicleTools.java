@@ -781,7 +781,17 @@ final class VehicleTools {
         if (water.getType() != Material.WATER) water = v.world.getBlockAt((int) Math.floor(v.st.x), wy, (int) Math.floor(v.st.z));
         if (water.getType() != Material.WATER) return;
         ToolRules.Spots spots = fished.computeIfAbsent(v.id, k -> new ToolRules.Spots());
-        if (spots.spent(v.st.x, v.st.z, t.spot(), module.ticks())) {   // this place gave all it had: sail on
+        int aboard = 0;
+        for (boolean taken : v.taken()) if (taken) aboard++;
+        NetHaul.Boat boat = new NetHaul.Boat(v.id, v.item.key().asString(), aboard);
+        // a place the plugin counts itself (a fish school): no spot rule, no spot count, its own catch line
+        boolean own;
+        try {
+            own = hauling != null && hauling.ownSpot(water, boat);
+        } catch (RuntimeException ex) {
+            own = false;
+        }
+        if (!own && spots.spent(v.st.x, v.st.z, t.spot(), module.ticks())) {   // this place gave all it had: sail on
             if (!"vehicle-tool.net-spent".equals(s.said) || module.ticks() - s.saidAt >= 20 * 20) {
                 s.said = "vehicle-tool.net-spent";
                 s.saidAt = module.ticks();
@@ -794,9 +804,7 @@ final class VehicleTools {
         }
         ItemStack fish;
         try {
-            int aboard = 0;
-            for (boolean taken : v.taken()) if (taken) aboard++;
-            fish = hauling != null ? hauling.haul(driver, water, new NetHaul.Boat(v.id, v.item.key().asString(), aboard)) : n.apply(driver, water);
+            fish = hauling != null ? hauling.haul(driver, water, boat) : n.apply(driver, water);
         } catch (RuntimeException ex) {
             plugin.getLogger().log(java.util.logging.Level.WARNING, "[작업기] 그물", ex);
             return;
@@ -811,6 +819,10 @@ final class VehicleTools {
             return;
         }
         module.toolCargo(v);
+        if (own) {   // the plugin shows the haul (and keeps the count) itself
+            v.world.playSound(at, Sound.ENTITY_ITEM_PICKUP, SoundCategory.NEUTRAL, 0.5f, 0.9f);
+            return;
+        }
         int here = spots.caught(v.st.x, v.st.z, module.ticks());
         v.world.spawnParticle(Particle.SPLASH, at, 24, 0.5, 0.15, 0.5, 0.1);
         v.world.spawnParticle(Particle.FISHING, at, 8, 0.4, 0.05, 0.4, 0.02);

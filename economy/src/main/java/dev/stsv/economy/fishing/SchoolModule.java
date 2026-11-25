@@ -87,7 +87,7 @@ public final class SchoolModule extends EcoModule {
     /** The core's net spot rest (ToolRules.Spots.REST, 10 minutes): a place a boat emptied stays spent that long. */
     static final long SPOT_REST_MS = 10 * 60 * 1000L;
     /** How long the detector keeps off the action bar after a haul (the core shows the catch there). */
-    static final long QUIET_MS = 3000;
+    static final long QUIET_MS = 2500;
     /** How often the 어황판 is written again (seconds). */
     static final int BOARD_EVERY = 5;
 
@@ -318,12 +318,23 @@ public final class SchoolModule extends EcoModule {
         if (one == null || n <= 0) return null;
         n = Math.min(n, room(boat.id(), one));
         quiet.put(driver.getUniqueId(), now() + QUIET_MS);
-        if (n <= 0) return one;   // the hold is full: the core says so (nothing goes in), the school keeps its fish
+        if (n <= 0) {   // the hold is full: nothing goes in, the school keeps its fish
+            full(driver);
+            return one;
+        }
         s.left -= n;
         eco.jobs().rewardAction(driver, "trap", sp.item(), n * s.price / spec.xpValue());
+        landed(driver, water, s, sp, one, n);
         if (s.left <= 0) scatter(s);
         one.setAmount(n);
         return one;
+    }
+
+    /** Whether a boat's net in this water is in a school it fishes (the core then leaves the spot rule to the school). */
+    boolean counts(Block water, NetHaul.Boat boat) {
+        if (!spec.enabled()) return false;
+        SchoolSpec.Boat b = spec.boats().get(boat.item());
+        return b != null && b.haul() > 0 && at(water.getWorld().getName(), water.getX() + 0.5, water.getZ() + 0.5) != null;
     }
 
     /** How many of this item fit in the boat's hold now, by weight and by slots (the core puts in what fits). */
@@ -346,6 +357,38 @@ public final class SchoolModule extends EcoModule {
         return Math.max(0, n);
     }
 
+    /** driver -> when they were last told their hold is full (once in FULL_AGAIN_MS) */
+    private final Map<UUID, Long> toldFull = new HashMap<>();
+    static final long FULL_AGAIN_MS = 30_000;
+
+    /**
+     * A haul from a school came up: the net breaks the water by the boat with the fish flying in, a splash and a reel sound,
+     * "+n 멸치" on the action bar, and a chat line (so it shows without sound too).
+     */
+    private void landed(Player driver, Block water, School s, FishSpec.Species sp, ItemStack one, int n) {
+        Location at = water.getLocation().add(0.5, 1.0, 0.5);
+        World w = at.getWorld();
+        w.spawnParticle(Particle.SPLASH, at, 60, 1.2, 0.3, 1.2, 0.3);
+        w.spawnParticle(Particle.BUBBLE_POP, at, 30, 1.0, 0.2, 1.0, 0.05);
+        w.spawnParticle(Particle.ITEM, at, Math.min(24, 6 + n / 3), 0.8, 0.4, 0.8, 0.25, one);
+        w.playSound(at, Sound.ENTITY_FISHING_BOBBER_RETRIEVE, SoundCategory.PLAYERS, 1f, 0.8f);
+        w.playSound(at, Sound.ENTITY_GENERIC_SPLASH, SoundCategory.PLAYERS, 0.7f, 1.2f);
+        Component line = Lang.mm("school.haul", "n", n, "fish", sp.name(), "left", Math.max(0, s.left));
+        HudModule.flash(driver, line, 2500);
+        driver.sendMessage(Lang.msg("school.haul", "n", n, "fish", sp.name(), "left", Math.max(0, s.left)));
+    }
+
+    /** The hold is full in a school: said once in a while, on the action bar and in chat. */
+    private void full(Player driver) {
+        long now = now();
+        Long last = toldFull.get(driver.getUniqueId());
+        if (last != null && now - last < FULL_AGAIN_MS) return;
+        toldFull.put(driver.getUniqueId(), now);
+        HudModule.flash(driver, Lang.mm("school.full"), 3000);
+        driver.sendMessage(Lang.msg("school.full"));
+        driver.playSound(driver.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.7f);
+    }
+
     /** A net came up with something for this driver (the core shows it on the action bar): the detector keeps off it a moment. */
     void hauled(Player driver) {
         quiet.put(driver.getUniqueId(), now() + QUIET_MS);
@@ -364,9 +407,11 @@ public final class SchoolModule extends EcoModule {
         for (Player p : w.getPlayers()) {
             if (sq(p.getLocation().getX() - s.x, p.getLocation().getZ() - s.z) > r * r) continue;
             p.sendMessage(Lang.msg("school.gone", "fish", sp == null ? s.species : sp.name()));
-            HudModule.flash(p, msg, 2500);
+            HudModule.flash(p, msg, 3500);
+            p.playSound(new Location(w, s.x, s.y + 1, s.z), Sound.ENTITY_PLAYER_SPLASH_HIGH_SPEED, SoundCategory.AMBIENT, 0.8f, 1.0f);
         }
-        w.spawnParticle(Particle.SPLASH, s.x, s.y + 1, s.z, 40, spec.radius() / 2, 0.2, spec.radius() / 2, 0.2);
+        w.spawnParticle(Particle.SPLASH, s.x, s.y + 1, s.z, 120, spec.radius() / 2, 0.3, spec.radius() / 2, 0.3);
+        w.spawnParticle(Particle.BUBBLE_POP, s.x, s.y + 1, s.z, 60, spec.radius() / 2, 0.1, spec.radius() / 2, 0.05);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -381,7 +426,16 @@ public final class SchoolModule extends EcoModule {
             VehicleModule.Driven d = v.drivenBy(p);
             if (d == null) continue;
             SchoolSpec.Boat b = spec.boats().get(d.itemKey());
-            if (b == null || b.show() == SchoolSpec.Show.NONE) continue;
+            if (b == null) continue;
+            if (b.show() == SchoolSpec.Show.NONE) {   // no detector (뗏목 · 나룻배): only the 조업 중 line while on a school
+                School on = at(d.world().getName(), d.x(), d.z());
+                if (on != null && b.haul() > 0 && d.speed() <= NET_SPEED) {
+                    FishSpec.Species sp = eco.fishing().spec().species().get(on.species);
+                    HudModule.flash(p, Lang.mm("school.working", "fish", sp == null ? on.species : sp.name(), "left", on.left,
+                            "dots", ".".repeat(1 + (int) (ticks % 3))), 1500);
+                }
+                continue;
+            }
             HudModule.flash(p, detector(d, b), 1500);
         }
     }
@@ -401,7 +455,13 @@ public final class SchoolModule extends EcoModule {
         FishSpec.Species sp = eco.fishing().spec().species().get(best.species);
         String fish = sp == null ? best.species : sp.name();
         String size = spec.sizeWord(best.left * best.price);
-        if (Math.sqrt(bd) <= spec.radius()) return Lang.mm("school.detect-on", "fish", fish, "size", size, "left", best.left);
+        if (Math.sqrt(bd) <= spec.radius()) {
+            // on the school: slow enough for the net (the core lowers it while the boat stands or crawls) = 조업 중 with moving dots
+            boolean working = d.speed() <= NET_SPEED;
+            String dots = ".".repeat(1 + (int) (ticks % 3));
+            return working ? Lang.mm("school.working", "fish", fish, "left", best.left, "dots", dots)
+                    : Lang.mm("school.detect-on", "fish", fish, "size", size, "left", best.left);
+        }
         String arrow = SchoolSpec.ARROWS.get(SchoolSpec.arrow(d.yaw(), best.x - d.x(), best.z - d.z()));
         int dist = (int) Math.round(Math.sqrt(bd));
         return switch (b.show()) {
@@ -417,6 +477,10 @@ public final class SchoolModule extends EcoModule {
 
     private static final Particle.DustOptions GULL = new Particle.DustOptions(Color.fromRGB(0xF4F4F0), 1.1f);
     private static final Particle.DustOptions GULL_WING = new Particle.DustOptions(Color.fromRGB(0xBFC4C8), 0.8f);
+    private static final Particle.DustOptions EDGE = new Particle.DustOptions(Color.fromRGB(0xD8F4FF), 1.3f);
+    private static final Particle.DustOptions SHOAL = new Particle.DustOptions(Color.fromRGB(0x1E3A52), 1.6f);
+    /** At or under this speed (blocks a second) the boat is working the net (the core lowers it standing or crawling). */
+    static final double NET_SPEED = 3.0;
 
     /** Four times a second: each school, for those who see it only (spray, fish jumping, gulls). */
     private void draw() {
@@ -442,6 +506,13 @@ public final class SchoolModule extends EcoModule {
                         p.spawnParticle(Particle.ITEM, jx, top, jz, 0, (rnd.nextDouble() - 0.5) * 0.3, 1, (rnd.nextDouble() - 0.5) * 0.3, 0.45, jumper);
                         p.spawnParticle(Particle.SPLASH, jx, top, jz, 8, 0.3, 0.05, 0.3, 0.1);
                     }
+                    // the school's edge: a slow ring of silver glints on the water, and a dark patch of fish under it
+                    for (int k = 0; k < 20; k++) {
+                        double a = s.phase * 0.6 + k * (Math.PI * 2 / 20);
+                        p.spawnParticle(Particle.DUST, s.x + Math.cos(a) * r, top - 0.05, s.z + Math.sin(a) * r, 1, 0, 0, 0, 0, EDGE);
+                    }
+                    p.spawnParticle(Particle.DUST, s.x, top - 0.3, s.z, 14, r * 0.45, 0.05, r * 0.45, 0, SHOAL);
+                    p.spawnParticle(Particle.GLOW, s.x, top, s.z, 3, r * 0.5, 0.05, r * 0.5, 0);
                     // gulls circling above
                     for (int g = 0; g < 3; g++) {
                         double a = s.phase * (g % 2 == 0 ? 1 : -0.8) + g * 2.1;

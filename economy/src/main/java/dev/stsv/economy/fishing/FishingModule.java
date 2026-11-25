@@ -76,7 +76,18 @@ public final class FishingModule extends EcoModule {
         load();
         eco.kv().remove("fish.week");   // the week's biggest catch (until 2026-11): no longer kept
         eco.onReset(store::reset);
-        if (core.vehicles() != null) core.vehicles().netHaul(this::netHaul);   // 배의 그물 (코어 작업기): 어획 상자, 없으면 낱마리
+        if (core.vehicles() != null) core.vehicles().netHaul(new dev.stsv.core.vehicle.NetHaul() {
+            @Override
+            public ItemStack haul(Player driver, org.bukkit.block.Block water, Boat boat) {
+                return netHaul(driver, water, boat);
+            }
+
+            @Override
+            public boolean ownSpot(org.bukkit.block.Block water, Boat boat) {   // 어군 조업: a school keeps its own count
+                SchoolModule schools = eco.schools();
+                return schools != null && schools.counts(water, boat);
+            }
+        });   // 배의 그물 (코어 작업기): 어획 상자, 없으면 낱마리
     }
 
     @Override
