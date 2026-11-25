@@ -298,6 +298,20 @@ gamble_bowl:
   model: gamble_bowl
   max-stack: 1
 
+gamble_cup:
+  material: paper
+  name: "<white>주사위 컵"
+  lore: ["<gray>도박장 표시용 · 엎어 놓은 가죽 주사위 통"]
+  model: gamble_cup
+  max-stack: 1
+
+gamble_btn_roll:
+  material: paper
+  name: "<white>굴리기 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_roll
+  max-stack: 1
+
 gamble_btn_call:
   material: paper
   name: "<white>콜 버튼"
