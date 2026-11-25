@@ -118,9 +118,6 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
 
     public enum Mode { PACK, SCOREBOARD }
 
-    /** The panel's letter subsets keep at most this many syllables (the repository's texts are about 800). */
-    static final int MAX_PANEL_LETTERS = 1024;
-
     private final Map<String, Line> rows = new LinkedHashMap<>();
     private final Map<UUID, org.bukkit.scoreboard.Scoreboard> boards = new ConcurrentHashMap<>();
     private final Map<UUID, List<Component>> shown = new ConcurrentHashMap<>();
@@ -216,7 +213,7 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
         if (wanted == Mode.PACK) {
             try {
                 if (sheets == null) sheets = HudSheets.load();
-                layout = new HudLayout(HudLayout.panelSheets(sheets, panelLetters()), settings(cfg));
+                layout = new HudLayout(sheets, settings(cfg));
             } catch (Exception e) {
                 plugin.getLogger().warning("리소스팩 HUD 를 준비하지 못해 스코어보드 사이드바를 씁니다: " + e);
                 wanted = Mode.SCOREBOARD;
@@ -252,83 +249,6 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
                 cfg.getInt("hud.sidebar.max-width", d.sidebarMaxWidth()), cfg.getInt("hud.sidebar.max-rows", d.sidebarRows()),
                 cfg.getBoolean("hud.health.armor", d.armor()), cfg.getBoolean("hud.board.enabled"), cfg.getInt("hud.board.margin"),
                 cfg.getInt("hud.board.right"), cfg.getInt("hud.board.max-width"));
-    }
-
-    /**
-     * The syllables the panel's letters keep: the repository's (bundled), the messages' and those of every yml
-     * file of the STSV plugins on this server (contents, configs: a job or event added on the server shows), at
-     * most MAX_PANEL_LETTERS (the most used ones first). The files' comments are not counted: nobody is shown them,
-     * and every syllable costs each client memory.
-     */
-    private Set<Integer> panelLetters() {
-        Map<Integer, Integer> counts = new HashMap<>();
-        for (String s : Lang.allText()) count(s, counts);
-        java.io.File parent = plugin.getDataFolder().getParentFile();
-        java.io.File[] dirs = parent == null ? null : parent.listFiles(f -> f.isDirectory() && f.getName().startsWith("STSV"));
-        long budget = 64L << 20;
-        if (dirs != null) {
-            for (java.io.File dir : dirs) {
-                try (var files = Files.walk(dir.toPath())) {
-                    for (Path f : (Iterable<Path>) files::iterator) {
-                        if (budget <= 0) break;
-                        if (!f.toString().endsWith(".yml") || f.toString().contains("generated") || !Files.isRegularFile(f)) continue;
-                        long size = Files.size(f);
-                        if (size > (4L << 20)) continue;
-                        budget -= size;
-                        count(stripComments(Files.readString(f, StandardCharsets.UTF_8)), counts);
-                    }
-                } catch (IOException | java.io.UncheckedIOException e) {
-                    plugin.getLogger().warning("사이드바 글자를 모으지 못한 폴더: " + dir + " (" + e.getMessage() + ")");
-                }
-            }
-        }
-        return pickLetters(sheets.panelLetters(), counts, MAX_PANEL_LETTERS, n ->
-                plugin.getLogger().warning("사이드바 패널 글꼴에 한글 " + n + "자를 넣지 못했습니다 (자주 쓰는 " + MAX_PANEL_LETTERS + "자만): 패널에서 ? 로 보임"));
-    }
-
-    /**
-     * A yml file's text without its comments: a '#' at a line's start or after a blank, outside quotes, to the end of
-     * the line (a colour like {@code "<#e06439>"} stays). The same rule as the asset build's (tools/assetgen/hud.py).
-     */
-    static String stripComments(String yaml) {
-        StringBuilder out = new StringBuilder(yaml.length());
-        for (String line : yaml.split("\n", -1)) {
-            char quote = 0;
-            int cut = line.length();
-            for (int i = 0; i < line.length(); i++) {
-                char ch = line.charAt(i);
-                if (quote != 0) {
-                    if (ch == quote) quote = 0;
-                } else if (ch == '"' || ch == '\'') {
-                    quote = ch;
-                } else if (ch == '#' && (i == 0 || line.charAt(i - 1) == ' ' || line.charAt(i - 1) == '\t')) {
-                    cut = i;
-                    break;
-                }
-            }
-            if (!out.isEmpty()) out.append('\n');
-            out.append(line, 0, cut);
-        }
-        return out.toString();
-    }
-
-    static void count(String text, Map<Integer, Integer> counts) {
-        text.codePoints().filter(c -> c >= 0xAC00 && c <= 0xD7A3).forEach(c -> counts.merge(c, 1, Integer::sum));
-    }
-
-    /** The base letters and then the most counted others, at most max in all; dropped(n) is told how many did not fit. */
-    static Set<Integer> pickLetters(Set<Integer> base, Map<Integer, Integer> counts, int max, java.util.function.IntConsumer dropped) {
-        Set<Integer> out = new java.util.TreeSet<>(base);
-        List<Map.Entry<Integer, Integer>> rest = new ArrayList<>();
-        for (var e : counts.entrySet()) if (!out.contains(e.getKey())) rest.add(e);
-        rest.sort(Map.Entry.<Integer, Integer>comparingByValue().reversed().thenComparing(Map.Entry.comparingByKey()));
-        int left = 0;
-        for (var e : rest) {
-            if (out.size() < max) out.add(e.getKey());
-            else left++;
-        }
-        if (left > 0) dropped.accept(left);
-        return out;
     }
 
     @Override
