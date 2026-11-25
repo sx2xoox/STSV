@@ -23,6 +23,22 @@ import java.util.TreeSet;
 public record PeopleSpec(List<Integer> milestones, Set<String> never, String titleAll, String titleShiny, Map<String, String> places,
                          Map<String, List<String>> intros, Map<String, String> hints, Map<String, String> shinyIntros) {
 
+    /** 장면 (합승 대화, bus_scenes.yml) a player has seen: eco_people version 3. */
+    public static final String SCENES_TABLE = "CREATE TABLE IF NOT EXISTS eco_people_scenes (player CHAR(36) NOT NULL, scene VARCHAR(64) NOT NULL, "
+            + "first_at BIGINT NOT NULL, PRIMARY KEY (player, scene))";
+
+    /** A person's 장면 in the codex: how many scenes they are in, how many of them seen, the seen titles shown, how many more. */
+    public record SceneRows(int all, int seen, List<String> titles, int more) {}
+
+    /** The 장면 rows of a person (a bus kind): every scene they play a part in, the seen ones' titles in file order (up to `max`). */
+    public static SceneRows sceneRows(dev.stsv.economy.bus.BusScenes scenes, String person, Set<String> seen, int max) {
+        List<dev.stsv.economy.bus.BusScenes.Scene> with = scenes.with(person);
+        List<String> titles = new ArrayList<>();
+        for (var s : with) if (seen.contains(s.id())) titles.add(s.title());
+        int n = titles.size();
+        return new SceneRows(with.size(), n, List.copyOf(titles.subList(0, Math.min(max, n))), Math.max(0, n - max));
+    }
+
     /** 만난 곳: the 마을버스 (a passenger carried to where they were going). */
     public static final String PLACE_BUS = "bus";
 

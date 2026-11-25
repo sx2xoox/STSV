@@ -65,6 +65,10 @@ public final class BusModule extends EcoModule {
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private BusSpec spec;
+    /** 합승 대화 (bus_scenes.yml) */
+    private BusScenes scenes = BusScenes.NONE;
+    /** driver -> when they last saw a 합승 대화 (millis; in memory: the cooldown) */
+    private final Map<UUID, Long> sceneSeenAt = new HashMap<>();
     /** 수상한 선글라스 남자 (SecretAgent: docs/admin/버스_비밀_의뢰.md) */
     private SecretAgent secret;
 
@@ -222,6 +226,12 @@ public final class BusModule extends EcoModule {
         boolean shiny, half;
         /** what they hold, fluttering round the bus just now (닭 든 할머니's hen: bus.yml hold-fly), or null */
         Flutter flutter;
+        /**
+         * 합승 대화 (BusScenes): played a part in a scene this ride (not cast again), their nuisance quieted by one (chatter, the
+         * bell prank, crumbs, the 건달's glare), made to pay their whole fare; their tip and fare × (a scene's tip / fare)
+         */
+        boolean scened, quiet, paysFull;
+        double tipX = 1, fareX = 1;
 
         Rider(Mannequin m, BusSpec.Type type, int from, int dest, double road, double mood) {
             this.m = m;
@@ -264,6 +274,24 @@ public final class BusModule extends EcoModule {
         int smoothStop = -1;
         /** 노선 완주: the stops of its line it stopped at in order this run */
         final BusEvents.CourseRun course = new BusEvents.CourseRun();
+        /** 합승 대화: when this leg's scene check is due (millis, 0: none pending), the scene playing now, one asked by an admin */
+        long sceneCheckAt;
+        Playing playing;
+        String forceScene;
+    }
+
+    /** A 합승 대화 being played on a bus: the scene, who plays each role, the next line and when it is due (millis). */
+    static final class Playing {
+        final BusScenes.Scene scene;
+        final Rider[] cast;
+        int next;
+        long at;
+
+        Playing(BusScenes.Scene scene, Rider[] cast, long at) {
+            this.scene = scene;
+            this.cast = cast;
+            this.at = at;
+        }
     }
 
     /** 버스 렌트: renter -> their rented bus (a temporary vehicle of the core) and since when they are out of it (0: in it) */
@@ -402,6 +430,9 @@ public final class BusModule extends EcoModule {
         List<String> problems = new ArrayList<>();
         spec = BusSpec.parse(eco.data("bus.yml"), problems);
         problems.forEach(p -> eco.getLogger().warning("[bus.yml] " + p));
+        List<String> sceneProblems = new ArrayList<>();
+        scenes = BusScenes.parse(eco.data("bus_scenes.yml"), spec, sceneProblems);
+        sceneProblems.forEach(p -> eco.getLogger().warning("[bus_scenes.yml] " + p));
         // what passengers hold (types.*.hold / hold-off / hold-fly) is an item of the content pack
         try {
             var content = dev.stsv.core.STSVPlugin.get().content();
@@ -415,6 +446,11 @@ public final class BusModule extends EcoModule {
 
     public BusSpec spec() {
         return spec;
+    }
+
+    /** 합승 대화 (bus_scenes.yml): for the 인물 도감's 장면 too. */
+    public BusScenes scenes() {
+        return scenes;
     }
 
     private Path folder() {
@@ -1035,6 +1071,7 @@ public final class BusModule extends EcoModule {
             if (run.atStop != null) {
                 departed(p, run, run.atStop);   // pulling out: the next stop is announced
                 run.atStop = null;
+                run.sceneCheckAt = System.currentTimeMillis() + scenes.rules().settle() * 1000L;   // this leg's 합승 대화 check
             }
             if (still && ticks - run.pullInAt > 200) {
                 for (BusStop s : stops.values()) {
@@ -1287,6 +1324,7 @@ public final class BusModule extends EcoModule {
         r.shiny = w.shiny;
         r.half = w.half;
         run.riders.add(r);
+        scare(run.riders, r);   // 건달: everyone a little uneasy
         if (w.shiny) sparkle(w.m, false);
         // 바둑아 어디 가: now and then the 강아지 할아버지 boards alone (his dog ran off at a stop of this line)
         boolean dogLost = w.type.x().seats() > 1 && lostDog.boarding(p, run, r, w, here, line);
@@ -1520,16 +1558,24 @@ public final class BusModule extends EcoModule {
         double hard = dev.stsv.economy.road.RoadRewards.fare(roadAt(stops.get(r.from)), roadAt(at));
         BusSpec.Traits tr = r.type.x();
         // 무임승차 청년: now and then off by the back door without paying (a 특급 · 단체 · 비밀 손님 always pays)
-        if (tr.dodge() > 0 && r.special == null && r.team == 0 && ThreadLocalRandom.current().nextDouble() < tr.dodge()) {
+        if (tr.dodge() > 0 && !r.paysFull && r.special == null && r.team == 0 && ThreadLocalRandom.current().nextDouble() < tr.dodge()) {
             p.sendMessage(Lang.mm("bus.dodge", "type", typeTag(r.type)));
             talk(null, r.m, r.type, "dodge", true);
             p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.7f, 1.1f);
             return onTime;
         }
-        // 반말 아저씨 · 민원 아줌마: below their mood, they pay only part of it
-        boolean haggled = tr.haggleAt() > 0 && r.mood < tr.haggleAt();
+        // 건달: "형님은 공짜지?" (not with a 경찰 or 씨름 선수 aboard: then he pays, all polite)
+        if (r.special == null && r.team == 0 && freeloads(r, run.riders, ThreadLocalRandom.current().nextDouble())) {
+            p.sendMessage(Lang.mm("bus.freeload", "type", typeTag(r.type)));
+            talk(null, r.m, r.type, "freeload", true);
+            p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.7f, 0.8f);
+            return onTime;
+        }
+        if (behaves(r, run.riders)) talk(null, r.m, r.type, "behave", true);
+        // 반말 아저씨 · 민원 아줌마: below their mood, they pay only part of it (not one a scene made pay up)
+        boolean haggled = tr.haggleAt() > 0 && !r.paysFull && r.mood < tr.haggleAt();
         if (haggled) factor *= tr.haggle();
-        double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1) * Math.max(0, factor) * hard;
+        double fare = spec.fare(road, r.type) * bus.fare() * (r.transfer ? 1 + x.transferBonus() : 1) * Math.max(0, factor) * hard * r.fareX;
         double base = fare * spec.moodFactor(r.mood) + r.type.luggage();
         // 친절한 신사 paid ahead for this one
         Double treat = treated.remove(p.getUniqueId());
@@ -1537,6 +1583,7 @@ public final class BusModule extends EcoModule {
         base += treatBonus;
         boolean rain = p.getWorld().hasStorm();
         double tip = onTime && r.mood >= r.type.tipMood() ? fare * f.tip() * r.type.tip() * (rain ? 1 + x.rainTip() : 1) : 0;
+        tip *= r.tipX;   // 합승 대화: a scene's tip
         int[] bless = blessed.get(p.getUniqueId());   // 스님's blessing: the next passengers tip more
         if (bless != null && bless[0] > 0) {
             bless[0]--;
@@ -1899,6 +1946,7 @@ public final class BusModule extends EcoModule {
             }
         }
         if (hint(p, run, now)) return;
+        if (scene(p, run, now)) return;
         // an event team aboard cheers now and then (야구팬's chants, 소풍 songs); a 특급 손님 frets
         if (ticks - run.talkAt > x.talkCooldown() * 2 && ThreadLocalRandom.current().nextDouble() < 0.06) {
             for (Rider r : run.riders) {
@@ -1984,7 +2032,7 @@ public final class BusModule extends EcoModule {
             // 벨 장난 꼬마: rings for nobody, once a ride, now and then
             if (offN == 0 && dist < 150 && !r.rang.contains(next.id())) {
                 for (Rider x : r.riders) {
-                    if (x.pranked || x.type.x().prank() <= 0) continue;
+                    if (x.pranked || x.quiet || x.type.x().prank() <= 0) continue;
                     x.pranked = true;
                     if (ThreadLocalRandom.current().nextDouble() >= x.type.x().prank()) continue;
                     r.rang.add(next.id());
@@ -2500,7 +2548,8 @@ public final class BusModule extends EcoModule {
     private void traits(Player p, Run run, long now) {
         for (Rider r : run.riders) {
             BusSpec.Traits t = r.type.x();
-            if (t.chatter() > 0 && now - r.chatAt >= t.chatter() * 1000) {
+            // quieted by a scene, hushed by the 건달, a scene playing: no chatter (and nobody's mood moved by it)
+            if (t.chatter() > 0 && now - r.chatAt >= t.chatter() * 1000 && chatters(r, run.riders, run.playing != null)) {
                 r.chatAt = now;
                 sayLine(run, r, spec.lines(r.type, "chat"));
                 if (t.chatterMood() != 0) {
@@ -2515,6 +2564,271 @@ public final class BusModule extends EcoModule {
             }
             r.mood = r.type.floor(r.mood);
         }
+    }
+
+    // ---- 건달 and 합승 대화 (BusScenes): the pure parts are static (unit-tested)
+
+    /** Whether someone aboard glares the others quiet (a 건달 not quieted by a scene), and this one is not brave enough. */
+    static boolean hushed(Rider r, List<Rider> riders) {
+        if (r.type.x().brave() || r.type.x().scare() != 0) return false;
+        for (Rider o : riders) if (o != r && o.type.x().scare() != 0 && !o.quiet) return true;
+        return false;
+    }
+
+    /** Whether a chatterer chatters now: not quieted by a scene, not hushed by the 건달, no scene playing on the bus. */
+    static boolean chatters(Rider r, List<Rider> riders, boolean scenePlaying) {
+        return r.type.x().chatter() > 0 && !r.quiet && !scenePlaying && !hushed(r, riders);
+    }
+
+    /** Whether a rider's nuisance is still on (a scene may quiet it): chatter, the bell prank, crumbs, the 건달's glare. */
+    static boolean loud(Rider r) {
+        return !r.quiet && BusScenes.nuisance(r.type);
+    }
+
+    /**
+     * 건달 (types.*.scare): when he boards, everyone else aboard is a little uneasy (× their kind's mood factor); when someone
+     * boards while he glares, so are they. Brave kinds (경찰, 씨름 선수, 스님) not at all. Returns how many were scared.
+     */
+    static int scare(List<Rider> riders, Rider newcomer) {
+        int n = 0;
+        double own = newcomer.type.x().scare();
+        if (own != 0) {
+            for (Rider o : riders) {
+                if (o == newcomer || o.type.x().brave() || o.type.x().scare() != 0) continue;
+                o.mood = o.type.floor(Math.clamp(o.mood + own * o.type.mood(), 0, 100));
+                n++;
+            }
+            return n;
+        }
+        if (newcomer.type.x().brave()) return 0;
+        for (Rider o : riders) {
+            if (o == newcomer || o.quiet || o.type.x().scare() == 0) continue;
+            newcomer.mood = newcomer.type.floor(Math.clamp(newcomer.mood + o.type.x().scare() * newcomer.type.mood(), 0, 100));
+            return 1;
+        }
+        return 0;
+    }
+
+    /** Whether one of the kinds this rider minds (freeload-unless: 경찰, 씨름 선수) is aboard. */
+    static boolean minded(Rider r, List<Rider> others) {
+        for (Rider o : others) if (o != r && r.type.x().freeloadUnless().contains(o.type.id())) return true;
+        return false;
+    }
+
+    /** 건달: whether he pays nothing this time ("형님은 공짜지?"): his chance, not made to pay by a scene, nobody he minds aboard. */
+    static boolean freeloads(Rider r, List<Rider> others, double roll) {
+        double f = r.type.x().freeload();
+        return f > 0 && !r.paysFull && !minded(r, others) && roll < f;
+    }
+
+    /** 건달 with a 경찰 or 씨름 선수 aboard: he pays, all polite (his "behave" line). */
+    static boolean behaves(Rider r, List<Rider> others) {
+        return r.type.x().freeload() > 0 && minded(r, others);
+    }
+
+    /** Those aboard as a scene sees them (null-free: one who can't be cast is not free). */
+    List<BusScenes.Seat> seats(Run run) {
+        List<BusScenes.Seat> out = new ArrayList<>();
+        for (Rider r : run.riders) {
+            boolean free = !r.secret && !r.scened && r.m != null && r.m.isValid() && (lostDog == null || lostDog.lamentFor(r.m) == null);
+            out.add(new BusScenes.Seat(r.type.id(), r.mood, loud(r), r.dozing, free));
+        }
+        return out;
+    }
+
+    static List<BusScenes.Seat> seatsOf(List<Rider> riders) {
+        List<BusScenes.Seat> out = new ArrayList<>();
+        for (Rider r : riders) out.add(new BusScenes.Seat(r.type.id(), r.mood, loud(r), r.dozing, !r.secret && !r.scened));
+        return out;
+    }
+
+    /**
+     * What a scene does after its last line (BusScenes.Effect) to its cast (by role) and everyone aboard. Returns the effect
+     * keys that changed something (for the driver's line).
+     */
+    static List<String> applyScene(BusScenes.Effect e, Rider[] cast, List<Rider> all) {
+        List<String> did = new ArrayList<>();
+        for (int r : e.quiet()) if (r < cast.length && !cast[r].quiet) {
+            cast[r].quiet = true;
+            cast[r].pranked = true;   // no bell for nobody either
+            if (!did.contains("quiet")) did.add("quiet");
+        }
+        for (int r : e.pay()) if (r < cast.length) {
+            cast[r].paysFull = true;
+            if (!did.contains("pay")) did.add("pay");
+        }
+        for (Map.Entry<Integer, Double> m : e.mood().entrySet()) {
+            List<Rider> who = new ArrayList<>();
+            if (m.getKey() == BusScenes.ALL) who.addAll(all);
+            else if (m.getKey() == BusScenes.OTHERS) {
+                for (Rider o : all) if (!java.util.Arrays.asList(cast).contains(o)) who.add(o);
+            } else if (m.getKey() >= 0 && m.getKey() < cast.length) who.add(cast[m.getKey()]);
+            for (Rider o : who) o.mood = o.type.floor(Math.clamp(o.mood + m.getValue(), 0, 100));
+            if (!who.isEmpty() && !did.contains(m.getValue() >= 0 ? "mood-up" : "mood-down")) did.add(m.getValue() >= 0 ? "mood-up" : "mood-down");
+        }
+        for (int r : e.leave()) if (r < cast.length && !cast[r].secret) {
+            cast[r].dest = -1;   // off at the next stop the bus stops at (paid as far as they rode)
+            cast[r].sleepThrough = false;
+            cast[r].dozing = false;
+            if (!did.contains("leave")) did.add("leave");
+        }
+        for (int r : e.doze()) if (r < cast.length) {
+            cast[r].dozing = true;
+            cast[r].dozeChecked = true;
+            if (!did.contains("doze")) did.add("doze");
+        }
+        for (int r : e.wake()) if (r < cast.length) {
+            cast[r].dozing = false;
+            cast[r].sleepThrough = false;
+            cast[r].dozeChecked = true;
+            if (!did.contains("wake")) did.add("wake");
+        }
+        for (Map.Entry<Integer, Double> t : e.tip().entrySet()) if (t.getKey() < cast.length) {
+            cast[t.getKey()].tipX *= t.getValue();
+            if (!did.contains("tip")) did.add("tip");
+        }
+        for (Map.Entry<Integer, Double> f : e.fare().entrySet()) if (f.getKey() < cast.length) {
+            cast[f.getKey()].fareX *= f.getValue();
+            if (!did.contains("fare")) did.add("fare");
+        }
+        if (e.calm() > 0) {
+            for (Rider o : all) o.mood = o.type.floor(Math.max(o.mood, Math.min(100, e.calm())));
+            did.add("calm");
+        }
+        if (e.gift() != null) did.add("gift");
+        return did;
+    }
+
+    /** The world now, for a scene's conditions. */
+    private BusScenes.Now sceneNow(Player p) {
+        ZonedDateTime now = ZonedDateTime.now(KST);
+        return new BusScenes.Now(now.getHour(), now.getMonthValue(), p.getWorld().hasStorm(), spec.marketDay(eco.calendar().day()),
+                now.getDayOfWeek().getValue() >= 6);
+    }
+
+    private java.util.Set<String> scenesSeen(Player p) {
+        return eco.people() == null ? java.util.Set.of() : eco.people().scenes(p.getUniqueId());
+    }
+
+    /**
+     * 합승 대화, once a second for a bus: the scene playing goes on (its next line when due), else once a stop leg (settle
+     * seconds after pulling out, when no bubble is up) the leg's check: the driver's cooldown passed, scenes.chance, a scene
+     * whose cast is aboard (unseen ones first). An admin's /관리자 버스 장면 <id> 지금 skips the chance, cooldown and conditions.
+     * True when the bus is busy with a scene this second (nothing else talks).
+     */
+    private boolean scene(Player p, Run run, long now) {
+        if (run.playing != null) {
+            stepScene(p, run, now);
+            return true;
+        }
+        String force = run.forceScene;
+        if (force == null && (run.sceneCheckAt == 0 || now < run.sceneCheckAt)) return false;
+        if (ticks - run.talkAt <= spec.extra().talkCooldown()) {   // someone is talking: a little later
+            if (force == null) run.sceneCheckAt = now + 2000;
+            return false;
+        }
+        run.sceneCheckAt = 0;
+        run.forceScene = null;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        BusScenes.Pick pick;
+        List<BusScenes.Seat> aboard = seats(run);
+        if (force != null) {
+            BusScenes.Scene s = scenes.scenes().get(force);
+            int[] c = s == null ? null : BusScenes.cast(s, aboard);
+            if (c == null) {
+                p.sendMessage(Lang.mm("bus.scene-admin-no-cast", "id", force));
+                return false;
+            }
+            pick = new BusScenes.Pick(s, c);
+        } else {
+            Long last = sceneSeenAt.get(p.getUniqueId());
+            if (!scenes.due(last == null ? -1 : (now - last) / 1000.0, rnd.nextDouble())) return false;
+            pick = scenes.pick(aboard, sceneNow(p), scenesSeen(p), rnd.nextDouble());
+            if (pick == null) return false;
+        }
+        Rider[] cast = new Rider[pick.cast().length];
+        for (int i = 0; i < cast.length; i++) {
+            cast[i] = run.riders.get(pick.cast()[i]);
+            cast[i].scened = true;
+        }
+        sceneSeenAt.put(p.getUniqueId(), now);
+        run.playing = new Playing(pick.scene(), cast, now);
+        HudModule.flash(p, Lang.mm("bus.scene-start", "title", esc(pick.scene().title())), 2500);
+        stepScene(p, run, now);
+        return true;
+    }
+
+    private static String esc(String s) {
+        return net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(s);
+    }
+
+    /** The next line of the scene playing (when due); after the last one its effect. Stops (no effect) when one of the cast is gone. */
+    private void stepScene(Player p, Run run, long now) {
+        Playing pl = run.playing;
+        for (Rider r : pl.cast) {
+            if (!run.riders.contains(r) || r.m == null || !r.m.isValid()) {
+                run.playing = null;
+                return;
+            }
+        }
+        if (now < pl.at) return;
+        List<BusScenes.Line> lines = pl.scene.lines();
+        if (pl.next >= lines.size()) {   // the last line has had its time: what it did
+            run.playing = null;
+            endScene(p, run, pl);
+            return;
+        }
+        BusScenes.Line l = lines.get(pl.next++);
+        Rider who = pl.cast[l.who()];
+        double secs = scenes.rules().pause(l.text());
+        bubble(who.m, l.text(), Math.round(secs * 20) + 4);
+        who.said = l.text();
+        who.saidUntil = now + Math.round(secs * 1000);
+        who.dozing = false;   // whoever speaks is awake
+        run.talkAt = ticks;
+        pl.at = now + Math.round(secs * 1000);
+    }
+
+    private void endScene(Player p, Run run, Playing pl) {
+        BusScenes.Effect e = pl.scene.effect();
+        List<String> did = applyScene(e, pl.cast, run.riders);
+        if (e.gift() != null) {
+            dev.stsv.economy.util.Items.create(e.gift().item(), e.gift().amount()).ifPresent(item -> {
+                for (org.bukkit.inventory.ItemStack left : p.getInventory().addItem(item).values()) p.getWorld().dropItem(p.getLocation(), left);
+            });
+        }
+        List<String> parts = new ArrayList<>();
+        for (String k : did) {
+            BusScenes.Effect fx = e;
+            java.util.Set<Integer> roles = switch (k) {
+                case "quiet" -> fx.quiet();
+                case "pay" -> fx.pay();
+                case "leave" -> fx.leave();
+                case "doze" -> fx.doze();
+                case "wake" -> fx.wake();
+                case "tip" -> fx.tip().keySet();
+                case "fare" -> fx.fare().keySet();
+                default -> java.util.Set.of();
+            };
+            List<String> names = new ArrayList<>();
+            for (int r : roles) if (r >= 0 && r < pl.cast.length) names.add(typeTag(pl.cast[r].type));
+            parts.add(Lang.raw("bus.scene-fx." + k, "who", String.join(", ", names)));
+        }
+        p.sendMessage(Lang.mm("bus.scene-done", "title", esc(pl.scene.title()), "fx", String.join(" <dark_gray>·</dark_gray> ", parts)));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.6f, 1.8f);
+        if (eco.people() != null && eco.people().sawScene(p, pl.scene.id())) {
+            p.sendMessage(Lang.mm("bus.scene-new", "n", eco.people().scenes(p.getUniqueId()).size(), "all", scenes.scenes().size()));
+        }
+    }
+
+    /** /관리자 버스 장면 <id> 지금: the driver's bus plays this scene at its next second (its cast must be aboard). */
+    public boolean forceScene(Player p, String id) {
+        for (Run r : runs.values()) {
+            if (!p.getUniqueId().equals(r.driver)) continue;
+            r.forceScene = id;
+            return true;
+        }
+        return false;
     }
 
     /** Got off where they were going: 유령 승차권 조각, 스님's blessing, 유튜버's ★5 review. */
@@ -2538,7 +2852,7 @@ public final class BusModule extends EcoModule {
             p.sendMessage(Lang.mm("bus.blessed", "n", t.bless(), "x", String.format("%.1f", t.blessTip())));
             p.getWorld().spawnParticle(Particle.END_ROD, p.getLocation().add(0, 1.5, 0), 12, 0.5, 0.6, 0.5, 0.01);
         }
-        if (t.litter() != 0) {   // 과자 부스러기 학생: the seat left as it is
+        if (t.litter() != 0 && !r.quiet) {   // 과자 부스러기 학생: the seat left as it is (not when a scene got them to clean up)
             for (Rider o : run.riders) if (o != r) o.mood = o.type.floor(Math.clamp(o.mood + t.litter() * o.type.mood(), 0, 100));
             p.sendMessage(Lang.mm("bus.litter", "type", typeTag(r.type)));
             r.m.getWorld().spawnParticle(Particle.ITEM, r.m.getLocation().add(0, 0.6, 0), 10, 0.25, 0.1, 0.25, 0.02,
@@ -2866,6 +3180,15 @@ public final class BusModule extends EcoModule {
 
     public List<String> previewComplete(String[] args) {
         return preview.complete(args);
+    }
+
+    /** /관리자 버스 장면 <목록|id> [지금] (합승 대화: PassengerPreview). */
+    public void sceneAdmin(org.bukkit.command.CommandSender s, String[] args) {
+        preview.sceneAdmin(s, args);
+    }
+
+    public List<String> sceneComplete(String[] args) {
+        return preview.sceneComplete(args);
     }
 
     /**

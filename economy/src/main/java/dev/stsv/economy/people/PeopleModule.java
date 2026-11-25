@@ -56,6 +56,9 @@ public final class PeopleModule extends EcoModule {
     private final Map<UUID, Map<String, PeopleSpec.Entry>> shinyData = new ConcurrentHashMap<>();
     /** "player|person|n" (일반) or "player|person|s" (별난) changed since the last write */
     private final Set<String> dirty = ConcurrentHashMap.newKeySet();
+    /** 장면 (합승 대화, bus_scenes.yml): player -> scene id -> when first seen (millis); and "player|scene" not yet written */
+    private final Map<UUID, Map<String, Long>> sceneData = new ConcurrentHashMap<>();
+    private final Set<String> sceneDirty = ConcurrentHashMap.newKeySet();
 
     public PeopleModule(EcoPlugin eco) {
         super(eco);
@@ -74,7 +77,9 @@ public final class PeopleModule extends EcoModule {
                         + "first_at BIGINT NOT NULL, normal_at BIGINT NOT NULL, shiny_at BIGINT NOT NULL, places VARCHAR(255) NOT NULL, "
                         + "PRIMARY KEY (player, person))"),
                 // 2: 일반 and 별난 become separate entries (the shiny flag of a row becomes its own row in eco_people_shiny)
-                PeopleSpec.splitShinyMigration()));
+                PeopleSpec.splitShinyMigration(),
+                // 3: 장면 (합승 대화) a player has seen, shown in the codex under the people in them
+                List.of(PeopleSpec.SCENES_TABLE)));
         load();
         readData();
         every(600L, this::flush);
@@ -84,6 +89,9 @@ public final class PeopleModule extends EcoModule {
             dirty.clear();
             db.execute("DELETE FROM eco_people");
             db.execute("DELETE FROM eco_people_shiny");
+            sceneData.clear();
+            sceneDirty.clear();
+            db.execute("DELETE FROM eco_people_scenes");
         });
     }
 
@@ -110,6 +118,11 @@ public final class PeopleModule extends EcoModule {
         shinyData.clear();
         read("eco_people", data);
         read("eco_people_shiny", shinyData);
+        sceneData.clear();
+        for (Object[] r : db.sync(c -> Db.query(c, "SELECT player, scene, first_at FROM eco_people_scenes",
+                rs -> new Object[]{rs.getString(1), rs.getString(2), rs.getLong(3)}))) {
+            sceneData.computeIfAbsent(UUID.fromString((String) r[0]), k -> new ConcurrentHashMap<>()).put((String) r[1], (Long) r[2]);
+        }
     }
 
     private void read(String table, Map<UUID, Map<String, PeopleSpec.Entry>> into) {
@@ -125,6 +138,7 @@ public final class PeopleModule extends EcoModule {
 
     /** Writes every changed record (one batch on the database thread). */
     private void flush() {
+        flushScenes();
         if (dirty.isEmpty()) return;
         List<Object[]> rows = new ArrayList<>(), shinyRows = new ArrayList<>();
         for (String k : List.copyOf(dirty)) {
@@ -148,6 +162,37 @@ public final class PeopleModule extends EcoModule {
             for (Object[] r : shinyRows) Db.update(c, shinySql, r);
             return null;
         });
+    }
+
+    private void flushScenes() {
+        if (sceneDirty.isEmpty()) return;
+        List<Object[]> rows = new ArrayList<>();
+        for (String k : List.copyOf(sceneDirty)) {
+            sceneDirty.remove(k);
+            String[] parts = k.split("\\|", 2);
+            UUID u = UUID.fromString(parts[0]);
+            Long at = sceneData.getOrDefault(u, Map.of()).get(parts[1]);
+            if (at != null) rows.add(new Object[]{u.toString(), parts[1], at});
+        }
+        String sql = db.upsert("eco_people_scenes", List.of("player", "scene"), List.of("first_at"));
+        db.async(c -> {
+            for (Object[] r : rows) Db.update(c, sql, r);
+            return null;
+        });
+    }
+
+    /** The 장면 (합승 대화) a player has seen. */
+    public Set<String> scenes(UUID player) {
+        return sceneData.getOrDefault(player, Map.of()).keySet();
+    }
+
+    /** A driver saw a scene to its end: kept in the codex. True when it is new to them (not on the 길라잡이's trial bus). */
+    public boolean sawScene(Player p, String scene) {
+        if (eco.guide() != null && eco.guide().active(p)) return false;
+        Map<String, Long> mine = sceneData.computeIfAbsent(p.getUniqueId(), k -> new ConcurrentHashMap<>());
+        if (mine.putIfAbsent(scene, System.currentTimeMillis()) != null) return false;
+        sceneDirty.add(p.getUniqueId() + "|" + scene);
+        return true;
     }
 
     public PeopleSpec spec() {
@@ -333,6 +378,7 @@ public final class PeopleModule extends EcoModule {
                     for (int i = 0; i < open; i++) lore.add(Lang.item(shiny && i == 0 ? "people.lore-intro-shiny" : "people.lore-intro", "line", intro.get(i)));
                     int next = spec.nextMilestone(e.met);
                     if (open < intro.size() && next > 0) lore.add(Lang.item("people.lore-intro-locked", "n", next, "left", next - e.met));
+                    sceneLore(lore, id, p.getUniqueId());
                 } else {
                     lore.add(Lang.item(shiny ? "people.lore-unknown-shiny" : "people.lore-unknown"));
                     lore.add(Lang.item("people.lore-hint", "hint", hint(bus, t)));
@@ -364,6 +410,19 @@ public final class PeopleModule extends EcoModule {
             }
         }
     }
+
+    /** 장면: "함께 본 장면 n/m" and the titles of those seen (up to SCENE_ROWS, then "외 n개"); nothing for one in no scene. */
+    private void sceneLore(List<Component> lore, String person, UUID player) {
+        if (eco.bus() == null) return;
+        PeopleSpec.SceneRows rows = PeopleSpec.sceneRows(eco.bus().scenes(), person, scenes(player), SCENE_ROWS);
+        if (rows.all() == 0) return;
+        lore.add(Component.empty());
+        lore.add(Lang.item("people.lore-scenes", "n", rows.seen(), "all", rows.all()));
+        for (String t : rows.titles()) lore.add(Lang.item("people.lore-scene", "title", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(t)));
+        if (rows.more() > 0) lore.add(Lang.item("people.lore-scene-more", "n", rows.more()));
+    }
+
+    static final int SCENE_ROWS = 5;
 
     /** Where to meet them (people.yml hint, else from bus.yml: the stops, hours, months …). */
     private String hint(BusSpec bus, BusSpec.Type t) {

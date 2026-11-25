@@ -73,13 +73,13 @@ class BusTest {
         assertEquals(0.5, s.hourFactor(3));
         assertEquals(1.0, s.hourFactor(13));
         assertTrue(s.rush(7));
-        assertEquals(53, s.types().size());
+        assertEquals(54, s.types().size());
         // 2026-11: 할머니는 흔한 손님 (18 = 동네 아저씨 · 대학생과 같음, 약 4.6%; 예전 7.4%), 진상 · 착한 손님의 새 버릇
         double total = s.types().values().stream().mapToDouble(BusSpec.Type::weight).sum();
         assertEquals(18, s.types().get("grandma").weight(), 1e-9);
         assertEquals(s.types().get("uncle").weight(), s.types().get("grandma").weight(), 1e-9);
         assertEquals(0.046, s.types().get("grandma").weight() / total, 0.003);
-        assertEquals(387.4, total, 0.05);
+        assertEquals(390.8, total, 0.05);   // + 건달 3.4
         assertEquals(0.35, s.types().get("dodger").x().dodge(), 1e-9);
         assertEquals(50, s.types().get("rude").x().haggleAt(), 1e-9);
         assertEquals(0.5, s.types().get("rude").x().haggle(), 1e-9);

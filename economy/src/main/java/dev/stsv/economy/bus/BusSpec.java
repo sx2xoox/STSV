@@ -190,6 +190,9 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
      * 유령 승차권 조각; their on-time window × `onTime`, `lateHit` mood once late; `bless` next passengers' tips × `blessTip`
      * after they get off (스님); a ★5 review when they get off at `review` mood or more (유튜버); their own gift chance and mood
      * (-1: bus.yml's); `tagsOnly`: only at stops of their traits.
+     * 건달: `scare` (≤ 0) the mood of everyone else aboard when he boards (or they board while he glares), and while he is aboard
+     * (not quieted by a scene) the chatter of others stops; `freeload` the chance he pays nothing ("형님은 공짜지?") unless one of
+     * `freeloadUnless` (경찰, 씨름 선수) is aboard; `brave` kinds are neither scared nor hushed.
      */
     /**
      * What a passenger mannequin holds (bus.yml types.*.hold / hold-off / hold-fly, README "마을버스"): an item id per look (index
@@ -273,9 +276,10 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     public record Traits(double chatter, double chatterMood, double moodFloor, double sickAt, double babyCry, double babySmile, int seats,
                          String pet, Set<Integer> months, Set<Integer> peakDays, double peak, boolean ghost, int token, double onTime,
                          double lateHit, int bless, double blessTip, double review, double giftChance, double giftMood, boolean tagsOnly,
-                         double dodge, double haggleAt, double haggle, double prank, double litter, double treat) {
+                         double dodge, double haggleAt, double haggle, double prank, double litter, double treat, double scare,
+                         double freeload, Set<String> freeloadUnless, boolean brave) {
         public static final Traits NONE = new Traits(0, 0, 0, 0, 0, 0, 1, "", Set.of(), Set.of(), 1, false, 0, 1, 0, 0, 1, 0, -1, -1, false,
-                0, 0, 1, 0, 0, 0);
+                0, 0, 1, 0, 0, 0, 0, 0, Set.of(), false);
 
         static Traits parse(ConfigurationSection t) {
             return new Traits(t.getDouble("chatter", 0), t.getDouble("chatter-mood", 0), t.getDouble("mood-floor", 0), t.getDouble("sick-at", 0),
@@ -285,7 +289,8 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                     t.getDouble("bless-tip", 1), t.getDouble("review", 0), t.getDouble("gift-chance", -1), t.getDouble("gift-mood", -1),
                     t.getBoolean("tags-only"), Math.clamp(t.getDouble("dodge", 0), 0, 1), t.getDouble("haggle-at", 0),
                     Math.clamp(t.getDouble("haggle", 0.5), 0, 1), Math.clamp(t.getDouble("prank", 0), 0, 1), t.getDouble("litter", 0),
-                    Math.max(0, t.getDouble("treat", 0)));
+                    Math.max(0, t.getDouble("treat", 0)), Math.min(0, t.getDouble("scare", 0)), Math.clamp(t.getDouble("freeload", 0), 0, 1),
+                    Set.copyOf(t.getStringList("freeload-unless")), t.getBoolean("brave"));
         }
     }
 
@@ -348,6 +353,9 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                 Math.clamp(c.getDouble("hint.chance", 0.03), 0, 1), Math.max(0, c.getInt("hint.gap", 150)));
         for (Type t : types.values()) for (String k : t.tags().keySet()) {
             if (!tagNames.containsKey(k)) problems.add("types." + t.id() + ".tags: 없는 특성 " + k);
+        }
+        for (Type t : types.values()) for (String k : t.x().freeloadUnless()) {
+            if (!types.containsKey(k)) problems.add("types." + t.id() + ".freeload-unless: 없는 손님 종류 " + k);
         }
         for (Bus bus : buses.values()) for (String k : bus.only()) if (!types.containsKey(k)) problems.add("buses: 없는 손님 종류 " + k);
         ConfigurationSection rn = section(c, "rental");
@@ -426,7 +434,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
     }
 
     /** The situations a kind's own talk may show off in the preview, most telling first (수다, 느릿느릿 타기, 아기 울음 …). */
-    static final List<String> SIGNATURE = List.of("dodge", "haggle", "prank", "chat", "slow", "cry", "smile", "sick", "bark", "late", "view", "waited");
+    static final List<String> SIGNATURE = List.of("freeload", "dodge", "haggle", "prank", "chat", "slow", "cry", "smile", "sick", "bark", "late", "view", "waited");
 
     /**
      * The preview's three situations (/관리자 버스 손님 <종류>): getting on, then the kind's most telling own one (SIGNATURE),

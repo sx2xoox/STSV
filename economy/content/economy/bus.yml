@@ -151,7 +151,7 @@ queue:
   notice: 24
   idle-every: 30
   idle: {grandma: sit, haenyeo: sit, student: phone, nurse: phone, couple: phone, office: fidget, courier: fidget, kinder: hop,
-         mom: sit, youtuber: phone, rider: fidget, chatty: fidget}
+         mom: sit, youtuber: phone, rider: fidget, chatty: fidget, thug: fidget}
 # 기다림 짜증: grace 분 넘게 기다린 손님은 탈 때 기분이 낮음 (full 분이면 floor 까지, 사이는 고르게; 원래는 mood.start).
 # every 초마다 give-up 분 넘게 기다린 손님 가운데 가장 오래 기다린 한 명이 give-up-chance 확률로 걸어감 (talk give-up)
 patience:
@@ -1066,6 +1066,7 @@ types:
     tags: {mountain: 8, forest: 2}
     mood: 0
     mood-floor: 80
+    brave: true
     bless: 5
     bless-tip: 1.5
     slow: 1.3
@@ -1451,6 +1452,38 @@ types:
       jolt: ["반죽 쏟아질라!", "어이쿠, 팥 앙금!"]
       smooth: ["따뜻하니 좋네~", "기사님 덕에 손 녹이네"]
       thanks: ["따끈할 때 하나 잡숴요~", "추운데 고생 많아요~", "이따 장사 끝나고 또 탈게요"]
+  # 건달 (진상): 문신 · 금목걸이 · 포마드 머리, 반말과 허세. 타면 다른 손님 기분 scare (한 번, 그 뒤에 타는 손님도), 타고 있는 동안
+  # 다른 손님 수다가 멈춤 (brave 인 경찰 · 씨름 선수 · 스님은 아랑곳 않음). freeload 확률로 "형님은 공짜지?" 운임을 안 내지만
+  # freeload-unless 의 손님(경찰 · 씨름 선수)이 타고 있으면 얌전히 냄 (talk behave). 합승 대화로 기가 죽으면 이 버릇이 다 멈춤
+  thug:
+    name: 건달
+    color: "#b0413e"
+    weight: 3.4
+    mood: 1.3
+    tip: 0.5
+    scare: -4
+    freeload: 0.5
+    freeload-unless: [police, wrestler]
+    chatter: 20
+    chatter-mood: -1
+    skins: ["economy:entity/bus/thug_1", "economy:entity/bus/thug_2", "economy:entity/bus/thug_3"]
+    shiny-talk: {board: ["어이 기사 양반, 오늘 형님 빛나지? …금목걸이 새로 했다."], thanks: ["…오늘은 운임 두 배로 낸다. 기분이다, 기분."]}
+    talk:
+      board: ["어이~ 기사 양반, 출발하자고", "(금목걸이를 만지작) 자리 좀 비켜 봐", "여~ 다들 어디 가시나?", "(어깨를 들썩이며 탄다)", "형님 오셨다~"]
+      chat: ["이 동네 형님 모르는 사람 있어?", "(손가락 마디를 우두둑 꺾는다)", "내가 왕년에 말이야~", "(창문에 비친 머리를 넘긴다) 크~", "뭘 봐? …아니 그냥 물어본 거야", "(이쑤시개를 이리저리 굴린다)"]
+      freeload: ["형님은 공짜지? 다음에 줄게~", "어이, 동네 형님한테 돈을 받아?", "(카드 찍는 척) 삑~ 됐지?", "장부에 달아 놔~"]
+      behave: ["(경찰을 힐끔) …여, 여기 요금 있습니다", "(목소리가 작아진다) 카드… 찍겠습니다…", "(씨름 선수를 올려다본다) …내야죠, 당연히 내야죠"]
+      jolt: ["어이! 운전 똑바로 안 해?!", "아 내 머리! 세팅한 건데!", "형님 다칠 뻔했잖아~"]
+      bump: ["뭐야! 누가 박았어?!", "어이, 차 긁혔으면 내가 가만 안 있어", "(목걸이부터 확인한다) 휴…"]
+      turn: ["어어어, 형님 쏠린다~", "드리프트 하냐? …좀 멋있네", "아 머리 넘어간다"]
+      smooth: ["…운전 좀 하네, 인정", "크~ 승차감 형님 스타일이야", "(다리를 꼬고 느긋하게 앉는다)"]
+      late: ["어이, 형님 약속 늦는다~", "빨리 좀 밟아 봐", "애들 기다린단 말이야"]
+      waited: ["버스가 형님을 기다려야지, 형님이 버스를 기다려?", "이 동네 배차가 왜 이래", "목 빠지는 줄 알았네, 쯧"]
+      give-up: ["에이, 형님은 걸어간다", "택시 불러, 택시!", "버스가 형님을 못 알아보네"]
+      view: ["…경치 좋네. 형님 고향 같다", "(창밖을 보다 조용해진다)", "저 산 너머가 우리 엄니 집이야"]
+      missed: ["어이! 형님 내릴 데 지났잖아!", "야야야 세워 세워!", "기사 양반, 형님 무시하는 거야?"]
+      bell: ["형님 내린다~", "여기 세워, 여기!", "(벨을 두 번 누른다) 띵동 띵동"]
+      thanks: ["수고해~ 형님이 기억할게", "(손을 까딱) 또 보자고", "어이 기사 양반, 오늘 운전 괜찮았어"]
   # ── 드묾
   bride:
     name: 신혼부부
@@ -1475,6 +1508,7 @@ types:
     mood-floor: 75
     chatter: 30
     chatter-mood: 0.5
+    brave: true        # 건달 앞에서도 기분 · 수다가 그대로 (건달은 경찰이 타면 운임을 냄)
     skins: ["economy:entity/bus/police_1", "economy:entity/bus/police_2 slim", "economy:entity/bus/police_3"]
     shiny-talk: {board: ["오늘은 표창 받으러 가는 길입니다!"], thanks: ["안전 운전 표창감입니다, 기사님!"]}
     talk:
@@ -1504,6 +1538,7 @@ types:
     weight: 2
     scale: 1.15
     jolt: 0.2
+    brave: true
     tags: {field: 1.5, village: 1.3}
     skins: ["economy:entity/bus/wrestler_1", "economy:entity/bus/wrestler_2", "economy:entity/bus/wrestler_3"]
     shiny-talk: {board: ["오늘 천하장사 결승입니다! 반짝!"], thanks: ["이기면 꽃가마 태워 드릴게요, 하하!"]}

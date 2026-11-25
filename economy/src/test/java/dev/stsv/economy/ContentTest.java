@@ -378,6 +378,14 @@ class ContentTest {
             }
         }
         if (!makeable.contains("economy:pear")) problems.add("no passenger gives economy:pear");
+        // 합승 대화 (bus_scenes.yml): a scene's gift to the driver is an item that exists; a pear only from those who give pears
+        var busScenes = dev.stsv.economy.bus.BusScenes.parse(yaml("bus_scenes.yml"), dev.stsv.economy.bus.BusSpec.parse(busYaml, new ArrayList<>()), problems);
+        for (var sc : busScenes.scenes().values()) {
+            if (sc.effect().gift() == null) continue;
+            String id = JobSpec.norm(sc.effect().gift().item());
+            if (!exists(id, ours)) problems.add("bus scene gift of " + sc.id() + ": " + id);
+            if (id.equals("economy:pear") && sc.cast().stream().noneMatch(Set.of("grandma", "market", "farmer")::contains)) problems.add("a pear from scene " + sc.id());
+        }
         // 마을버스 손님이 든 물건 (items/bus.yml bus_hold_*, bus.yml types.*.hold / hold-off / hold-fly): only a passenger mannequin
         // holds one, nobody is ever given one, the shop never trades them; every one is held by some kind, and each kind's
         // are items of ours with their model

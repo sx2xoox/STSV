@@ -13,7 +13,7 @@ Also NPCs drawn the same way that are not passengers (NPCS: 현장 소장 site_b
 A texture at assets/economy/textures/entity/bus/<id>.png is the key "economy:entity/bus/<id>"
 (ResolvableProfile.skinPatch().body(key), with .model(SLIM) for the slim ones: see SLIM / main()).
 
-Fifty-three passenger types, three of each: 동네 주민 resident, 학생 student, 할머니 grandma, 회사원 office,
+Fifty-four passenger types, three of each: 동네 주민 resident, 학생 student, 할머니 grandma, 회사원 office,
 관광객 tourist, VIP, and the second batch 농부 farmer, 등산객 hiker, 낚시꾼 fisher, 군인 soldier (on leave, no
 insignia), 커플 couple, 술 취한 아저씨 drunk, and the third batch 택배기사 courier, 유치원생 kinder, 캠핑족 camper,
 해녀 haenyeo, 야구팬 fan (an invented team), 간호사 nurse, and the fourth batch 수다쟁이 아줌마 chatty, 멀미하는 아저씨
@@ -23,7 +23,8 @@ company colours), and the fifth batch 시장 아줌마 market, 동네 아저씨 
 닭 든 할머니 chicken (the hen in her arms is a held model), 지각생 tardy, 면접 청년 interview, 엿장수 yeot, 외국인 여행객 traveler (no
 flags), 큰소리 통화남 phone, 반말 아저씨 rude, 무임승차 청년 dodger, 벨 장난 꼬마 prankster, 쩍벌남 spread, 민원 아줌마
 complainer, 과자 부스러기 학생 crumbs, 친절한 신사 gentleman, 무당 shaman, 우체부 mailman (no emblem), 붕어빵 장수 bungeo,
-신혼부부 bride (bride, groom, 한복 bride), 경찰 police (no badge or lettering), 마술사 magician, 씨름 선수 wrestler.
+신혼부부 bride (bride, groom, 한복 bride), 경찰 police (no badge or lettering), 마술사 magician, 씨름 선수 wrestler, 건달 thug (tattoos with no lettering
+or real group's marks).
 Colours are flat per area; the depth comes from the outer layer (hair volume, hats,
 jackets, cardigans, backpacks, glasses) and one shared light pass (finish()), so faces stay clean: eyes are
 a white pixel and a pupil, the mouth two pixels.
@@ -4914,6 +4915,101 @@ def wrestler(v):
     return s
 
 
+def tattoo(s, ink, ink2, top=0, bottom=11, arms_=("rarm", "larm")):
+    """건달's sleeve tattoo on bare arms (rows top..bottom of the arm, front and sides): a coiling dragon's scales,
+    two inks in a regular pattern (no letters, no symbols of real groups)"""
+    I, J = C(ink), C(ink2)
+
+    def f(fc, x, y, w, h):
+        if fc in ("top", "bottom") or not top <= y <= bottom:
+            return None
+        k = (x + 2 * y) % 5
+        if k == 0:
+            return I
+        if k == 2 and y % 2 == 0:
+            return J
+        if fc == "front" and (x + y) % 7 == 3:
+            return shade(J, 1.2)                         # a scale catching the light
+        return None
+    for a in arms_:
+        s.paint(a, f)
+
+
+def thug(v):
+    """건달: a slick pompadour, a gold chain, tattooed arms (scales of a dragon, no lettering), a sneer; 반말 and swagger.
+    1: a black shirt open at the neck, the sleeves rolled up; 2: a white vest (러닝) and track trousers, a buzz cut,
+    a gold tooth; 3: a black jacket over a red shirt, sunglasses pushed up on the hair"""
+    if v == 1:
+        s, sk = Skin(), "d8a07a"
+        head(s, sk, "141418", "slick", brows="141418", mouth="6a3430", pupils="side",
+             extra=[angry_brows("141418"), toothpick()])
+        shirt, trousers, shoe = "1e1e24", "26262c", "f2f2ee"
+        Sh = C(shirt)
+
+        def b(fc, x, y, w, h):
+            if fc == "front" and ((y <= 1 and 2 <= x <= 5) or (y == 2 and x in (3, 4))):
+                return C(sk)                               # open down to the chest
+            if fc == "front" and x == 4 and y >= 3:
+                return shade(Sh, 1.25) if y % 3 == 0 else Sh   # the buttons
+            if y == 11:
+                return C("e8c25a") if fc == "front" and x in (3, 4) else C("101014")   # a gold buckle
+            return Sh
+        body(s, b)
+        arms(s, shirt, sk, sleeve=3, cuff="2e2e36")       # sleeves rolled up above the elbow
+        tattoo(s, "2a4a6a", "3a7a6a", top=4, bottom=10)
+        gold_chain()(s)
+        s.paint("larm", lambda fc, x, y, w, h: C("e8c25a") if y == 10 and fc not in ("top", "bottom") else None)   # a gold watch
+        legs(s, trousers, shoe, shoe_rows=1)
+    elif v == 2:
+        s, sk = Skin(), "c48a62"
+        head(s, sk, "1a1a1a", "buzz", mouth="5a2a24",
+             extra=[angry_brows("1a1a1a"), grin("5a2a24", teeth="f2eee6")])
+        s.paint("head", lambda fc, x, y, w, h: C("e8c25a") if fc == "front" and (x, y) == (4, 6) else None)   # a gold tooth
+        s.paint("head", lambda fc, x, y, w, h: shade(C(sk), 0.8) if fc == "front" and (x, y) in ((6, 2), (6, 3)) else None)   # a scar through the brow
+        vest, pants = "f2f0ea", "1e2a4a"
+
+        def b(fc, x, y, w, h):
+            if fc in ("front", "back") and y <= 2 and 2 <= x <= 5:
+                return C(sk) if fc == "front" or y == 0 else C(vest)   # the vest's deep neck
+            if fc in SIDES and y <= 1:
+                return C(sk)                               # the bare shoulders
+            if y >= 10:
+                return C(pants)
+            return C(vest)
+        body(s, b)
+        arms(s, sk, sk, sleeve=0)                          # bare arms
+        tattoo(s, "2a3a6a", "2a6a5a", top=0, bottom=9)
+        gold_chain()(s)
+        s.paint("rarm", lambda fc, x, y, w, h: C("e8c25a") if y == 9 and fc not in ("top", "bottom") else None)   # a gold bracelet
+        legs(s, pants, "f4f4f4", shoe_rows=1)
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: C("f2f0ea") if fc in SIDES and fwd(fc, x) == 1 and y < 11 else None)   # the track stripes
+    else:
+        s, sk = Skin(), "e2ab84"
+        head(s, sk, "2a1e18", "slick", brows="2a1e18", mouth="6a3430",
+             extra=[frown("6a3430"), shades_up("1a1a22", "e8c25a")])
+        red, jacket_c = "b8242e", "16161a"
+        J = C(jacket_c)
+
+        def b(fc, x, y, w, h):
+            if fc == "front" and y <= 1 and x in (3, 4):
+                return C(sk)
+            if fc == "front" and 2 <= x <= 5:
+                return C(red) if y < 11 else C("101014")   # the red shirt between the lapels
+            if fc == "front" and x in (1, 6) and y <= 4:
+                return shade(J, 1.3)                       # the lapels
+            if y == 11:
+                return C("101014")
+            return J
+        body(s, b)
+        arms(s, jacket_c, sk, sleeve=10, cuff=red)
+        tattoo(s, "2a4a6a", "3a7a6a", top=11, bottom=11, arms_=("rarm",))   # the dragon's tail on the back of the hand
+        gold_chain()(s)
+        s.paint("larm", lambda fc, x, y, w, h: C("e8c25a") if fc == "front" and (x, y) == (1, 11) else None)   # a gold ring
+        legs(s, jacket_c, "3a2418", shoe_rows=1)
+    return s
+
+
 TYPES = [("resident", "동네 주민", resident), ("student", "학생", student), ("grandma", "할머니", grandma),
          ("office", "회사원", office), ("tourist", "관광객", tourist), ("vip", "VIP", vip),
          ("farmer", "농부", farmer), ("hiker", "등산객", hiker), ("fisher", "낚시꾼", fisher),
@@ -4931,7 +5027,7 @@ TYPES = [("resident", "동네 주민", resident), ("student", "학생", student)
          ("complainer", "민원 아줌마", complainer), ("crumbs", "과자 부스러기 학생", crumbs),
          ("gentleman", "친절한 신사", gentleman), ("shaman", "무당", shaman), ("mailman", "우체부", mailman),
          ("bungeo", "붕어빵 장수", bungeo), ("bride", "신혼부부", bride), ("police", "경찰", police),
-         ("magician", "마술사", magician), ("wrestler", "씨름 선수", wrestler)]
+         ("magician", "마술사", magician), ("wrestler", "씨름 선수", wrestler), ("thug", "건달", thug)]
 VARIANTS = 3
 
 

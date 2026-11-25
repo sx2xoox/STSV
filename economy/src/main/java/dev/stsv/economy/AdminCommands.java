@@ -504,19 +504,22 @@ final class AdminCommands {
                     }
                     return List.of();
                 });
-        add("버스", "손님 <종류|전체> [상황|별난] | 별난 [종류] | 바둑이 [플레이어] | 바둑이 상태 [플레이어] | 바둑이 끝 [플레이어] | 비밀 소환 [1-5] | 비밀 쪽지 <플레이어> <1-5|전부> | 비밀 최종 [플레이어] | 비밀 초기화 <플레이어> | 비밀 상태 <플레이어>",
+        add("버스", "손님 <종류|전체> [상황|별난] | 장면 <목록|장면> [지금] | 별난 [종류] | 바둑이 [플레이어] | 바둑이 상태 [플레이어] | 바둑이 끝 [플레이어] | 비밀 소환 [1-5] | 비밀 쪽지 <플레이어> <1-5|전부> | 비밀 최종 [플레이어] | 비밀 초기화 <플레이어> | 비밀 상태 <플레이어>",
                 "마을버스 손님 미리보기: 앞 3칸에 그 종류 마네킹을 5초 (전체: 모든 종류를 줄지어 8초) 세워 동작 · 말풍선 (상황을 빼면 탈 때 → 특징 → 내릴 때) · 액션바에 운임 배수와 특징 (별난: 별난 손님 모습 · 대사) / "
+                        + "합승 대화: 장면 목록 / 그 장면의 손님들을 앞에 세워 대사를 차례로 (효과는 알려만 줌) / 지금: 내가 모는 버스에 그 손님들이 타고 있으면 확률 · 쿨타임 · 조건 없이 바로 연기하고 효과 적용 / "
                         + "별난 손님 테스트: 가장 가까운 정류장에 다음에 나타나는 손님이 별난 손님 (종류를 주면 그 종류, 기다리는 손님 +1) / "
                         + "바둑아 어디 가 테스트: 그 사람(빼면 나)의 버스에 다음에 타는 강아지 할아버지가 강아지 없이 탐 (이미 타고 있으면 바로 시작; 확률 · 하루 횟수 무시) / 지금 상태 / 보상 없이 끝내기 / "
                         + "선글라스 남자 테스트 (docs/admin/버스_비밀_의뢰.md): 가까운 정류장에 미션을 정해 세우기 / 쪽지를 직접 얻은 것으로 기록 (+아이템) / 운전 중인 사람에게 최종 미션을 조건 없이 바로 시작 / 비밀 진행 초기화 / 상태 (바둑이 상태도 함께)",
                 (s, args) -> {
                     if (args.length > 0 && args[0].equals("손님")) eco.bus().previewAdmin(s, args);
+                    else if (args.length > 0 && args[0].equals("장면")) eco.bus().sceneAdmin(s, args);
                     else if (args.length > 0 && args[0].equals("별난")) eco.bus().shinyAdmin(s, args);
                     else if (args.length > 0 && args[0].equals("바둑이")) eco.bus().dogAdmin(s, args);
                     else eco.bus().secretAdmin(s, args);
                 },
                 (s, args) -> {
-                    if (args.length == 1) return java.util.stream.Stream.of("손님", "별난", "바둑이", "비밀").filter(k -> k.startsWith(args[0])).toList();
+                    if (args.length == 1) return java.util.stream.Stream.of("손님", "장면", "별난", "바둑이", "비밀").filter(k -> k.startsWith(args[0])).toList();
+                    if (args[0].equals("장면")) return eco.bus().sceneComplete(args);
                     if (args[0].equals("별난")) return eco.bus().shinyComplete(args);
                     return args[0].equals("손님") ? eco.bus().previewComplete(args) : args[0].equals("바둑이") ? eco.bus().dogComplete(args)
                             : eco.bus().secretComplete(args);

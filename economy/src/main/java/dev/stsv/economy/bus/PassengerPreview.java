@@ -70,6 +70,8 @@ final class PassengerPreview {
             case "dodge" -> "😏";
             case "haggle" -> "😠";
             case "prank" -> "😜";
+            case "freeload" -> "😎";
+            case "behave" -> "😇";
             default -> "🙂";
         };
     }
@@ -107,6 +109,9 @@ final class PassengerPreview {
         if (x.prank() > 0) add(out, "prank", num(Math.round(x.prank() * 100)));
         if (x.litter() != 0) add(out, "litter", num(x.litter()));
         if (x.treat() > 0) add(out, "treat", num(Math.round(x.treat() * 100)));
+        if (x.scare() != 0) add(out, "scare", num(x.scare()));
+        if (x.freeload() > 0) add(out, "freeload", num(Math.round(x.freeload() * 100)));
+        if (x.brave()) add(out, "brave", "");
         if (x.moodFloor() > 0) add(out, "mood-floor", num(x.moodFloor()));
         if (x.sickAt() > 0) add(out, "sick", num(x.sickAt()));
         if (x.babyCry() != 0 || x.babySmile() != 0) add(out, "baby", "");
@@ -433,6 +438,106 @@ final class PassengerPreview {
             if (poof && sh.dog.isValid()) sh.dog.getWorld().spawnParticle(Particle.POOF, sh.dog.getLocation().add(0, 0.4, 0), 5, 0.2, 0.2, 0.2, 0.01);
             sh.dog.remove();
         }
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // /관리자 버스 장면 (합승 대화, BusScenes)
+    // ------------------------------------------------------------------------------------------
+
+    /** /관리자 버스 장면 <목록|id> [지금]: the list, a scene shown with its cast standing in front (no effect), or played on my bus now. */
+    void sceneAdmin(CommandSender s, String[] args) {
+        BusScenes sc = bus.scenes();
+        if (args.length < 2) {
+            s.sendMessage(Lang.mm("bus.scene-admin-usage"));
+            return;
+        }
+        if (args[1].equals("목록")) {
+            s.sendMessage(Lang.mm("bus.scene-admin-list", "n", sc.scenes().size(), "chance", num(sc.rules().chance()), "cooldown", sc.rules().cooldown()));
+            for (BusScenes.Scene x : sc.scenes().values()) s.sendMessage(Lang.mm("bus.scene-admin-row", "id", x.id(), "title", esc(x.title()), "cast", castText(x)));
+            return;
+        }
+        BusScenes.Scene x = sc.scenes().get(args[1]);
+        if (x == null) {
+            s.sendMessage(Lang.mm("bus.scene-admin-no-scene", "id", args[1]));
+            return;
+        }
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.mm("bus.preview-player-only"));
+            return;
+        }
+        if (args.length > 2 && args[2].equals("지금")) {
+            if (bus.forceScene(p, x.id())) p.sendMessage(Lang.mm("bus.scene-admin-queued", "title", esc(x.title())));
+            else p.sendMessage(Lang.mm("bus.scene-admin-no-bus"));
+            return;
+        }
+        showScene(p, x);
+    }
+
+    List<String> sceneComplete(String[] args) {
+        if (args.length == 2) {
+            List<String> out = new ArrayList<>(bus.scenes().scenes().keySet());
+            out.addFirst("목록");
+            return out.stream().filter(k -> k.startsWith(args[1])).toList();
+        }
+        if (args.length == 3) return "지금".startsWith(args[2]) ? List.of("지금") : List.of();
+        return List.of();
+    }
+
+    private String castText(BusScenes.Scene x) {
+        List<String> out = new ArrayList<>();
+        for (String t : x.cast()) {
+            BusSpec.Type type = bus.spec().types().get(t);
+            out.add(type == null ? t : bus.typeTag(type));
+        }
+        return String.join(" <dark_gray>+</dark_gray> ", out);
+    }
+
+    private static String esc(String s) {
+        return net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(s);
+    }
+
+    /** The cast side by side in front of the admin, saying the scene's lines one after another (its effect is only told). */
+    private void showScene(Player p, BusScenes.Scene x) {
+        BusScenes.Rules r = bus.scenes().rules();
+        int total = 0;
+        List<Integer> at = new ArrayList<>();
+        for (BusScenes.Line l : x.lines()) {
+            at.add(total);
+            total += (int) Math.round(r.pause(l.text()) * 20);
+        }
+        Batch b = new Batch(p, total + 40, false);
+        List<Show> cast = new ArrayList<>();
+        for (int i = 0; i < x.cast().size(); i++) {
+            BusSpec.Type t = bus.spec().types().get(x.cast().get(i));
+            Show sh = t == null ? null : spawn(b, t, spot(p, (i - (x.cast().size() - 1) / 2.0) * 1.4, AHEAD), "", 0, false);
+            cast.add(sh);
+        }
+        if (b.shows.isEmpty()) return;
+        List<String> fx = new ArrayList<>();
+        BusScenes.Effect e = x.effect();
+        if (!e.quiet().isEmpty()) fx.add("quiet");
+        if (!e.pay().isEmpty()) fx.add("pay");
+        if (!e.mood().isEmpty()) fx.add(e.mood().values().stream().anyMatch(v -> v >= 0) ? "mood-up" : "mood-down");
+        if (!e.leave().isEmpty()) fx.add("leave");
+        if (!e.doze().isEmpty()) fx.add("doze");
+        if (!e.wake().isEmpty()) fx.add("wake");
+        if (!e.tip().isEmpty()) fx.add("tip");
+        if (!e.fare().isEmpty()) fx.add("fare");
+        if (e.calm() > 0) fx.add("calm");
+        if (e.gift() != null) fx.add("gift");
+        p.sendMessage(Lang.mm("bus.scene-preview", "title", esc(x.title()), "cast", castText(x),
+                "fx", String.join(" · ", fx.stream().map(k -> Lang.raw("bus.scene-fx." + k, "who", "")).toList())));
+        for (int i = 0; i < x.lines().size(); i++) {
+            BusScenes.Line l = x.lines().get(i);
+            Show sh = cast.get(l.who());
+            long life = Math.round(r.pause(l.text()) * 20);
+            org.bukkit.Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (sh == null || sh.m == null || !sh.m.isValid() || !batches.contains(b)) return;
+                if (sh.bubble != null) sh.bubble.remove();
+                sh.bubble = bus.bubble(sh.m, l.text(), life + 2);
+            }, 2L + at.get(i));
+        }
+        start(b);
     }
 
     /** Everything shown, gone at once (plugin disable). */

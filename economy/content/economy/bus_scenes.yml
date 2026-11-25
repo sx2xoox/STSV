@@ -1,0 +1,2269 @@
+# 합승 대화 (README "마을버스" 합승 대화, docs/plans/리뉴얼_기획안_2026-11.md §6-4)
+# 손님 종류 둘 · 셋이 같은 버스에 타 있으면 가끔 그들끼리 짧은 장면이 펼쳐짐: 말풍선이 한 줄씩 차례로 (버스 안 누구에게나 보임,
+# 기사 화면에는 얼굴 옆 말풍선), 끝나면 effect 가 그 탑승에 실제로 일어남. 처음 본 장면은 인물 도감의 그 사람들 칸에 "장면" 으로 남음.
+#
+# 언제: 정류장을 떠나 settle 초 뒤 (구간마다 한 번) 장면을 할 손님들이 다 타 있으면 chance 확률. 한 기사는 cooldown 초에 한 번까지.
+#   말풍선이 떠 있으면 조금 뒤로 미룸. 기사가 아직 안 본 장면은 unseen 배로 잘 나옴. 장면에 나온 손님은 그 탑승에 다시 안 나옴.
+#   (정류장 사이 약 2분 · 손님 8명 꽉 찬 버스로 어림: 장면을 할 손님들은 거의 늘 있어 구간마다 약 11%, 10분 쿨타임까지 더하면
+#    손님 한 명이 타는 정류장 세 곳(약 6분)을 한 번 운행으로 치면 다섯 번에 한 번꼴, 쉬지 않고 몰아도 한 시간에 두어 번.
+#    손님이 적으면 더 드묾. BusScenesTest 가 100번 운행으로 확인)
+# 말풍선 하나가 떠 있는 시간: pause.base + 글자 수 × pause.per-char 초 (min ~ max), 그다음 줄.
+#
+# 장면 (scenes.<id>):
+#   title: 도감 · 기사 채팅에 보이는 제목
+#   cast: [손님 종류 2~3] (역할 a, b, c 차례). 같은 종류 둘이면 그 종류 손님 둘 (커플 · 유치원생 · 신혼부부는 둘이 같이 탐)
+#   when: (모두 없어도 됨) hours [시작, 끝) 한국 시각 · months [달] · rain: true 비 오는 날 · market: true 장날 · weekend: true 주말
+#         below / above: {역할: 기분} 기분 미만 / 이상 · loud: [역할] 아직 시끄러움 (버릇이 안 멈춤) · dozing: [역할] 졸고 있음
+#         seen: <장면 id> 그 기사가 그 장면을 본 적이 있어야 (이어지는 이야기)
+#   lines: 차례대로 - a: "대사" (또는 - {who: a, line: "대사"})
+#   weight: 고르는 비율 (기본 1)
+#   effect: 장면이 끝나면 (적어도 하나):
+#     quiet: 역할 · [역할]   그 탑승 동안 버릇이 멈춤: 수다 · 통화 · 쩍벌 (chatter), 벨 장난, 과자 부스러기, 건달의 위협 (그 손님만 가능)
+#     pay: 역할 · [역할]     운임을 다 냄: 무임승차 · 운임 깎기 · 건달의 공짜가 안 됨 (그 버릇이 있는 손님만)
+#     mood: {역할|all|others: ±n}   기분 (all 모두, others 장면에 안 나온 손님들)
+#     leave: 역할 · [역할]   다음에 서는 정류장에서 내림 (탄 만큼만 운임)
+#     doze / wake: 역할 · [역할]   꾸벅꾸벅 졸기 시작 (내릴 곳을 지나칠 수 있음) / 잠이 깸 (지나치지 않음)
+#     tip / fare: {역할: 배수}   내릴 때 팁 · 운임 × (fare 0 = 다른 손님이 대신 냄)
+#     calm: n   버스 안 모두 기분 n 이상으로
+#     gift: {item: 아이템, amount: n}   기사에게 선물
+chance: 0.12
+cooldown: 600
+settle: 12
+unseen: 4
+pause:
+  base: 1.6
+  per-char: 0.07
+  min: 2.5
+  max: 5.5
+
+scenes:
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 건달 (thug) 이야기: 기가 죽고, 얌전해지고, 가끔은 사람 냄새
+  thug-wrestler:
+    title: "덩치 앞에서"
+    cast: [thug, wrestler]
+    lines:
+      - a: "어이 덩치, 형님 앉게 좀 비켜 봐"
+      - b: "(천천히 일어선다. 버스가 살짝 기운다)"
+      - a: "……"
+      - b: "앉으시겠습니까?"
+      - a: "아, 아뇨! 형님은… 서서 가는 게 체질이라서요"
+    effect: {quiet: a, pay: a, mood: {others: 4}}
+  thug-police:
+    title: "갑자기 공손"
+    cast: [thug, police]
+    lines:
+      - a: "형님은 공짜지? 기사 양반 장부에 달아 놔~"
+      - b: "(모자를 고쳐 쓰며 돌아본다) 선생님, 방금 뭐라고 하셨죠?"
+      - a: "…요, 요금 내겠다고 했습니다. 카드 찍겠습니다"
+      - b: "협조 감사합니다"
+      - a: "(목걸이를 셔츠 안으로 쓱 넣는다)"
+    effect: {quiet: a, pay: a, mood: {others: 5}}
+  thug-grandma:
+    title: "우리 손주 닮았네"
+    cast: [thug, grandma]
+    lines:
+      - a: "어이 할매, 자리 좀…"
+      - b: "아이고 총각, 우리 손주랑 똑 닮았네. 밥은 묵었나?"
+      - a: "…아뇨, 아직…"
+      - b: "아이고 이거 묵어라, 떡이다 떡. 굶고 다니면 성질만 나빠지는 기라"
+      - a: "(떡을 받아 든다) …잘 먹겠습니다, 할머니"
+    effect: {quiet: a, pay: a, mood: {b: 6}}
+  thug-chicken:
+    title: "닭이 건달을 쫀다"
+    cast: [chicken, thug]
+    lines:
+      - b: "할매, 닭은 짐칸에 실어야지 왜 안고 타"
+      - a: "우리 꼬꼬는 사람이여. 꼬꼬야, 저 아저씨가 니 짐이라 카네"
+      - b: "아야! 야, 이 닭이 지금 형님을 쪼았어?!"
+      - a: "꼬꼬가 사람 볼 줄 안다 아이가. 허허"
+      - b: "(손등을 문지르며 구석으로 간다) …무서운 닭이네"
+    effect: {quiet: b, mood: {a: 5, others: 4}}
+  thug-prankster:
+    title: "아저씨 팔에 용 있다!"
+    cast: [prankster, thug]
+    lines:
+      - a: "(띵동!) 히히, 내리는 사람 없지롱~"
+      - b: "어이 꼬마, 형님 앞에서 벨 장난이야?"
+      - a: "우와! 아저씨 팔에 용 있다! 진짜 용이야?"
+      - b: "…어? 어, 이거 진짜 용이지. 형님이 용띠거든"
+      - a: "멋있다! 나 이제 벨 안 누를게! 대신 용 또 보여 줘!"
+      - b: "(소매를 걷어 준다) …딱 한 번이다"
+    effect: {quiet: [a, b], mood: {a: 8, others: 3}}
+  thug-soldier:
+    title: "형님이 쏜다"
+    cast: [thug, soldier]
+    lines:
+      - a: "어이 군인, 휴가냐?"
+      - b: "네! 그렇습니다!"
+      - a: "크… 형님도 왕년에 각 잡고 그랬지. 기사 양반, 이 친구 차비는 형님이 낸다"
+      - b: "아닙니다! 괜찮습니다!"
+      - a: "괜찮긴, 나라 지키는 사람한테. 충성이다, 충성!"
+    effect: {pay: a, fare: {a: 2, b: 0}, mood: {b: 8, a: 5}}
+  thug-monk:
+    title: "스님의 미소"
+    cast: [thug, monk]
+    lines:
+      - a: "(어깨를 들썩) 뭘 봐요, 스님?"
+      - b: "허허, 어깨가 많이 무거워 보여서요"
+      - a: "…형님 어깨는 원래 넓어서 그래요"
+      - b: "짐을 내려놓으면 더 넓어지지요. 나무아미타불"
+      - a: "(한참 말이 없다) …스님, 그거 어떻게 내려놓는 건데요"
+    effect: {quiet: a, mood: {all: 3}}
+  thug-magician:
+    title: "목걸이가 사라졌다"
+    cast: [thug, magician]
+    lines:
+      - b: "자, 손님! 목에 건 그 목걸이, 잘 보세요~ 하나, 둘, 셋!"
+      - a: "어? 어?! 내 목걸이 어디 갔어?!"
+      - b: "버스 요금을 내시면 돌아옵니다~"
+      - a: "(허겁지겁 카드를 찍는다) 냈어! 냈다고!"
+      - b: "짠! 손님 주머니 속에 있습니다~"
+    effect: {quiet: a, pay: a, mood: {others: 6}}
+  thug-shaman:
+    title: "관재수가 끼었네"
+    cast: [thug, shaman]
+    lines:
+      - b: "(방울을 딸랑) …총각, 올해 관재수가 들었구먼"
+      - a: "과, 관재수? 그게 뭔데요"
+      - b: "나쁜 짓 하면 바로 걸린다는 기여. 차비 같은 거 떼먹으면 특히"
+      - a: "…기사님, 저 요금 냈죠? 안 냈으면 지금 낼게요"
+    effect: {pay: a, mood: {a: -6, b: 4}}
+  thug-gentleman:
+    title: "신사의 품격"
+    cast: [thug, gentleman]
+    lines:
+      - a: "어이 영감님, 그 모자 좀 비싸 보이네?"
+      - b: "허허, 오래된 것이지요. 젊은이 목걸이도 근사합니다"
+      - a: "…그, 그렇죠? 이거 형님이 직접 고른 거예요"
+      - b: "물건을 볼 줄 아는 분은 사람도 볼 줄 알지요. 잘 부탁합니다"
+      - a: "(괜히 넥타이 없는 목을 만진다) …네. 저도 잘 부탁합니다"
+    effect: {quiet: a, mood: {a: 5, b: 3}}
+  thug-kid:
+    title: "형아 그거 진짜 문신이야?"
+    cast: [kid, thug]
+    lines:
+      - a: "형아! 그 팔에 그림 진짜 문신이야?"
+      - b: "당연하지, 형님 문신은 진짜…"
+      - a: "근데 왜 귀퉁이가 벗겨졌어?"
+      - b: "……스티커다. 엄마한테 말하지 마라"
+      - a: "헐! 나도 갖고 싶어!"
+    effect: {quiet: b, mood: {a: 8, others: 4}}
+  thug-ghost:
+    title: "새벽 버스의 손님"
+    cast: [ghost, thug]
+    lines:
+      - b: "(어두운 버스 안을 둘러본다) …어이, 거기 뒤에 누구 있어?"
+      - a: "……여기… 제 자리인데요……"
+      - b: "어? 방금 거기 아무도 없었는데?"
+      - a: "……삼십 년째… 이 자리예요……"
+      - b: "기, 기사님! 저 다음에 내릴게요! 꼭 내릴게요!"
+    effect: {leave: b, mood: {others: 4}}
+  thug-drunk:
+    title: "동생아~"
+    cast: [drunk, thug]
+    lines:
+      - a: "어이~ 동생! 오랜만이다~ (덥석 어깨동무)"
+      - b: "아저씨 누구세요? 이거 놔요"
+      - a: "우리 동생이 이렇게 컸네~ 형이 노래 한 곡 해 줄까~"
+      - b: "아니 됐다니까요… 아 머리 기대지 마요…"
+      - a: "드르렁~ 쿨~"
+      - b: "(꼼짝도 못 하고 굳어 있다) …형님 체면이…"
+    effect: {doze: a, quiet: b}
+  thug-complainer:
+    title: "민원 넣을 거예요"
+    cast: [thug, complainer]
+    lines:
+      - a: "형님은 공짜지? 기사 양반 알지?"
+      - b: "알긴 뭘 알아요? 학생, 이름이 뭐예요? 어느 동네 살아요?"
+      - a: "아니 아줌마, 학생 아니고 형님…"
+      - b: "형님이고 뭐고 다 적을 거예요. 군청에, 경찰서에, 엄마한테!"
+      - a: "엄마한테는 왜요! …내요, 낼게요"
+    effect: {pay: a, quiet: a, mood: {b: 8}}
+  thug-mom:
+    title: "아기가 자요"
+    cast: [thug, mom]
+    lines:
+      - a: "(큰 소리로) 내가 왕년에 말이야~!"
+      - b: "쉿! 아기 방금 잠들었어요"
+      - a: "어… 어, 미안. (속삭이며) …몇 개월이에요?"
+      - b: "칠 개월이요"
+      - a: "(아기를 보고 씩 웃는다) …형님보다 인물 좋네"
+    effect: {quiet: a, mood: {b: 6, all: 2}}
+  thug-santa:
+    title: "착한 아이 명단"
+    cast: [thug, santa]
+    when: {months: [12]}
+    lines:
+      - b: "호호호~ 자네, 올해 착한 아이 명단에 이름이 없더군"
+      - a: "에이, 산타가 어디 있어요. 형님은 그런 거 안 믿어"
+      - b: "그래도 차비를 내면 명단에 올려 주지. 아직 늦지 않았어, 호호"
+      - a: "…진짜요? (주섬주섬 카드를 꺼낸다) 올해 선물 뭐 줘요?"
+    effect: {pay: a, quiet: a, mood: {a: 5, others: 3}}
+  thug-hangover:
+    title: "요즘 되는 일이 없어"
+    cast: [thug, uncle]
+    when: {seen: thug-police}
+    lines:
+      - a: "아저씨… 요즘 형님 되는 일이 하나도 없어요"
+      - b: "왜? 무슨 일 있었어?"
+      - a: "버스만 타면 경찰 있고, 씨름 선수 있고, 닭이 쪼고…"
+      - b: "허허, 그건 착하게 살라는 거야. 일자리 찾나? 우리 공장에 사람 구해"
+      - a: "…진짜요? 형님… 아니 저, 내일 가 봐도 돼요?"
+    effect: {quiet: a, pay: a, mood: {a: 12, b: 5}}
+  thug-univ-wrestler:
+    title: "든든한 뒷자리"
+    cast: [thug, univ, wrestler]
+    lines:
+      - a: "어이 학생, 그 가방 좀 치워 봐. 형님 다리 놓게"
+      - b: "아… 네, 네…"
+      - c: "(뒷자리에서 일어나며) 학생, 그냥 앉아 있어요"
+      - a: "…아 네, 앉아 계세요. 형님이 서서 가죠, 뭐"
+      - b: "(작게) 감사합니다…"
+    effect: {quiet: a, pay: a, mood: {b: 10, c: 3}}
+  thug-phone-police:
+    title: "조용한 버스"
+    cast: [phone, thug, police]
+    lines:
+      - a: "아 뭐라고?! 안 들려!! 크게 말해!!"
+      - b: "어이, 형씨! 목소리 좀 줄여! 형님 귀 아파!"
+      - a: "뭐요?! 당신이 뭔데!!"
+      - c: "두 분 다 조용히 해 주시겠습니까? 다른 승객분들도 계십니다"
+      - b: "…네"
+      - a: "(전화에 대고 속삭인다) 엄마 나중에 전화할게…"
+    effect: {quiet: [a, b], pay: b, mood: {others: 6}}
+  thug-mailman:
+    title: "형님 앞으로 온 편지"
+    cast: [thug, mailman]
+    lines:
+      - b: "어? 혹시 고개 너머 사는 분 아니세요? 마침 편지가 있는데"
+      - a: "형님한테 편지? 누가?"
+      - b: "보내는 사람… 어머님이시네요"
+      - a: "(편지를 받아 들고 한참 본다) …엄니 글씨네"
+      - a: "(창밖을 보며 코를 훌쩍인다) …기사님, 오늘은 조용히 갈게요"
+    effect: {quiet: a, mood: {a: 15}}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 다툼: 누가 누구랑 싸운다
+  rude-complainer:
+    title: "깐깐함 대 막무가내"
+    cast: [rude, complainer]
+    lines:
+      - a: "어이 아줌마, 그 가방 좀 치워"
+      - b: "아줌마? 지금 저한테 반말하셨어요?"
+      - a: "반말이 아니라 원래 말투가 이래"
+      - b: "그럼 저도 원래 민원을 잘 넣어요. 성함이 어떻게 되세요?"
+      - a: "…허, 참. 됐어, 됐어"
+    effect: {mood: {a: -8, b: -6, others: -3}}
+  rude-complainer-gentleman:
+    title: "모자를 벗은 신사"
+    cast: [gentleman, rude, complainer]
+    lines:
+      - b: "아 거 좀 비켜!"
+      - c: "어머, 왜 밀어요?! 사과하세요!"
+      - b: "내가 언제 밀었어!"
+      - a: "(모자를 벗어 들며) 두 분, 오늘 날씨가 참 좋지 않습니까"
+      - a: "이 좋은 날 언성을 높이기엔 아깝지요. 제가 두 분께 사탕을 하나씩 드려도 되겠습니까"
+      - c: "…어머, 고마워요"
+      - b: "…흠, 받지 뭐"
+    effect: {calm: 70, pay: [b, c]}
+  rude-vip:
+    title: "자리 다툼"
+    cast: [vip, rude]
+    lines:
+      - b: "어이, 거기 내 자리야"
+      - a: "자리에 이름이라도 써 있나?"
+      - b: "이 노선 내가 십 년 탔어"
+      - a: "나는 이 노선을 살 수도 있네"
+      - b: "…허, 그럼 사서 혼자 타든가"
+    effect: {mood: {a: -10, b: -6}, tip: {a: 0.5}}
+  fan-fan:
+    title: "응원가 배틀"
+    cast: [fan, fan]
+    when: {hours: [12, 23]}
+    lines:
+      - a: "오늘도 이긴다~ 우리 별빛~ 오오오~!"
+      - b: "어? 별빛? 오늘 상대 우리 천둥인데?"
+      - a: "천둥? 작년 꼴찌? 하하하!"
+      - b: "그 꼴찌한테 3연패 한 팀이 누구더라~?"
+      - a: "…야, 그건 말하지 말자"
+      - b: "…그래, 야구는 사이좋게 보는 거지. 치킨 반반 할래?"
+    effect: {mood: {a: 6, b: 6, others: -4}}
+  fan-fan-police:
+    title: "경기장 아닙니다"
+    cast: [fan, fan, police]
+    when: {hours: [12, 23], seen: fan-fan}
+    lines:
+      - a: "별빛 최강! 별빛 최강!"
+      - b: "천둥! 천둥! 천둥이 친다~!"
+      - a: "너 따라와 봐! 오늘 끝장 보자!"
+      - c: "여기 경기장 아닙니다. 응원은 경기장에서 하시죠"
+      - b: "…네"
+      - a: "…네. (작게) 별빛 최강"
+    effect: {calm: 70, mood: {others: 5}}
+  drunk-complainer:
+    title: "노래는 집에 가서"
+    cast: [drunk, complainer]
+    lines:
+      - a: "(노래한다) 돌아와요~ 부산항에~♪"
+      - b: "아저씨! 여기 노래방 아니에요!"
+      - a: "에이~ 사모님도 한 곡 하시라~ 마이크 받으시라~"
+      - b: "마이크는 무슨! 그 손 치우세요, 그건 손잡이예요!"
+      - a: "그렇구나~ 손잡이구나~ 드르렁…"
+    effect: {doze: a, mood: {b: -5, others: 3}}
+  drunk-complainer-police:
+    title: "댁이 어디세요"
+    cast: [drunk, complainer, police]
+    lines:
+      - a: "기사 양반~ 우리 집 지나갔제? 다시 돌아가자~"
+      - b: "아저씨 때문에 버스가 다 늦어요! 경찰 아저씨, 이 사람 좀!"
+      - c: "선생님, 댁 주소 기억나세요?"
+      - a: "그럼~ 우리 집은~ 별이 빛나는~ 언덕 위에~"
+      - c: "제가 내릴 때 같이 모셔다 드리겠습니다. 다들 진정하시죠"
+    effect: {calm: 65, doze: a}
+  phone-chatty:
+    title: "목소리 대결"
+    cast: [phone, chatty]
+    lines:
+      - a: "아니 그러니까!! 내가 그 돈을!!"
+      - b: "어머 그래서 그 집 며느리가~ (점점 커진다)"
+      - a: "뭐라고?! 옆에 아줌마 때문에 안 들려!!"
+      - b: "아줌마?! 내 목소리가 크다고?! 당신 목소리가 더 크지!"
+      - a: "(둘이 동시에) 아 진짜!!"
+    effect: {mood: {others: -6}}
+  phone-phone:
+    title: "너 이 버스야?"
+    cast: [phone, phone]
+    lines:
+      - a: "어!! 나 지금 버스!! 어디냐고?!"
+      - b: "어!! 나도 버스!! 너 어딘데?!"
+      - a: "나 마을버스 뒷자리!!"
+      - b: "…나도 뒷자리인데?"
+      - a: "(고개를 돌린다) …야."
+      - b: "(전화를 끊는다) …하하, 그냥 얼굴 보고 얘기하자"
+    effect: {quiet: [a, b], mood: {others: 6}}
+  spread-wrestler:
+    title: "쩍벌 대 쩍벌"
+    cast: [spread, wrestler]
+    lines:
+      - a: "(다리를 쫙 벌리고 앉는다)"
+      - b: "(바로 옆에 앉는다. 버스가 기운다)"
+      - a: "어, 저기요… 좀 좁은데…"
+      - b: "아, 죄송합니다. 다리가 원래 이래서요"
+      - a: "(다리를 꼭 모은다) …아뇨, 제가 모을게요"
+    effect: {quiet: a, mood: {others: 4}}
+  vip-chicken:
+    title: "명품 정장에 깃털"
+    cast: [vip, chicken]
+    lines:
+      - b: "꼬꼬야, 얌전히 있어라~"
+      - a: "부인, 그 닭이 지금 내 소매를 보고 있소만"
+      - b: "꼬꼬가 반짝이는 걸 좋아하제~ 단추가 이쁘네"
+      - a: "(깃털이 정장에 붙는다) …이 정장이 얼만 줄 아시오?"
+      - b: "닭털 붙으면 복 들어온다 카이. 감사하이소~"
+    effect: {mood: {a: -12, b: 6}, tip: {a: 0.5}}
+  courier-rider:
+    title: "누가 더 바쁜가"
+    cast: [courier, rider]
+    lines:
+      - a: "오늘 몇 개 남았어요? 나는 아직 백 개"
+      - b: "저는 콜이 쉰 개 밀렸어요"
+      - a: "에이, 배달은 가깝잖아. 택배는 무거워"
+      - b: "택배는 식어도 되잖아요! …앗, 콜 들어왔다. 저 다음에 내려요!"
+    effect: {leave: b, mood: {a: 4}, tip: {b: 1.5}}
+  fisher-haenyeo:
+    title: "물고기는 누가 잘 아나"
+    cast: [fisher, haenyeo]
+    lines:
+      - a: "어제 이따만한 감성돔을 놓쳤지 뭐요"
+      - b: "감성돔이 이따만하면 그건 고래요, 고래"
+      - a: "아 진짜라니까요! 요 앞 갯바위에서!"
+      - b: "그 갯바위 밑에 내가 매일 들어가는데 그런 놈 없어"
+      - a: "…그럼 어디 있어요?"
+      - b: "(씩 웃는다) 따라와 봐요. 이번 한 번만 알려 줄게"
+    effect: {mood: {a: 8, b: 4}, tip: {a: 1.3, b: 1.3}}
+  complainer-vip:
+    title: "불만 동호회"
+    cast: [complainer, vip]
+    lines:
+      - a: "이 버스 의자 너무 딱딱하지 않아요?"
+      - b: "그렇소! 내 말이 그 말이오"
+      - a: "에어컨도 약하고요!"
+      - b: "창문도 뻑뻑하지!"
+      - a: "어머, 말이 통하시네~ 우리 같이 민원 넣어요"
+    effect: {mood: {a: 10, b: 10, others: -5}}
+  phone-office:
+    title: "회의 중이에요"
+    cast: [office, phone]
+    lines:
+      - a: "(작게) 네, 팀장님… 네, 지금 자료…"
+      - b: "아 그래서!! 내가!! 그 새끼한테!!"
+      - a: "…죄송한데 저 지금 회의 중이라서요"
+      - b: "(멈칫) 아, 버스에서 회의를…? 고생 많으시네. (전화를 끊는다)"
+      - a: "(꾸벅) 감사합니다… 네 팀장님, 다시 말씀드리면…"
+    effect: {quiet: b, mood: {a: 6}}
+  mailman-dogwalker:
+    title: "바둑이는 우체부가 싫어"
+    cast: [mailman, dogwalker]
+    lines:
+      - b: "바둑아, 얌전히 있자~"
+      - a: "아이고 귀여워라~ 바둑아 안녕?"
+      - b: "멍! 멍멍! 왈왈!"
+      - a: "…어째서 개들은 다 저만 보면…"
+      - b: "허허, 미안하오. 이 녀석이 빨간 가방만 보면 그래"
+    effect: {mood: {a: -6, others: 3}}
+  kid-prankster:
+    title: "형, 그거 하지 마"
+    cast: [kid, prankster]
+    lines:
+      - b: "(벨에 손을 뻗는다) 히히…"
+      - a: "야, 그거 누르면 기사님 진짜 힘들어. 우리 아빠 버스 기사야"
+      - b: "…진짜?"
+      - a: "응. 맨날 밤에 장난 벨 때문에 속상하대"
+      - b: "(손을 내린다) …안 누를게"
+    effect: {quiet: b, mood: {a: 4, others: 3}}
+  motionsick-crumbs:
+    title: "새우맛 과자 냄새"
+    cast: [motionsick, crumbs]
+    lines:
+      - b: "(봉지를 뜯는다. 바스락) 아저씨도 하나 드실래요? 새우맛!"
+      - a: "(얼굴이 하얘진다) 아… 아니… 괜찮…"
+      - b: "냄새 진짜 좋죠? (봉지를 코앞에 흔든다)"
+      - a: "웁…"
+      - b: "앗! 죄송해요! (얼른 봉지를 가방에 넣는다)"
+    effect: {quiet: b, mood: {a: -12}}
+  motionsick-drunk:
+    title: "울렁울렁 동지"
+    cast: [motionsick, drunk]
+    lines:
+      - b: "어이~ 형씨도 한잔했어? 얼굴이 하얗네~"
+      - a: "아뇨… 저는 그냥 멀미가…"
+      - b: "버스가 빙글빙글 도네~ 그쟈~?"
+      - a: "그 말 하지 마세요… 웁… 저 다음에 내릴게요…"
+    effect: {leave: a, mood: {b: 3}}
+  uncle-office:
+    title: "피곤한 사람은 자야지"
+    cast: [office, uncle]
+    lines:
+      - b: "아이고 젊은 양반, 어디 다녀오는 길이요? 회사? 무슨 회사?"
+      - a: "…네, 그냥 작은 회사요…"
+      - b: "작은 회사가 좋지! 우리 아들도 말이야, 처음엔…"
+      - a: "(눈이 감긴다)"
+      - b: "…아이고 피곤한가 보네. 자, 자요. 내 조용히 있을게"
+    effect: {quiet: b, doze: a}
+  dogwalker-chicken:
+    title: "닭과 개의 눈싸움"
+    cast: [dogwalker, chicken]
+    lines:
+      - a: "바둑아, 저건 닭이야. 짖지 마라"
+      - b: "꼬꼬야, 저건 개다. 쪼지 마라"
+      - a: "(바둑이가 낑낑대며 할아버지 뒤로 숨는다)"
+      - b: "허허, 우리 꼬꼬가 이겼네"
+      - a: "바둑아… 니가 닭한테 지면 어떡하냐…"
+    effect: {mood: {a: -5, b: 6, others: 4}}
+  worker-wrestler:
+    title: "팔씨름 한 판"
+    cast: [worker, wrestler]
+    lines:
+      - a: "형씨 팔뚝 보소. 팔씨름 한 판 하실래요?"
+      - b: "허허, 버스에서요?"
+      - a: "에이 뭐 어때! 자, 준비~ 시작!"
+      - b: "(가볍게 넘긴다) 아, 죄송합니다. 힘 조절을 못 해서"
+      - a: "…형씨, 내일 우리 현장 좀 와 줄래요? 일당 두 배 줄게"
+    effect: {mood: {a: 5, b: 8, others: 3}}
+  hiker-camper:
+    title: "장비 자랑"
+    cast: [hiker, camper]
+    lines:
+      - a: "그 배낭 몇 리터예요? 저는 45리터"
+      - b: "저는 70이요. 의자 두 개에 마시멜로까지"
+      - a: "에이, 산에선 가벼운 게 최고지"
+      - b: "캠핑은 무거운 게 행복이죠"
+      - a: "…그 마시멜로 하나만 주면 인정할게요"
+    effect: {mood: {a: 6, b: 6}}
+  rude-grandma:
+    title: "말을 이쁘게 혀야"
+    cast: [grandma, rude]
+    lines:
+      - b: "어이 기사, 빨리 좀 가!"
+      - a: "아이고 총각, 말을 이쁘게 혀야 복이 오제"
+      - b: "총각? …내 나이가 쉰다섯인데"
+      - a: "내 눈엔 다 총각이여. 우리 막내가 쉰여덟이다"
+      - b: "…네, 어머님. 기사님, 천천히 가셔도 됩니다"
+    effect: {pay: b, mood: {a: 5, b: 4}}
+  rude-soldier:
+    title: "우리 아들도 군대 갔어"
+    cast: [rude, soldier]
+    lines:
+      - a: "어이 군인, 어디 부대야?"
+      - b: "네! 강원도에서 복무 중입니다!"
+      - a: "…우리 아들도 강원도야. 밥은 잘 나오냐?"
+      - b: "네! 잘 나옵니다!"
+      - a: "(괜히 창밖을 본다) …그래. 기사님, 이 친구 팁은 내가 얹어"
+    effect: {pay: a, tip: {b: 1.5}, mood: {a: 10, b: 6}}
+  rude-kinder:
+    title: "안녕하세요 할아버지!"
+    cast: [rude, kinder, kinder]
+    when: {hours: [9, 16]}
+    lines:
+      - a: "(이쑤시개를 물고 인상을 쓴다)"
+      - b: "할아버지 안녕하세요!"
+      - c: "안녕하세요오~!"
+      - a: "…할아버지? (거울을 본다) …그래, 안녕"
+      - b: "할아버지 웃으면 더 멋있어요!"
+      - a: "(입꼬리가 올라간다) …허허, 녀석들"
+    effect: {pay: a, mood: {a: 15, b: 5, c: 5}}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 혼나고 조용해짐
+  grandma-spread:
+    title: "다리 좀 오므리게"
+    cast: [grandma, spread]
+    lines:
+      - b: "(다리를 쫙 벌리고 두 자리를 차지한다)"
+      - a: "아이고 총각, 그 다리 좀 오므리소. 내 앉을 데가 없다"
+      - b: "아 다리가 저려서 그래요…"
+      - a: "저리면 내가 주물러 줄까? 우리 영감도 그 소리 하다 쫓겨났다"
+      - b: "(조용히 다리를 모은다) …죄송합니다"
+    effect: {quiet: b, mood: {a: 5, others: 3}}
+  complainer-phone:
+    title: "통화는 내려서"
+    cast: [complainer, phone]
+    lines:
+      - b: "아 진짜?! 대박!! 하하하하!!"
+      - a: "저기요! 여기 버스예요! 다 들려요!"
+      - b: "(전화를 막으며) 아니 잠깐만 좀…"
+      - a: "잠깐은 뭘 잠깐이에요? 지금 끊어요, 지금!"
+      - b: "…어, 나중에 전화할게. 끊어"
+    effect: {quiet: b, mood: {a: 6, others: 4}}
+  police-prankster:
+    title: "벨은 내릴 때만"
+    cast: [police, prankster]
+    lines:
+      - b: "(띵동!) 히히히~"
+      - a: "꼬마야, 그 벨은 누가 내릴 때 누르는 거야"
+      - b: "…경찰 아저씨다"
+      - a: "장난 벨 누르면 기사님이 매번 서야 해. 그럼 다른 사람들이 늦겠지?"
+      - b: "(벨에서 손을 뗀다) …네. 이제 안 누를게요"
+    effect: {quiet: b, mood: {others: 4}}
+  monk-youtuber:
+    title: "고요한 생방송"
+    cast: [monk, youtuber]
+    lines:
+      - b: "여러분~ 지금 버스 안이에요! 구독 좋아요~!"
+      - a: "시주님, 무엇을 그리 바삐 담으시오?"
+      - b: "아, 방송이요! 스님도 한 말씀 해 주세요!"
+      - a: "…지금 이 순간을 보시오. 화면 말고"
+      - b: "(휴대폰을 내린다) …오늘은 그냥 창밖 볼게요"
+    effect: {quiet: b, mood: {b: 8, all: 2}}
+  gentleman-crumbs:
+    title: "부스러기는 주머니에"
+    cast: [gentleman, crumbs]
+    lines:
+      - b: "(와작와작) (부스러기가 바닥에 떨어진다)"
+      - a: "학생, 그 과자 참 맛있어 보이는군요"
+      - b: "앗, 하나 드릴까요?"
+      - a: "고맙지만 괜찮습니다. 대신 여기 손수건을 드리지요. 부스러기는 여기에"
+      - b: "(얼굴이 빨개진다) …네, 깨끗하게 치울게요"
+    effect: {quiet: b, mood: {a: 3, others: 3}}
+  grandma-phone:
+    title: "엄마한테는 다정하게"
+    cast: [grandma, phone]
+    lines:
+      - b: "아 엄마!! 알았다고!! 밥 먹었다고!!"
+      - a: "총각, 엄니랑 통화하나?"
+      - b: "…네? 네"
+      - a: "엄니한테는 그래 소리 지르는 거 아이다. 다정하게 혀 봐라"
+      - b: "(작게) …엄마, 밥 먹었어. 엄마는? …응. 사랑해"
+    effect: {quiet: b, mood: {a: 8, b: 6, others: 4}}
+  chatty-phone-mom:
+    title: "알고 보니 엄마"
+    cast: [chatty, phone]
+    when: {seen: grandma-phone}
+    lines:
+      - b: "어!! 엄마!! 왜!! 나 버스라니까!!"
+      - a: "(뒷자리에서) 아들! 엄마 여기 있다! 왜 소리를 질러?"
+      - b: "어? 엄마?! 엄마가 왜 이 버스에…"
+      - a: "엄마도 버스 탄다! 그리고 너 지금 버스에서 또 소리 지르지?"
+      - b: "(전화를 끊고 엄마 옆에 앉는다) …아니야"
+    effect: {quiet: [a, b], mood: {others: 8}}
+  mom-youtuber:
+    title: "아기 얼굴은 안 돼요"
+    cast: [mom, youtuber]
+    lines:
+      - b: "어머 아기 너무 귀엽다! 한 컷만~ 여러분 보세요~"
+      - a: "저기요, 아기 얼굴은 찍지 말아 주세요"
+      - b: "아… 죄송해요! 모자이크 할게요"
+      - a: "모자이크 말고 그냥 끄세요"
+      - b: "(카메라를 끈다) …네. 아기야 안녕~"
+    effect: {quiet: b, mood: {a: 5}}
+  police-spread:
+    title: "한 사람에 한 자리"
+    cast: [police, spread]
+    lines:
+      - b: "(무릎이 옆 사람을 툭툭 친다)"
+      - a: "선생님, 다리를 조금만 모아 주시겠습니까"
+      - b: "아니 좁으면 다른 데 앉…"
+      - a: "(조용히 쳐다본다)"
+      - b: "…네. 모을게요"
+    effect: {quiet: b, mood: {others: 5}}
+  student-spread:
+    title: "저 앉아도 돼요?"
+    cast: [student, spread]
+    lines:
+      - a: "저… 아저씨, 저 여기 앉아도 돼요?"
+      - b: "응? 여기 자리 없는데"
+      - a: "아저씨 다리 사이에 한 자리 있는데요…"
+      - b: "(내려다본다) …아 그렇네. (다리를 모은다) 앉아라"
+      - a: "감사합니다!"
+    effect: {quiet: b, mood: {a: 6}}
+  mom-spread:
+    title: "애 업은 엄마에게 자리를"
+    cast: [mom, spread]
+    lines:
+      - a: "(아기를 업고 손잡이를 잡는다) 휴…"
+      - b: "(다리를 벌린 채 휴대폰을 본다)"
+      - a: "아가야 조금만 참자, 곧 내려"
+      - b: "(고개를 든다) …어? 여기 앉으세요! (다리를 모으고 일어선다)"
+      - a: "어머, 고맙습니다"
+    effect: {quiet: b, mood: {a: 10, b: 4}}
+  nurse-kid:
+    title: "버스에서는 작은 목소리"
+    cast: [nurse, kid]
+    lines:
+      - b: "있잖아요! 어제 우리 반에서요! 진짜 웃긴 일이요!"
+      - a: "(눈을 비비며) 우와, 무슨 일인데?"
+      - b: "그게요! 그게! (점점 커진다)"
+      - a: "쉿~ 비밀 이야기처럼 작게 해 줄래? 언니 밤새 일하고 왔거든"
+      - b: "(속삭인다) …그럼 비밀이니까 나중에 해 줄게요"
+    effect: {quiet: b, mood: {a: 8}}
+  complainer-chatty:
+    title: "그거 내 얘긴데요"
+    cast: [complainer, chatty]
+    lines:
+      - b: "그 집 있잖아, 맨날 민원 넣는 아줌마~ 그 집 남편이 글쎄~"
+      - a: "…그 집이 어느 집인데요?"
+      - b: "아 저기 감나무 집~ 맨날 군청에 전화하는~"
+      - a: "그 감나무 집이 우리 집이에요"
+      - b: "……(창밖을 본다) 어머 하늘 예쁘다"
+    effect: {quiet: b, mood: {a: -6, others: 4}}
+  vip-phone:
+    title: "그 통화, 내가 끊어 줄까"
+    cast: [vip, phone]
+    lines:
+      - b: "아 그 돈 언제 줄 거야!! 내가 급하다니까!!"
+      - a: "자네, 얼마나 급한가"
+      - b: "네? 아… 오십만 원이요…"
+      - a: "(명함을 건넨다) 내 회사에 내일 오게. 일자리가 있네. 대신 지금은 조용히"
+      - b: "(전화를 끊는다) …네! 네! 감사합니다!"
+    effect: {quiet: b, mood: {a: 6, b: 12}}
+  soldier-prankster:
+    title: "충성 경례"
+    cast: [soldier, prankster]
+    lines:
+      - b: "(벨에 손을 뻗는다) 히히~"
+      - a: "꼬마야! 경례 할 줄 알아?"
+      - b: "경례? 그게 뭐예요?"
+      - a: "이렇게! 충! 성!"
+      - b: "충! 성! (벨은 잊어버렸다)"
+    effect: {quiet: b, mood: {a: 5, b: 8}}
+  magician-prankster:
+    title: "벨이 사라졌다"
+    cast: [magician, prankster]
+    lines:
+      - b: "(벨을 누르려 한다) 히히~"
+      - a: "어라? 꼬마야, 그 벨 없어졌는데?"
+      - b: "어? 어?! 아까 있었는데?!"
+      - a: "벨 장난을 안 치는 착한 사람한테만 보이는 마법 벨이거든~"
+      - b: "…그럼 나 착하게 있을래요! 진짜로!"
+    effect: {quiet: b, mood: {all: 3}}
+  kinder-prankster:
+    title: "형아 그러면 안 돼요"
+    cast: [kinder, kinder, prankster]
+    when: {hours: [9, 16]}
+    lines:
+      - c: "(띵동!) 히히히, 아무도 안 내리지롱~"
+      - a: "형아! 그러면 안 돼요!"
+      - b: "선생님이 벨은 내릴 때만 누르는 거랬어요!"
+      - c: "…너네 몇 살인데"
+      - a: "일곱 살이요!"
+      - c: "(얼굴이 빨개진다) …알았어. 안 누를게"
+    effect: {quiet: c, mood: {a: 5, b: 5, others: 4}}
+  santa-prankster:
+    title: "장난꾸러기 명단"
+    cast: [santa, prankster]
+    when: {months: [12]}
+    lines:
+      - b: "(띵동!) 메롱~"
+      - a: "호호호~ 꼬마야, 할아버지 수첩에 네 이름이 있구나"
+      - b: "진짜요? 착한 아이 명단이에요?"
+      - a: "음… 지금은 장난꾸러기 쪽이구나. 크리스마스까지 아직 시간은 있단다"
+      - b: "(벨에서 두 손을 뗀다) 나 이제부터 착한 아이!"
+    effect: {quiet: b, mood: {b: 10, all: 3}}
+  uncle-youtuber:
+    title: "오늘의 출연자"
+    cast: [youtuber, uncle]
+    lines:
+      - a: "여러분~ 오늘은 동네 어르신 인터뷰! 아저씨 한 말씀 해 주세요!"
+      - b: "나? 허허, 내가 말이야, 이 동네에 처음 왔을 때…"
+      - b: "그때 이 길이 다 논이었어. 그러고 우리 아들이…"
+      - a: "(삼십 분째) …아저씨, 저 배터리가…"
+      - b: "아이고 미안해라. 다음에 2부 하자고!"
+    effect: {quiet: a, mood: {b: 10}}
+  drunk-police:
+    title: "편히 주무세요"
+    cast: [drunk, police]
+    lines:
+      - a: "(노래한다) 사랑했지만~♪ 그대를~♪"
+      - b: "선생님, 노래 잘하시네요. 그런데 조금 작게 해 주시겠습니까"
+      - a: "아이고 경찰 양반~ 내가 오늘 기분이 좋아서 그래~"
+      - b: "댁에 가셔서 마저 부르세요. 내리실 때 제가 깨워 드릴게요"
+      - a: "그려~ 경찰 양반만 믿는다~ 드르렁~"
+    effect: {doze: a, mood: {others: 4}}
+  student-crumbs:
+    title: "야, 부스러기"
+    cast: [student, crumbs]
+    lines:
+      - b: "(와작와작) 너도 하나 먹을래?"
+      - a: "오 땡큐! …근데 너 의자에 부스러기 장난 아니다"
+      - b: "헐, 진짜네"
+      - a: "다음 사람 앉으면 바지에 다 묻어. 털고 내리자"
+      - b: "(부스러기를 손으로 쓸어 담는다) 오케이~"
+    effect: {quiet: b, mood: {a: 3, b: 3}}
+  grandma-crumbs:
+    title: "개미 온다"
+    cast: [grandma, crumbs]
+    lines:
+      - b: "(바스락바스락)"
+      - a: "아이고 학생, 그래 흘리면 개미가 줄 서서 따라온다"
+      - b: "헉, 진짜요?"
+      - a: "그럼~ 할매가 어릴 때 개미 따라 십 리를 걸었다. (휴지를 건넨다)"
+      - b: "(휴지로 의자를 닦는다) 감사합니다 할머니!"
+    effect: {quiet: b, mood: {a: 4, b: 4}}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 훈훈함
+  student-grandma:
+    title: "할머니!"
+    cast: [student, grandma]
+    lines:
+      - a: "어? 할머니! 할머니도 이 버스 타요?"
+      - b: "아이고 우리 강아지! 학교 가나?"
+      - a: "네! 할머니는 장에 가요?"
+      - b: "그래~ 옛다, 인절미. 기사 양반도 하나 드려라"
+      - a: "(떡을 들고 앞으로 온다) 기사님, 할머니가 드시래요!"
+    effect: {mood: {a: 8, b: 8}, gift: {item: economy:injeolmi, amount: 2}}
+  soldier-mom:
+    title: "휴가 나왔니"
+    cast: [soldier, mom]
+    lines:
+      - a: "여기 앉으십시오!"
+      - b: "어머, 고마워요. 휴가 나왔어요?"
+      - a: "네! 3박 4일입니다!"
+      - b: "우리 남동생도 지금 군대 있어요. 몸 건강히 다녀요"
+      - a: "네! 감사합니다! 아기가 참 예쁩니다!"
+    effect: {mood: {a: 6, b: 10}, tip: {a: 1.5}}
+  interview-uncle:
+    title: "면접 잘 봐"
+    cast: [interview, uncle]
+    lines:
+      - a: "(서류를 꼭 쥐고 중얼거린다) 저의 장점은… 장점은…"
+      - b: "젊은이, 면접 가나?"
+      - a: "네… 세 번째예요. 이번엔 꼭 붙어야 하는데"
+      - b: "넥타이 바로 하고, 웃어. 웃는 사람은 떨어뜨리기 어렵거든"
+      - a: "(넥타이를 고쳐 맨다) …네! 감사합니다, 아저씨!"
+    effect: {mood: {a: 15, b: 5}, tip: {a: 1.5}}
+  interview-grandma:
+    title: "할매가 빌어 줄게"
+    cast: [interview, grandma]
+    lines:
+      - b: "총각, 얼굴이 와 이리 하얗노"
+      - a: "면접 가는 길이라 떨려서요…"
+      - b: "(손을 꼭 잡는다) 할매가 빌어 줄게. 붙는다, 붙어. 우리 손주도 붙었다"
+      - a: "할머니 손 따뜻하네요…"
+      - b: "다녀와서 할매한테 자랑하러 이 버스 또 타라"
+    effect: {mood: {a: 15, b: 6}}
+  interview-gentleman:
+    title: "넥타이 매는 법"
+    cast: [interview, gentleman]
+    lines:
+      - b: "실례합니다만, 넥타이가 조금 돌아갔군요"
+      - a: "아, 유튜브 보고 맨 거라서…"
+      - b: "제가 잠시. (매듭을 다시 맨다) 윈저 노트입니다. 자신감 있어 보이지요"
+      - a: "우와… 진짜 다른 사람 같아요"
+      - b: "원래 그런 사람이었던 겁니다. 다녀오십시오"
+    effect: {mood: {a: 18}, tip: {a: 1.5}}
+  interview-univ:
+    title: "선배의 한마디"
+    cast: [interview, univ]
+    lines:
+      - b: "혹시… 오늘 면접이에요? 저도 내년이라 떨리네요"
+      - a: "네, 세 번째예요"
+      - b: "세 번이나 하셨으면 이제 면접관 마음도 아시겠네요!"
+      - a: "…그렇게 생각하니까 좀 낫네요. 고마워요"
+      - b: "붙으면 후기 꼭 올려 주세요!"
+    effect: {mood: {a: 10, b: 5}}
+  bride-grandma:
+    title: "백년해로하소"
+    cast: [bride, grandma]
+    lines:
+      - a: "(손을 꼭 잡고 앉는다)"
+      - b: "아이고 새색시네. 어제 결혼했나?"
+      - a: "네! 신혼여행 가요~"
+      - b: "백년해로하소. 싸우면 이긴 사람이 먼저 미안타 하는 기다"
+      - a: "이긴 사람이요? 진 사람이 아니고요?"
+      - b: "그래야 둘 다 이긴 기라. 허허"
+    effect: {mood: {a: 10, b: 5}, tip: {a: 1.5}}
+  bride-gentleman:
+    title: "축의금 대신"
+    cast: [bride, bride, gentleman]
+    lines:
+      - c: "실례합니다. 혹시 신혼이십니까?"
+      - a: "네! 어제 식 올렸어요!"
+      - c: "축하드립니다. 축의금 대신 오늘 두 분 차비는 제가 내겠습니다"
+      - b: "어머, 그러지 않으셔도…"
+      - c: "제 아내와 저도 이 노선에서 처음 만났지요. 행복하십시오"
+    effect: {fare: {a: 0, b: 0, c: 3}, mood: {a: 10, b: 10, c: 6}}
+  couple-grandma:
+    title: "둘이 잘 어울리네"
+    cast: [couple, couple, grandma]
+    lines:
+      - a: "자기야, 어깨 빌려줘~"
+      - b: "응~ 여기~"
+      - c: "아이고 둘이 참 잘 어울리네"
+      - a: "헤헤, 감사합니다 할머니"
+      - c: "우리 영감이랑 나도 이 버스에서 처음 손잡았다. 오래오래 잘 살아라"
+    effect: {mood: {a: 8, b: 8, c: 5}, tip: {a: 1.3, b: 1.3}}
+  couple-couple:
+    title: "자기 나 사랑해?"
+    cast: [couple, couple]
+    weight: 0.7
+    lines:
+      - a: "자기 나 사랑해?"
+      - b: "응~ 사랑해~"
+      - a: "얼마나?"
+      - b: "이 버스 종점까지~"
+      - a: "에이~ 그건 너무 가깝잖아~"
+      - b: "그럼 다음 노선까지~♥"
+    effect: {mood: {a: 6, b: 6, others: -3}}
+  santa-kinder:
+    title: "산타 할아버지다!"
+    cast: [santa, kinder, kinder]
+    when: {months: [12], hours: [9, 16]}
+    lines:
+      - b: "어?! 산타 할아버지다!"
+      - c: "진짜 산타 할아버지예요?"
+      - a: "호호호~ 착한 어린이들이구나. 올해 소원이 뭐니?"
+      - b: "저는요! 버스 기사님 될래요!"
+      - a: "그럼 오늘 기사님께 감사 인사를 하렴. 할아버지가 기사님 선물도 두고 갈게, 호호"
+      - c: "기사님 감사합니다아~!"
+    effect: {mood: {all: 6}, gift: {item: economy:hotteok, amount: 2}}
+  santa-grandma:
+    title: "할매도 선물 받나"
+    cast: [santa, grandma]
+    when: {months: [12]}
+    lines:
+      - b: "아이고 빨간 옷 입은 영감님, 추운데 어디 가요?"
+      - a: "호호, 선물 나르러 가지요. 할머님도 올해 착하게 사셨나요?"
+      - b: "내는 평생 착했제. 손주 선물 하나만 넉넉히 주소"
+      - a: "호호호~ 손주 선물은 두 개로 하지요"
+    effect: {mood: {a: 6, b: 12}}
+  dogwalker-kid:
+    title: "바둑이 쓰다듬기"
+    cast: [dogwalker, kid]
+    lines:
+      - b: "우와 강아지다! 만져 봐도 돼요?"
+      - a: "그럼~ 바둑이라고 한단다. 머리부터 살살"
+      - b: "(조심조심 쓰다듬는다) 털이 보들보들해요!"
+      - a: "바둑이도 좋은가 보다. 꼬리 흔드는 거 봐라"
+      - b: "바둑아, 나 내일도 이 버스 탈게!"
+    effect: {mood: {a: 8, b: 10}}
+  dogwalker-kid-again:
+    title: "바둑아 나 기억나?"
+    cast: [kid, dogwalker]
+    when: {seen: dogwalker-kid}
+    lines:
+      - a: "바둑아! 나야 나! 기억나?"
+      - b: "허허, 기억하는가 보다. 꼬리가 빙글빙글 도네"
+      - a: "할아버지, 저 바둑이 주려고 간식 아껴 놨어요!"
+      - b: "고맙구나. 바둑이가 오늘 버스에서 제일 행복한 손님이네"
+    effect: {mood: {a: 12, b: 10, others: 3}}
+  nurse-motionsick:
+    title: "숨 크게 쉬세요"
+    cast: [nurse, motionsick]
+    when: {below: {b: 60}}
+    lines:
+      - b: "(창백한 얼굴로) 웁… 아직 멀었나…"
+      - a: "괜찮으세요? 창문 쪽으로 오세요. 먼 산을 보시고요"
+      - b: "아… 네…"
+      - a: "코로 들이쉬고, 입으로 천천히… 그렇죠. 손목 여기를 지그시 누르세요"
+      - b: "…어? 진짜 좀 나아요. 간호사세요?"
+    effect: {mood: {b: 25, a: 4}}
+  grandma-motionsick:
+    title: "박하사탕 하나"
+    cast: [grandma, motionsick]
+    when: {below: {b: 70}}
+    lines:
+      - a: "아이고 얼굴이 와 이리 노랗노. 멀미하나?"
+      - b: "네… 버스만 타면…"
+      - a: "옛다, 박하사탕. 이거 물고 있으면 속이 시원하다"
+      - b: "(사탕을 문다) …아, 진짜 시원하네요"
+    effect: {mood: {b: 18, a: 3}}
+  gentleman-student:
+    title: "차비는 제가"
+    cast: [gentleman, student]
+    lines:
+      - b: "어… 카드에 잔액이 없다…"
+      - a: "학생, 오늘은 제가 내지요"
+      - b: "앗, 아니에요! 내일 꼭 갚을게요!"
+      - a: "갚으려거든 나중에 다른 학생 차비를 내 주시게. 그렇게 도는 겁니다"
+    effect: {fare: {a: 2, b: 0}, mood: {b: 12, a: 4}}
+  mailman-soldier:
+    title: "엄마 편지"
+    cast: [mailman, soldier]
+    lines:
+      - a: "혹시 저 윗마을 김 일병 아니에요? 마침 집에서 편지가 왔는데"
+      - b: "네! 제가 김 일병입니다!"
+      - a: "이거요. 어머님 글씨가 아주 정성스러우시네요"
+      - b: "(편지를 받아 품에 넣는다) …감사합니다! 휴가 때 읽으려고 했는데…"
+      - a: "그럼 지금 읽으세요. 버스는 천천히 가니까"
+    effect: {mood: {b: 15, a: 5}, tip: {b: 1.5}}
+  mailman-grandma:
+    title: "손주한테서 소포 왔어요"
+    cast: [mailman, grandma]
+    lines:
+      - a: "할머니! 서울 손주한테서 소포 왔어요. 댁에 두고 왔어요"
+      - b: "아이고 우리 손주가? 뭘 보냈을꼬"
+      - a: "꽤 무겁던데요~ 할머니 좋아하시는 거 같던데"
+      - b: "이라고 있을 때가 아이다! 기사 양반, 내 다음에 내릴라요!"
+    effect: {leave: b, mood: {b: 15, a: 5}}
+  haenyeo-tourist:
+    title: "바닷속 이야기"
+    cast: [haenyeo, tourist]
+    lines:
+      - b: "혹시 해녀세요? 우와, 사진 한 장만…"
+      - a: "사진은 바다에서 찍어야 이쁘지. 거기 문어가 내 팔뚝만 해"
+      - b: "진짜요?! 숨은 얼마나 참으세요?"
+      - a: "2분. 근데 이야기하다 보면 숨 쉬는 걸 까먹어. 하하"
+      - b: "여행 와서 제일 멋있는 분 만났어요!"
+    effect: {mood: {a: 6, b: 10}, tip: {b: 1.5}}
+  traveler-market:
+    title: "시장 가는 길"
+    cast: [traveler, market]
+    lines:
+      - a: "저기요… 시장… 이 버스… 맞아요?"
+      - b: "아이고 외국 손님이네! 맞아 맞아, 나 따라와. 나도 시장 가"
+      - a: "감사합니다! 호떡… 어디서 먹어요?"
+      - b: "호떡은 우리 옆집! 내가 하나 사 줄게. 웰컴 투 코리아~"
+      - a: "(꾸벅) 한국 사람 정말 친절해요!"
+    effect: {mood: {a: 15, b: 6}, tip: {a: 1.3}}
+  traveler-student:
+    title: "영어 시간"
+    cast: [traveler, student]
+    lines:
+      - a: "Excuse me… 이 버스… 바다?"
+      - b: "아, 예스! 디스 버스 고우 투 씨! 아 그니까… 바다 가요!"
+      - a: "오~ 영어 잘해요!"
+      - b: "헐, 진짜요? 영어 쌤한테 자랑해야지!"
+      - a: "Thank you, 선생님!"
+    effect: {mood: {a: 10, b: 12}}
+  traveler-uncle:
+    title: "웰컴 투 코리아"
+    cast: [traveler, uncle]
+    lines:
+      - b: "헬로~ 웨얼 아유 프롬?"
+      - a: "아, 저 캐나다요!"
+      - b: "캐나다! 단풍! 우리 동네도 단풍 좋아. 원더풀!"
+      - a: "아저씨 영어 잘해요!"
+      - b: "허허, 내가 왕년에… (그 뒤로 십 분 동안 영어 비슷한 것을 한다)"
+    effect: {mood: {a: 8, b: 10}}
+  tourist-traveler:
+    title: "사진 좀 찍어 주세요"
+    cast: [tourist, traveler]
+    lines:
+      - b: "저기… 사진… 부탁해요?"
+      - a: "물론이죠! 하나, 둘, 김치~!"
+      - b: "김치? 왜 김치?"
+      - a: "웃게 되잖아요! 자 한 번 더, 김치~!"
+      - b: "김치~! 하하, 재밌어요!"
+    effect: {mood: {a: 6, b: 10}, tip: {a: 1.3, b: 1.3}}
+  kid-yeot:
+    title: "엿 한 가락"
+    cast: [kid, yeot]
+    lines:
+      - b: "(가위를 철컥철컥) 엿 사려~ 울릉도 호박엿~"
+      - a: "우와, 그게 뭐예요? 사탕이에요?"
+      - b: "엿이란다. 옛다, 한 가락 맛봐라"
+      - a: "(입에 넣는다) …으음! 으으음!"
+      - b: "허허, 이가 붙어서 말을 못 하는구나"
+    effect: {quiet: a, mood: {a: 10, others: 4}}
+  univ-yeot:
+    title: "엿장수 가락"
+    cast: [univ, yeot]
+    lines:
+      - b: "엿 사려~ 엿~ 찰싹 붙는 합격엿~"
+      - a: "합격엿이요? 저 다음 주 시험인데…"
+      - b: "그럼 공짜다! 시험장 문에 딱 붙여 놔라. 찰싹!"
+      - a: "아저씨 최고! 합격하면 엿 박스로 살게요!"
+    effect: {mood: {a: 12, b: 6}}
+  worker-office:
+    title: "고단한 하루"
+    cast: [worker, office]
+    lines:
+      - a: "(헬멧을 벗으며) 휴… 오늘도 끝났다"
+      - b: "고생 많으셨어요. 저는 이제 야근하러 가요"
+      - a: "아이고, 그쪽이 더 고생이네. 커피 하나 드릴까?"
+      - b: "(캔커피를 받는다) …감사합니다. 덕분에 버틸게요"
+    effect: {mood: {a: 6, b: 8}}
+  farmer-grandma:
+    title: "올해 배 농사"
+    cast: [farmer, grandma]
+    lines:
+      - b: "아이고 김 씨, 올해 배는 어떻노"
+      - a: "말도 마세요 할머니, 알이 주먹만 해요"
+      - b: "그래? 그럼 기사 양반한테 하나 드려라. 맨날 고생하는데"
+      - a: "그럼요! 기사님, 이거 받으세요. 우리 밭 거예요"
+    effect: {mood: {a: 5, b: 5}, gift: {item: economy:pear, amount: 1}}
+  courier-grandma:
+    title: "식혜 한 병"
+    cast: [courier, grandma]
+    lines:
+      - b: "총각, 택배 일 하나? 얼굴이 땀범벅이네"
+      - a: "네, 오늘 백 개 남았어요…"
+      - b: "아이고, 옛다 식혜. 기사 양반 것도 있다"
+      - a: "(벌컥벌컥) 크… 할머니, 오늘 택배는 할머니 댁부터 갈게요!"
+    effect: {mood: {a: 15, b: 5}, gift: {item: economy:sikhye, amount: 1}}
+  univ-grandma:
+    title: "공부 열심히 혀"
+    cast: [univ, grandma]
+    lines:
+      - b: "학생, 대학생이가?"
+      - a: "네, 할머니. 시험 기간이라 도서관 가요"
+      - b: "아이고 장하다. 우리 손주도 대학 다닌다. 옛다, 식혜"
+      - a: "어… 감사합니다! 할머니 덕분에 A 받을게요!"
+    effect: {mood: {a: 10, b: 6}, gift: {item: economy:sikhye, amount: 1}}
+  mom-kinder:
+    title: "까꿍!"
+    cast: [mom, kinder, kinder]
+    when: {hours: [9, 16]}
+    lines:
+      - b: "아기다! 아기야 안녕?"
+      - c: "까꿍! 까꿍!"
+      - a: "어머, 아기가 웃네! 형아 누나들이 좋은가 봐"
+      - b: "아기야, 나중에 우리 유치원 와!"
+    effect: {mood: {all: 5}}
+  mom-grandma:
+    title: "할머니 자장가"
+    cast: [mom, grandma]
+    lines:
+      - a: "(아기가 칭얼거린다) 쉬~ 쉬~ 왜 그래…"
+      - b: "이리 줘 봐라, 할매가 한번 해 보자. 자장자장 우리 아가~♪"
+      - a: "어머, 금방 조용해졌어요…"
+      - b: "애들은 다 안다. 누가 업어 키운 사람인지. 허허"
+    effect: {calm: 75, mood: {a: 8}}
+  hiker-monk:
+    title: "산이 좋아서"
+    cast: [hiker, monk]
+    lines:
+      - a: "스님도 산에 가세요?"
+      - b: "산이 집이지요. 시주님은 어디까지 오르십니까"
+      - a: "오늘은 꼭대기까지요. 백 번째 봉우리예요!"
+      - b: "백 번째라… 올라가는 것만큼 내려오는 것도 귀합니다. 조심히 다녀오십시오"
+    effect: {mood: {a: 10, b: 3}, tip: {a: 1.3}}
+  camper-kid:
+    title: "별 이야기"
+    cast: [camper, kid]
+    lines:
+      - b: "아저씨 배낭 진짜 크다! 뭐 들었어요?"
+      - a: "텐트! 오늘 밤 숲에서 별 보러 가"
+      - b: "별 많이 보여요?"
+      - a: "응, 쏟아질 만큼. 커서 꼭 와 봐. 아저씨가 제일 잘 보이는 자리 알려 줄게"
+    effect: {mood: {a: 6, b: 10}}
+  fisher-kid:
+    title: "놓친 물고기"
+    cast: [fisher, kid]
+    lines:
+      - b: "아저씨 물고기 잡으러 가요?"
+      - a: "그렇지! 어제는 이~만한 걸 놓쳤어"
+      - b: "얼마만 한데요?"
+      - a: "이 버스만 했지! …아니 반만 했나. 아무튼 엄청 컸다"
+      - b: "우와! 오늘은 꼭 잡으세요!"
+    effect: {mood: {a: 8, b: 6}}
+  tardy-office:
+    title: "같이 늦었네"
+    cast: [tardy, office]
+    lines:
+      - a: "아 망했다 망했다… 1교시 시작했다…"
+      - b: "학생도 늦었어? 나도 회의 시작했어"
+      - a: "아저씨도요? 헐…"
+      - b: "그래도 우리 둘이니까 덜 외롭네. 같이 뛰자"
+      - a: "네! 내리자마자 전력 질주!"
+    effect: {mood: {a: 8, b: 8}}
+  tardy-student:
+    title: "지각 동지"
+    cast: [tardy, student]
+    lines:
+      - a: "야! 너도 지각이야?"
+      - b: "어! 너도?! 아 다행이다"
+      - a: "둘이 같이 가면 선생님이 반만 혼내실걸"
+      - b: "그런 법이 어딨냐 ㅋㅋ 근데 맞는 말 같아"
+    effect: {mood: {a: 10, b: 10}}
+  tardy-interview:
+    title: "벨 쟁탈전"
+    cast: [tardy, interview]
+    lines:
+      - a: "(벨에 손을 뻗는다)"
+      - b: "(동시에 벨에 손을 뻗는다)"
+      - a: "아 죄송해요! 저 진짜 급해서!"
+      - b: "저도 급해요, 면접이라… 아니에요, 먼저 누르세요"
+      - a: "그럼 같이 눌러요! 하나 둘 셋!"
+    effect: {mood: {a: 6, b: 6}, tip: {a: 1.2, b: 1.2}}
+  worker-kid:
+    title: "안전모 한번 써 봐"
+    cast: [worker, kid]
+    lines:
+      - b: "아저씨 그 노란 모자 멋있어요!"
+      - a: "이거? 안전모야. 한번 써 볼래?"
+      - b: "(헐렁한 안전모를 쓴다) 우와, 나도 공사장 아저씨다!"
+      - a: "허허, 크면 우리 현장 와라. 반장 시켜 줄게"
+    effect: {mood: {a: 8, b: 10}}
+  soldier-soldier:
+    title: "같은 부대?"
+    cast: [soldier, soldier]
+    when: {weekend: true}
+    lines:
+      - a: "어? 혹시… 몇 사단이십니까?"
+      - b: "오 사단입니다!"
+      - a: "저도 오 사단입니다! 어느 대대…"
+      - b: "설마 3대대? 취사병 박 상병 아십니까?"
+      - a: "제 맞선임입니다! 하하, 세상 좁습니다!"
+    effect: {mood: {a: 10, b: 10}}
+  fan-kid:
+    title: "응원가 배우기"
+    cast: [fan, kid]
+    when: {hours: [12, 23]}
+    lines:
+      - a: "꼬마야, 야구 좋아하니?"
+      - b: "네! 근데 응원가를 몰라요"
+      - a: "아저씨가 알려 줄게. 따라 해! 별빛~ 별빛~ 오오~!"
+      - b: "별빛~ 별빛~ 오오~!"
+      - a: "오, 천재다! 우리 팀 승리 요정 해라"
+    effect: {mood: {a: 8, b: 10, others: -2}}
+  fan-wrestler:
+    title: "응원단장 섭외"
+    cast: [fan, wrestler]
+    when: {hours: [12, 23]}
+    lines:
+      - a: "형님! 혹시 오늘 저녁에 시간 되세요?"
+      - b: "네? 왜 그러십니까"
+      - a: "우리 팀 응원단장 좀! 그 목소리면 상대 투수 떨어요!"
+      - b: "(우렁차게) 이기자~!!"
+      - a: "(버스가 울린다) …최고예요. 오늘 이겼다"
+    effect: {mood: {a: 12, b: 6, others: -2}}
+  magician-kinder:
+    title: "버스 마술 공연"
+    cast: [magician, kinder, kinder]
+    when: {hours: [9, 16]}
+    lines:
+      - a: "자, 어린이 여러분! 이 동전이~ 사라집니다! 짠!"
+      - b: "우와아! 어디 갔어요?"
+      - a: "어디 갔을까~? 바로 여기, 친구 귀 뒤에!"
+      - c: "꺄아! 내 귀에서 돈 나왔다!"
+      - a: "그 돈으로 기사님께 박수! 짝짝짝!"
+    effect: {mood: {all: 5}, tip: {a: 1.3}}
+  magician-grandma:
+    title: "꽃 한 송이"
+    cast: [magician, grandma]
+    lines:
+      - a: "할머님, 손 좀 펴 보시겠어요?"
+      - b: "와, 뭐 줄라꼬?"
+      - a: "하나, 둘, 셋! (손에서 장미가 피어난다)"
+      - b: "아이고 이게 뭐꼬! 영감한테도 못 받아 본 꽃이다!"
+    effect: {mood: {b: 15, a: 5}}
+  magician-phone:
+    title: "전화기가 사라졌다"
+    cast: [magician, phone]
+    lines:
+      - b: "아 그러니까!! 내 말 좀 들어 보라고!!"
+      - a: "손님, 그 전화기 잠깐만요~ 수리수리 마수리!"
+      - b: "어?! 어?! 내 폰 어디 갔어?!"
+      - a: "내리실 때 주머니에 있을 겁니다~ 그때까지 조용히 창밖 감상~"
+      - b: "…와, 진짜 없네. (창밖을 본다) …경치 좋네"
+    effect: {quiet: b, mood: {others: 6}}
+  youtuber-wrestler:
+    title: "천하장사 브이로그"
+    cast: [youtuber, wrestler]
+    lines:
+      - a: "여러분! 지금 씨름 선수님이랑 같은 버스예요! 한 말씀만!"
+      - b: "아, 저요? (손을 흔든다) 안녕하세요…"
+      - a: "버스 손잡이 한 손으로 들 수 있어요?"
+      - b: "그건 기사님이 혼내십니다, 하하"
+      - a: "인성까지 천하장사! 구독 좋아요 꾹~!"
+    effect: {mood: {a: 8, b: 6}}
+  youtuber-traveler:
+    title: "한국 버스 리뷰"
+    cast: [youtuber, traveler]
+    lines:
+      - a: "여러분, 외국인 친구한테 한국 시골 버스 어떤지 물어볼게요!"
+      - b: "버스… 귀여워요! 기사님 친절해요!"
+      - a: "별점 몇 점이에요?"
+      - b: "별 다섯 개! 아니 여섯 개!"
+    effect: {mood: {a: 6, b: 8}, tip: {b: 1.3}}
+  grandma-youtuber:
+    title: "할매도 방송 나가나"
+    cast: [grandma, youtuber]
+    lines:
+      - b: "여러분~ 버스에서 만난 할머님! 인사해 주세요!"
+      - a: "이게 방송이가? 아이고, 우리 손주도 보나?"
+      - b: "그럼요! 손주한테 한 말씀!"
+      - a: "(카메라에 바짝) 민수야! 밥 잘 챙겨 묵고! 할매 보고 싶으면 전화해라!"
+      - b: "아 진짜 감동… 조회수 백만 간다"
+    effect: {mood: {a: 10, b: 10}}
+  chatty-grandma:
+    title: "동네 소식통"
+    cast: [chatty, grandma]
+    lines:
+      - a: "할머니 그거 들었어요? 윗집 감나무 집 며느리가 글쎄~"
+      - b: "뭐라꼬? 와, 무슨 일이고"
+      - a: "쌍둥이래요, 쌍둥이!"
+      - b: "아이고 경사네 경사! 내 미역 한 단 갖다 줘야겄다"
+    effect: {mood: {a: 6, b: 10, others: -2}}
+  chatty-market:
+    title: "장날 수다"
+    cast: [chatty, market]
+    when: {market: true}
+    lines:
+      - b: "언니! 오늘 고등어 싸대요!"
+      - a: "어머 진짜? 근데 그 생선 가게 사장님 이번에 장가간대~"
+      - b: "그 노총각이? 어머어머!"
+      - a: "그래서 오늘 떨이로 판대잖아~ 축하 세일!"
+      - b: "그럼 두 손 무겁게 가야겠네~"
+    effect: {mood: {a: 6, b: 8, others: -3}}
+  farmer-market:
+    title: "장날 시세"
+    cast: [farmer, market]
+    when: {market: true}
+    lines:
+      - b: "아저씨, 올해 고추 한 근에 얼마 받아요?"
+      - a: "작년보다 조금 더 받아야지. 올해 비가 많아서"
+      - b: "그럼 우리 가게에 바로 넘겨요. 장에서 팔면 자릿세 나가잖아"
+      - a: "오, 그거 좋네. 계약이다! (악수)"
+    effect: {mood: {a: 8, b: 8}, tip: {a: 1.3}}
+  farmer-chicken:
+    title: "우리 꼬꼬는 안 판다"
+    cast: [farmer, chicken]
+    lines:
+      - a: "할머니, 그 닭 실하네요. 얼마면 파실래요?"
+      - b: "우리 꼬꼬를? 안 팔아. 이 녀석이 우리 집 가장이여"
+      - a: "가장이요?"
+      - b: "알을 하루에 하나씩 꼬박꼬박 낳제. 영감보다 낫다"
+      - a: "하하, 그럼 가장님께 인사드려야겠네요"
+    effect: {mood: {a: 5, b: 8}}
+  bungeo-kid:
+    title: "붕어빵 한 마리"
+    cast: [bungeo, kid]
+    when: {months: [11, 12, 1, 2], hours: [15, 23]}
+    lines:
+      - b: "(킁킁) 어? 어디서 붕어빵 냄새 나요!"
+      - a: "허허, 코가 좋구나. 장사 끝나고 남은 거 하나 줄까?"
+      - b: "진짜요? 팥이에요, 슈크림이에요?"
+      - a: "그건 먹어 봐야 알지~ 기사님 것도 하나 있다"
+    effect: {mood: {b: 12, a: 5}, gift: {item: economy:hotteok, amount: 1}}
+  bungeo-office:
+    title: "퇴근길 간식"
+    cast: [bungeo, office]
+    when: {months: [11, 12, 1, 2], hours: [15, 23]}
+    lines:
+      - b: "혹시… 붕어빵 장사하세요?"
+      - a: "그렇지요~ 오늘은 끝났는데, 남은 거 있어요"
+      - b: "다 주세요. 오늘 야근하는 팀원들 주게요"
+      - a: "아이고 좋은 팀장님이네~ 두 마리 더 얹어 줄게요"
+    effect: {mood: {a: 10, b: 10}, tip: {b: 1.3}}
+  bungeo-yeot:
+    title: "간식 장수 회담"
+    cast: [bungeo, yeot]
+    when: {months: [11, 12, 1, 2], hours: [15, 23]}
+    lines:
+      - b: "어이 붕어빵 양반, 요즘 장사 어떠시오?"
+      - a: "겨울엔 붕어빵이지! 엿 장사는 어때요?"
+      - b: "수능 철엔 엿이지! 하하"
+      - a: "그럼 우리 내년엔 같이 붕어엿 내 볼까요?"
+      - b: "…그거 대박이다"
+    effect: {mood: {a: 8, b: 8, others: 3}}
+  shaman-ghost:
+    title: "가실 길이 멀구먼"
+    cast: [shaman, ghost]
+    lines:
+      - a: "(방울이 저절로 울린다) …딸랑. 뒤에 계신 양반, 오늘은 어디 가시오"
+      - b: "……집에요…… 삼십 년 전 집에……"
+      - a: "그 집은 이제 없을 텐데. 그래도 가 보시게. 내 가는 길 밝혀 드리리다"
+      - b: "……고맙습니다…… 처음이에요, 말 걸어 준 사람……"
+    effect: {mood: {b: 25, a: 5}}
+  ghost-drunk:
+    title: "새벽 술친구"
+    cast: [drunk, ghost]
+    lines:
+      - a: "어이~ 형씨~ 얼굴이 왜 이리 허옇노~ 한잔해야겄다~"
+      - b: "……저는…… 술을 못 마셔요……"
+      - a: "에이~ 사나이가~ 그럼 노래라도 한 곡 하자~"
+      - b: "……삼십 년 전 노래밖에…… 몰라요……"
+      - a: "딱 좋네~ 나도 그것밖에 몰라~ 드르렁…"
+    effect: {doze: a, mood: {b: 15}}
+  ghost-police:
+    title: "새벽 순찰"
+    cast: [police, ghost]
+    lines:
+      - a: "새벽에 혼자 다니시면 위험합니다. 댁이 어디세요?"
+      - b: "……저 고개 너머요……"
+      - a: "(돌아보니 발이 안 보인다) …어? 조, 조심히 가십시오!"
+      - b: "……경찰 아저씨는…… 착하네요……"
+    effect: {mood: {a: -5, b: 15}}
+  dogwalker-ghost:
+    title: "바둑이가 보는 것"
+    cast: [dogwalker, ghost]
+    lines:
+      - a: "바둑아, 왜 자꾸 빈자리를 보고 꼬리를 흔드냐?"
+      - b: "……(바둑이를 쓰다듬는다)……"
+      - a: "(바둑이가 행복하게 누워 버린다) …허허, 거기 누가 있나 보구나"
+      - b: "……저도 옛날에…… 바둑이 같은 개가 있었어요……"
+    effect: {mood: {a: 6, b: 20}}
+  monk-shaman:
+    title: "종교 회담"
+    cast: [monk, shaman]
+    lines:
+      - b: "스님, 오늘도 산에 가시오?"
+      - a: "보살님은 굿 하러 가십니까"
+      - b: "굿은 무슨, 오늘은 장 보러 가요. 신령님도 밥은 드셔야지"
+      - a: "허허, 부처님도 공양은 드시지요"
+      - b: "그럼 우리 오늘 버스 기사님 복은 반씩 빌어 줍시다"
+    effect: {mood: {all: 4}, tip: {a: 1.3, b: 1.3}}
+  shaman-vip:
+    title: "재물운"
+    cast: [shaman, vip]
+    lines:
+      - a: "(VIP를 빤히 본다) …양반, 재물운이 아주 넘치는구먼"
+      - b: "흠, 잘 아는군"
+      - a: "근데 넘치는 건 흘려야 다시 차는 법이여. 오늘 누구한테 베풀었소?"
+      - b: "…베풀라고? (주머니를 뒤진다) 기사 양반, 오늘 팁은 넉넉히 주지"
+    effect: {mood: {b: 6}, tip: {b: 1.5}}
+  vip-grandma:
+    title: "할머니 앞의 회장님"
+    cast: [vip, grandma]
+    lines:
+      - a: "흠, 이 의자는 영…"
+      - b: "아이고 양반, 넥타이 삐뚤어졌네. 이리 와 봐라"
+      - a: "아니 저는 괜찮…"
+      - b: "(넥타이를 바로 매 준다) 됐다, 훤하네. 우리 아들 같다"
+      - a: "(귀가 빨개진다) …감사합니다, 어머님"
+    effect: {mood: {a: 15, b: 5}, tip: {a: 1.3}}
+  vip-yeot:
+    title: "엿판째로"
+    cast: [vip, yeot]
+    lines:
+      - b: "엿 사려~ 달달한 호박엿~"
+      - a: "…어릴 적에 먹던 그 엿인가"
+      - b: "그렇지요! 한 가락 하실라우?"
+      - a: "(지갑을 연다) 판째로 주게. 기사 양반도 하나 들고"
+      - b: "아이고 회장님, 오늘 장사 끝!"
+    effect: {mood: {a: 12, b: 15}, tip: {a: 1.5}}
+  gentleman-complainer:
+    title: "불만이 없는 날"
+    cast: [gentleman, complainer]
+    lines:
+      - b: "기사님, 이 버스 몇 분 늦은 줄 아…"
+      - a: "부인, 그 머플러 참 고운 색입니다"
+      - b: "…어머, 그래요? 딸이 사 준 거예요"
+      - a: "따님이 안목이 있으시군요. 부인을 닮았나 봅니다"
+      - b: "(웃는다) 호호… 기사님, 오늘은 천천히 가셔도 돼요"
+    effect: {pay: b, mood: {b: 15, a: 3}}
+  complainer-traveler:
+    title: "외국인 눈에는"
+    cast: [complainer, traveler]
+    lines:
+      - a: "이 버스는 왜 이렇게 덜컹거려요, 정말"
+      - b: "덜컹덜컹… 재밌어요! 놀이기구 같아요!"
+      - a: "…놀이기구?"
+      - b: "한국 버스 최고예요! 창밖도 예쁘고요!"
+      - a: "(창밖을 본다) …그러고 보니 단풍이 곱네"
+    effect: {mood: {a: 12, b: 6}}
+  dodger-police:
+    title: "뒷문은 안 됩니다"
+    cast: [dodger, police]
+    lines:
+      - a: "(뒷문 쪽으로 슬금슬금 간다)"
+      - b: "청년, 카드 찍으셨습니까?"
+      - a: "아… 찍은 것 같은데… 아 안 찍었네요! 하하"
+      - b: "앞문에서 찍고 오시죠"
+      - a: "(터덜터덜 앞으로 간다) …삑"
+    effect: {pay: a, mood: {others: 4}}
+  dodger-complainer:
+    title: "다 봤어요"
+    cast: [dodger, complainer]
+    lines:
+      - a: "(모자를 눌러쓰고 카드를 찍는 척한다)"
+      - b: "학생, 방금 카드 안 찍었죠? 다 봤어요"
+      - a: "네? 찍었는데요…"
+      - b: "삑 소리가 안 났잖아요. 나 이 노선 십 년 탔어요"
+      - a: "…찍을게요"
+    effect: {pay: a, mood: {b: 8}}
+  dodger-grandma:
+    title: "카드 없나"
+    cast: [dodger, grandma]
+    lines:
+      - a: "(카드를 찾는 척) 아 카드가 어디 갔지…"
+      - b: "총각 카드 없나? 할매가 찍어 줄게"
+      - a: "아, 아뇨! 할머니가 왜요!"
+      - b: "다 큰 총각이 차비 없으면 서럽제. 할매는 괜찮다"
+      - a: "(얼굴이 빨개진다) …여기 있네요, 카드. 제가 낼게요"
+    effect: {pay: a, mood: {a: 5, b: 5}}
+  dodger-gentleman:
+    title: "다음엔 제가"
+    cast: [dodger, gentleman]
+    lines:
+      - a: "(뒷문을 힐끔거린다)"
+      - b: "청년, 요즘 많이 힘든가 봅니다"
+      - a: "…네? 아, 아니요"
+      - b: "힘들 땐 힘들다 하는 것도 용기지요. 차비는 제가 내리다"
+      - a: "…아니에요. 제가 낼게요. 다음엔… 제가 누구 차비 내 줄게요"
+    effect: {pay: a, mood: {a: 10, b: 5}}
+  crumbs-dogwalker:
+    title: "바둑이 청소부"
+    cast: [crumbs, dogwalker]
+    lines:
+      - a: "(과자 부스러기를 잔뜩 흘린다)"
+      - b: "허허, 바둑아 안 된다… 바둑아!"
+      - a: "어? 강아지가 부스러기를 다 먹었어요!"
+      - b: "이 녀석이 버스 청소부구나. 학생, 이제 안 흘려도 되겠다"
+      - a: "헤헤, 고마워 바둑아!"
+    effect: {quiet: a, mood: {a: 6, b: 5}}
+  police-kinder:
+    title: "경찰 아저씨 충성!"
+    cast: [police, kinder, kinder]
+    when: {hours: [9, 16]}
+    lines:
+      - b: "경찰 아저씨다! 충성!"
+      - c: "충성!"
+      - a: "(웃으며 경례한다) 충성! 버스에서는 손잡이 꼭 잡기, 약속?"
+      - b: "약속!"
+    effect: {mood: {all: 4}}
+  police-dogwalker:
+    title: "바둑이 순경"
+    cast: [police, dogwalker]
+    lines:
+      - b: "바둑아, 경찰 아저씨한테 인사해야지"
+      - a: "(쪼그려 앉는다) 바둑아 안녕. 너 경찰견 해 볼래?"
+      - b: "허허, 이 녀석은 간식 냄새만 잘 맡아"
+      - a: "그것도 재능입니다! 우리 서에 마약 탐지견도 간식으로 일해요"
+    effect: {mood: {a: 6, b: 8}}
+  student-uncle-wake:
+    title: "학생, 내릴 데 아이가"
+    cast: [uncle, student]
+    when: {dozing: [b]}
+    lines:
+      - b: "(꾸벅꾸벅 존다) …Zz"
+      - a: "어이 학생! 학생! 학교 앞 아이가?"
+      - b: "헉! 네?! 어디예요?!"
+      - a: "다음이 학교다. 일어나라, 지각한다"
+      - b: "감사합니다 아저씨! 큰일 날 뻔했어요!"
+    effect: {wake: b, mood: {b: 6}}
+  nurse-office-wake:
+    title: "도착하면 깨워 드릴게요"
+    cast: [nurse, office]
+    when: {dozing: [b]}
+    lines:
+      - b: "(넥타이를 맨 채 고개를 떨군다)"
+      - a: "…회사원분, 혹시 어디서 내리세요?"
+      - b: "(번쩍) 헉, 제가 잤어요?"
+      - a: "네, 많이 피곤하신가 봐요. 정류장 지나치실 것 같아서"
+      - b: "감사합니다… 오늘 처음으로 누가 저를 챙겨 주네요"
+    effect: {wake: b, mood: {b: 10, a: 3}}
+  grandma-univ-doze:
+    title: "할매 어깨에 기대라"
+    cast: [grandma, univ]
+    lines:
+      - b: "(밤샘 과제로 눈이 퀭하다)"
+      - a: "학생, 밤새웠나? 눈이 토끼 눈이네"
+      - b: "네… 과제가…"
+      - a: "할매 어깨 빌려줄게. 내릴 데 되면 깨워 주께"
+      - b: "(기대자마자 잠든다) …Zz"
+    effect: {doze: b, mood: {b: 12, a: 4}}
+  student-grandma-rain:
+    title: "우산 같이 써요"
+    cast: [student, grandma]
+    when: {rain: true}
+    lines:
+      - b: "아이고 비 온다. 우산을 안 갖고 왔네"
+      - a: "할머니, 저 우산 있어요! 내리시는 데까지 같이 써요"
+      - b: "학생은 어쩌고?"
+      - a: "저는 뛰면 돼요! 저 달리기 반 일등이에요!"
+      - b: "아이고 착하기도 하지. 복 받을 거다"
+    effect: {mood: {a: 8, b: 15}}
+  office-tardy-rain:
+    title: "비 오는 날의 우산"
+    cast: [office, tardy]
+    when: {rain: true}
+    lines:
+      - b: "아 비 오는데 우산도 없고 지각이고… 최악이다"
+      - a: "(장우산을 내민다) 이거 가져가. 회사에 우산 많아"
+      - b: "네? 진짜요? 언제 돌려드려요?"
+      - a: "다음에 누가 비 맞고 있으면 그 사람 줘"
+    effect: {mood: {b: 15, a: 5}}
+  courier-rain:
+    title: "비 맞은 택배"
+    cast: [courier, market]
+    when: {rain: true}
+    lines:
+      - a: "(흠뻑 젖은 채로 탄다) 휴… 상자는 안 젖었다"
+      - b: "아이고 총각, 사람이 젖었잖아! 수건 여기 있다"
+      - a: "괜찮아요, 금방 마르는데요"
+      - b: "감기 걸리면 택배는 누가 날라? 닦아, 닦아"
+    effect: {mood: {a: 12, b: 4}}
+  hiker-rain:
+    title: "산에 비 오면"
+    cast: [hiker, farmer]
+    when: {rain: true}
+    lines:
+      - a: "아… 비 오네. 오늘 산은 틀렸다"
+      - b: "농사엔 단비요, 단비. 올해 고구마 달겠다"
+      - a: "그럼 오늘은 산 말고 아저씨 밭 구경 가도 돼요?"
+      - b: "허허, 일손 하나 생겼네! 오세요!"
+    effect: {mood: {a: 6, b: 8}}
+  couple-rain:
+    title: "우산은 하나"
+    cast: [couple, couple]
+    when: {rain: true}
+    lines:
+      - a: "자기야, 우산 하나밖에 없어"
+      - b: "그럼 같이 쓰면 되지~"
+      - a: "자기 어깨 다 젖잖아"
+      - b: "자기만 안 젖으면 돼~♥"
+    effect: {mood: {a: 8, b: 8, others: -2}}
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # 별난 · 웃긴 장면
+  chicken-magician:
+    title: "닭이 비둘기로?"
+    cast: [magician, chicken]
+    lines:
+      - a: "할머님, 그 닭을 비둘기로 바꿔 드릴까요?"
+      - b: "뭐라꼬? 안 돼! 우리 꼬꼬는 알을 낳는다 카이"
+      - a: "그럼 비둘기를 닭으로! 짠! (모자에서 병아리가 나온다)"
+      - b: "아이고 이게 뭐꼬! 꼬꼬야, 니 동생 생겼다!"
+    effect: {mood: {all: 4}}
+  chicken-kid:
+    title: "꼬꼬 만져 봐도 돼요?"
+    cast: [chicken, kid]
+    lines:
+      - b: "할머니 닭 진짜예요? 만져 봐도 돼요?"
+      - a: "살살 만져라. 꼬꼬가 낯을 가린다"
+      - b: "(손을 뻗는다) …꼬꼬야 안녕?"
+      - a: "꼬꼬댁! (날개를 푸드덕)"
+      - b: "으악! 나 닭한테 인사 받았어!"
+    effect: {mood: {a: 6, b: 10, others: 2}}
+  chicken-dogwalker-truce:
+    title: "닭과 개의 화해"
+    cast: [chicken, dogwalker]
+    when: {seen: dogwalker-chicken}
+    lines:
+      - b: "할매, 지난번엔 우리 바둑이가 꼬꼬한테 졌지요"
+      - a: "허허, 오늘은 사이좋게 가자"
+      - b: "(바둑이가 꼬꼬 옆에 조심조심 눕는다)"
+      - a: "(꼬꼬가 바둑이 등에 올라앉는다) 아이고, 이게 웬 일이고!"
+      - b: "닭이 개를 타고 가네… 허허, 오래 살고 볼 일이여"
+    effect: {mood: {all: 6}}
+  youtuber-chicken:
+    title: "닭 먹방 아닙니다"
+    cast: [youtuber, chicken]
+    lines:
+      - a: "여러분~ 오늘의 버스 친구는 닭! 혹시 오늘 저녁…"
+      - b: "뭐라꼬? 우리 꼬꼬 앞에서 무슨 소리고!"
+      - a: "아, 아니요! 닭 키우는 브이로그요! 먹방 아니에요!"
+      - b: "그럼 됐다. 꼬꼬야, 저 총각한테 인사해라"
+      - a: "(꼬꼬가 카메라를 쫀다) 으악, 렌즈! 렌즈!"
+    effect: {quiet: a, mood: {b: 6, others: 4}}
+  youtuber-thug:
+    title: "얼굴은 모자이크"
+    cast: [youtuber, thug]
+    lines:
+      - a: "여러분, 지금 버스에 완전 무서운 형님이… 아 들렸나"
+      - b: "어이, 지금 형님 찍냐?"
+      - a: "아, 아니요! 그, 그냥 풍경…"
+      - b: "…잘 나왔어? 왼쪽 얼굴로 찍어. 형님 왼쪽이 더 잘생겼어"
+      - a: "(떨리는 손으로) …네, 왼쪽으로 찍겠습니다"
+    effect: {quiet: a, mood: {b: 8, a: -4}}
+  phone-uncle:
+    title: "통화를 엿들은 아저씨"
+    cast: [phone, uncle]
+    lines:
+      - a: "아 그 김 사장이!! 돈을 안 준다니까!!"
+      - b: "김 사장? 혹시 저 건너 철물점 김 사장?"
+      - a: "…어? 아세요?"
+      - b: "알지! 내 고등학교 동창이여. 내가 전화 한 통 넣어 주지"
+      - a: "(전화를 끊는다) …아저씨, 진짜요? 아이고 형님!"
+    effect: {quiet: a, mood: {a: 12, b: 5}}
+  kid-kid-prank:
+    title: "벨 누를 사람 가위바위보"
+    cast: [kid, prankster]
+    when: {seen: kid-prankster}
+    lines:
+      - b: "야, 우리 가위바위보 해서 진 사람이 벨 누르기 할래?"
+      - a: "그건 안 된다니까. 대신 내리는 정류장 맞히기 하자"
+      - b: "오, 그거 재밌겠다! 다음은… 느티나무 아래!"
+      - a: "땡! 네가 졌으니까 이번 판은 벨 금지!"
+    effect: {quiet: b, mood: {a: 5, b: 5}}
+  univ-traveler:
+    title: "번역기 대화"
+    cast: [univ, traveler]
+    lines:
+      - b: "(휴대폰을 내민다) '이 버스는 해변 가나요?'"
+      - a: "(번역기에 대고) '네, 세 정류장 뒤에 내리세요'"
+      - b: "(번역기를 본다) …'세 마리의 정류장이 당신을 내립니다'?"
+      - a: "하하! 아니에요! 쓰리 스톱! 쓰리!"
+      - b: "아~ 쓰리! 땡큐!"
+    effect: {mood: {a: 6, b: 10}}
+  haenyeo-grandma:
+    title: "물질 육십 년"
+    cast: [haenyeo, grandma]
+    lines:
+      - b: "아이고 물질 가나? 춥지도 않나"
+      - a: "할머니, 저 열다섯부터 들어갔어요. 이제 바다가 더 따뜻해요"
+      - b: "장하다. 내 어릴 적엔 우리 엄니도 해녀였다"
+      - a: "그럼 오늘 건진 전복 하나 할머니 몫이에요"
+    effect: {mood: {a: 6, b: 12}}
+  fisher-fisher:
+    title: "월척 허풍 대결"
+    cast: [fisher, fisher]
+    lines:
+      - a: "어제 저 앞 방파제에서 이따만한 놈을 낚았는데 말이요"
+      - b: "그 정도면 새끼네. 나는 그놈 어미를 놓쳤소"
+      - a: "어미? 그럼 나는 할애비를 봤소"
+      - b: "…그 할애비가 내 낚싯대를 끌고 갔지"
+      - a: "…우리 오늘 같이 가서 그 집안 좀 만나 봅시다"
+    effect: {mood: {a: 8, b: 8, others: 3}}
+  hiker-hiker:
+    title: "정상에서 만나요"
+    cast: [hiker, hiker]
+    lines:
+      - a: "오늘 어느 코스로 가세요?"
+      - b: "능선 코스요. 세 시간"
+      - a: "저는 계곡 코스! 누가 먼저 정상 가나 내기할래요?"
+      - b: "좋아요! 진 사람이 막걸리!"
+    effect: {mood: {a: 6, b: 6}, tip: {a: 1.2, b: 1.2}}
+  camper-camper:
+    title: "옆 텐트 이웃"
+    cast: [camper, camper]
+    lines:
+      - a: "혹시 오늘 숲속 캠핑장 가세요?"
+      - b: "네! 7번 사이트요"
+      - a: "저 8번이에요! 그럼 이웃이네요"
+      - b: "오늘 밤 마시멜로 나눠 먹어요!"
+    effect: {mood: {a: 8, b: 8}}
+  nurse-nurse:
+    title: "같은 병동"
+    cast: [nurse, nurse]
+    lines:
+      - a: "선생님도 이제 출근이세요?"
+      - b: "아니요, 이제 퇴근… 밤 근무였어요"
+      - a: "고생하셨어요. 302호 할머니는 잘 주무셨어요?"
+      - b: "네, 새벽에 선생님 찾으셨어요. 사탕 주신대요"
+      - a: "(피곤한 얼굴로 웃는다) …오늘도 힘내야겠다"
+    effect: {mood: {a: 10, b: 10}}
+  rider-tardy:
+    title: "배달 기사의 조언"
+    cast: [rider, tardy]
+    lines:
+      - b: "아 늦었다… 학교까지 10분 남았는데…"
+      - a: "학생, 어느 학교야?"
+      - b: "느티나무 중학교요!"
+      - a: "그럼 두 정거장 먼저 내려서 시장 골목으로 뛰어. 내가 매일 배달 다니는 지름길이야"
+      - b: "헐, 감사합니다! 저 다음에 내릴게요!"
+    effect: {leave: b, mood: {b: 10}, tip: {b: 1.5}}
+  rider-office:
+    title: "식기 전에"
+    cast: [rider, office]
+    lines:
+      - b: "혹시 배달하세요? 저 아까 짜장면 시켰는데…"
+      - a: "혹시 별빛 아파트 302호?"
+      - b: "네! 그거 저예요!"
+      - a: "(배달통을 연다) 여기서 받으세요! 아직 따뜻해요"
+      - b: "…버스에서 짜장면 받는 건 처음이네요"
+    effect: {mood: {a: 10, b: 10}, tip: {a: 1.5}}
+  courier-mailman:
+    title: "배달의 선후배"
+    cast: [courier, mailman]
+    lines:
+      - a: "우체부님, 이 동네 몇 년 도셨어요?"
+      - b: "이십 년이요. 문패만 봐도 누가 사는지 알지요"
+      - a: "와… 저는 아직 개한테 맨날 물려요"
+      - b: "개는 이름을 불러 줘요. 감나무 집 개는 '복실이'예요"
+      - a: "메모해야겠다! 선배님 최고!"
+    effect: {mood: {a: 10, b: 6}}
+  mailman-santa:
+    title: "산타한테 온 편지"
+    cast: [mailman, santa]
+    when: {months: [12]}
+    lines:
+      - a: "혹시… 산타 할아버지 맞으시죠? 이 편지들 다 받는 분 앞으로 왔는데"
+      - b: "호호호, 올해도 많구나"
+      - a: "주소가 '굴뚝 있는 집'이라 배달을 못 했어요"
+      - b: "걱정 말게, 할아버지가 다 읽지. 자네 소원도 하나 적어 두게"
+    effect: {mood: {a: 12, b: 6}}
+  santa-kid:
+    title: "산타 할아버지 진짜예요?"
+    cast: [santa, kid]
+    when: {months: [12]}
+    lines:
+      - b: "할아버지, 진짜 산타예요? 수염 당겨 봐도 돼요?"
+      - a: "호호호~ 살살 당기렴"
+      - b: "(당긴다) …진짜 수염이다!"
+      - a: "그럼~ 올해 착하게 지냈니?"
+      - b: "네! 벨 장난도 한 번밖에 안 쳤어요!"
+    effect: {mood: {a: 6, b: 12}}
+  santa-thug-gift:
+    title: "형님도 선물 받나"
+    cast: [santa, thug]
+    when: {months: [12], seen: thug-santa}
+    lines:
+      - b: "…산타 할아버지, 형님 그때 차비 냈는데요. 명단 올라갔어요?"
+      - a: "호호, 그럼그럼. 그래서 자네 선물을 가져왔지"
+      - b: "(포장을 뜯는다) …털장갑?"
+      - a: "목걸이보다 그게 더 따뜻할 게야"
+      - b: "(장갑을 낀다) …크, 따뜻하네"
+    effect: {quiet: b, pay: b, mood: {b: 15, all: 3}}
+  ghost-kid:
+    title: "하나도 안 무서워"
+    cast: [ghost, kid]
+    lines:
+      - b: "아저씨 왜 투명해요?"
+      - a: "……무섭지…… 않니……?"
+      - b: "하나도 안 무서워요! 투명 망토예요?"
+      - a: "……그런 셈이야…… 처음 들어 본다…… 그런 말……"
+    effect: {mood: {a: 20, b: 6}}
+  shaman-drunk:
+    title: "부적 한 장"
+    cast: [shaman, drunk]
+    lines:
+      - b: "어이~ 무당 양반~ 내 운세 좀 봐 주소~"
+      - a: "…자네는 오늘 집에 가는 길을 잃을 운세여"
+      - b: "아이고~ 그럼 어쩌면 되노~"
+      - a: "(부적을 쥐여 준다) 이거 쥐고 한숨 자. 깨면 집 앞이여"
+      - b: "그려~ 고맙소~ 드르렁…"
+    effect: {doze: b, mood: {b: 8, others: 3}}
+  monk-drunk:
+    title: "술보다 차"
+    cast: [monk, drunk]
+    lines:
+      - b: "스님~ 스님도 한잔하실라요~?"
+      - a: "허허, 저는 차를 마십니다. 처사님도 한 모금 하시겠습니까"
+      - b: "(보온병의 차를 마신다) …어? 이거 좋네~"
+      - a: "속이 편해질 겁니다. 오늘은 그만 쉬시지요"
+    effect: {calm: 70, mood: {b: 10}}
+  monk-phone:
+    title: "들리지 않는 소리"
+    cast: [monk, phone]
+    lines:
+      - b: "뭐라고?! 안 들려!! 다시 말해!!"
+      - a: "(눈을 감고 작게 염불한다) 나무아미타불…"
+      - b: "아 거기 조용히 좀… (스님을 본다) …아, 아니 죄송합니다"
+      - a: "괜찮습니다. 들리지 않을 땐 크게 말하는 것보다 귀를 기울이는 게 낫지요"
+      - b: "(전화를 귀에 바짝 댄다. 목소리가 작아진다) …응, 엄마. 잘 들려"
+    effect: {quiet: b, mood: {all: 3}}
+  monk-kinder:
+    title: "스님 머리 만져 봐도 돼요?"
+    cast: [monk, kinder, kinder]
+    when: {hours: [9, 16]}
+    lines:
+      - b: "스님! 머리 만져 봐도 돼요?"
+      - a: "허허, 살살 만지렴"
+      - c: "우와 반질반질하다! 공 같아!"
+      - a: "이 머리엔 고민이 하나도 없어서 반질반질하단다"
+      - b: "나도 고민 없는데! 나도 깎을래!"
+    effect: {mood: {all: 5}}
+  wrestler-kid:
+    title: "천하장사 팔뚝"
+    cast: [wrestler, kid]
+    lines:
+      - b: "아저씨 팔뚝에 매달려 봐도 돼요?"
+      - a: "허허, 그래. 꽉 잡아라"
+      - b: "(팔에 매달린다) 우와! 나 하늘 난다!"
+      - a: "버스 안이니까 딱 한 번만. 다음엔 씨름장에서 하자"
+    effect: {mood: {a: 6, b: 12}}
+  wrestler-grandma:
+    title: "보따리는 내가"
+    cast: [wrestler, grandma]
+    lines:
+      - b: "아이고 이 보따리가 와 이리 무겁노"
+      - a: "할머니, 제가 들어 드리겠습니다"
+      - b: "(한 손으로 번쩍 든다) …아이고 장사네 장사!"
+      - a: "내리실 때도 댁 앞까지 들어 드릴게요"
+      - b: "우리 손녀 시집 안 갔는데, 혹시…"
+    effect: {mood: {a: 8, b: 12}}
+  spread-thug:
+    title: "누가 더 넓게 앉나"
+    cast: [spread, thug]
+    lines:
+      - a: "(다리를 쫙 벌린다)"
+      - b: "(다리를 더 쫙 벌린다)"
+      - a: "(더 벌린다)"
+      - b: "(더 벌리다 쥐가 난다) 아야야야! 쥐! 쥐 났어!"
+      - a: "(얼른 다리를 모으고 주물러 준다) 아이고 형님, 괜찮으세요?"
+    effect: {quiet: [a, b], mood: {others: 6}}
+  crumbs-thug:
+    title: "형님도 하나"
+    cast: [crumbs, thug]
+    lines:
+      - a: "(와작와작)"
+      - b: "어이 학생, 그거 무슨 맛이야"
+      - a: "새, 새우맛이요… 하나 드릴까요?"
+      - b: "(받아서 먹는다) …오, 맛있네. 부스러기는 형님이 치워 줄게"
+      - a: "네…? 네! 감사합니다 형님!"
+    effect: {quiet: [a, b], mood: {a: 6}}
+  dodger-thug:
+    title: "같은 과"
+    cast: [dodger, thug]
+    lines:
+      - b: "(카드 찍는 척) 삑~"
+      - a: "(카드 찍는 척) 삑~"
+      - b: "…어이, 너 방금 안 찍었지?"
+      - a: "…형님도 안 찍으셨잖아요"
+      - b: "(서로 한참 쳐다본다) …같이 찍자"
+    effect: {pay: [a, b], mood: {others: 5}}
+  rude-chicken:
+    title: "누가 반말이고"
+    cast: [rude, chicken]
+    lines:
+      - a: "어이 할매, 닭 좀 저리 치워"
+      - b: "어이? 꼬꼬야, 저 사람이 니한테 반말한다"
+      - a: "아니 닭한테 한 게 아니라…"
+      - b: "꼬꼬댁!! (날개를 퍼덕이며 이쑤시개를 쪼아 간다)"
+      - a: "어, 어! 내 이쑤시개!"
+    effect: {pay: a, mood: {a: -6, b: 6, others: 5}}
+  complainer-monk:
+    title: "화를 내려놓으시오"
+    cast: [complainer, monk]
+    lines:
+      - a: "이 노선 배차가 엉망이에요! 군청에 열 번은 전화했어요!"
+      - b: "열 번이나 전화하시느라 얼마나 속이 상하셨습니까"
+      - a: "…네? 아, 네. 속상했죠"
+      - b: "그 마음을 알아주는 사람이 없어서 더 속상하셨을 겁니다"
+      - a: "(눈시울이 붉어진다) …스님, 그걸 어떻게 아세요"
+    effect: {pay: a, mood: {a: 20}}
+  chatty-complainer-monk:
+    title: "말이 많으면"
+    cast: [chatty, complainer, monk]
+    lines:
+      - a: "그래서 내가 그 집 아들한테 그랬다니까~ 호호호!"
+      - b: "아줌마, 목소리 좀 줄여요! 내가 다 들리잖아요!"
+      - a: "어머, 들으라고 하는 얘기예요~"
+      - c: "두 보살님, 창밖을 한번 보시지요. 저 산이 오늘따라 참 곱습니다"
+      - a: "…어머, 정말 곱네"
+      - b: "…그러네요"
+    effect: {quiet: a, calm: 70}
+  mom-thug-wrestler:
+    title: "아기 지키미"
+    cast: [mom, thug, wrestler]
+    lines:
+      - b: "어이~ 다들 조용히 해 봐! 형님이 한 말씀…"
+      - a: "(아기가 운다) 응애~"
+      - c: "(조용히 일어나 건달 앞에 선다) 아기가 놀랐습니다"
+      - b: "…아, 그, 그렇네요. 아가야 미안해…"
+      - a: "(아기가 건달을 보고 방긋 웃는다)"
+      - b: "…웃었다. 형님 보고 웃었어"
+    effect: {quiet: b, mood: {a: 8, b: 6, others: 3}}
+  grandma-student-office:
+    title: "자리 양보 릴레이"
+    cast: [grandma, student, office]
+    lines:
+      - b: "할머니, 여기 앉으세요!"
+      - a: "아이고 고맙다. 근데 학생은 가방이 무거워 보이는데"
+      - c: "학생, 여기 앉아. 나는 서서 가도 돼"
+      - b: "아저씨도 피곤해 보이는데요…"
+      - a: "그럼 다 같이 조금씩 붙어 앉자. 셋이 앉으면 되겠다"
+    effect: {mood: {a: 6, b: 6, c: 6, others: 3}}
+  couple-couple-quarrel:
+    title: "사소한 싸움"
+    cast: [couple, couple]
+    weight: 0.7
+    lines:
+      - a: "자기 아까 그 여자 쳐다봤지?"
+      - b: "아니? 나 버스 노선도 본 건데?"
+      - a: "노선도가 그렇게 재밌어?"
+      - b: "…자기 내리는 정류장 찾느라 본 거야"
+      - a: "(입꼬리가 올라간다) …흥, 그럼 봐줄게"
+    effect: {mood: {a: 4, b: -3, others: 2}}
+  bride-kinder:
+    title: "꽃 뿌리는 아이들"
+    cast: [bride, kinder, kinder]
+    when: {hours: [9, 16]}
+    lines:
+      - b: "우와, 신부님이다! 공주님 같아요!"
+      - c: "결혼했어요? 뽀뽀했어요?"
+      - a: "(얼굴이 빨개진다) 어머, 얘들아…"
+      - b: "우리가 꽃 뿌려 줄게요! (종이 꽃을 날린다)"
+    effect: {mood: {all: 5}, tip: {a: 1.3}}
+  bride-couple:
+    title: "결혼 선배"
+    cast: [bride, couple]
+    lines:
+      - b: "어머, 신혼이세요? 결혼 준비 힘들지 않았어요?"
+      - a: "엄청 힘들었죠! 근데 지금은 다 잊었어요"
+      - b: "저희도 내년에 하려고요…"
+      - a: "꿀팁 하나! 싸우면 무조건 맛있는 거 먹으러 가요"
+      - b: "메모, 메모!"
+    effect: {mood: {a: 6, b: 8}}
+  gentleman-soldier:
+    title: "노병과 신병"
+    cast: [gentleman, soldier]
+    lines:
+      - a: "젊은이, 어느 부대인가?"
+      - b: "네! 강원도 오 사단입니다!"
+      - a: "허허, 나도 그 부대 출신일세. 오십 년 전이지만"
+      - b: "선배님이십니까! 충성!"
+      - a: "(천천히 경례한다) …충성. 몸 성히 전역하게"
+    effect: {mood: {a: 8, b: 10}, tip: {b: 1.5}}
+  gentleman-mom:
+    title: "유모차 들어 드릴게요"
+    cast: [gentleman, mom]
+    lines:
+      - b: "(짐과 아기를 들고 허둥댄다)"
+      - a: "부인, 그 가방은 제가 들지요"
+      - b: "어머, 괜찮으세요?"
+      - a: "아기는 엄마 품에서, 짐은 노인 손에서. 그게 공평하지요"
+    effect: {mood: {b: 12, a: 4}}
+  vip-office:
+    title: "명함 한 장"
+    cast: [vip, office]
+    lines:
+      - b: "(노트북으로 보고서를 고친다)"
+      - a: "자네, 그 보고서 글씨가 너무 작군. 결론부터 쓰게"
+      - b: "…네? 아, 네!"
+      - a: "(명함을 건넨다) 결론부터 쓰는 사람이 필요하네. 연락하게"
+      - b: "(명함을 보고 눈이 커진다) …이 회사요?!"
+    effect: {mood: {a: 4, b: 15}}
+  vip-dodger:
+    title: "회장님의 젊은 시절"
+    cast: [vip, dodger]
+    lines:
+      - b: "(뒷문 쪽을 힐끔거린다)"
+      - a: "자네, 나도 젊을 때 그 뒷문을 자주 봤지"
+      - b: "…네? 회장님이요?"
+      - a: "그리고 지금은 그 버스 회사의 주주가 됐네. 앞문으로 타는 사람이 결국 이기는 법이야"
+      - b: "(조용히 카드를 찍는다) …삑"
+    effect: {pay: b, mood: {b: 6}}
+  tourist-fisher:
+    title: "회 한 접시"
+    cast: [tourist, fisher]
+    lines:
+      - a: "혹시 이 근처에 회 맛있는 데 있어요?"
+      - b: "회? 내가 지금 잡으러 가는데"
+      - a: "네? 그럼…"
+      - b: "저녁에 방파제로 와요. 잡히면 한 접시, 안 잡히면 라면"
+      - a: "여행 최고의 추억이 되겠어요!"
+    effect: {mood: {a: 10, b: 6}, tip: {a: 1.3}}
+  tourist-grandma:
+    title: "여기 맛집은"
+    cast: [tourist, grandma]
+    lines:
+      - a: "할머니, 이 동네 맛집 아세요?"
+      - b: "맛집? 우리 집이 맛집이다. 된장찌개 묵고 갈라나?"
+      - a: "진짜요?! 가도 돼요?"
+      - b: "오이라. 대신 기사 양반한테 고맙다 카고"
+      - a: "기사님 감사합니다! 할머니 댁 같이 가실래요?"
+    effect: {mood: {a: 12, b: 8}, tip: {a: 1.5}}
+  student-kid:
+    title: "누나가 숙제 봐 줄게"
+    cast: [student, kid]
+    lines:
+      - b: "아 구구단 칠 단 너무 어려워…"
+      - a: "칠 단? 누나가 꿀팁 알려 줄게. 칠 곱하기 팔은 오륙!"
+      - b: "오륙? 오십육?"
+      - a: "그렇지! 이제 칠 단 마스터!"
+      - b: "누나 최고! 내일 받아쓰기도 알려 줘!"
+    effect: {quiet: b, mood: {a: 6, b: 10}}
+  kid-uncle:
+    title: "옛날 옛적에"
+    cast: [kid, uncle]
+    lines:
+      - b: "꼬마야, 옛날엔 이 길이 다 논이었다"
+      - a: "진짜요? 그럼 버스는요?"
+      - b: "버스는 하루에 두 번! 놓치면 십 리를 걸었지"
+      - a: "헐… 그럼 아저씨 다리 엄청 튼튼하겠다!"
+      - b: "허허, 그래서 아직도 정정하지!"
+    effect: {mood: {a: 6, b: 10}}
+  chatty-yeot:
+    title: "흥정의 달인"
+    cast: [chatty, yeot]
+    lines:
+      - b: "엿 사려~ 한 가락에 천 원~"
+      - a: "어머, 천 원? 옛날엔 오백 원이었는데!"
+      - b: "아이고 아지매, 옛날엔 버스비도 오백 원이었소~"
+      - a: "그럼 두 가락에 천오백!"
+      - b: "…아지매 말솜씨에 내가 졌소. 가져가시오!"
+    effect: {mood: {a: 10, b: 4, others: -2}}
+  market-yeot:
+    title: "시장 동료"
+    cast: [market, yeot]
+    when: {market: true}
+    lines:
+      - a: "어머, 엿장수 아저씨! 오늘도 장에 나와요?"
+      - b: "장날에 엿장수가 빠지면 되나~ 가위 소리가 장 소리지!"
+      - a: "우리 가게 옆에 자리 비었어요. 같이 해요!"
+      - b: "오! 고마워요. 엿 한 가락 공짜!"
+    effect: {mood: {a: 8, b: 8}, tip: {a: 1.2, b: 1.2}}
+  market-market:
+    title: "자리 싸움 끝"
+    cast: [market, market]
+    when: {market: true}
+    lines:
+      - a: "언니! 오늘도 그 자리 내가 먼저예요!"
+      - b: "어머, 어제는 내가 먼저였잖아!"
+      - a: "그럼 오늘은 반반 나눠요. 언니 생선, 나 채소"
+      - b: "좋아! 둘이 붙어 있으면 손님도 두 배지!"
+    effect: {mood: {a: 6, b: 6}}
+  worker-worker:
+    title: "점심 메뉴 회의"
+    cast: [worker, worker]
+    lines:
+      - a: "오늘 점심 뭐 먹을까?"
+      - b: "어제 짜장면, 그제 짬뽕…"
+      - a: "그럼 오늘은 볶음밥!"
+      - b: "…결국 같은 집이잖아"
+      - a: "그 집이 제일 가깝잖아! 하하"
+    effect: {mood: {a: 5, b: 5}}
+  office-office:
+    title: "같은 회사였어?"
+    cast: [office, office]
+    lines:
+      - a: "(사원증을 본다) …어? 혹시 영업 2팀?"
+      - b: "네! 그쪽은… 기획팀?"
+      - a: "메일로만 3년 얘기했는데 실물은 처음이네요!"
+      - b: "하하, 메일 말투랑 똑같으시네요"
+    effect: {mood: {a: 6, b: 6}}
+  student-student:
+    title: "시험 범위"
+    cast: [student, student]
+    lines:
+      - a: "야 시험 범위 어디까지야?"
+      - b: "3단원까지래"
+      - a: "헐 나 1단원밖에 안 했는데"
+      - b: "괜찮아, 나 0단원 했어"
+      - a: "…0단원이 뭔데 ㅋㅋㅋ"
+    effect: {mood: {a: 5, b: 5}}
+  grandma-grandma:
+    title: "할매들의 장날"
+    cast: [grandma, grandma]
+    lines:
+      - a: "아이고 성님! 장에 가요?"
+      - b: "그래~ 니도 가나? 무릎은 좀 괜찮나?"
+      - a: "말도 마소. 비 올라 카면 쑤시고 해 뜰라 카면 쑤시고"
+      - b: "그럼 맨날 쑤시네. 허허, 파스 하나 줄게"
+    effect: {mood: {a: 8, b: 8}}
+  resident-resident:
+    title: "옆집 사는 사이"
+    cast: [resident, resident]
+    lines:
+      - a: "어머, 옆집 아니세요? 버스에서 다 보네요"
+      - b: "그러게요! 어제 김치 맛있었어요"
+      - a: "다음에 깍두기도 갖다드릴게요"
+      - b: "그럼 저는 부침개 부칠게요~"
+    effect: {mood: {a: 5, b: 5}}
+  resident-thug:
+    title: "옆집 총각"
+    cast: [resident, thug]
+    lines:
+      - b: "어이~ 형님 지나간다~"
+      - a: "어머, 옆집 총각이네! 어제 우리 쓰레기 버려 줘서 고마웠어요"
+      - b: "(당황한다) 아, 아니 그건 그냥 나가는 길에…"
+      - a: "우리 애가 그 형 멋있다고 맨날 그래요~"
+      - b: "(귀가 빨개진다) …에이, 뭘요"
+    effect: {quiet: b, mood: {a: 5, b: 8}}
+  resident-chatty:
+    title: "소식 배달"
+    cast: [chatty, resident]
+    lines:
+      - a: "그거 들었어? 이번 주말에 마을 잔치한대!"
+      - b: "어머, 정말요? 무슨 잔치요?"
+      - a: "버스 정류장 새로 생긴 기념! 기사님들도 다 오라던데~"
+      - b: "그럼 떡 좀 해 가야겠네요"
+    effect: {mood: {a: 6, b: 6, others: 2}}
+  resident-mom:
+    title: "이웃집 아기"
+    cast: [resident, mom]
+    lines:
+      - a: "어머, 아기 많이 컸네요! 지난달엔 이만했는데"
+      - b: "그쵸? 요즘 밤에 잘 자서 그런가 봐요"
+      - a: "우리 애 어릴 때 입던 옷 있는데 갖다줄게요"
+      - b: "어머, 감사해요!"
+    effect: {mood: {a: 5, b: 8}}
+  resident-dogwalker:
+    title: "산책 친구"
+    cast: [resident, dogwalker]
+    lines:
+      - a: "어르신, 바둑이 데리고 어디 가세요?"
+      - b: "병원 가는 길이오. 이 녀석 예방주사 맞는 날이라"
+      - a: "어머, 바둑아 주사 무서워?"
+      - b: "(바둑이가 할아버지 품으로 파고든다) 허허, 벌써 아는구먼"
+    effect: {mood: {a: 5, b: 6}}
+  univ-univ:
+    title: "조별 과제"
+    cast: [univ, univ]
+    lines:
+      - a: "야, 조별 과제 너 어디까지 했어?"
+      - b: "…자료 조사?"
+      - a: "그게 일주일 전에 하기로 한 거잖아!"
+      - b: "그래서 지금 버스에서 하고 있잖아! (휴대폰을 보여 준다)"
+      - a: "…그래, 같이 하자. 둘이 하면 빠르겠지"
+    effect: {mood: {a: 3, b: 6}}
+  univ-office:
+    title: "인생 선배"
+    cast: [univ, office]
+    lines:
+      - a: "혹시… 회사 다니시면 어때요? 저 내년에 졸업이라"
+      - b: "음… 월급날은 좋아요"
+      - a: "다른 날은요?"
+      - b: "(한참 생각한다) …월급날을 기다리는 날이요"
+      - a: "…열심히 공부할게요"
+    effect: {mood: {a: 4, b: 6}}
+  kid-chatty:
+    title: "수다 대결"
+    cast: [kid, chatty]
+    lines:
+      - a: "아줌마! 있잖아요! 우리 반에 철수가요!"
+      - b: "어머, 철수가 왜? 무슨 일인데?"
+      - a: "어제 급식에 나온 소시지를 다섯 개나 먹었어요!"
+      - b: "어머 세상에! 그래서 그래서?"
+      - a: "…배탈 났어요"
+      - b: "아이고 저런~ (한참 동안 둘이 신나게 떠든다)"
+    effect: {mood: {a: 6, b: 6, others: -4}}
+  police-thug-chat:
+    title: "다시 만난 경찰"
+    cast: [police, thug]
+    when: {seen: thug-police}
+    lines:
+      - a: "아, 선생님. 지난번에 버스에서 뵀었죠?"
+      - b: "(벌떡 일어선다) 네! 그때 요금 냈습니다! 오늘도 냈습니다!"
+      - a: "하하, 압니다. 요즘 일자리는 구하셨어요?"
+      - b: "…네. 공장에 나가요. 아침마다 이 버스 타요"
+      - a: "잘됐네요. 응원합니다"
+    effect: {quiet: b, pay: b, mood: {b: 15, others: 4}}
+  rider-drunk:
+    title: "꿀물 배달"
+    cast: [rider, drunk]
+    lines:
+      - b: "아이고~ 머리야~ 배달 양반, 꿀물 한 잔 배달 되나~?"
+      - a: "아저씨, 저 지금 짜장면 배달 중인데요…"
+      - b: "짜장면 말고 꿀물~ 꿀물~"
+      - a: "(봉지에서 꿀물 한 병을 꺼낸다) …서비스예요. 드시고 한숨 주무세요"
+      - b: "(벌컥벌컥) …어? 좀 낫네. 고맙소~ 드르렁…"
+    effect: {doze: b, mood: {b: 10}}
+  mom-soldier-carry:
+    title: "보따리는 군인이"
+    cast: [mom, soldier]
+    when: {seen: soldier-mom}
+    lines:
+      - b: "어? 지난번 그 아기 어머님이시죠?"
+      - a: "어머! 휴가 또 나왔어요?"
+      - b: "네! 이번엔 포상 휴가입니다! 짐 제가 들겠습니다!"
+      - a: "아기가 아저씨 기억하나 봐요. 손 흔드네"
+      - b: "(아기에게 경례한다) 충성!"
+    effect: {mood: {a: 10, b: 10}, tip: {b: 1.5}}
+  hiker-grandma:
+    title: "약수 한 병"
+    cast: [hiker, grandma]
+    lines:
+      - b: "산에 가나? 위에 약수터 물이 그래 좋다더라"
+      - a: "네! 할머니도 드릴까요? 내려올 때 떠 올게요"
+      - b: "아이고 고마워라. 내는 이제 산은 못 가고"
+      - a: "그럼 제가 할머니 대신 정상에서 소원 빌어 드릴게요"
+    effect: {mood: {a: 8, b: 10}}
+  haenyeo-fisher-truce:
+    title: "같이 가는 바다"
+    cast: [haenyeo, fisher]
+    when: {seen: fisher-haenyeo}
+    lines:
+      - b: "어! 지난번에 그 갯바위 알려 주신 분!"
+      - a: "그래, 잡았어요?"
+      - b: "이따만한 놈 잡았어요! 사진 보실래요?"
+      - a: "(사진을 본다) …이건 진짜네. 다음엔 내가 미끼 좀 얻어 가야겠네"
+    effect: {mood: {a: 8, b: 12}, tip: {b: 1.3}}
+  youtuber-monk-again:
+    title: "명상 브이로그"
+    cast: [youtuber, monk]
+    when: {seen: monk-youtuber}
+    lines:
+      - a: "스님! 저 그때 그 유튜버예요. 그 뒤로 '창밖 보기' 영상 올렸는데요"
+      - b: "허허, 어찌 되었습니까"
+      - a: "조회수 백만 넘었어요! 사람들이 다 힐링된대요"
+      - b: "화면 너머에도 창밖은 있었던 게지요"
+      - a: "오늘도 그냥… 조용히 갈게요"
+    effect: {quiet: a, mood: {a: 12, all: 3}}
+  prankster-kinder-again:
+    title: "벨 안 누르는 형아"
+    cast: [prankster, kinder, kinder]
+    when: {hours: [9, 16], seen: kinder-prankster}
+    lines:
+      - b: "어! 그때 벨 누르던 형아다!"
+      - a: "…나 이제 안 눌러. 진짜야"
+      - c: "진짜요? 그럼 형아 착한 형아네!"
+      - a: "(어깨를 으쓱) …당연하지. 내릴 때만 누르는 거야"
+    effect: {quiet: a, mood: {a: 10, b: 5, c: 5}}
+  complainer-gentleman-again:
+    title: "칭찬 민원"
+    cast: [complainer, gentleman]
+    when: {seen: gentleman-complainer}
+    lines:
+      - a: "어머, 그때 그 신사분! 저 그 뒤로 군청에 전화했어요"
+      - b: "허허, 또 민원이십니까"
+      - a: "아니요! 칭찬 민원이요. 이 노선 기사님들 친절하다고"
+      - b: "그거 참 근사한 민원입니다"
+    effect: {pay: a, mood: {a: 12, b: 6}, tip: {a: 1.5}}
+  rude-rude:
+    title: "반말 대 반말"
+    cast: [rude, rude]
+    lines:
+      - a: "어이, 좀 비켜"
+      - b: "어이? 너 몇 살이야"
+      - a: "…쉰다섯. 너는?"
+      - b: "쉰다섯… 몇 월생?"
+      - a: "삼월. …(서로 노려보다가) …친구네. 막걸리나 한잔하자"
+    effect: {mood: {a: 10, b: 10, others: -2}}
+  phone-mom:
+    title: "아기 깨요"
+    cast: [mom, phone]
+    lines:
+      - b: "어!! 그래서!! 내가!!"
+      - a: "(아기가 칭얼거린다) 저기요, 아기가 깨요…"
+      - b: "(아기를 본다) …아, 죄송합니다. (속삭인다) 나중에 전화할게"
+      - a: "고맙습니다"
+    effect: {quiet: b, mood: {a: 8, others: 3}}
+  nurse-phone:
+    title: "밤샘 근무 뒤"
+    cast: [nurse, phone]
+    lines:
+      - b: "아 진짜?! 대박!! 하하하하!!"
+      - a: "(눈을 감은 채) …"
+      - b: "(간호사의 명찰을 본다) …밤새 일하셨어요?"
+      - a: "네… 열두 시간이요…"
+      - b: "(전화를 끊는다) 푹 쉬세요. 제가 조용히 할게요"
+    effect: {quiet: b, mood: {a: 10}}
+  shaman-thug-again:
+    title: "관재수가 풀렸네"
+    cast: [shaman, thug]
+    when: {seen: thug-shaman}
+    lines:
+      - b: "어! 무당 할매! 그때 그 관재수 말이에요"
+      - a: "(방울을 딸랑) …허허, 얼굴이 훤해졌구먼. 관재수가 다 풀렸어"
+      - b: "진짜요? 저 요즘 차비 꼬박꼬박 내요!"
+      - a: "그러니까 풀렸제. 이제 재물운 들어온다"
+    effect: {pay: b, quiet: b, mood: {b: 15, a: 5}}
+  ghost-shaman-again:
+    title: "이제 가는 길"
+    cast: [ghost, shaman]
+    when: {seen: shaman-ghost}
+    lines:
+      - a: "……그때 그 무당 할머니……"
+      - b: "그래, 집은 찾았는가"
+      - a: "……네…… 감나무가 그대로 있더라고요……"
+      - b: "그럼 이제 편히 가시게. (방울을 딸랑) 잘 가시오"
+      - a: "……고맙습니다…… 이 버스…… 따뜻했어요……"
+    effect: {mood: {a: 30, all: 3}}
