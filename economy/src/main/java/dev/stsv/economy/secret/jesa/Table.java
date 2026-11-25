@@ -16,22 +16,21 @@ import java.util.TreeSet;
  * <ol>
  * <li>row 0, 메 · 잔 · 갱: rice west, soup east (반서갱동), the liquor in the cup between them (the middle vessel is the cup);</li>
  * <li>row 1, 적 · 전: meat west, fish east (어동육서), a 전 between them;</li>
- * <li>row 2, 탕: a soup, not one already in row 0, no soup twice;</li>
+ * <li>row 2, 탕: a soup on any of the three deep bowls, not one already in row 0's soup bowl, no soup twice;</li>
  * <li>row 3, 포 · 나물 · 혜: dried fish west, 식혜 east (좌포우혜), 나물 between if any;</li>
  * <li>row 4, 과일: the pale fruit (배, a pear: only the bus's 할머니 hands them out) west, red fruit east (홍동백서), rice cakes
  * and the like between if any.</li>
  * </ol>
- * Anything taboo (chili, garlic, a fish whose name ends in 치, red beans) is wrong wherever it lies, and so is anything
- * that has no business in its row. Nothing here touches the server (unit-tested); where the vessels stand is {@link Vessel}.
+ * Every thing has its own vessel ({@link #fits}): the column of its kind in its row, whatever else lies on the table — a
+ * thing anywhere else is wrong (a thing named on two kinds of one row is at home on either's vessel). Anything taboo (chili,
+ * garlic, a fish whose name ends in 치, red beans) is wrong wherever it lies, and so is anything that has no business in its
+ * row. What is missing is judged by kind, not by vessel: a misplaced thing is wrong, not also owed. Nothing here touches
+ * the server (unit-tested); where the vessels stand is {@link Vessel}.
  */
 final class Table {
 
     static final int COLS = 3, ROWS = 5, SLOTS = COLS * ROWS;
-    /**
-     * The middle vessel. With {@link Rules#halves} a west thing never lies on the east vessel nor an east thing on the west
-     * one; the middle belongs to neither side, so whatever stands on it is judged by its neighbour alone (meat in the middle
-     * with the fish east of it is still meat west of fish). Row 0's middle is the cup: only liquor goes there.
-     */
+    /** The middle vessel: the between kind's (전 · 나물 · 떡). Row 0's middle is the cup: only liquor goes there. */
     static final int MID = 1;
     /** Where a missing dish is pointed at: the west vessel, the middle, the east vessel of its row. */
     static final int WEST_AT = 0, EAST_AT = 2;
@@ -39,18 +38,18 @@ final class Table {
     private Table() {}
 
     /**
-     * What may lie where (item ids as {@code Items.key} gives them). halves: no west thing lies east of the middle column
-     * and no east thing west of it (and every west thing is west of every east thing); without it only that order counts.
+     * What may lie where (item ids as {@code Items.key} gives them). (jesa.yml's old {@code table.halves} is no longer read:
+     * every thing has its own vessel now, so there is no looser "order alone" judging left for it to switch.)
      */
     record Rules(Set<String> rice, Set<String> soup, Set<String> liquor, Set<String> meat, Set<String> fish, Set<String> jeon,
                  Set<String> dried, Set<String> sikhye, Set<String> namul, Set<String> pale, Set<String> red, Set<String> cake,
-                 Set<String> taboo, boolean halves) {
+                 Set<String> taboo) {
 
         /** The same rules with more taboo things (the 치 fish, worked out from their names). */
         Rules alsoTaboo(Collection<String> more) {
             Set<String> t = new LinkedHashSet<>(taboo);
             t.addAll(more);
-            return new Rules(rice, soup, liquor, meat, fish, jeon, dried, sikhye, namul, pale, red, cake, t, halves);
+            return new Rules(rice, soup, liquor, meat, fish, jeon, dried, sikhye, namul, pale, red, cake, t);
         }
 
         /** jesa.yml {@code table}: a kind the file does not list keeps its usual ids ({@link #defaults}). */
@@ -60,7 +59,7 @@ final class Table {
             return new Rules(ids(c, "rice", d.rice), ids(c, "soup", d.soup), ids(c, "liquor", d.liquor), ids(c, "meat", d.meat),
                     ids(c, "fish", d.fish), ids(c, "jeon", d.jeon), ids(c, "dried", d.dried), ids(c, "sikhye", d.sikhye),
                     ids(c, "namul", d.namul), ids(c, "pale", d.pale), ids(c, "red", d.red), ids(c, "sweets", d.cake),
-                    ids(c, "taboo", d.taboo), c.getBoolean("halves", true));
+                    ids(c, "taboo", d.taboo));
         }
 
         private static Set<String> ids(org.bukkit.configuration.ConfigurationSection c, String key, Set<String> def) {
@@ -82,8 +81,7 @@ final class Table {
                             "oi_sobagi", "oi_muchim", "sundubu_jjigae", "kimchi_jjigae", "maeuntang", "dakbokkeumtang", "gamjatang",
                             "miyeokguk", "samgyetang", "ginseng_samgyetang", "jeyuk", "bossam", "bibimbap", "tteokbokki", "grilled_eel",
                             "braised_mackerel", "agujjim", "mulhoe", "steamed_crab", "grilled_fish_set", "eggplant_stirfry",
-                            "beoseot_bokkeum", "gamja_jorim", "gujeolpan", "hanjeongsik", "royal_eoran", "royal_surasang", "gosa_tteok"),
-                    true);
+                            "beoseot_bokkeum", "gamja_jorim", "gujeolpan", "hanjeongsik", "royal_eoran", "royal_surasang", "gosa_tteok"));
         }
 
         private static Set<String> eco(String... ids) {
@@ -139,6 +137,14 @@ final class Table {
     // ------------------------------------------------------------------------------------------
 
     static Verdict judge(Map<Integer, String> layout, Rules r) {
+        return judge(layout, r, -1);
+    }
+
+    /**
+     * newest: the vessel just put on (-1: none). Of the same 탕 twice in row 2 it is the newest that goes (else the one
+     * further east); nothing else depends on it.
+     */
+    static Verdict judge(Map<Integer, String> layout, Rules r, int newest) {
         Set<Integer> wrong = new TreeSet<>();
         List<Integer> missing = new ArrayList<>();
         List<Map<Integer, String>> rows = new ArrayList<>();
@@ -149,77 +155,83 @@ final class Table {
             if (r.taboo.contains(e.getValue())) wrong.add(s);
             else rows.get(row(s)).put(col(s), e.getValue());
         }
-        sides(0, rows.get(0), r.rice, r.soup, r.liquor, true, true, r.halves, wrong, missing);
-        sides(1, rows.get(1), r.meat, r.fish, r.jeon, true, false, r.halves, wrong, missing);
-        soups(rows.get(0), rows.get(2), r, wrong, missing);
-        sides(3, rows.get(3), r.dried, r.sikhye, r.namul, false, false, r.halves, wrong, missing);
-        sides(4, rows.get(4), r.pale, r.red, r.cake, false, false, r.halves, wrong, missing);
+        for (int row : new int[]{0, 1, 3, 4}) sides(row, rows.get(row), r, wrong, missing);
+        soups(rows.get(0), rows.get(2), r, newest, wrong, missing);
         return new Verdict(wrong, missing);
     }
 
+    /** A row's three kinds: west, middle (between), east. Row 2 (탕) has none: any deep bowl takes a soup. */
+    static List<Set<String>> kinds(int row, Rules r) {
+        return switch (row) {
+            case 0 -> List.of(r.rice, r.liquor, r.soup);
+            case 1 -> List.of(r.meat, r.jeon, r.fish);
+            case 3 -> List.of(r.dried, r.namul, r.sikhye);
+            case 4 -> List.of(r.pale, r.cake, r.red);
+            default -> List.of();
+        };
+    }
+
     /**
-     * A row with a west kind and an east kind (both owed) and things that go between them (owed when needBetween). cup: the
-     * middle vessel takes only the between kind, and the between kind goes nowhere else (row 0: the liquor in its cup).
+     * Whether a thing lies on its own vessel, by itself (what else is on the table aside): its kind's column in that row
+     * (a thing of two kinds of the row: either's vessel), any deep bowl for a soup in row 2. Never anything taboo. Of the
+     * 탕 row this is only half the answer — not row 0's soup, not twice — which {@link #judge} adds.
      */
-    private static void sides(int row, Map<Integer, String> cells, Set<String> west, Set<String> east, Set<String> between,
-                              boolean needBetween, boolean cup, boolean halves, Set<Integer> wrong, List<Integer> missing) {
-        List<Integer> w = new ArrayList<>(), e = new ArrayList<>(), b = new ArrayList<>();
+    static boolean fits(int slot, String id, Rules r) {
+        if (slot < 0 || slot >= SLOTS || id == null || r.taboo.contains(id)) return false;
+        int row = row(slot);
+        if (row == 2) return r.soup.contains(id);
+        return kinds(row, r).get(col(slot)).contains(id);
+    }
+
+    /** The vessels of a row where this thing would be at home (empty: none in that row). */
+    static List<Integer> homes(int row, String id, Rules r) {
+        List<Integer> out = new ArrayList<>();
+        for (int col = 0; col < COLS; col++) if (fits(slot(row, col), id, r)) out.add(slot(row, col));
+        return out;
+    }
+
+    /**
+     * A row with a west kind and an east kind (both owed) and a between kind on the middle vessel (owed in rows 0 and 1).
+     * Wrong: whatever is not on its own vessel. Owed: a kind of which nothing lies anywhere in the row (a misplaced thing is
+     * wrong and comes back; its vessel is not tapped for it too).
+     */
+    private static void sides(int row, Map<Integer, String> cells, Rules r, Set<Integer> wrong, List<Integer> missing) {
+        List<Set<String>> k = kinds(row, r);
+        Set<String> west = k.get(WEST_AT), between = k.get(MID), east = k.get(EAST_AT);
         boolean anyWest = false, anyEast = false, anyBetween = false;
         for (Map.Entry<Integer, String> c : cells.entrySet()) {
-            int col = c.getKey();
-            String k = c.getValue();
-            boolean isW = west.contains(k), isE = east.contains(k), isB = between.contains(k);
-            if (cup && (col == MID) != isB) {   // something else in the cup, or the liquor out of it
-                if (isW) anyWest = true;
-                else if (isE) anyEast = true;
-                else if (isB) anyBetween = true;
-                wrong.add(slot(row, col));
-                continue;
-            }
-            if (isW && isE) {   // named on both sides: at home on either
-                anyWest = anyEast = true;
-            } else if (isW) {
-                anyWest = true;
-                if (halves && col > MID) wrong.add(slot(row, col));
-                else w.add(col);
-            } else if (isE) {
-                anyEast = true;
-                if (halves && col < MID) wrong.add(slot(row, col));
-                else e.add(col);
-            } else if (isB) {
-                anyBetween = true;
-                if (!cup) b.add(col);
-            } else wrong.add(slot(row, col));   // no business in this row
+            String id = c.getValue();
+            anyWest |= west.contains(id);
+            anyEast |= east.contains(id);
+            anyBetween |= between.contains(id);
+            if (!fits(slot(row, c.getKey()), id, r)) wrong.add(slot(row, c.getKey()));
         }
-        // the order itself: nothing of the west east of something of the east
-        int firstEast = e.stream().mapToInt(Integer::intValue).min().orElse(COLS);
-        int lastWest = w.stream().mapToInt(Integer::intValue).max().orElse(-1);
-        for (int col : w) if (col > firstEast) wrong.add(slot(row, col));
-        for (int col : e) if (col < lastWest) wrong.add(slot(row, col));
-        int lo = -1, hi = COLS;
-        for (int col : w) if (!wrong.contains(slot(row, col))) lo = Math.max(lo, col);
-        for (int col : e) if (!wrong.contains(slot(row, col))) hi = Math.min(hi, col);
-        for (int col : b) if (col <= lo || col >= hi) wrong.add(slot(row, col));
         if (!anyWest) missing.add(slot(row, WEST_AT));
-        // (a between kind that names nothing at all is owed by nobody: a weekly house whose fish place takes the 전.
-        // Never the cup: a table whose liquor names nothing is not one that needs no drink — it cannot be set at all)
-        if (needBetween && !anyBetween && (cup || !between.isEmpty())) missing.add(slot(row, MID));
+        // the 전 (row 1) and the cup (row 0) are owed. A between kind that names nothing, or that is the east kind itself
+        // (a weekly house whose fish place takes the 전: a 전 on either vessel will do), is owed by nobody — never the cup:
+        // a table whose liquor names nothing is not one that needs no drink, it cannot be set at all
+        boolean cup = row == 0;
+        if (row <= 1 && !anyBetween && (cup || !between.isEmpty() && !between.equals(east))) missing.add(slot(row, MID));
         if (!anyEast) missing.add(slot(row, EAST_AT));
     }
 
-    /** Row 2 (탕): only soups, none of them one of row 0's, none twice. */
-    private static void soups(Map<Integer, String> first, Map<Integer, String> cells, Rules r, Set<Integer> wrong, List<Integer> missing) {
+    /** Row 2 (탕): only soups, none of them row 0's (in its own bowl), none twice — the newest of a pair goes. */
+    private static void soups(Map<Integer, String> first, Map<Integer, String> cells, Rules r, int newest, Set<Integer> wrong,
+                              List<Integer> missing) {
         Set<String> seen = new LinkedHashSet<>();
-        // a soup of row 0 that is going anyway (it stood on the wrong side) does not take the 탕 with it
+        // a soup of row 0 that is going anyway (it stood on the wrong vessel) does not take the 탕 with it
         for (Map.Entry<Integer, String> c : first.entrySet()) if (r.soup.contains(c.getValue()) && !wrong.contains(slot(0, c.getKey()))) seen.add(c.getValue());
         boolean any = false;
-        for (Map.Entry<Integer, String> c : cells.entrySet()) {
-            if (!r.soup.contains(c.getValue())) {
-                wrong.add(slot(2, c.getKey()));
+        List<Integer> order = new ArrayList<>(cells.keySet());
+        if (row(newest) == 2 && order.remove(Integer.valueOf(col(newest)))) order.add(col(newest));
+        for (int col : order) {
+            String id = cells.get(col);
+            if (!r.soup.contains(id)) {
+                wrong.add(slot(2, col));
                 continue;
             }
             any = true;
-            if (!seen.add(c.getValue())) wrong.add(slot(2, c.getKey()));
+            if (!seen.add(id)) wrong.add(slot(2, col));
         }
         if (!any) missing.add(slot(2, MID));
     }

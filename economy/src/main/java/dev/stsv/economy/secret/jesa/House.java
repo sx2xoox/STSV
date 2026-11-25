@@ -81,6 +81,8 @@ final class House {
         private final java.util.Set<Integer> open = new HashSet<>();
         private final Map<Integer, ItemDisplay> food = new HashMap<>();
         private final Map<Integer, ItemStack> laid = new TreeMap<>();
+        /** vessels whose dish is rolling off just now (put on wrong): not to be touched, nor the table bowed to, until it lands */
+        final java.util.Set<Integer> rolling = new HashSet<>();
         private final List<BukkitTask> tasks = new ArrayList<>();
         private final List<Location> cleared = new ArrayList<>();
         private BukkitTask pulse;
@@ -526,32 +528,7 @@ final class House {
         m.haunt().sound(p, s.table(), Sound.BLOCK_CANDLE_EXTINGUISH, 0.35f, 0.6f);
         long t = 24;
         for (int slot : v.wrong()) {
-            ItemDisplay d = s.food.get(slot);
-            if (d == null) continue;
-            int side = Vessel.rollTo(slot);
-            double[] at = Vessel.at(slot);
-            float up = (float) Vessel.top(Vessel.kind(slot));
-            float scale = Vessel.food(Vessel.kind(slot));
-            float toEdge = (float) (side * (HALF_W + 0.1) - at[0]);
-            later(s, t, () -> {
-                glide(d, new Vector3f(toEdge, 0.03f - up, 0), flat(0).rotateY((float) (side * Math.PI)), scale, 9);
-                m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOD_STEP, 0.25f, 1.6f);
-            });
-            later(s, t + 9, () -> glide(d, new Vector3f(toEdge + side * 0.12f, -TOP - up + 0.02f, 0), flat(0).rotateY((float) (side * Math.PI * 1.5)), scale, 6));
-            later(s, t + 15, () -> {
-                m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOL_FALL, 0.7f, 0.6f);
-                if (s.food.get(slot) == d) {   // off its vessel now (drawn there again by the caller if it could not be given back)
-                    s.food.remove(slot);
-                    s.laid.remove(slot);
-                }
-                fell.accept(slot);
-            });
-            later(s, t + 70, () -> {
-                s.own.remove(d);
-                s.warm.remove(d);
-                if (d.isValid()) d.remove();
-            });
-            t += 9;
+            if (roll(p, s, slot, t, fell)) t += 9;
         }
         t += v.wrong().isEmpty() ? 10 : 30;
         for (int slot : v.missing()) {
@@ -575,6 +552,71 @@ final class House {
         later(s, t + 50, () -> {
             s.busy = false;
             then.run();
+        });
+    }
+
+    /**
+     * What lies on one vessel rolls off its edge and drops, starting `t` ticks from now: the same roll as a wrong table's
+     * ({@link #refuse}), and `fell` is called with the vessel the moment it reaches the ground (15 ticks on). False when
+     * nothing is drawn there to roll.
+     */
+    private boolean roll(Player p, Shown s, int slot, long t, IntConsumer fell) {
+        ItemDisplay d = s.food.get(slot);
+        if (d == null) return false;
+        int side = Vessel.rollTo(slot);
+        double[] at = Vessel.at(slot);
+        float up = (float) Vessel.top(Vessel.kind(slot));
+        float scale = Vessel.food(Vessel.kind(slot));
+        float toEdge = (float) (side * (HALF_W + 0.1) - at[0]);
+        later(s, t, () -> {
+            glide(d, new Vector3f(toEdge, 0.03f - up, 0), flat(0).rotateY((float) (side * Math.PI)), scale, 9);
+            m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOD_STEP, 0.25f, 1.6f);
+        });
+        later(s, t + 9, () -> glide(d, new Vector3f(toEdge + side * 0.12f, -TOP - up + 0.02f, 0), flat(0).rotateY((float) (side * Math.PI * 1.5)), scale, 6));
+        later(s, t + 15, () -> {
+            m.haunt().sound(p, d.getLocation(), Sound.BLOCK_WOOL_FALL, 0.7f, 0.6f);
+            if (s.food.get(slot) == d) {   // off its vessel now (drawn there again by the caller if it could not be given back)
+                s.food.remove(slot);
+                s.laid.remove(slot);
+            }
+            fell.accept(slot);
+        });
+        later(s, t + 70, () -> {
+            s.own.remove(d);
+            s.warm.remove(d);
+            if (d.isValid()) d.remove();
+        });
+        return true;
+    }
+
+    /** Ticks from being put on a wrong vessel to rolling off it (it is seen to land first). */
+    static final int TUMBLE_AFTER = 5;
+
+    /**
+     * Put on a vessel that is not its own: it rolls off at once, the same roll as at a wrong table (no candles, no incense,
+     * no wait). The vessel is {@link Shown#rolling} until it has landed; `fell` gives it back then. False: nothing to roll.
+     */
+    boolean tumble(Player p, Shown s, int slot, IntConsumer fell) {
+        if (!s.rolling.add(slot)) return false;
+        if (!roll(p, s, slot, TUMBLE_AFTER, at -> {
+            s.rolling.remove(at);
+            fell.accept(at);
+        })) {
+            s.rolling.remove(slot);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Put on its own vessel: it settles there with a small 딸깍 (a low wooden click, a pinch of dust) — what stays, is right.
+     */
+    void click(Player p, Shown s, int slot) {
+        later(s, 3, () -> {
+            if (!s.food.containsKey(slot)) return;
+            Location at = dishAt(s, slot);
+            m.haunt().sound(p, at, Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.45f, 0.7f);
+            p.spawnParticle(Particle.WAX_ON, at.clone().add(0, 0.06, 0), 3, 0.06, 0.01, 0.06, 0);
         });
     }
 

@@ -504,7 +504,6 @@ final class HallTable implements Table.Listener, Table.Bank {
                 parts.add(part("hwatu.line.pot", 2, "pot", fmt(t.pot())));
                 if (in && t.folded(me)) parts.add(part("hwatu.line.folded", 0));
                 else if (in) {
-                    if (game == Table.Game.SUTDA) parts.add(part("hwatu.line.put", 1, "n", fmt(t.put(me))));
                     int seat = t.players().indexOf(me);
                     if (t.allIn(me)) parts.add(part("hwatu.line.allin", 0));
                     else if (game == Table.Game.SUTDA && t.betting() != null && seat >= 0 && t.betting().toCall(seat) > 0)

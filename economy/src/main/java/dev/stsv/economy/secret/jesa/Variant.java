@@ -18,9 +18,10 @@ import java.util.function.Predicate;
  * <ul>
  * <li>{@code replace}: a kind is other things this once (the cup holds 식혜 or tea for one who did not drink; 떡국 stands
  * for the rice at 설; the red fruit is the one they loved);</li>
- * <li>{@code noFish}: no fish on the table — the fish place (row 1, east) takes a 전 instead;</li>
+ * <li>{@code noFish}: no fish on the table — the fish place (row 1, east) takes a 전 instead (a 전 is then at home on the
+ * middle vessel and on the east one; one on either will do);</li>
  * <li>{@code taboo}: more things that may not lie anywhere;</li>
- * <li>{@code must}: a favourite that has to be there, in its own row (it must be something that row takes);</li>
+ * <li>{@code must}: a favourite that has to be there, on its own vessel in its own row (it must be something that row takes);</li>
  * <li>{@code soups}: how many different soups row 2 holds (삼탕: three);</li>
  * <li>{@code tablets}: which tablets stand on the screen (one alone: only "father" or only "mother") — seen, not judged.</li>
  * </ul>
@@ -92,20 +93,27 @@ record Variant(String id, List<String> say, Map<String, Set<String>> replace, bo
         Set<String> t = new LinkedHashSet<>(b.taboo());
         t.addAll(taboo);
         if (noFish) {
-            // the fish goes (what is also a 포 stays a 포), and its place takes a 전; nothing is owed between any more
+            // the fish goes (what is also a 포 stays a 포), and its place takes a 전: the 전 is at home on the middle vessel
+            // and on the east one (Table owes nothing between when the two kinds are the same)
             for (String f : fish) if (!dried.contains(f)) t.add(f);
             Set<String> east = new LinkedHashSet<>(jeon);
             east.removeAll(t);
             fish = east;
-            jeon = Set.of();
+            jeon = east;
         }
         return new Table.Rules(kind("rice", b.rice()), kind("soup", b.soup()), kind("liquor", b.liquor()), kind("meat", b.meat()), fish, jeon, dried,
-                kind("sikhye", b.sikhye()), kind("namul", b.namul()), kind("pale", b.pale()), kind("red", b.red()), kind("sweets", b.cake()), t, b.halves());
+                kind("sikhye", b.sikhye()), kind("namul", b.namul()), kind("pale", b.pale()), kind("red", b.red()), kind("sweets", b.cake()), t);
     }
 
     /** The judging of a table by this family's rules: {@link Table#judge} with the changed rules, then the favourite and the soups. */
     Table.Verdict judge(Map<Integer, String> layout, Table.Rules base) {
-        Table.Verdict v = Table.judge(layout, apply(base));
+        return judge(layout, base, -1);
+    }
+
+    /** {@link #judge(Map, Table.Rules)}; newest: the vessel just put on ({@link Table#judge(Map, Table.Rules, int)}). */
+    Table.Verdict judge(Map<Integer, String> layout, Table.Rules base, int newest) {
+        Table.Rules rules = apply(base);
+        Table.Verdict v = Table.judge(layout, rules, newest);
         Set<Integer> wrong = new TreeSet<>(v.wrong());
         List<Integer> missing = new ArrayList<>(v.missing());
         for (Map.Entry<String, Integer> e : must.entrySet()) {
@@ -116,7 +124,7 @@ record Variant(String id, List<String> say, Map<String, Set<String>> replace, bo
                 int slot = Table.slot(row, col);
                 if (e.getKey().equals(layout.get(slot)) && !wrong.contains(slot)) there = true;
             }
-            if (!there) owe(owed(row, layout, wrong), missing);
+            if (!there) owe(owed(row, Table.homes(row, e.getKey(), rules), layout, wrong), missing);
         }
         if (soups > 1) {
             int good = 0;
@@ -141,8 +149,13 @@ record Variant(String id, List<String> say, Map<String, Set<String>> replace, bo
         if (!missing.contains(slot)) missing.add(slot);
     }
 
-    /** The vessel of a row to point at for a dish that is owed: an empty one (the middle first), else the middle. */
-    private static int owed(int row, Map<Integer, String> layout, Set<Integer> wrong) {
+    /**
+     * The vessel of a row to point at for a favourite that is owed: its own vessel (the first of them that is free), else an
+     * empty one (the middle first), else the middle.
+     */
+    private static int owed(int row, List<Integer> homes, Map<Integer, String> layout, Set<Integer> wrong) {
+        for (int slot : homes) if (!stands(layout, wrong, slot)) return slot;
+        if (!homes.isEmpty()) return homes.getFirst();
         for (int col : new int[]{Table.MID, Table.WEST_AT, Table.EAST_AT}) if (!stands(layout, wrong, Table.slot(row, col))) return Table.slot(row, col);
         return Table.slot(row, Table.MID);
     }
@@ -154,8 +167,9 @@ record Variant(String id, List<String> say, Map<String, Set<String>> replace, bo
         for (Map.Entry<String, Integer> e : must.entrySet()) {
             int row = e.getValue();
             if (row < 0 || row >= Table.ROWS || out.containsValue(e.getKey()) && rowOf(out, e.getKey()) == row) continue;
-            // a favourite goes between the two sides; in row 1 it is the 전 itself
-            out.put(Table.slot(row, Table.MID), e.getKey());
+            // a favourite goes on its own vessel (between the two sides, as the shipped ones all are; in row 1 the 전 itself)
+            List<Integer> homes = Table.homes(row, e.getKey(), r);
+            out.put(homes.isEmpty() ? Table.slot(row, Table.MID) : homes.contains(Table.slot(row, Table.MID)) ? Table.slot(row, Table.MID) : homes.getFirst(), e.getKey());
         }
         if (soups > 1) {
             Set<String> used = new LinkedHashSet<>();

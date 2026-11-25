@@ -800,6 +800,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
             whisper(p, "lines.not-now");
             return;
         }
+        if (s.rolling.contains(v)) return;   // what was put on it is rolling off just now
         if (s.preview) {   // an admin's look: the vessels take nothing
             m.haunt().sound(p, house.dishAt(s, v), Sound.BLOCK_WOOD_HIT, 0.3f, 1.4f);
             return;
@@ -879,8 +880,35 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         Location at = house.dishAt(s, v);
         m.haunt().sound(p, at, Vessel.kind(v) == Vessel.Kind.PLATE || Vessel.kind(v) == Vessel.Kind.DEEP ? Sound.BLOCK_WOOD_PLACE : Sound.BLOCK_DECORATED_POT_INSERT,
                 0.35f, 1.3f);
-        String line = text("lines.placed");
-        if (!line.isBlank()) whisper(p, "lines.placed");
+        if (settle(p, s, pre, v)) {
+            String line = text("lines.placed");
+            if (!line.isBlank()) whisper(p, "lines.placed");
+        }
+    }
+
+    /**
+     * Just put on vessel v: only a thing on its own vessel stays ({@link Table#fits} — the column of its kind in its row,
+     * whatever else lies there; the weekly house by its family's table). It settles with a 딸깍; anything else on the table
+     * that is wrong now (the newly put thing, or the 탕 that a soup just put in row 0 made a second one) rolls off at once
+     * by the wrong table's roll and comes back as it lands (pockets, else the mailbox). Nothing is owed here: what is missing
+     * is for the bows. True when the thing stayed.
+     */
+    private boolean settle(Player p, House.Shown s, String pre, int v) {
+        UUID u = p.getUniqueId();
+        Map<Integer, String> raw = saved(u, pre);
+        Map<Integer, String> layout = ids(plates(u, pre));
+        Table.Verdict verdict = pre.isEmpty() ? Table.judge(layout, rules(), v) : sequel.judgePut(u, layout, v);
+        if (verdict == null) return true;   // the weekly house without its circumstance in the file: nothing is judged
+        for (int slot : verdict.wrong()) {
+            String expected = raw.get(slot);
+            if (expected == null) continue;
+            house.tumble(p, s, slot, at -> {
+                if (!takeOff(u, pre, at, expected)) house.food(p, plates(u, pre));   // could not go back: drawn on its vessel again
+            });
+        }
+        if (verdict.wrong().contains(v)) return false;
+        house.click(p, s, v);
+        return true;
     }
 
     /** Takes what lies on the vessel back into the (empty) hand's inventory, else the mailbox. */
@@ -908,7 +936,7 @@ public final class Jesa extends Secret implements BusModule.Watcher {
         Player p = e.getPlayer();
         UUID u = p.getUniqueId();
         House.Shown s = house.get(u);
-        if (s == null || s.busy || !p.getWorld().equals(s.base.getWorld()) || guide(p)) return;
+        if (s == null || s.busy || !s.rolling.isEmpty() || !p.getWorld().equals(s.base.getWorld()) || guide(p)) return;
         Location l = p.getLocation();
         if (Math.abs(l.getY() - s.base.getY()) > 2.5
                 || !Place.before(l.getX(), l.getZ(), s.base.getX() + 0.5, s.base.getZ() + 0.5, cfg.getDouble("bow.reach", 5))) return;

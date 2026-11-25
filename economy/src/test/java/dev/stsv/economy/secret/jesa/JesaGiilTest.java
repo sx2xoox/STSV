@@ -95,8 +95,18 @@ class JesaGiilTest {
         assertTrue(v.judge(with(t, 1, MID, "economy:gamjajeon"), RULES).ok());
         // only meat: the east vessel is pointed at
         assertEquals(List.of(Table.slot(1, E)), v.judge(with(with(right(), 1, MID, null), 1, E, null), RULES).missing());
-        // the 전 on the middle vessel with the meat west of it stands where the fish would (the middle is neither side)
+        // a 전 is at home on the middle vessel and on the east one (the fish place): one on either will do
+        Table.Rules r = v.apply(RULES);
+        assertTrue(Table.fits(Table.slot(1, MID), JesaTest.JEON, r) && Table.fits(Table.slot(1, E), JesaTest.JEON, r));
+        assertFalse(Table.fits(Table.slot(1, W), JesaTest.JEON, r));
         assertTrue(v.judge(with(right(), 1, E, null), RULES).ok());
+        // put on alone: it stays on the middle or the east vessel, rolls off the west one
+        assertTrue(v.judge(Map.of(Table.slot(1, E), JesaTest.JEON), RULES, Table.slot(1, E)).wrong().isEmpty());
+        assertTrue(v.judge(Map.of(Table.slot(1, MID), JesaTest.JEON), RULES, Table.slot(1, MID)).wrong().isEmpty());
+        assertEquals(Set.of(Table.slot(1, W)), v.judge(Map.of(Table.slot(1, W), JesaTest.JEON), RULES, Table.slot(1, W)).wrong());
+        // and a fish anywhere rolls off
+        for (int col = 0; col < Table.COLS; col++)
+            assertEquals(Set.of(Table.slot(1, col)), v.judge(Map.of(Table.slot(1, col), JesaTest.GUI), RULES, Table.slot(1, col)).wrong());
         // a fish 전 is fish too
         assertFalse(v.judge(with(with(right(), 1, MID, null), 1, E, "economy:saengseonjeon"), RULES).ok());
         // the dried fish of row 3 stays (a 포 is not what they could not eat), also when the 포 is a 굴비
@@ -134,6 +144,17 @@ class JesaGiilTest {
         Table.Verdict elsewhere = v.judge(with(right(), 4, MID, "economy:japchae"), RULES);
         assertEquals(Set.of(Table.slot(4, MID)), elsewhere.wrong());
         assertEquals(List.of(Table.slot(3, MID)), elsewhere.missing());
+        // in its own row but off its own vessel: it rolls off, and its own vessel is pointed at
+        Table.Verdict aside = v.judge(with(right(), 3, W, "economy:japchae"), RULES, Table.slot(3, W));
+        assertEquals(Set.of(Table.slot(3, W)), aside.wrong());
+        assertTrue(aside.missing().contains(Table.slot(3, MID)), aside.toString());
+        // every favourite of the file has a vessel of its own in its row, and the family's own table lays it there
+        for (Variant f : variants()) for (Map.Entry<String, Integer> e : f.must().entrySet()) {
+            List<Integer> homes = Table.homes(e.getValue(), e.getKey(), f.apply(RULES));
+            assertFalse(homes.isEmpty(), f.id() + ": " + e.getKey());
+            assertTrue(homes.contains(Table.slot(e.getValue(), MID)), f.id() + ": favourites all go between");
+            assertEquals(e.getKey(), f.sample(RULES).get(Table.slot(e.getValue(), MID)), f.id());
+        }
         // the 전 they liked: another 전 does not do
         Variant jeon = variant("fav-hobakjeon");
         assertTrue(jeon.judge(right(), RULES).ok(), "the usual right table already has 호박전");
@@ -160,6 +181,12 @@ class JesaGiilTest {
         Table.Verdict twice = v.judge(with(three, 2, E, "economy:doenjang_jjigae"), RULES);
         assertEquals(1, twice.wrong().size());
         assertEquals(1, twice.missing().size());
+        // put on just now as the second of a pair: that one rolls off, the one already there stays
+        Map<Integer, String> pair = with(with(right(), 2, MID, null), 2, E, "economy:kalguksu");
+        pair = with(pair, 2, W, "economy:kalguksu");
+        assertEquals(Set.of(Table.slot(2, W)), v.judge(pair, RULES, Table.slot(2, W)).wrong());
+        // row 0's soup in a deep bowl rolls off too
+        assertEquals(Set.of(Table.slot(2, W)), v.judge(with(right(), 2, W, JesaTest.JIRI), RULES, Table.slot(2, W)).wrong());
         // no soup at all: all three are pointed at, the middle first
         Table.Verdict empty = v.judge(with(right(), 2, MID, null), RULES);
         assertEquals(List.of(Table.slot(2, MID), Table.slot(2, W), Table.slot(2, E)), empty.missing());

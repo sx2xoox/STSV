@@ -2047,17 +2047,17 @@ hwatu:
   # 안 겹침 (갈무리: 한글 10px, 숫자 6px, 빈칸 4px): 그래서 낱말 대신 짧게 (차례 · 판 · 건 칩 · 콜 · 내 패 · 내 칩)
   line:
     all: "{line}"
-    sep: " "
+    sep: "  "
     alone: "<gray>상대를 기다리는 중"
     starting: "<yellow>{seconds}초 뒤 시작"
     my-turn: "<yellow><bold>▶</bold>{seconds}초"
     my-pick: "<yellow><bold>▶홀·짝</bold> {seconds}초"
     my-roll: "<yellow><bold>▶굴리기</bold> {seconds}초"
-    turn: "<gray>▷{seconds}초"
+    turn: "<gray>▷ {seconds}초"
     showing: "<yellow>보는 중 {seconds}초"
-    pot: "<gray>판<#e8c15a>{pot}"
-    put: "<gray>건<white>{n}"
-    to-call: "<gray>콜<white>{n}"
+    pot: "<gray>판 <#e8c15a>{pot}"
+    put: "<gray>낸 <white>{n}"
+    to-call: "<gray>콜 <white>{n}"
     allin: "<dark_red><bold>올인"
     folded: "<red>다이"
     watching: "<dark_gray>구경 중"
@@ -2068,8 +2068,8 @@ hwatu:
     won: "<green>+{n}칩"
     lost: "<red>-{n}칩"
     next: "<gray>다음 판 {seconds}초"
-    chips: "<gray>칩<white>{n}"
-    test-chips: "<light_purple>칩<white>{n}"
+    chips: "<gray>칩 <white>{n}"
+    test-chips: "<light_purple>시험 칩 <white>{n}"
     sitting-out: "<yellow>쉬는 중[준비]"
   # 오른쪽 아래 보드 (앉은 사람만): 섯다 족보 (몇 초마다 넘어감, 두 장을 받으면 내 패가 있는 쪽, 내 패 줄은 노랗게) · 주사위 · 홀짝 규칙
   # 줄 폭 최대 106px 정도 (갈무리9: 한글 한 자 약 10px). {c} = 줄 색 (보통 / 내 패)

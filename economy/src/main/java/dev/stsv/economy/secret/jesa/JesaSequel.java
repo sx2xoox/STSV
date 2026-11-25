@@ -467,6 +467,15 @@ public final class JesaSequel extends Sequel {
         } else refuse(p, s, verdict);
     }
 
+    /**
+     * The weekly table as it is right after something was put on vessel `newest` ({@link Jesa}'s settle: what is wrong rolls
+     * off at once), by this family's own table. Null when the file no longer has this week's circumstance (nothing judged).
+     */
+    Table.Verdict judgePut(UUID u, Map<Integer, String> layout, int newest) {
+        Variant v = variant(u);
+        return v == null ? null : v.judge(layout, j.rules(), newest);
+    }
+
     private long retryAt(UUID u) {
         return System.currentTimeMillis() + seconds(u, "retry", 180) * 1000L;
     }

@@ -74,7 +74,7 @@ class GambleHudPreviewTest {
     /** The 섯다 hand above, on the viewer's turn of the second street. */
     static Component sutdaLine(long seconds, long held) {
         return line(Lang.raw("hwatu.line.my-turn", "seconds", seconds), Lang.raw("hwatu.line.pot", "pot", fmt(225)),
-                Lang.raw("hwatu.line.put", "n", fmt(10)), Lang.raw("hwatu.line.to-call", "n", fmt(120)),
+                Lang.raw("hwatu.line.to-call", "n", fmt(120)),
                 Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.hand.gwang38")), Lang.raw("hwatu.line.chips", "n", fmt(held - 10)));
     }
 
@@ -107,7 +107,7 @@ class GambleHudPreviewTest {
         int w = 1920, h = 1080, scale = 2;
         HudLayout.Placement atEdge = new HudLayout.Placement(HudLayout.Size.NORMAL, HudScreen.rightFor(w, h, scale, 2), 54);
         Component sutda = sutdaLine(14, 1530);
-        Component firstStreet = line(Lang.raw("hwatu.line.turn", "seconds", 17), Lang.raw("hwatu.line.pot", "pot", fmt(60)), Lang.raw("hwatu.line.put", "n", fmt(10)),
+        Component firstStreet = line(Lang.raw("hwatu.line.turn", "seconds", 17), Lang.raw("hwatu.line.pot", "pot", fmt(60)),
                 Lang.raw("hwatu.line.one-card", "card", "8광"), Lang.raw("hwatu.line.chips", "n", fmt(1520)));
         Component dice = line(Lang.raw("hwatu.line.my-roll", "seconds", 8), Lang.raw("hwatu.line.pot", "pot", fmt(40)), Lang.raw("hwatu.line.chips", "n", fmt(990)));
         Component holjjak = line(Lang.raw("hwatu.line.turn", "seconds", 6), Lang.raw("hwatu.line.pot", "pot", fmt(20)),
@@ -132,8 +132,8 @@ class GambleHudPreviewTest {
         fits(layout, jokbo(2, "meong-gusa", "meong-gusa"));
         fits(layout, rules("dice", "주사위", 500));
         fits(layout, rules("holjjak", "홀짝", 500));
-        // a long one: a 6-digit stack, 4-digit bets (큰손방), 13광땡: too wide with "건 2,500", which ActionLine drops first
-        Component longest = line(Lang.raw("hwatu.line.my-turn", "seconds", 20), Lang.raw("hwatu.line.pot", "pot", fmt(12_500)),
+        // a long one: a 6-digit stack, 4-digit bets (큰손방), 13광땡: too wide with "판 12,500", which ActionLine drops first
+        Component longest = line(Lang.raw("hwatu.line.my-turn", "seconds", 20),
                 Lang.raw("hwatu.line.to-call", "n", fmt(5_000)),
                 Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.hand.gwang13")), Lang.raw("hwatu.line.chips", "n", fmt(123_456)));
         for (Component c : List.of(sutdaLine(20, 98_765), longest, firstStreet, dice, holjjak))
