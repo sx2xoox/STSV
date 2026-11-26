@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -479,5 +480,112 @@ class BusTest {
         }
         // a hop goes up between its ends
         assertTrue(Flutter.TICKS % Flutter.HOP == 0 && Flutter.HOP % (2 * Flutter.STEP) == 0);
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // pairs: a man and a woman (커플, 신혼부부), the shiny other half in _s2
+    // ------------------------------------------------------------------------------------------
+
+    /** Who each pair look is (drawn by tools/assetgen/economy_bus_skins.py): m a man, w a woman. */
+    static final java.util.Map<String, Character> SEX = java.util.Map.of("couple_1", 'm', "couple_2", 'w', "couple_3", 'w',
+            "bride_1", 'w', "bride_2", 'm', "bride_3", 'w', "bride_4", 'm');
+
+    @Test
+    void aPairIsAManAndAWoman() {
+        BusSpec s = spec();
+        java.util.Random rnd = new java.util.Random(11);
+        for (String kind : List.of("couple", "bride")) {
+            BusSpec.Type t = s.types().get(kind);
+            assertTrue(t.pair(), kind);
+            assertFalse(t.partnerSkins().isEmpty(), kind);
+            // every look is someone of a known sex, and both halves have their own looks
+            for (String k : t.looks()) assertNotNull(SEX.get(BusSpec.Type.lookName(k)), k);
+            java.util.Set<String> seen = new java.util.HashSet<>(), pairs = new java.util.HashSet<>();
+            for (int i = 0; i < 2000; i++) {
+                String a = BusModule.pickSkin(t, rnd), b = BusModule.partnerSkin(t, a, rnd);
+                String na = BusSpec.Type.lookName(a), nb = BusSpec.Type.lookName(b);
+                assertNotEquals(SEX.get(na), SEX.get(nb), kind + ": " + na + " + " + nb);
+                seen.add(na);
+                seen.add(nb);
+                pairs.add(na + "+" + nb);
+            }
+            assertEquals(t.looks().size(), seen.size(), kind + " uses every look: " + seen);
+            // the partner of an unknown first half (null) is still of the other sex than every first look
+            for (int i = 0; i < 200; i++) {
+                String b = BusSpec.Type.lookName(BusModule.partnerSkin(t, null, rnd));
+                for (String a : t.skins()) assertNotEquals(SEX.get(BusSpec.Type.lookName(a)), SEX.get(b), kind);
+            }
+            if (kind.equals("bride")) assertEquals(java.util.Set.of("bride_1+bride_2", "bride_3+bride_4"), pairs, "matched dress");
+            else assertEquals(java.util.Set.of("couple_1+couple_2", "couple_1+couple_3"), pairs);
+        }
+        // the slim (3-pixel) arms: the women of the pairs, never the men
+        for (String kind : List.of("couple", "bride"))
+            for (String k : s.types().get(kind).looks())
+                assertEquals(SEX.get(BusSpec.Type.lookName(k)) == 'w', k.endsWith(" slim"), k);
+        // 유치원생: any two of the kids, and a kind not a pair has no partner looks
+        BusSpec.Type kinder = s.types().get("kinder");
+        assertTrue(kinder.pair() && kinder.partnerSkins().isEmpty() && kinder.pairs().isEmpty());
+        for (int i = 0; i < 100; i++) assertTrue(kinder.skins().contains(BusModule.partnerSkin(kinder, kinder.skins().getFirst(), rnd)));
+        for (BusSpec.Type t : s.types().values()) if (!t.pair()) assertTrue(t.partnerSkins().isEmpty() && t.pairs().isEmpty(), t.id());
+        // the bride holds the bouquet, the grooms (and the 한복 bride) nothing
+        BusSpec.Type bride = s.types().get("bride");
+        assertEquals("economy:bus_hold_bouquet", bride.hold().main(bride.looks().indexOf("economy:entity/bus/bride_1 slim")));
+        for (String k : List.of("economy:entity/bus/bride_2", "economy:entity/bus/bride_4", "economy:entity/bus/bride_3 slim"))
+            assertEquals("", bride.hold().main(bride.looks().indexOf(k)), k);
+    }
+
+    @Test
+    void theShinyPairIsNotTwins() {
+        BusSpec s = spec();
+        BusSpec.Shiny sh = s.shiny();
+        assertEquals("economy:entity/bus/couple_s2 slim", sh.partnerSkin(s.types().get("couple")));
+        assertEquals("economy:entity/bus/bride_s2", sh.partnerSkin(s.types().get("bride")));
+        assertEquals("economy:entity/bus/kinder_s2 slim", sh.partnerSkin(s.types().get("kinder")));
+        for (BusSpec.Type t : s.types().values()) {
+            if (!sh.eligible(t)) continue;
+            if (t.pair()) {
+                String key = sh.partnerSkin(t).replace(" slim", "");
+                assertNotEquals(sh.skin(t), sh.partnerSkin(t), t.id());
+                assertTrue(java.nio.file.Files.exists(ShinyTest.SKINS.resolve(t.id() + "_s2.png")), key);
+                // the same arms as the look it is drawn from
+                assertEquals(t.partnerBase().endsWith(" slim"), sh.partnerSkin(t).endsWith(" slim"), t.id());
+            } else assertEquals(sh.skin(t), sh.partnerSkin(t), t.id());
+        }
+        // the shiny bride keeps the bouquet, the shiny groom holds what the groom holds (nothing)
+        BusSpec.Type bride = s.types().get("bride");
+        assertEquals(-1, BusModule.shinyLook(bride, sh.skin(bride)));
+        assertEquals("economy:bus_hold_bouquet", bride.hold().main(BusModule.shinyLook(bride, sh.skin(bride))));
+        assertEquals(bride.looks().indexOf("economy:entity/bus/bride_2"), BusModule.shinyLook(bride, sh.partnerSkin(bride)));
+        assertEquals("", bride.hold().main(BusModule.shinyLook(bride, sh.partnerSkin(bride))));
+        assertEquals(-1, BusModule.shinyLook(s.types().get("grandma"), sh.skin(s.types().get("grandma"))));
+        // a kind's own shiny-skin: both halves wear it
+        BusSpec.Shiny own = new BusSpec.Shiny(0.5, sh.talk(), sh.own(), java.util.Map.of("couple", "x:y"), Set.of());
+        assertEquals("x:y", own.partnerSkin(s.types().get("couple")));
+        assertEquals("economy:entity/bus/couple_s2 slim", BusSpec.Shiny.shinySkin("economy:entity/bus/couple_2 slim", "couple", 2));
+        assertEquals("bride_3", BusSpec.Type.lookName("economy:entity/bus/bride_3 slim"));
+        assertEquals("y_1", BusSpec.Type.lookName("x:y_1"));
+    }
+
+    @Test
+    void partnerSkinProblemsAreReported() {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(new File("content/economy/bus.yml"));
+        y.set("types.resident.partner-skins", List.of("economy:entity/bus/resident_9 slim"));   // not a pair
+        y.set("types.couple.pairs.couple_9", "couple_2");                                        // no such first look
+        y.set("types.couple.pairs.couple_1", "couple_7");                                        // no such partner look
+        y.set("types.kinder.pairs.kinder_1", "kinder_2");                                        // no partner-skins
+        y.set("types.bride.partner-skins", List.of("economy:entity/bus/bride_2", "economy:entity/bus/bride_4",
+                "economy:entity/bus/bride_3 slim"));                                             // a first look again, and hold has 4 of 5
+        List<String> problems = new ArrayList<>();
+        BusSpec s = BusSpec.parse(y, problems);
+        assertTrue(problems.contains("types.resident.partner-skins: pair 가 아닌 손님 종류"), problems.toString());
+        assertTrue(problems.contains("types.couple.pairs: skins 에 없는 모습 couple_9"), problems.toString());
+        assertTrue(problems.contains("types.couple.pairs.couple_1: partner-skins 에 없는 모습 couple_7"), problems.toString());
+        assertTrue(problems.contains("types.kinder.pairs: pair 이고 partner-skins 가 있어야 함"), problems.toString());
+        assertTrue(problems.contains("types.bride.partner-skins: skins 에도 있는 모습 economy:entity/bus/bride_3 slim"), problems.toString());
+        assertTrue(problems.stream().anyMatch(p -> p.startsWith("types.bride.hold:") && p.contains("5")), problems.toString());
+        assertEquals(6, problems.size(), problems.toString());
+        assertEquals(java.util.Map.of(), s.types().get("couple").pairs(), "only good pairs are kept");
+        // the real file: the 한복 bride's groom is in 한복
+        assertEquals(java.util.Map.of("bride_1", "bride_2", "bride_3", "bride_4"), spec().types().get("bride").pairs());
     }
 }

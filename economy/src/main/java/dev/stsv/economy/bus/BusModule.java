@@ -130,6 +130,8 @@ public final class BusModule extends EcoModule {
         final BusSpec.Type type;
         /** the skin's file name (its face in the HUD's faces sheet), or null */
         final String face;
+        /** the skin key it wears (bus.yml skins, " slim" kept; a pair's other half is matched to it), or null */
+        String skin;
         /** a transfer passenger: the line they wait for and where they go (else null) */
         Integer forcedLine, forcedDest;
         boolean transfer;
@@ -1824,7 +1826,7 @@ public final class BusModule extends EcoModule {
                     sh.waiters.add(x);
                     sh.dirty = true;
                     if (x.type.pair() && x.team == 0 && x.special == null && sh.waiters.size() < want + 1) {   // a couple: the other half beside them
-                        Waiter y = spawnWaiter(w, s, sh.waiters.size(), want + 1, nearDriver.getUniqueId(), x.type, x.shiny);
+                        Waiter y = spawnWaiter(w, s, sh.waiters.size(), want + 1, nearDriver.getUniqueId(), x.type, x.shiny, x.skin);
                         if (y != null) {
                             y.half = true;
                             x.partner = y;
@@ -3528,14 +3530,29 @@ public final class BusModule extends EcoModule {
     }
 
     /**
-     * Which skin (bus.yml types.*.skins) a passenger of this kind wears: one at random; a couple in matching clothes, the
-     * first the first look and the other half (`partner`) one of the rest. Null when the kind has none.
+     * Which skin (bus.yml types.*.skins) a passenger of this kind wears: one at random (a pair's first half too). Null when
+     * the kind has none.
      */
     static String pickSkin(BusSpec.Type type, boolean partner) {
+        return partner ? partnerSkin(type, null, ThreadLocalRandom.current()) : pickSkin(type, ThreadLocalRandom.current());
+    }
+
+    static String pickSkin(BusSpec.Type type, java.util.random.RandomGenerator rnd) {
         if (type.skins().isEmpty()) return null;
-        if (type.pair() && type.skins().size() > 1)
-            return partner ? type.skins().get(1 + ThreadLocalRandom.current().nextInt(type.skins().size() - 1)) : type.skins().getFirst();
-        return type.skins().get(ThreadLocalRandom.current().nextInt(type.skins().size()));
+        return type.skins().get(rnd.nextInt(type.skins().size()));
+    }
+
+    /**
+     * The skin of the other half of a pair whose first half wears `first` (null: not known): its match in bus.yml pairs
+     * (신혼부부: the 한복 bride's 한복 groom), else one of partner-skins at random (커플: the girlfriend, 신혼부부: a
+     * groom), else, a pair kind with no partner-skins (유치원생), any of skins.
+     */
+    static String partnerSkin(BusSpec.Type type, String first, java.util.random.RandomGenerator rnd) {
+        List<String> them = type.partnerSkins();
+        if (them.isEmpty()) return pickSkin(type, rnd);
+        String match = first == null ? null : type.pairs().get(BusSpec.Type.lookName(first));
+        if (match != null) for (String s : them) if (BusSpec.Type.lookName(s).equals(match)) return s;
+        return them.get(rnd.nextInt(them.size()));
     }
 
     /**
@@ -3577,8 +3594,15 @@ public final class BusModule extends EcoModule {
                 x.setInvisible(true);
                 x.setGlowing(true);
             }
-            equip(x, type, shiny ? -1 : type.skins().indexOf(skin));
+            equip(x, type, shiny ? shinyLook(type, skin) : type.looks().indexOf(skin));
         });
+    }
+
+    /** The look a shiny one holds what of: -1 (the first look's), the other half of a shiny pair (_s2) their partner look's. */
+    static int shinyLook(BusSpec.Type type, String skin) {
+        String base = type.partnerBase();
+        if (base == null || skin == null || !BusSpec.Type.lookName(skin).equals(type.id() + "_s2")) return -1;
+        return type.looks().indexOf(base);
     }
 
     /**
@@ -3642,10 +3666,11 @@ public final class BusModule extends EcoModule {
     }
 
     private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver) {
-        return spawnWaiter(w, s, i, n, driver, null, false);
+        return spawnWaiter(w, s, i, n, driver, null, false, null);
     }
 
-    private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver, BusSpec.Type only, boolean partnerShiny) {
+    /** `only`: the other half of a pair of this kind, shiny or not as the first half, whose skin is `firstSkin`. */
+    private Waiter spawnWaiter(World w, BusStop s, int i, int n, UUID driver, BusSpec.Type only, boolean partnerShiny, String firstSkin) {
         Net net = nets.get(s.world());
         if (net == null) return null;
         if (net.linesOf(s.id()).isEmpty()) return null;
@@ -3668,7 +3693,8 @@ public final class BusModule extends EcoModule {
         Location at = new Location(w, spot[0], s.y() + 1, spot[1], s.facingRoad(), 0);
         if (!w.isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
         String lineNos = lineNumbers(s);
-        String skin = shiny && spec.shiny().skin(type) != null ? spec.shiny().skin(type) : pickSkin(type, only != null);
+        String skin = shinySkin(type, shiny, only != null);
+        if (skin == null) skin = only != null ? partnerSkin(type, firstSkin, ThreadLocalRandom.current()) : pickSkin(type, false);
         boolean shown = shiny;
         BusSpec.Type kindOf = type;
         Mannequin m = spawnGuest(at, type, skin, shiny, x -> {
@@ -3684,6 +3710,7 @@ public final class BusModule extends EcoModule {
             face = key.substring(key.lastIndexOf('/') + 1);
         }
         Waiter out = new Waiter(m, type, face);
+        out.skin = skin;
         out.shiny = shiny;
         if (shiny) sparkle(m, true);
         if (f != null && !stale) {
@@ -3694,6 +3721,12 @@ public final class BusModule extends EcoModule {
             out.special = kind == null ? null : kind.id();
         }
         return out;
+    }
+
+    /** A shiny one's skin (a shiny pair's other half: _s2), or null when not shiny or the kind has no skins. */
+    String shinySkin(BusSpec.Type type, boolean shiny, boolean partner) {
+        if (!shiny) return null;
+        return partner ? spec.shiny().partnerSkin(type) : spec.shiny().skin(type);
     }
 
     /** Who comes to wait at this stop now: by kind, its traits, the hour, a weekend, its market day. */

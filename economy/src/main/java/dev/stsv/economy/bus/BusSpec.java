@@ -34,14 +34,31 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
             return t.skins().isEmpty() ? null : shinySkin(t.skins().getFirst(), t.id());
         }
 
+        /**
+         * The skin the other half of a shiny pair wears: <id>_s2, their partner look ({@link Type#partnerBase()})
+         * recoloured the same way, so a shiny 커플 or 신혼부부 is a man and a woman, not twins. A kind with its own
+         * shiny-skin (or not a pair) wears {@link #skin} on both halves.
+         */
+        public String partnerSkin(Type t) {
+            String own = skins.get(t.id());
+            if (own != null && !own.isBlank()) return own;
+            String base = t.partnerBase();
+            return base == null ? skin(t) : shinySkin(base, t.id(), 2);
+        }
+
         /** economy:entity/bus/grandma_1 slim -> economy:entity/bus/grandma_s1 slim (the folder of the first skin, the kind's id). */
         static String shinySkin(String first, String id) {
+            return shinySkin(first, id, 1);
+        }
+
+        /** The same with _s<n> (2: a pair's other half, from their partner look). */
+        static String shinySkin(String first, String id, int n) {
             boolean slim = first.endsWith(" slim");
             String key = slim ? first.substring(0, first.length() - 5).trim() : first.trim();
             int cut = key.lastIndexOf('/');
             int colon = key.indexOf(':');
             String folder = cut >= 0 ? key.substring(0, cut + 1) : colon >= 0 ? key.substring(0, colon + 1) : "";
-            return folder + id + "_s1" + (slim ? " slim" : "");
+            return folder + id + "_s" + n + (slim ? " slim" : "");
         }
 
         /** A shiny one's lines in this situation (board, thanks): their kind's own, else the general ones, else null. */
@@ -146,7 +163,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
 
     public record Type(String id, String name, String color, double weight, double fare, double mood, double slow, double jolt, double tip,
                        double far, double tipMood, double rush, double late, double scale, boolean announce, List<String> skins,
-                       Map<String, Double> tags, int hourFrom, int hourTo, double weekend, double market, double luggage, boolean pair,
+                       List<String> partnerSkins, Map<String, String> pairs, Map<String, Double> tags, int hourFrom, int hourTo, double weekend, double market, double luggage, boolean pair,
                        double wander, double turnFactor, boolean toEnd, double doze, List<Gift> gifts, Map<String, List<String>> talk,
                        Traits x, Hold hold) {
 
@@ -176,6 +193,32 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
             return w * best;
         }
 
+        /**
+         * Every look (bus.yml skins, then partner-skins): the index hold / hold-off lists follow. A pair kind's first half
+         * wears one of `skins`, the other half one of `partnerSkins` (커플: the boyfriend, then the girlfriend; 신혼부부:
+         * the brides, then the grooms), `pairs` (look name -> partner look name, e.g. bride_3 -> bride_4) when one look
+         * has its own match. A pair kind with no partner-skins (유치원생): any two of `skins`.
+         */
+        public List<String> looks() {
+            if (partnerSkins.isEmpty()) return skins;
+            List<String> all = new ArrayList<>(skins);
+            all.addAll(partnerSkins);
+            return List.copyOf(all);
+        }
+
+        /** The skin a pair's other half's shiny (_s2) is drawn from: the first partner look, else the second look; null if not a pair. */
+        public String partnerBase() {
+            if (!pair || skins.isEmpty()) return null;
+            if (!partnerSkins.isEmpty()) return partnerSkins.getFirst();
+            return skins.size() > 1 ? skins.get(1) : skins.getFirst();
+        }
+
+        /** The look name of a skin key: economy:entity/bus/bride_3 slim -> bride_3. */
+        public static String lookName(String skin) {
+            String key = skin.endsWith(" slim") ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
+            return key.substring(Math.max(key.lastIndexOf('/'), key.indexOf(':')) + 1);
+        }
+
         /** This kind's mood never goes below its floor (수다쟁이 아줌마, 스님). */
         public double floor(double mood) {
             return Math.max(mood, x.moodFloor());
@@ -196,8 +239,9 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
      */
     /**
      * What a passenger mannequin holds (bus.yml types.*.hold / hold-off / hold-fly, README "마을버스"): an item id per look (index
-     * of `skins`; one for every look when bus.yml gives one id) in the main hand and in the off hand, "" for an empty hand; a
-     * 별난 손님 (look -1) holds what the first look holds. `fly`: the model the main-hand thing becomes when a jolt or a bump
+     * of {@link Type#looks()}: skins, then partner-skins; one for every look when bus.yml gives one id) in the main hand and in
+     * the off hand, "" for an empty hand; a 별난 손님 (look -1) holds what the first look holds, the other half of a shiny pair
+     * what their partner look ({@link Type#partnerBase()}) holds. `fly`: the model the main-hand thing becomes when a jolt or a bump
      * sends it fluttering round the bus (the hen), "" for none.
      */
     public record Hold(List<String> main, List<String> off, String fly) {
@@ -248,7 +292,7 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
             List<String> raw = new ArrayList<>();
             if (t.isList(key)) {
                 for (Object o : t.getList(key, List.of())) raw.add(o == null ? "" : String.valueOf(o));
-                if (raw.size() != looks) problems.add("types." + id + "." + key + ": 모습(skins) " + looks + "개인데 " + raw.size() + "개");
+                if (raw.size() != looks) problems.add("types." + id + "." + key + ": 모습(skins + partner-skins) " + looks + "개인데 " + raw.size() + "개");
             } else raw.add(t.getString(key, ""));
             List<String> out = new ArrayList<>();
             for (String r : raw) {
@@ -326,13 +370,15 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
             for (Map<?, ?> g : t.getMapList("gifts")) {
                 if (g.get("item") instanceof String item) gifts.add(new Gift(item, num(g, "amount", 1).intValue()));
             }
+            List<String> skins = List.copyOf(t.getStringList("skins")), partnerSkins = List.copyOf(t.getStringList("partner-skins"));
+            Map<String, String> pairs = pairs(t, id, skins, partnerSkins, problems);
             types.put(id, new Type(id, t.getString("name", id), t.getString("color", "white"), t.getDouble("weight", 1), t.getDouble("fare", 1),
                     t.getDouble("mood", 1), t.getDouble("slow", 1), t.getDouble("jolt", 1), t.getDouble("tip", 1), t.getDouble("far", 0),
                     t.getDouble("tip-mood", 0), t.getDouble("rush", 1), t.getDouble("late", 0), t.getDouble("scale", 1), t.getBoolean("announce"),
-                    List.copyOf(t.getStringList("skins")), tg, when.size() == 2 ? when.get(0) : -1, when.size() == 2 ? when.get(1) : -1,
+                    skins, partnerSkins, pairs, tg, when.size() == 2 ? when.get(0) : -1, when.size() == 2 ? when.get(1) : -1,
                     t.getDouble("weekend", 1), t.getDouble("market", 1), t.getDouble("luggage", 0), t.getBoolean("pair"), t.getDouble("wander", 0),
                     t.getDouble("turn", 1), t.getBoolean("to-end"), t.getDouble("doze", 0.15), List.copyOf(gifts), talk(t.getConfigurationSection("talk")),
-                    Traits.parse(t), Hold.parse(t, id, t.getStringList("skins").size(), problems)));
+                    Traits.parse(t), Hold.parse(t, id, skins.size() + partnerSkins.size(), problems)));
         }
         if (types.isEmpty()) problems.add("types 가 비어 있음");
         ConfigurationSection mk = section(c, "market"), pc = section(c, "picnic"), dz = section(c, "doze");
@@ -399,6 +445,35 @@ public record BusSpec(Set<String> vehicles, Fare fare, Mood mood, Stops stops, M
                 Set.copyOf(sh.getStringList("never")));
         for (String k : shiny.never()) if (!types.containsKey(k)) problems.add("shiny.never: 없는 손님 종류 " + k);
         return new BusSpec(vehicles, fare, mood, stops, types, extra, rental, queue, patience, board, events, fair, shiny);
+    }
+
+    /**
+     * A pair kind's partner-skins and pairs (bus.yml types.*.partner-skins / pairs): only on a pair kind, partner looks
+     * none of `skins`, every pair a look of skins (by name, bride_3) to one of partner-skins.
+     */
+    private static Map<String, String> pairs(ConfigurationSection t, String id, List<String> skins, List<String> partnerSkins, List<String> problems) {
+        boolean pair = t.getBoolean("pair");
+        if (!pair && !partnerSkins.isEmpty()) problems.add("types." + id + ".partner-skins: pair 가 아닌 손님 종류");
+        Set<String> first = new java.util.HashSet<>(), second = new java.util.HashSet<>();
+        for (String s : skins) first.add(Type.lookName(s));
+        for (String s : partnerSkins) {
+            if (first.contains(Type.lookName(s))) problems.add("types." + id + ".partner-skins: skins 에도 있는 모습 " + s);
+            second.add(Type.lookName(s));
+        }
+        ConfigurationSection ps = t.getConfigurationSection("pairs");
+        if (ps == null) return Map.of();
+        if (!pair || partnerSkins.isEmpty()) {
+            problems.add("types." + id + ".pairs: pair 이고 partner-skins 가 있어야 함");
+            return Map.of();
+        }
+        Map<String, String> out = new LinkedHashMap<>();
+        for (String k : ps.getKeys(false)) {
+            String v = ps.getString(k, "");
+            if (!first.contains(k)) problems.add("types." + id + ".pairs: skins 에 없는 모습 " + k);
+            else if (!second.contains(v)) problems.add("types." + id + ".pairs." + k + ": partner-skins 에 없는 모습 " + v);
+            else out.put(k, v);
+        }
+        return Map.copyOf(out);
     }
 
     private static Map<String, List<String>> talk(ConfigurationSection t) {

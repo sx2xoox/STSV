@@ -96,11 +96,12 @@ class ShinyTest {
         Set<String> names = new HashSet<>();
         faces.forEach(e -> names.add(e.getAsString()));
         for (BusSpec.Type t : s.types().values()) {
-            for (String k : t.skins()) {
+            for (String k : t.looks()) {
                 String key = k.endsWith(" slim") ? k.substring(0, k.length() - 5) : k;
                 assertTrue(names.contains(key.substring(key.lastIndexOf('/') + 1)), key);
             }
             if (s.shiny().eligible(t)) assertTrue(names.contains(t.id() + "_s1"), t.id() + "_s1");
+            if (s.shiny().eligible(t) && t.pair()) assertTrue(names.contains(t.id() + "_s2"), t.id() + "_s2");
         }
     }
 

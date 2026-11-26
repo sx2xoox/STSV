@@ -511,8 +511,12 @@ shiny:
 # wander: 엉뚱한 정류장에서 내릴 확률, turn: 급회전 감점 배수, to-end: 가는 쪽 끝 정류장으로만, doze: 졸 확률 (기본 0.15)
 # gifts: 선물 (아이템 키, 개수), talk: 말풍선 대사 (없는 상황은 default 대사)
 # skins: 리소스팩 스킨 키 (economy 팩 assets/economy/textures/<키 경로>.png), slim 이면 팔 3픽셀 모델
+# partner-skins: pair 종류에서 짝(둘째 사람)이 입는 모습 (커플: 첫째는 남자 skins, 짝은 여자 partner-skins; 신혼부부: 신부와 신랑).
+#   없으면 둘 다 skins 에서 아무거나 (유치원생). pairs: {첫째 모습: 짝 모습} 이 모습이면 짝은 꼭 이 모습 (한복 신부 → 한복 신랑).
+#   별난 짝은 <종류>_s2 (짝의 첫 모습 partner-skins[0], 없으면 skins 둘째를 같은 색으로 바꾼 것)를 입음 (쌍둥이가 아니게).
 # hold / hold-off: 손님 마네킹이 주로 쓰는 손 / 다른 손에 드는 물건 (아이템 키, economy:bus_hold_*; items/bus.yml). 하나면 모든
-#   모습이, [모습1, 모습2, 모습3] 이면 skins 순서대로 ("" = 빈손). 별난 손님(_s1)은 첫 모습 것을 듦. 떨어뜨리지도 뺏기지도 않음.
+#   모습이, [모습1, 모습2, 모습3] 이면 skins 다음 partner-skins 순서대로 ("" = 빈손). 별난 손님(_s1)은 첫 모습 것을, 별난 짝(_s2)은
+#   짝의 첫 모습 것을 듦. 떨어뜨리지도 뺏기지도 않음.
 # hold-fly: 덜컹 · 쾅 할 때 든 물건(hold)이 손을 떠나 버스 안을 3초쯤 날아다니다 돌아옴, 그동안 보이는 모델 (닭 든 할머니의 닭)
 types:
   resident:
@@ -726,7 +730,8 @@ types:
     weight: 9
     pair: true
     hours: [11, 23]
-    skins: ["economy:entity/bus/couple_1", "economy:entity/bus/couple_2 slim", "economy:entity/bus/couple_3 slim"]
+    skins: ["economy:entity/bus/couple_1"]
+    partner-skins: ["economy:entity/bus/couple_2 slim", "economy:entity/bus/couple_3 slim"]
     shiny-talk: {board: ["오늘 우리 100일이에요~♥"], thanks: ["기사님 덕분에 기념일 완벽해요♥"]}
     talk:
       board: ["자기야 여기 앉자~", "우리 어디 갈까?", "손 잡고 타자~", "오늘 100일이에요~", "자기 먼저 타~", "창가는 자기 자리♥"]
@@ -1492,8 +1497,10 @@ types:
     pair: true
     tip: 2.0
     tags: {sea: 2, mountain: 1.5}
-    skins: ["economy:entity/bus/bride_1 slim", "economy:entity/bus/bride_2", "economy:entity/bus/bride_3 slim"]
-    hold: ["economy:bus_hold_bouquet", "", ""]
+    skins: ["economy:entity/bus/bride_1 slim", "economy:entity/bus/bride_3 slim"]
+    partner-skins: ["economy:entity/bus/bride_2", "economy:entity/bus/bride_4"]
+    pairs: {bride_1: bride_2, bride_3: bride_4}
+    hold: ["economy:bus_hold_bouquet", "", "", ""]
     shiny-talk: {board: ["오늘 우리 결혼 1주년이에요!"], thanks: ["기사님 덕분에 오늘 하루 꿈같았어요♥"]}
     talk:
       board: ["저희 어제 결혼했어요!", "신혼여행 가요~♥", "여보 여기 앉자~", "(손을 꼭 잡고 탄다)"]
