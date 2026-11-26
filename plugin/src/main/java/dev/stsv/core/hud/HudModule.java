@@ -514,7 +514,11 @@ public final class HudModule implements StsvModule, Listener, CommandExecutor, T
                 HudLayout.Placement at = placement(p);
                 int sidebarWidth = layout.panelWidth(panelRows(entries(p)), at);
                 if (sidebarWidth <= 0) sidebarWidth = layout.settings().sidebarMaxWidth();
-                return layout.overlay(rows, HudLayout.overlayLeft(at.right(), sidebarWidth, layout.overlayWidth(rows), overlayInset));
+                // more than 8 rows: two columns in the room between the screen's edge and the sidebar (HudLayout.layOverlay)
+                int room = HudLayout.overlayRoom(at.right(), sidebarWidth, overlayInset);
+                long now = System.currentTimeMillis();
+                int width = layout.overlayWidth(rows, room, now);
+                return layout.overlay(rows, HudLayout.overlayLeft(at.right(), sidebarWidth, width, overlayInset), room, now);
             } catch (RuntimeException ex) {
                 plugin.getLogger().warning("오버레이 '" + e.getKey() + "' 오류: " + ex.getMessage());
             }

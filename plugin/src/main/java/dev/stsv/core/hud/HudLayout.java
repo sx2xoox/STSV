@@ -959,10 +959,17 @@ public final class HudLayout {
     // Overlay: a list on the left without a panel (a bus's passengers: face, mood, text)
     // ------------------------------------------------------------------------------------------
 
-    /** One overlay row: a picture of the faces sheet (or null), a mood picture of it (or null) and its text. */
-    public record OverlayRow(String face, String mood, Component text, Component bubble) {
+    /**
+     * One overlay row: a picture of the faces sheet (or null), a mood picture of it (or null), its text, a speech
+     * bubble after it (or null) and a shorter text for when the overlay is in two columns (null: the text, cut to fit).
+     */
+    public record OverlayRow(String face, String mood, Component text, Component bubble, Component compact) {
+        public OverlayRow(String face, String mood, Component text, Component bubble) {
+            this(face, mood, text, bubble, null);
+        }
+
         public OverlayRow(String face, String mood, Component text) {
-            this(face, mood, text, null);
+            this(face, mood, text, null, null);
         }
     }
 
@@ -972,21 +979,117 @@ public final class HudLayout {
     static final int OVERLAY_MOOD_X = 12, OVERLAY_TEXT_X = 25;
     /** The bubble: the gap before it, the width of its left cap (the tail and the rim). */
     static final int BUBBLE_GAP = 2, BUBBLE_LEFT = 6;
+    /** The bubble's right cap and the two px of room round its words. */
+    static final int BUBBLE_RIGHT = 3, BUBBLE_PAD = 2;
     /** The bubble's top over the row's (its 13 px round the 9 px letters and their shadow row, a pixel clear above and below). */
     static final int BUBBLE_DY = -2;
-    /** At most this many overlay rows (a bus's passengers), from the top slot of the normal size's column. */
+    /**
+     * Overlay rows a column (a bus's passengers), from the top slot of the normal size's column: the faces and the
+     * bubble are drawn at these slots' heights only, and each slot's letters are a whole Hangul sheet (0.77 MB), so
+     * more passengers go in a second column beside the first, in the same slots (the same fonts), not lower.
+     */
     static final int OVERLAY_ROWS = 8;
+    /** Columns side by side at most (8 rows each: a 16-seat bus's riders all show); more than that take turns (pages). */
+    static final int OVERLAY_COLUMNS = 2;
+    /** px between two columns, and kept clear before the sidebar's near edge. */
+    static final int OVERLAY_COLUMN_GAP = 8, OVERLAY_SIDEBAR_GAP = 6;
+    /** The narrowest a column of two may be (face, mood and about five syllables); narrower room takes turns instead. */
+    static final int OVERLAY_MIN_COLUMN = OVERLAY_TEXT_X + 50;
+    /** A bubble shows only with at least this much room for its words (else the row is the text alone). */
+    static final int BUBBLE_MIN_WORDS = 20;
+    /** How long each page shows when even two columns do not fit (or there are more rows than two columns hold). */
+    static final long OVERLAY_PAGE_MILLIS = 4000;
 
-    /** How wide the overlay of these rows is (its widest row, a speech bubble included). */
+    /** A row as drawn: its column's left edge (from the overlay's), its slot, its letters and its bubble's (or null). */
+    private record OverlayCell(OverlayRow row, int x, int slot, List<HudText.Cell> text, List<HudText.Cell> words) {}
+
+    /** An overlay laid out: its rows as drawn and its width. */
+    private record OverlayLaid(List<OverlayCell> cells, int width) {}
+
+    /**
+     * The room the overlay has across the screen, opposite the player's sidebar (see {@link #overlayLeft}): from
+     * {@code inset} px in from the screen's edge to {@link #OVERLAY_SIDEBAR_GAP} px before the sidebar. The screen's
+     * edges are where the sidebar's place tells them (never wider than the screen: a sidebar not against its edge
+     * makes the room smaller, not larger).
+     */
+    public static int overlayRoom(int sidebarRight, int sidebarWidth, int inset) {
+        boolean onRight = sidebarRight - sidebarWidth / 2.0 >= 0;
+        int half = onRight ? sidebarRight : sidebarWidth - sidebarRight;
+        return 2 * half - sidebarWidth - inset - OVERLAY_SIDEBAR_GAP;
+    }
+
+    /** How wide the overlay of these rows is (its widest row, a speech bubble included), with no limit. */
     public int overlayWidth(List<OverlayRow> rows) {
-        HudFont f = columns.get(Size.NORMAL).rows().getFirst();
-        int widest = 0;
-        for (OverlayRow r : rows) {
-            int w = OVERLAY_TEXT_X + HudText.width(f, HudText.onPanel(HudText.supported(f, HudText.cells(r.text()))));
-            if (r.bubble() != null) w += BUBBLE_GAP + BUBBLE_LEFT + HudText.width(f, HudText.supported(f, HudText.cells(r.bubble()))) + 2 + 3;
-            widest = Math.max(widest, w);
+        return overlayWidth(rows, Integer.MAX_VALUE, 0);
+    }
+
+    /** How wide the overlay of these rows is in {@code room} px at a time ({@code now}, millis: which page shows). */
+    public int overlayWidth(List<OverlayRow> rows, int room, long now) {
+        return rows == null || rows.isEmpty() ? 0 : layOverlay(rows, room, now).width();
+    }
+
+    /**
+     * The overlay laid out. Up to {@link #OVERLAY_ROWS} rows: one column, as wide as its widest row. More: two
+     * columns in the same slots (the first holds the first half, rounded up, so the order reads down the first
+     * column, then the second), each in its compact text, both within {@code room} ({@code …} where a row does not
+     * fit). When two columns of at least {@link #OVERLAY_MIN_COLUMN} px do not fit in the room, or the rows are more
+     * than two columns hold, they take turns a page at a time ({@link #OVERLAY_PAGE_MILLIS} each).
+     */
+    private OverlayLaid layOverlay(List<OverlayRow> rows, int room, long now) {
+        Column col = columns.get(Size.NORMAL);
+        HudFont f = col.rows().getFirst();
+        int perColumn = Math.min(OVERLAY_ROWS, col.slots());
+        if (rows.size() <= perColumn) return column(f, rows, 0, 0, Integer.MAX_VALUE, false, List.of());
+        int widest = (room - OVERLAY_COLUMN_GAP) / 2;
+        int columnsFit = widest >= OVERLAY_MIN_COLUMN ? OVERLAY_COLUMNS : 1;
+        int perPage = perColumn * columnsFit;
+        List<OverlayRow> shown = rows;
+        if (rows.size() > perPage) {
+            int pages = (rows.size() + perPage - 1) / perPage;
+            int page = (int) Math.floorMod(now / OVERLAY_PAGE_MILLIS, (long) pages);
+            shown = rows.subList(page * perPage, Math.min(rows.size(), (page + 1) * perPage));
         }
-        return widest;
+        if (shown.size() <= perColumn || columnsFit == 1) {
+            return column(f, shown, 0, 0, Math.max(OVERLAY_TEXT_X, room), true, List.of());
+        }
+        int first = (shown.size() + 1) / 2;
+        OverlayLaid a = column(f, shown.subList(0, first), 0, 0, widest, true, List.of());
+        int x = a.width() + OVERLAY_COLUMN_GAP;
+        return column(f, shown.subList(first, shown.size()), x, 0, room - x, true, a.cells());
+    }
+
+    /**
+     * A column of rows from slot {@code slot0} down, its left edge {@code x} px from the overlay's, at most {@code max}
+     * px wide (each row cut to fit; Integer.MAX_VALUE: as written), after the cells laid out before it. Its width is
+     * the overlay's so far (x plus its widest row).
+     */
+    private OverlayLaid column(HudFont f, List<OverlayRow> rows, int x, int slot0, int max, boolean compact,
+                               List<OverlayCell> before) {
+        List<OverlayCell> cells = new ArrayList<>(before);
+        int widest = 0;
+        for (int i = 0; i < rows.size(); i++) {
+            OverlayRow r = rows.get(i);
+            Component t = compact && r.compact() != null ? r.compact() : r.text();
+            List<HudText.Cell> text = HudText.onPanel(HudText.supported(f, HudText.cells(t)));
+            List<HudText.Cell> words = r.bubble() == null || !sheets.has("bubble") ? null
+                    : HudText.onPanel(HudText.supported(f, HudText.cells(r.bubble())));
+            if (max != Integer.MAX_VALUE) {
+                int room = max - OVERLAY_TEXT_X;
+                if (HudText.width(f, text) > room) {
+                    text = room <= 0 ? List.of() : fitLine(f, text, room);
+                    words = null;
+                }
+                if (words != null) {
+                    int left = room - HudText.width(f, text) - BUBBLE_GAP - BUBBLE_LEFT - BUBBLE_PAD - BUBBLE_RIGHT;
+                    if (HudText.width(f, words) > left) words = left < BUBBLE_MIN_WORDS ? null : fitLine(f, words, left);
+                }
+            }
+            int w = OVERLAY_TEXT_X + HudText.width(f, text);
+            if (words != null) w += BUBBLE_GAP + BUBBLE_LEFT + HudText.width(f, words) + BUBBLE_PAD + BUBBLE_RIGHT;
+            widest = Math.max(widest, w);
+            cells.add(new OverlayCell(r, x, slot0 + i, text, words));
+        }
+        return new OverlayLaid(List.copyOf(cells), x + widest);
     }
 
     /**
@@ -1002,34 +1105,37 @@ public final class HudLayout {
         return half - inset - overlayWidth;
     }
 
+    /** The overlay with no limit on its width (see {@link #overlay(List, int, int, long)}). */
+    public Component overlay(List<OverlayRow> rows, int left) {
+        return overlay(rows, left, Integer.MAX_VALUE, 0);
+    }
+
     /**
      * The overlay: no background, no frame, only the pictures and the shadowed letters, one row a slot from the top of
-     * the normal size's column, its left edge {@code left} px from the screen's middle. Null when there is nothing.
-     * Zero net advance (it can follow the panel in the same boss bar title).
+     * the normal size's column, its left edge {@code left} px from the screen's middle, within {@code room} px (see
+     * {@link #layOverlay}: more than 8 rows go in two columns side by side, in the same slots). Null when there is
+     * nothing. Zero net advance (it can follow the panel in the same boss bar title).
      */
-    public Component overlay(List<OverlayRow> rows, int left) {
+    public Component overlay(List<OverlayRow> rows, int left, int room, long now) {
         if (rows == null || rows.isEmpty()) return null;
         Size size = Size.NORMAL;
         Column col = columns.get(size);
         HudFont pic = col.pictures();
         Ink ink = new Ink(0);
-        int n = Math.min(rows.size(), Math.min(OVERLAY_ROWS, col.slots()));
-        for (int i = 0; i < n; i++) {
-            OverlayRow r = rows.get(i);
-            int row = rowTop(size, col, i);
+        for (OverlayCell c : layOverlay(rows, room, now).cells()) {
+            OverlayRow r = c.row();
+            int row = rowTop(size, col, c.slot()), x0 = left + c.x();
             if (r.face() != null && sheets.has("faces") && sheets.sheet("faces").has(r.face())) {
-                ink.to(pic, left).glyph(pic, pic.glyph("faces", r.face(), boss(row + FACE_DY), 1));
+                ink.to(pic, x0).glyph(pic, pic.glyph("faces", r.face(), boss(row + FACE_DY), 1));
             }
             if (r.mood() != null && sheets.has("faces") && sheets.sheet("faces").has(r.mood())) {
-                ink.to(pic, left + OVERLAY_MOOD_X).glyph(pic, pic.glyph("faces", r.mood(), boss(row + FACE_DY), 1));
+                ink.to(pic, x0 + OVERLAY_MOOD_X).glyph(pic, pic.glyph("faces", r.mood(), boss(row + FACE_DY), 1));
             }
-            HudFont f = col.rows().get(i);
-            List<HudText.Cell> text = HudText.onPanel(HudText.supported(f, HudText.cells(r.text())));
-            ink.to(f, left + OVERLAY_TEXT_X).text(f, text);
-            if (r.bubble() != null && sheets.has("bubble")) {
+            HudFont f = col.rows().get(c.slot());
+            ink.to(f, x0 + OVERLAY_TEXT_X).text(f, c.text());
+            if (c.words() != null) {
                 // a speech bubble after the text: a white balloon (its tail towards the face), the words dark inside it
-                List<HudText.Cell> words = HudText.onPanel(HudText.supported(f, HudText.cells(r.bubble())));
-                int x = left + OVERLAY_TEXT_X + HudText.width(f, text) + BUBBLE_GAP, w = HudText.width(f, words) + 2;
+                int x = x0 + OVERLAY_TEXT_X + HudText.width(f, c.text()) + BUBBLE_GAP, w = HudText.width(f, c.words()) + BUBBLE_PAD;
                 int asc = boss(row + BUBBLE_DY);
                 ink.to(pic, x).glyph(pic, pic.glyph("bubble", "l", asc, 1));
                 int px = x + BUBBLE_LEFT, left2 = w;
@@ -1041,7 +1147,7 @@ public final class HudLayout {
                     }
                 }
                 ink.to(pic, px).glyph(pic, pic.glyph("bubble", "r", asc, 1));
-                ink.to(f, x + BUBBLE_LEFT + 1).text(f, words, false);
+                ink.to(f, x + BUBBLE_LEFT + 1).text(f, c.words(), false);
             }
         }
         ink.to(pic, 0);

@@ -106,6 +106,15 @@ class HudPreviewTest {
                 full(1920, 1080, 0, "1080p 자동 GUI · 사이드바를 왼쪽 끝에 → 손님 목록은 오른쪽 끝 (말풍선까지 화면 안)",
                         atLeft(layout, client, rows, 1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal,
                         Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0)));
+        // a full 16-seat bus: more than 8 riders go in two columns side by side (the same row fonts), each row shorter
+        Component nav = Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km");
+        pages.put("bus_overlay_16", List.of(
+                full(1920, 1080, 2, "손님 16명 · 사이드바 오른쪽 끝 → 두 줄로 (넓어서 다 보임)", atRight(1920, 1080, 2, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
+                full(1920, 1080, 3, "손님 16명 · 사이드바 오른쪽 끝 → 두 줄로", atRight(1920, 1080, 3, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
+                full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바 오른쪽 끝 → 두 줄 (긴 것은 …)", atRight(1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
+                full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바 기본 자리", null, normal, nav, 23, 0),
+                full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바를 왼쪽 끝에 → 손님 목록은 오른쪽",
+                        atLeft(layout, client, rows, 1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0)));
 
         JsonObject root = new JsonObject();
         JsonObject out = new JsonObject();
@@ -132,8 +141,8 @@ class HudPreviewTest {
                     HudLayout.Placement at = s.place() == null ? layout.defaults() : s.place();
                     for (HudClient.Draw d : client.lay(layout.panel(rows, at, s.edit())).draws()) draws.add(draw(d, "top", 3 + d.y()));
                 }
-                if (page.getKey().equals("hud_bus")) {
-                    List<HudLayout.OverlayRow> bus = List.of(
+                if (page.getKey().startsWith("hud_bus") || page.getKey().startsWith("bus_overlay")) {
+                    List<HudLayout.OverlayRow> bus = page.getKey().equals("bus_overlay_16") ? sixteen() : List.of(
                             new HudLayout.OverlayRow("grandma_2", "mood_great", Lang.mm("bus.overlay-talk", "color", "#e0a8ff", "type", "할머니"),
                                     Lang.mm("bus.overlay-said", "said", "아이고 기사양반 천천히 가요")),
                             new HudLayout.OverlayRow("student_1", "mood_good", Lang.mm("bus.overlay-row", "color", "#7cc4ff", "type", "학생", "dest", "동항선 2", "left", "2:40")),
@@ -141,8 +150,9 @@ class HudPreviewTest {
                             new HudLayout.OverlayRow("tourist_1", "mood_bad", Lang.mm("bus.overlay-row", "color", "#ffd166", "type", "관광객", "dest", "동항 앞", "left", "4:12")),
                             new HudLayout.OverlayRow("vip_2", "mood_great", Lang.mm("bus.overlay-row", "color", "#ffcf40", "type", "VIP", "dest", "동항 앞", "left", "5:30")));
                     HudLayout.Placement at = s.place() == null ? layout.defaults() : s.place();
-                    int left = HudLayout.overlayLeft(at.right(), layout.panelWidth(rows, at), layout.overlayWidth(bus), 2);
-                    for (HudClient.Draw d : client.lay(layout.overlay(bus, left)).draws()) draws.add(draw(d, "top", 3 + d.y()));
+                    int sw = layout.panelWidth(rows, at), room = HudLayout.overlayRoom(at.right(), sw, 2);
+                    int left = HudLayout.overlayLeft(at.right(), sw, layout.overlayWidth(bus, room, 0), 2);
+                    for (HudClient.Draw d : client.lay(layout.overlay(bus, left, room, 0)).draws()) draws.add(draw(d, "top", 3 + d.y()));
                 }
                 for (HudClient.Draw d : client.lay(layout.actionBar(s.health(), s.message())).draws()) draws.add(draw(d, "bottom", d.y() - 72));
                 entry.add("draws", draws);
@@ -182,6 +192,34 @@ class HudPreviewTest {
             out.add(frame((i == 0 ? "연달아 맞음 · 맞기 전" : "연달아 맞음 · " + t + (i == 3 || i == 5 ? " (또 맞음: 남은 자리부터)" : "")), hb));
         }
         return out;
+    }
+
+    /** A rider's row as BusModule makes it (the real messages: bus.overlay-row, its compact form). */
+    static HudLayout.OverlayRow bus(String face, String mood, String color, String type, String dest, String left) {
+        return new HudLayout.OverlayRow(face, mood, Lang.mm("bus.overlay-row", "color", color, "type", type, "dest", dest, "left", left),
+                null, Lang.mm("bus.overlay-compact", "color", color, "type", type, "dest", dest, "left", left));
+    }
+
+    /** A full 16-seat bus, the next to get off first (HudLayoutTest.sixteenRiders with the real messages). */
+    static List<HudLayout.OverlayRow> sixteen() {
+        return List.of(
+                new HudLayout.OverlayRow("grandma_2", "mood_great", Lang.mm("bus.overlay-talk", "color", "#e0a8ff", "type", "할머니"),
+                        Lang.mm("bus.overlay-said", "said", "아이고 기사양반 천천히 가요")),
+                bus("fisher_1", "mood_good", "#7cc4ff", "낚시꾼", Lang.raw("bus.next-stop"), "0:40"),
+                bus("haenyeo_1", "mood_good", "#5fd0c0", "해녀", "동항 앞", "1:12"),
+                bus("farmer_2", "mood_meh", "#a0d070", "농부", "동항 앞", "1:30"),
+                bus("courier_1", "mood_bad", "#ffb070", "택배기사", "시장 앞", "<red>지각</red>"),
+                bus("bride_1", "mood_great", "#ffd0e0", "신부", "북항 수산시장 입구", "2:05"),
+                bus("couple_1", "mood_good", "#ff9ab0", "커플 " + Lang.raw("bus.overlay-team", "no", 3), "북항 수산시장 입구", "2:05"),
+                bus("chatty_2", "mood_meh", "#c9d2dc", "수다쟁이", "동항선 2", "2:40"),
+                bus("drunk_1", "mood_bad", "#d8a060", "취객", "동항선 2", "2:40" + Lang.raw("bus.dozing")),
+                bus("gentleman_1", "mood_good", "#c9d2dc", "신사", "동항 종점", "3:10"),
+                bus("ghost_1", "mood_great", "#b8f0ff", "★ 유령", "동항 종점", "3:10"),
+                bus("bungeo_1", "mood_good", "#ffcf80", "붕어빵 아저씨", "동항 종점 버스 회차장", "3:55"),
+                bus("camper_1", "mood_meh", "#90c080", "캠핑족", "동항 종점", "4:12"),
+                bus("dogwalker_1", "mood_good", "#d0b090", "강아지 할아버지", "동항 종점", "4:30"),
+                bus("fan_1", "mood_bad", "#ff80c0", "팬", "동항 종점", "5:00"),
+                bus("dealer", "mood_meh", "#888888", "선글라스 남자", "???", "???"));
     }
 
     static Scene frame(String label, HudLayout.Health health) {

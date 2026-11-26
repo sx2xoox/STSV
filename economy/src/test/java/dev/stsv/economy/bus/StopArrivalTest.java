@@ -187,6 +187,19 @@ class StopArrivalTest {
     }
 
     @Test
+    void theOverlayListsWhoGetsOffSoonestFirst() {
+        // a 16-seat bus's riders (two columns of the overlay read down the first, then the second): next stop first,
+        // then stop by stop along the way it runs, a stop off the line after them, the 선글라스 남자 last
+        BusLine l = line(1, "동항", 1, 2, 3, 4);
+        int[][] riders = {{3, 0}, {9, 1}, {-1, 0}, {1, 0}, {4, 0}, {7, 0}, {2, 0}};
+        java.util.function.IntFunction<List<Integer>> order = dir -> java.util.Arrays.stream(riders)
+                .sorted(java.util.Comparator.comparingInt(x -> BusModule.offOrder(x[0], x[1] == 1, dir, l)))
+                .map(x -> x[0]).toList();
+        assertEquals(List.of(-1, 1, 2, 3, 4, 7, 9), order.apply(1));
+        assertEquals(List.of(-1, 4, 3, 2, 1, 7, 9), order.apply(-1), "the next stop first whichever way it runs");
+    }
+
+    @Test
     void aStopByWhereABranchLeavesIsOnBothLines() {
         RoadNetwork.Road trunk = BusTest.straight("동항", 0.5, 0.5, 1, 0, 3000);
         RoadNetwork.Road branch = BusTest.straight("북항", 1500.5, -1.5, 0, -1, 1000);

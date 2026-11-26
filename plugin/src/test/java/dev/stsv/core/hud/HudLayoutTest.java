@@ -665,6 +665,150 @@ class HudLayoutTest {
         assertTrue(left + 260 <= 240, "inside the screen");
     }
 
+    /** A bus rider's overlay row, as BusModule makes it (bus.overlay-row / overlay-compact / overlay-talk + overlay-said). */
+    static HudLayout.OverlayRow rider(String face, String mood, String color, String type, String dest, String left, String said) {
+        if (said != null) return new HudLayout.OverlayRow(face, mood, mm("<" + color + ">" + type), mm("<#2a2630>" + said));
+        return new HudLayout.OverlayRow(face, mood,
+                mm("<" + color + ">" + type + "</" + color + "> <gray>→</gray> <white>" + dest + "</white> <gray>" + left),
+                null, mm("<" + color + ">" + type + "</" + color + "> <gray>▶</gray><white>" + dest + "</white> <gray>" + left));
+    }
+
+    /** A full 16-seat bus (15 riders and the dog's seat taken too: 16 rows), the next to get off first, some long. */
+    static List<HudLayout.OverlayRow> sixteenRiders() {
+        return List.of(
+                rider("grandma_2", "mood_great", "#e0a8ff", "할머니", null, null, "아이고 기사양반 천천히 가요"),
+                rider("fisher_1", "mood_good", "#7cc4ff", "낚시꾼", "다음 정류장", "0:40", null),
+                rider("haenyeo_1", "mood_good", "#5fd0c0", "해녀", "동항 앞", "1:12", null),
+                rider("farmer_2", "mood_meh", "#a0d070", "농부", "동항 앞", "1:30", null),
+                rider("courier_1", "mood_bad", "#ffb070", "택배기사", "시장 앞", "<red>지각</red>", null),
+                rider("bride_1", "mood_great", "#ffd0e0", "신부", "북항 수산시장 입구", "2:05", null),
+                rider("couple_1", "mood_good", "#ff9ab0", "커플 3팀", "북항 수산시장 입구", "2:05", null),
+                rider("chatty_2", "mood_meh", "#c9d2dc", "수다쟁이", "동항선 2", "2:40", null),
+                rider("drunk_1", "mood_bad", "#d8a060", "취객", "동항선 2", "2:40 <gray>Zz", null),
+                rider("gentleman_1", "mood_good", "#c9d2dc", "신사", "동항 종점", "3:10", null),
+                rider("ghost_1", "mood_great", "#b8f0ff", "★ 유령", "동항 종점", "3:10", null),
+                rider("bungeo_1", "mood_good", "#ffcf80", "붕어빵 아저씨", "동항 종점 버스 회차장", "3:55", null),
+                rider("camper_1", "mood_meh", "#90c080", "캠핑족", "동항 종점", "4:12", null),
+                rider("dogwalker_1", "mood_good", "#d0b090", "강아지 할아버지", "동항 종점", "4:30", null),
+                rider("fan_1", "mood_bad", "#ff80c0", "팬", "동항 종점", "5:00", null),
+                rider("dealer", "mood_meh", "#888888", "선글라스 남자", "???", "???", null));
+    }
+
+    /** A sidebar like a player's (the preview's rows). */
+    static List<HudLayout.Row> sidebarRows() {
+        return List.of(
+                new HudLayout.Row("coin", mm("<gray>잔액\t<gold>12,345 G"), false),
+                new HudLayout.Row("job", mm("<#8bc34a>농부 <gray>Lv 12\t<white>34%"), false),
+                new HudLayout.Row("mission", mm("<gray>미션\t<white>일일 2/3 · 주간 1/3"), false),
+                new HudLayout.Row("event", mm("<gold>풍년\t<gray>2시간 10분"), true),
+                new HudLayout.Row(null, mm("<gray>작물 판매가 +20%, 비료 효과 두 배"), false));
+    }
+
+    /** The overlay as HudModule places it for a sidebar at `at` (its width as drawn). */
+    static HudClient.Laid busOverlay(List<HudLayout.OverlayRow> rows, HudLayout.Placement at, long now) {
+        int sw = layout.panelWidth(sidebarRows(), at);
+        int room = HudLayout.overlayRoom(at.right(), sw, 2);
+        int left = HudLayout.overlayLeft(at.right(), sw, layout.overlayWidth(rows, room, now), 2);
+        return client.lay(layout.overlay(rows, left, room, now));
+    }
+
+    /** The right edge of a drawn glyph (its last visible column + 1). */
+    static int right(HudClient.Draw d) {
+        return d.x() + width(d) + (d.shadow() ? 1 : 0);
+    }
+
+    @Test
+    void sixteenRidersShowInTwoColumnsOnEveryScreen() {
+        List<HudLayout.OverlayRow> bus = sixteenRiders();
+        int w = 1920, h = 1080;
+        for (int scale : new int[]{2, 3, 4}) {
+            int gw = HudScreen.guiWidth(w, scale);
+            int screenLeft = -(gw / 2), screenRight = gw - gw / 2;
+            List<HudLayout.Placement> places = new java.util.ArrayList<>();
+            places.add(layout.defaults());   // never moved (right 212)
+            places.add(new HudLayout.Placement(HudLayout.Size.NORMAL, HudScreen.rightFor(w, h, scale, 2), 54));   // against the right edge
+            HudClient.Laid probe = client.lay(layout.panel(sidebarRows(), new HudLayout.Placement(HudLayout.Size.NORMAL, 0, 54), false));
+            int sw = -probe.draws().stream().mapToInt(HudClient.Draw::x).min().orElseThrow();
+            places.add(new HudLayout.Placement(HudLayout.Size.NORMAL, screenLeft + 2 + sw, 54));   // against the left edge
+            for (HudLayout.Placement at : places) {
+                String where = "GUI " + scale + " sidebar at " + at.right();
+                HudClient.Laid panel = client.lay(layout.panel(sidebarRows(), at, false));
+                int panelLeft = panel.draws().stream().mapToInt(HudClient.Draw::x).min().orElseThrow();
+                int panelRight = panel.draws().stream().mapToInt(HudLayoutTest::right).max().orElseThrow();
+                HudClient.Laid laid = busOverlay(bus, at, 0);
+                List<HudClient.Draw> faces = laid.draws().stream().filter(d -> d.sheet().equals("faces") && !d.cell().startsWith("mood_")).toList();
+                assertEquals(16, faces.size(), where + ": every rider's face");
+                assertEquals(16, faces.stream().map(d -> d.x() + "," + d.y()).distinct().count(), where + ": no two faces in one place");
+                List<Integer> xs = faces.stream().map(HudClient.Draw::x).distinct().sorted().toList();
+                assertEquals(2, xs.size(), where + ": two columns");
+                List<Integer> ys = faces.stream().map(HudClient.Draw::y).distinct().sorted().toList();
+                assertEquals(8, ys.size(), where + ": in the same 8 slots");
+                assertEquals(8, faces.stream().filter(d -> d.x() == xs.getFirst()).count(), where + ": 8 in the first column");
+                for (int i = 1; i < ys.size(); i++) assertEquals(HudLayout.ROW, ys.get(i) - ys.get(i - 1), where);
+                // faces at the heights the first column's are drawn at (the pictures font holds them for slots 0..7 only)
+                for (HudClient.Draw f : faces) assertTrue(ys.contains(f.y()), where);
+                int split = xs.get(1);
+                for (HudClient.Draw d : laid.draws()) {
+                    assertTrue(d.x() >= screenLeft && right(d) <= screenRight, where + ": " + d + " on screen");
+                    // the first column's glyphs end before the second column starts
+                    if (d.x() < split) assertTrue(right(d) <= split - HudLayout.OVERLAY_COLUMN_GAP + 1, where + ": " + d + " runs into the second column");
+                    // clear of the sidebar (it stays beside the overlay: no glyph of the overlay within its edges)
+                    assertTrue(right(d) <= panelLeft || d.x() >= panelRight, where + ": " + d + " under the sidebar");
+                }
+                // on a narrow screen the long ones end in "…" rather than running on; on a wide one they are whole
+                int room = HudLayout.overlayRoom(at.right(), layout.panelWidth(sidebarRows(), at), 2);
+                if (layout.overlayWidth(bus) <= room) assertFalse(laid.draws().stream().anyMatch(d -> d.cell().equals("…")), where);
+                else assertTrue(laid.draws().stream().anyMatch(d -> d.cell().equals("…")), where);
+            }
+        }
+    }
+
+    @Test
+    void twoColumnsUseOnlyTheRowFontsThatAlreadyExist() {
+        // no new fonts (each row font is a whole Hangul sheet, 0.77 MB): the second column draws with slots 0..7's
+        Set<String> fonts = new HashSet<>();
+        collectFonts(layout.overlay(sixteenRiders(), -211, 280, 0), fonts);
+        Set<String> allowed = new HashSet<>(List.of("stsv:hud/panel_m"));
+        for (int j = 0; j < HudLayout.OVERLAY_ROWS; j++) allowed.add("stsv:hud/row_m" + j);
+        assertTrue(allowed.containsAll(fonts), "fonts " + fonts);
+        assertTrue(fonts.contains("stsv:hud/row_m7"));
+        // so the client memory is what it was: fontsStayLightOnClientMemory keeps its caps
+    }
+
+    static void collectFonts(Component c, Set<String> out) {
+        if (c.style().font() != null) out.add(c.style().font().asString());
+        for (Component ch : c.children()) collectFonts(ch, out);
+    }
+
+    @Test
+    void eightOrFewerRidersLookAsBefore() {
+        List<HudLayout.OverlayRow> five = sixteenRiders().subList(0, 5);
+        assertEquals(layout.overlay(five, -211), layout.overlay(five, -211, 120, 0), "one column, not cut, whatever the room");
+        assertEquals(layout.overlayWidth(five), layout.overlayWidth(five, 120, 0));
+        HudClient.Laid laid = client.lay(layout.overlay(sixteenRiders().subList(0, 8), -211, 280, 0));
+        assertEquals(1, laid.draws().stream().filter(d -> d.sheet().equals("faces")).map(HudClient.Draw::x).filter(x -> x == -211).distinct().count());
+        assertEquals(8, laid.draws().stream().filter(d -> d.sheet().equals("faces") && !d.cell().startsWith("mood_")).count());
+        assertTrue(drawn(laid, "bubble", "l"), "the bubble whole");
+    }
+
+    @Test
+    void tooLittleRoomForTwoColumnsTakesTurns() {
+        List<HudLayout.OverlayRow> bus = sixteenRiders();
+        int room = 2 * HudLayout.OVERLAY_MIN_COLUMN + HudLayout.OVERLAY_COLUMN_GAP - 1;
+        Set<String> seen = new HashSet<>();
+        for (long now : new long[]{0, HudLayout.OVERLAY_PAGE_MILLIS}) {
+            HudClient.Laid laid = client.lay(layout.overlay(bus, -211, room, now));
+            List<HudClient.Draw> faces = laid.draws().stream().filter(d -> d.sheet().equals("faces") && !d.cell().startsWith("mood_")).toList();
+            assertEquals(8, faces.size(), "a page of 8");
+            assertEquals(1, faces.stream().map(HudClient.Draw::x).distinct().count(), "one column");
+            for (HudClient.Draw d : laid.draws()) assertTrue(right(d) <= -211 + room + 1, d + " within the room");
+            faces.forEach(f -> seen.add(f.cell()));
+            assertTrue(layout.overlayWidth(bus, room, now) <= room);
+        }
+        assertEquals(16, seen.size(), "every rider within two pages");
+        assertEquals(layout.overlay(bus, -211, room, 0), layout.overlay(bus, -211, room, 2 * HudLayout.OVERLAY_PAGE_MILLIS), "back to the first");
+    }
+
     /** Top of a glyph from the top of the screen (the first boss bar's pen line is y 3). */
     static int fromTop(HudClient.Draw d) {
         return d.y() + 3;

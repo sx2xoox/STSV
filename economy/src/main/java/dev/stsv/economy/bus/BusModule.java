@@ -3505,7 +3505,7 @@ public final class BusModule extends EcoModule {
         Net n = nets.get(p.getWorld().getName());
         BusLine line = n == null ? null : n.line(r.line);
         List<Rider> order = new ArrayList<>(r.riders);
-        if (line != null) order.sort(Comparator.comparingInt(x -> x.secret ? Integer.MAX_VALUE : r.dir * line.at(x.dest)));
+        if (line != null) order.sort(Comparator.comparingInt(x -> offOrder(x.dest, x.secret, r.dir, line)));
         long now = System.currentTimeMillis();
         List<dev.stsv.core.hud.HudLayout.OverlayRow> out = new ArrayList<>();
         for (Rider x : order) {
@@ -3522,11 +3522,25 @@ public final class BusModule extends EcoModule {
                         "said", net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(x.said))));
                 continue;
             }
-            out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood, Lang.mm("bus.overlay-row", "color", color,
-                    "type", name, "dest", x.secret ? "???" : x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name(),
-                    "left", x.secret ? "???" : clock(left) + (x.dozing ? Lang.raw("bus.dozing") : ""))));
+            String dest = x.secret ? "???" : x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name();
+            String when = x.secret ? "???" : clock(left) + (x.dozing ? Lang.raw("bus.dozing") : "");
+            // more than 8 riders (a 16-seat bus): two columns side by side, each row in the shorter form (HudLayout.layOverlay)
+            out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood,
+                    Lang.mm("bus.overlay-row", "color", color, "type", name, "dest", dest, "left", when), null,
+                    Lang.mm("bus.overlay-compact", "color", color, "type", name, "dest", dest, "left", when)));
         }
         return out;
+    }
+
+    /**
+     * Where a rider goes in the driver's overlay (smaller first): who gets off at the next stop (dest -1) first, then by
+     * how far along the way (dir: +1 or -1) their stop is, a secret passenger (who never says) last.
+     */
+    static int offOrder(int dest, boolean secret, int dir, BusLine line) {
+        if (secret) return Integer.MAX_VALUE;
+        if (dest == -1) return Integer.MIN_VALUE;
+        int at = line.at(dest);
+        return at < 0 ? Integer.MAX_VALUE - 1 : dir * at;
     }
 
     /**
