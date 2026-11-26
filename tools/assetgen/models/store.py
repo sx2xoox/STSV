@@ -589,7 +589,7 @@ def freezer():
 # ================================================================================================
 
 def _cabinet(m):
-    steel = Paint("steel", 4, "metal", noise=0.03, rim=1.0)
+    steel = Paint("steel", 4, noise=0.0, rim=1.0)
 
     def doors(c):
         if c.face == "north":
@@ -600,7 +600,7 @@ def _cabinet(m):
         return None
     m.group("cabinet")
     m.box("cabinet", (1, 0, 2), (15, 12, 15), steel(decal=doors))
-    m.box("top", (0.5, 12, 1.5), (15.5, 13, 15.5), Paint("steel", 5, "metal", noise=0.02, rim=1.2))
+    m.box("top", (0.5, 12, 1.5), (15.5, 13, 15.5), Paint("steel", 5, noise=0.0, rim=1.2))
 
 
 def microwave():
@@ -613,10 +613,12 @@ def microwave():
         if c.face == "north":
             if 4.5 <= x < 14 and 14.5 <= y < 21:
                 if 5.5 <= x < 12.5 and 15.5 <= y < 20:
-                    # the window: dark mesh, a glint
-                    if math.floor(x + y) % 7 == 0:
+                    # the window: dark glass, the turntable's glow faint inside, a glint across its corner
+                    if math.floor(x - y) == -9 or math.floor(x - y) == -11 and x < 9:
                         return ("steel", 3)
-                    return ("iron", 1) if (c.i[0] + c.i[1]) % 2 else ("iron", 0)
+                    if y < 16.5 and 7 <= x < 11:
+                        return ("iron", 2)
+                    return ("iron", 1)
                 return ("iron", 2)
             if 1.5 <= x < 4.5 and 14.5 <= y < 21:
                 if 19 <= y < 20.5:

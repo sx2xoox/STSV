@@ -185,7 +185,7 @@ def sheet(path=SHEET):
     view(0, y0, 900, 260, [3958, 8, 8], 44, 8, 6, 1.45, "store_sign · GS26 5×1 벽걸이 (빛)")
     els.extend(_placed(pv["store_parasol"], (4200, 8, 0), 2))
     els.append(_plane("pave", 4160, -40, 4256, 56))
-    view(900, y0, 700, 520, [4208, 20, 8], 38, 28, 22, 1.9, "store_parasol · 3×1 · 좌석 2")
+    view(900, y0, 700, 520, [4208, 22, 8], 46, 28, 20, 2.0, "store_parasol · 3×1 · 좌석 2")
     view(0, y0 + 260, 900, 260, [1000 + 8, 15, 8], 30, 62, 14, 1.5, "store_shelf_snack_full (+x 쪽)")
     # row 7: the appliances and props
     y0 += 520
@@ -196,7 +196,7 @@ def sheet(path=SHEET):
         els.extend(_placed(pv[k], (ax, 8, 0), 1))
         els.append(_plane("tile", ax - 24, -24, ax + 24, 24))
         tall = k in ("store_hanger", "store_kettle")
-        view(i * 200, y0, 200, 340, [ax, 15 if tall else 9, 8], 22 if tall else 15, 28, 20, 3.4, label)
+        view(i * 200, y0, 200, 340, [ax, 15 if tall else 9, 8], 22 if tall else 15, 18, 20, 4.0, label)
     els.extend(_placed(pv["store_eat_bar"], (5000, 8, 0), 1))
     els.append(_plane("tile", 4970, -24, 5040, 24))
     els.append(_wall("wallbg", 4970, 5040, 0, 30, 16))
