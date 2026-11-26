@@ -2,16 +2,22 @@
 도박장 assets (docs/plans/도박장_기획.md §2, economy README "도박장"): writes only the gambling hall's own files, and its
 preview sheet.
 
-    python3 tools/assetgen/gamble_assets.py            # models + the 현장 소장 skin + docs/previews/gamble_hall_assets.png
-    python3 tools/assetgen/gamble_assets.py --no-sheet # models + skin only
-    (the sheet needs: cd tools/assetgen/render && npm install)
+    python3 tools/assetgen/gamble_assets.py            # models + the NPC skins + docs/previews/gamble_hall_assets.png and
+                                                       # docs/previews/gamble_cards.png
+    python3 tools/assetgen/gamble_assets.py --no-sheet # models + skins only
+    (the sheets need: cd tools/assetgen/render && npm install)
 
   models   economy/content/economy/models/gamble_*.bbmodel (models/gamble.py; economy_models.ALL has them too, so a full
            economy_build.py writes the same files)
-  skin     economy/content/economy/assets/economy/textures/entity/bus/site_boss.png = "economy:entity/bus/site_boss"
-           (economy_bus_skins.site_boss; the HUD's faces sheet takes every skin of that folder the next time it is built)
+  skin     economy/content/economy/assets/economy/textures/entity/bus/site_boss.png = "economy:entity/bus/site_boss" and
+           dealer.png = "economy:entity/bus/dealer" (slim; economy_bus_skins.NPCS: only these are written; the HUD's faces
+           sheet takes every skin of that folder the next time it is built)
   sheet    the tables (their seats numbered in a plan of the cells), the props, the cards, chips, dice (each face up by
-           the README's turns), the bowl, the dice cup, the whiteboard, the buttons and the skin
+           the README's turns), the bowl, the dice cup, the whiteboard, the buttons and the skins; the 별관's poker and
+           baccarat tables, its chips and a few playing cards
+  cards    docs/previews/gamble_cards.png: the 53 playing cards (pcard_art) as models on felt, a 세븐 포커 hand as a seated
+           player sees it (Minecraft's 70 degree view, 1.5 blocks away, the cards at the table's 0.75), and every face
+           and the back flat and zoomed
 """
 
 import base64
@@ -30,6 +36,7 @@ PACK = REPO / "economy" / "content" / "economy"
 BUILD = HERE / "build"
 RENDER = HERE / "render" / "render.mjs"
 SHEET = REPO / "docs" / "previews" / "gamble_hall_assets.png"
+CARDS = REPO / "docs" / "previews" / "gamble_cards.png"
 FONT = HERE / "fonts" / "Sunflower-Medium.ttf"
 
 # the die's turns (README "도박장"): face up -> rotations in the display's own frame, after the game's half turn of item
@@ -180,10 +187,31 @@ def sheet(path=SHEET):
         els.extend(_placed(pv[f"gamble_btn_{k}"], (5705 - i * 14, 3, 0), 1))
     n = len(ART.BUTTON_WORDS)
     els.append(_plane("feltbg", 5705 - n * 14, -15, 5720, 15))
-    view(0, y0, 1600, 230, [5712 - n * 7, 3, 0], 55, 0, 8, 0.8,
+    view(0, y0, 1600, 230, [5712 - n * 7, 3, 0], 55 * n / 11, 0, 8, 0.8,
          "gamble_btn_" + " · ".join(ART.BUTTON_WORDS) + " (빛남)")
 
-    H = 1880
+    # row 6: the 별관's tables (as the furniture shows them: scale 2)
+    y0 = 1880
+    els.extend(_placed(pv["poker_table"], (7000, 8, 0), 2))
+    els.append(_plane("ply", 6944, -56, 7072, 72))
+    view(0, y0, 800, 600, [7000, 10, 2], 50, 24, 36, 2.0, "poker_table · 세븐 포커 · 드럼통 위 타원 · 좌석 6 (5×5칸)")
+    els.extend(_placed(pv["baccarat_table"], (7400, 8, 0), 2))
+    els.append(_plane("ply", 7344, -56, 7472, 104))
+    view(800, y0, 800, 600, [7400, 8, 6], 50, 0, 42, 2.0, "baccarat_table · 바카라 · 반달 · 좌석 6 + 딜러 칸 (5×5칸)")
+
+    # row 7: playing cards on felt (top view) and the baccarat chips
+    y0 = 2480
+    some = ["pcard_as", "pcard_kh", "pcard_qd", "pcard_jc", "pcard_10s", "pcard_7h", "pcard_2d", "pcard_back"]
+    for i, k in enumerate(some):
+        els.extend(_placed(pv[k], (8000 + i * 9, 0, 0), 1))
+    els.append(_plane("feltbg", 7990, -12, 8080, 12))
+    view(0, y0, 1000, 330, [8031.5, 0, 0], 30, 0, 70, 1.4, "pcard_<a,2..10,j,q,k><s,h,d,c>, pcard_back · 7×10 px (docs/previews/gamble_cards.png)")
+    for i, z in enumerate(("player", "banker", "tie")):
+        els.extend(_placed(pv[f"baccarat_chip_{z}"], (8500 - i * 14, 0, 0), 1))
+    els.append(_plane("feltbg", 8460, -15, 8515, 15))
+    view(1000, y0, 600, 330, [8486, 3, 1], 22, 0, 35, 1.6, "baccarat_chip_player · banker · tie")
+
+    H = 2810
     src = BUILD / "gamble_hall_assets.preview.json"
     src.write_text(json.dumps({"textures": tex, "elements": els, "grid": False, "size": [W, H], "views": views}))
     shot = BUILD / "gamble_hall_assets.render.png"
@@ -200,28 +228,97 @@ def sheet(path=SHEET):
         tw = d.textlength(label, font=f)
         d.rectangle((x + 8, y + 8, x + 20 + tw, y + 38), fill=(20, 22, 26, 210))
         d.text((x + 14, y + 10), label, font=f, fill=(240, 236, 220))
-    for yy in (600, 930, 1350, 1650, H):
+    for yy in (600, 930, 1350, 1650, 1880, 2480, H):
         d.line((0, yy, W, yy), fill=(60, 64, 72), width=2)
-    _seat_plan(d, 30, H + 20, G.ROUND_SEATS, (-2, 2, -2, 2), "원탁 좌석 (위에서, 앞 = 북 -z)", f, small, round_=True)
-    _seat_plan(d, 420, H + 20, G.DUEL_SEATS, (0, 0, -1, 1), "1:1 좌석", f, small)
-    sx = 640
-    d.text((sx, H + 16), "현장 소장 · economy:entity/bus/site_boss (wide)", font=f, fill=(240, 236, 220))
-    skin, slim = B.build_npcs()["site_boss"]
-    fr, bk = B.flat(skin, slim), B.flat(skin, slim, back=True)
-    out.alpha_composite(fr.resize((128, 256), Image.NEAREST), (sx, H + 56))
-    out.alpha_composite(bk.resize((128, 256), Image.NEAREST), (sx + 150, H + 56))
-    out.alpha_composite(skin.resize((256, 256), Image.NEAREST), (sx + 310, H + 56))
-    notes = ["좌석 번호 = seats 순서", "0 = 정면, 위에서 시계 방향", "앉는 높이 0.5 (판지 깐 통 0.52)",
-             "표시 모델 앞 = 모델 북(-z)", "카드 · 칩 · 사발: 위치 = 바닥", "주사위 · 버튼: 위치 = 가운데"]
+    import pcard_art as PC
+    _seat_plan(d, 20, H + 20, G.ROUND_SEATS, (-2, 2, -2, 2), "원탁 · 포커 좌석 (위, 앞 = 북 -z)", f, small, round_=True)
+    _seat_plan(d, 300, H + 20, G.DUEL_SEATS, (0, 0, -1, 1), "1:1", f, small)
+    _seat_plan(d, 380, H + 20, PC.BACCARAT_SEATS_CELLS, (-2, 2, -2, 2), "바카라 좌석 · 딜러 D", f, small, half=True)
+    npcs = B.build_npcs()
+    for j, (key, title) in enumerate((("site_boss", "현장 소장 site_boss (wide)"), ("dealer", "딜러 dealer (slim)"))):
+        sx = 680 + j * 300
+        d.text((sx, H + 16), title, font=small, fill=(240, 236, 220))
+        skin, slim = npcs[key]
+        out.alpha_composite(B.flat(skin, slim).resize((128, 256), Image.NEAREST), (sx, H + 56))
+        out.alpha_composite(B.flat(skin, slim, back=True).resize((128, 256), Image.NEAREST), (sx + 140, H + 56))
+    notes = ["좌석 번호 = seats 순서", "원탁 · 포커: 0 = 정면, 위에서 시계 방향", "바카라: 딜러 왼쪽(-x) 끝부터 시계 방향",
+             "딜러 = 칸 [0, 0, 2] (곧은 쪽 뒤)", "앉는 높이 0.5 (판지 깐 통 0.52)", "표시 모델 앞 = 모델 북(-z)",
+             "카드 · 칩 · 사발: 위치 = 바닥", "주사위 · 버튼: 위치 = 가운데"]
     for i, t in enumerate(notes):
-        d.text((sx + 580, H + 60 + i * 30), t, font=small, fill=(200, 204, 212))
+        d.text((1290, H + 24 + i * 32), t, font=_font(14), fill=(200, 204, 212))
     out.convert("RGB").save(path, optimize=True)
     return path
 
 
-def _seat_plan(d, x0, y0, seats, box, title, f, small, round_=False):
+def cards_sheet(path=CARDS):
+    """docs/previews/gamble_cards.png: (1) the 53 playing-card models on felt at the table's scale (0.75), from above;
+    (2) a 세븐 포커 hand (3 down, 4 up) in front of a seat as the seated player sees it: Minecraft's 70 degree view, the
+    eye 0.75 over the felt and a block back from the cards (about 1.25 blocks to them), the next seats' hands beside;
+    (3) every face and the back flat at 4x (the texture itself)."""
+    from models import gamble as G
+    import pcard_art as PC
+    BUILD.mkdir(exist_ok=True)
+    keys = PC.ids() + ["pcard_back"]
+    pv = {k: G.ALL[k]().to_preview() for k in keys}
+    tex = _floor_tex()
+    for p in pv.values():
+        tex.update(p["textures"])
+    els, views, labels = [], [], []
+    W = 1600
+    s = 0.75
+    # (1) the whole deck on felt, a row a suit, the back at the end
+    for j, su in enumerate(PC.SUITS):
+        for i, r in enumerate(PC.RANKS):
+            els.extend(_placed(pv[f"pcard_{r}{su}"], (60 - i * 6.5, 0, j * 9), s))
+    els.extend(_placed(pv["pcard_back"], (60 - 13 * 6.5, 0, 13.5), s))
+    els.append(_plane("feltbg", -40, -12, 72, 42))
+    views.append({"x": 0, "y": 0, "w": W, "h": 560, "az": 0, "el": 72, "k": 1.0, "center": [17, 0, 14], "radius": 60, "fov": 35, "far": 4000})
+    labels.append((0, 0, "트럼프 53장, 테이블 위 크기 (0.75), 위에서"))
+    # (2) a hand of seven poker as its player sees it, and the hands of the seats either side
+    hand = ["pcard_back", "pcard_back", "pcard_kh", "pcard_kd", "pcard_7c", "pcard_as", "pcard_back"]
+    for i, k in enumerate(hand):
+        els.extend(_placed(pv[k], (500 + 18 - i * 6, 0, 0), s))
+    for i, k in enumerate(["pcard_qs", "pcard_qc", "pcard_9h", "pcard_back"]):
+        els.extend(_placed(pv[k], (500 + 44 - i * 6, 0, 14), s, post=[("y", -30)]))
+    for i, k in enumerate(["pcard_10d", "pcard_jd", "pcard_2s", "pcard_back"]):
+        els.extend(_placed(pv[k], (500 - 26 - i * 6, 0, 14), s, post=[("y", 30)]))
+    els.append(_plane("feltbg", 420, -60, 600, 80))
+    # the eye: 12 px (0.75 block) over the felt, 16 px back (to the north) from the hand's middle
+    views.append({"x": 0, "y": 560, "w": W, "h": 640, "az": 0, "el": 36.9, "k": 1.0, "center": [500, 0, 0], "radius": 20,
+                  "fov": 70, "near": 0.5, "far": 4000})
+    labels.append((0, 560, "자리에서 본 내 패 (마인크래프트 시야 70도, 눈 = 펠트 위 0.75칸, 1칸 뒤), 양옆 자리의 패"))
+    H = 1200
+    src = BUILD / "gamble_cards.preview.json"
+    src.write_text(json.dumps({"textures": tex, "elements": els, "grid": False, "size": [W, H], "views": views}))
+    shot = BUILD / "gamble_cards.render.png"
+    subprocess.run(["node", str(RENDER), str(src), str(shot)], check=True, stdout=subprocess.DEVNULL)
+    im = Image.open(shot).convert("RGBA")
+    # (3) the faces flat, 13 a row, at 2x (with the back)
+    z = 2
+    cw, ch = PC.W * z + 6, PC.H * z + 6
+    flat_h = 5 * ch + 50
+    out = Image.new("RGBA", (W, H + flat_h + 40), (27, 29, 34, 255))
+    out.alpha_composite(im, (0, 0))
+    ox = (W - 13 * cw) // 2
+    for j, su in enumerate(PC.SUITS):
+        for i, r in enumerate(PC.RANKS):
+            out.alpha_composite(PC.face(r, su).resize((PC.W * z, PC.H * z), Image.NEAREST), (ox + i * cw, H + 40 + j * ch))
+    out.alpha_composite(PC.back().resize((PC.W * z, PC.H * z), Image.NEAREST), (ox, H + 40 + 4 * ch))
+    d = ImageDraw.Draw(out)
+    f = _font(19)
+    labels.append((0, H, "앞면 52장 + 뒷면 (텍스처 56×80: 7×10 px 카드에 1px당 8텍셀), 2배"))
+    for (x, y, label) in labels:
+        tw = d.textlength(label, font=f)
+        d.rectangle((x + 8, y + 8, x + 20 + tw, y + 38), fill=(20, 22, 26, 210))
+        d.text((x + 14, y + 10), label, font=f, fill=(240, 236, 220))
+    out.convert("RGB").save(path, optimize=True)
+    return path
+
+
+def _seat_plan(d, x0, y0, seats, box, title, f, small, round_=False, half=False):
     """A plan of the cells from above (north = the front up, east = +x right): the table, each seat cell with its
-    number, an arrow at the front."""
+    number, an arrow at the front; half: the baccarat table's half moon (round side to the front) and its dealer's
+    cell D behind the straight edge."""
     c = 52
     xs, xe, zs, ze = box
     d.text((x0, y0 - 4), title, font=f, fill=(240, 236, 220))
@@ -231,7 +328,14 @@ def _seat_plan(d, x0, y0, seats, box, title, f, small, round_=False):
             X, Y = x0 + (gx - xs) * c, top + (gz - zs) * c
             d.rectangle((X, Y, X + c - 2, Y + c - 2), outline=(70, 74, 84))
     mx, my = x0 + (0 - xs) * c + c / 2, top + (0 - zs) * c + c / 2
-    if round_:
+    if half:
+        r = 1.5 * c
+        d.pieslice((mx - r, my - r, mx + r, my + r), 180, 360, fill=(30, 84, 52), outline=(150, 110, 60), width=4)
+        d.rectangle((mx - r, my, mx + r, my + 1.1 * c), fill=(30, 84, 52), outline=(150, 110, 60), width=4)
+        X, Y = mx, my + 2 * c
+        d.rectangle((X - 20, Y - 20, X + 20, Y + 20), fill=(200, 60, 70), outline=(30, 30, 30), width=2)
+        d.text((X - 7, Y - 14), "D", font=f, fill=(255, 255, 255))
+    elif round_:
         d.ellipse((mx - 1.5 * c, my - 1.5 * c, mx + 1.5 * c, my + 1.5 * c), fill=(30, 84, 52), outline=(150, 110, 60), width=4)
     else:
         d.rectangle((mx - c * 0.45, my - c * 0.45, mx + c * 0.45, my + c * 0.45), fill=(30, 84, 52), outline=(170, 130, 70), width=3)
@@ -247,3 +351,4 @@ if __name__ == "__main__":
     print(len(write()), "models written")
     if "--no-sheet" not in sys.argv:
         print(sheet())
+        print(cards_sheet())

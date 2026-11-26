@@ -458,6 +458,12 @@ final class HallTable implements Table.Listener, Table.Bank {
     @Override
     public void betsOpen(Table t) {
         if (scene != null) scene.betsOpen();
+        for (UUID u : seatedPlayers()) {
+            Player p = Bukkit.getPlayer(u);
+            if (p == null) continue;
+            HudModule.flash(p, Lang.mm("hwatu.bac.flash-bets", "seconds", t.moveSeconds()));
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.5f, 1.4f);
+        }
     }
 
     /** Whose move it is now and which (null: nobody's). */
@@ -466,8 +472,20 @@ final class HallTable implements Table.Listener, Table.Bank {
         return turn == null ? null : turn + ":" + t.step() + ":" + t.street() + ":" + t.deals();
     }
 
+    /** the step last drawn (세븐 포커: the open window's start is flashed to everyone in the hand) */
+    private Table.Step lastStep;
+
     @Override
     public void changed(Table t) {
+        if (t.step() != lastStep) {
+            lastStep = t.step();
+            if (lastStep == Table.Step.OPEN) for (UUID u : seatedPlayers()) {
+                Player p = Bukkit.getPlayer(u);
+                if (p == null || !t.inHand(u)) continue;
+                HudModule.flash(p, Lang.mm("hwatu.poker.your-open", "seconds", t.moveSeconds()));
+                p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.6f);
+            }
+        }
         UUID turn = t.turn();
         String now = move(t);
         if (!java.util.Objects.equals(now, lastMove)) {
@@ -583,7 +601,7 @@ final class HallTable implements Table.Listener, Table.Bank {
             UUID me = viewer.getUniqueId();
             long left = Math.max(0, b.dailyCap() - wagered(me) - (table.phase() == Table.Phase.PLAYING ? table.put(me) : 0));
             for (int i = 1; i <= Jokbo.RULE_ROWS; i++)
-                rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules.baccarat-" + i, "min", fmt(b.minBet()), "max", fmt(b.maxBet()), "cap", fmt(b.dailyCap()),
+                rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules." + "baccarat-" + i, "min", fmt(b.minBet()), "max", fmt(b.maxBet()), "cap", fmt(b.dailyCap()),
                         "left", fmt(left), "commission", b.commission(), "tie", b.tiePays(), "road", TableScene.road(table.road()))));
             return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", gameName(), "room", roomName()), rows);
         }

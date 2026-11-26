@@ -42,6 +42,48 @@ class GambleHudPreviewTest {
             List.of("ali", "doksa", "gupping", "jangpping", "jangsa", "seryuk"),
             List.of("kkeut", "ttaengjabi", "amhaeng", "gusa", "meong-gusa", "kkeut-note"));
 
+    /** Jokbo.POKER (economy): 세븐 포커's pages. */
+    static final List<List<String>> POKER = List.of(
+            List.of("royal", "back-straight-flush", "straight-flush", "four-card", "full-house", "flush"),
+            List.of("mountain", "back-straight", "straight", "triple", "two-pair", "one-pair"),
+            List.of("top", "note-suit", "note-best", "note-open", "note-back", "note-limit"));
+
+    /** HallTable.board for 세븐 포커: a page of its 족보, my made hand's row lit (null: none, the page's note instead). */
+    static HudLayout.Board poker(int page, String mine, String ranks) {
+        List<HudLayout.Board.Row> rows = new ArrayList<>();
+        for (String r : POKER.get(page))
+            rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.poker-jokbo." + r, "c", Lang.raw(r.equals(mine) ? "hwatu.jokbo-mine" : "hwatu.jokbo-row"))));
+        if (mine != null) return new HudLayout.Board(Lang.mm("hwatu.jokbo-title-mine", "hand", Lang.raw("hwatu.poker-hand." + mine, "ranks", ranks)), rows);
+        String note = Lang.raw("hwatu.poker-jokbo-notes.p" + (page + 1));
+        return new HudLayout.Board(Lang.mm("hwatu.jokbo-title", "page", page + 1, "pages", POKER.size(), "note", note), rows);
+    }
+
+    /** HallTable.board for 바카라: the payouts, a round's bets, what I may still bet today, the road. */
+    static HudLayout.Board baccarat(long left, String road) {
+        StringBuilder r = new StringBuilder();
+        for (char c : road.toCharArray())
+            r.append(Lang.raw("hwatu.bac.road." + (c == 'P' ? "player" : c == 'B' ? "banker" : "tie")));
+        List<HudLayout.Board.Row> rows = new ArrayList<>();
+        for (int i = 1; i <= 6; i++)
+            rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules.baccarat-" + i, "min", fmt(10), "max", fmt(1000), "cap", fmt(5000), "left", fmt(left),
+                    "commission", 5, "tie", 8, "road", r.toString())));
+        return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", "바카라", "room", "초보방"), rows);
+    }
+
+    /** 세븐 포커, the 5th card's round, my turn: pot 380, 60 to call, 투페어 K·7 in hand. */
+    static Component pokerLine(long held) {
+        return line(Lang.raw("hwatu.line.my-turn", "seconds", 12), Lang.raw("hwatu.line.pot", "pot", fmt(380)), Lang.raw("hwatu.line.to-call", "n", fmt(60)),
+                Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.poker-hand.two-pair", "ranks", "K·7")), Lang.raw("hwatu.line.chips", "n", fmt(held)));
+    }
+
+    /** 바카라, the bets open: 100 on 플레이어, 10 on 타이, the 50 chip picked, 4,890 left today. */
+    static Component baccaratLine(long held) {
+        String bets = Lang.raw("hwatu.bac.line-bet", "spot", Lang.raw("hwatu.bac.spot-short.player"), "n", fmt(100)) + " "
+                + Lang.raw("hwatu.bac.line-bet", "spot", Lang.raw("hwatu.bac.spot-short.tie"), "n", fmt(10));
+        return line(Lang.raw("hwatu.bac.line-bets", "seconds", 9), bets, Lang.raw("hwatu.bac.line-left", "n", fmt(4890)),
+                Lang.raw("hwatu.line.chips", "n", fmt(held)));
+    }
+
     /** The board's widest at the default right edge (hud.board.right 212: up to x 106, past the hotbar and the bars). */
     static final int DEFAULT_CAP = 212 - HudLayout.BOARD_CLEAR_X;
 
@@ -123,6 +165,10 @@ class GambleHudPreviewTest {
                 w, h, scale, sidebar, null, health, rules("dice", "주사위", 10), dice));
         scenes.add(scene(layout, client, "hwatu", "홀짝 · 상대가 굴릴 차례",
                 w, h, scale, sidebar, null, health, rules("holjjak", "홀짝", 10), holjjak));
+        scenes.add(scene(layout, client, "hwatu", "세븐 포커 · 다섯 번째 장 베팅, 내 차례 (보드 = 포커 족보, 내 투페어 줄)",
+                w, h, scale, sidebar, null, health, poker(1, "two-pair", "K·7"), pokerLine(1240)));
+        scenes.add(scene(layout, client, "hwatu", "바카라 · 베팅 시간 (보드 = 배당 · 오늘 남은 베팅 · 최근 결과)",
+                w, h, scale, sidebar, null, health, baccarat(4890, "PBBPTPBBPPBT"), baccaratLine(1520)));
         scenes.add(scene(layout, client, "fishing", "낚시대회 순위 · 테이블에 앉지 않은 사람 (앉은 사람은 족보: 보드 우선순위)",
                 w, h, scale, sidebar, null, health, tournament(), null));
 
@@ -132,11 +178,18 @@ class GambleHudPreviewTest {
         fits(layout, jokbo(2, "meong-gusa", "meong-gusa"));
         fits(layout, rules("dice", "주사위", 500));
         fits(layout, rules("holjjak", "홀짝", 500));
+        for (int p = 0; p < POKER.size(); p++) fits(layout, poker(p, null, null));
+        fits(layout, poker(0, "full-house", "K·3"));
+        fits(layout, poker(0, "flush", "♠ A"));
+        fits(layout, poker(0, "back-straight-flush", ""));
+        fits(layout, baccarat(5000, "PBBPTPBBPPBT"));
         // a long one: a 6-digit stack, 4-digit bets (큰손방), 13광땡: too wide with "판 12,500", which ActionLine drops first
         Component longest = line(Lang.raw("hwatu.line.my-turn", "seconds", 20),
                 Lang.raw("hwatu.line.to-call", "n", fmt(5_000)),
                 Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.hand.gwang13")), Lang.raw("hwatu.line.chips", "n", fmt(123_456)));
-        for (Component c : List.of(sutdaLine(20, 98_765), longest, firstStreet, dice, holjjak))
+        Component pokerLong = line(Lang.raw("hwatu.line.my-turn", "seconds", 20), Lang.raw("hwatu.line.to-call", "n", fmt(5_000)),
+                Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.poker-hand.back-straight-flush", "ranks", "")), Lang.raw("hwatu.line.chips", "n", fmt(123_456)));
+        for (Component c : List.of(sutdaLine(20, 98_765), longest, firstStreet, dice, holjjak, pokerLine(1240), pokerLong, baccaratLine(1520)))
             assertTrue(layout.messageWidth(c) <= 2 * HudLayout.BOARD_CLEAR_X, "the action bar's line stays off the board's corner: "
                     + layout.messageWidth(c) + " px: " + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(c));
 

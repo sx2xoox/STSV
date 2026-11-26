@@ -702,7 +702,7 @@ public final class HallLayout {
         for (int x = 15; x <= 19; x++) {
             set(x, 1, z0, AIR);
             set(x, 2, z0, AIR);
-            set(x, 3, z0, WHITE.rail());
+            set(x, 3, z0, Math.floorMod(x, 2) == 0 ? WHITE.panel() : WHITE.rib());   // the header: the container's end frame
             set(x, 0, z0, plywood(x, z0));
             set(x, 0, z0 - 1, "spruce_slab[type=bottom]");
             set(x, -1, z0 - 2, Math.floorMod(x, 2) == 0 ? "yellow_concrete" : "black_concrete");

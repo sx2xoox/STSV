@@ -96,7 +96,6 @@ final class TableScene {
     private org.bukkit.entity.Mannequin dealer;
     private TextDisplay speech, playerTotal, bankerTotal;
     private long speechUntil = -1;
-    private final List<ItemDisplay> shoeStack = new ArrayList<>();
     private final List<ItemDisplay> coupCards = new ArrayList<>();
     private int coupShown = -1, betRound = -1;
     private final Map<String, ItemDisplay> betPiles = new HashMap<>();
@@ -289,7 +288,6 @@ final class TableScene {
         dealer = null;
         speech = playerTotal = bankerTotal = null;
         speechUntil = -1;
-        shoeStack.clear();
         coupCards.clear();
         coupShown = betRound = -1;
         betPiles.clear();
@@ -616,10 +614,10 @@ final class TableScene {
             Quaternionf rot = TableArt.facing(s.yaw()).rotateY((float) Math.toRadians((k % 2 == 0 ? 8 : -6)));
             animate(h.face[k], pose(TableArt.PCARD_SCALE, rot, in), 6);
             animate(h.back[k], pose(TableArt.PCARD_SCALE, rot, in), 6);
-            if (h.shown[k] && h.back[k] == null) {
-                ItemDisplay f = h.face[k];
+            if (h.shown[k]) {   // the open ones turn face down for everyone else (the owner still sees theirs)
+                ItemDisplay x = h.back[k] != null ? h.back[k] : h.face[k];
                 later(6, () -> {
-                    if (f.isValid()) f.setItemStack(model(PCard.BACK));
+                    if (x.isValid()) x.setItemStack(model(PCard.BACK));
                 });
             }
         }
@@ -981,7 +979,6 @@ final class TableScene {
     private void drawBaccarat(Table t) {
         if (t.game() != Table.Game.BACCARAT) return;
         keepDealer();
-        keepShoe();
         drawBets(t);
         if (t.phase() == Table.Phase.PLAYING && t.step() == Table.Step.BETS && coupShown >= 0) clearCoup();
         if (t.coup() != null && t.coups() != coupShown && t.phase() == Table.Phase.PLAYING && t.step() == Table.Step.DEAL) dealCoup(t);
@@ -1026,24 +1023,13 @@ final class TableScene {
         speechUntil = tick + 50;
     }
 
-    private void keepShoe() {
-        shoeStack.removeIf(d -> !d.isValid());
-        if (!shoeStack.isEmpty()) return;
-        Location l = bacAt(TableArt.SHOE_IN, -TableArt.SHOE_SIDE, 0.002);
-        Quaternionf rot = bacCardTurn().rotateY((float) Math.toRadians(90));
-        for (int i = 0; i < 4; i++) {
-            ItemDisplay d = item(l.clone().add(0, i * 0.012, 0), PCard.BACK, TableArt.BAC_CARD_SCALE, new Quaternionf(rot).rotateY((float) Math.toRadians(i * 3 - 4)), null, true);
-            shoeStack.add(d);
-        }
-    }
-
     /** The cards of the coup in the order dealt: each slides face down from the shoe, then turns up; the totals follow. */
     private void dealCoup(Table t) {
         clearCoup();
         coupShown = t.coups();
         Baccarat.Coup c = t.coup();
         say(Lang.mm(t.shuffled() ? "hwatu.dealer.new-shoe" : "hwatu.dealer.no-more"));
-        Location shoe = bacAt(TableArt.SHOE_IN, -TableArt.SHOE_SIDE, 0.06);
+        Location shoe = bacAt(TableArt.SHOE_IN, TableArt.SHOE_SIDE, 0.08);   // the model's shoe: its mouth
         Quaternionf flat = bacCardTurn();
         List<int[]> order = c.order();
         int base = (int) (Table.BAC_DEAL_BASE_MS / 50), step = (int) (Table.BAC_CARD_MS / 50);
@@ -1116,7 +1102,7 @@ final class TableScene {
     /** The coup's cards are swept to the discard (the dealer's right) and go, with the totals. */
     private void clearCoup() {
         coupShown = -1;
-        Location discard = bacAt(TableArt.SHOE_IN, TableArt.SHOE_SIDE, 0.02);
+        Location discard = bacAt(TableArt.DISCARD_IN, TableArt.DISCARD_SIDE, 0.06);
         for (ItemDisplay d : coupCards) {
             if (!d.isValid()) continue;
             Vector3f to = new Vector3f((float) (discard.getX() - d.getLocation().getX()), 0.02f, (float) (discard.getZ() - d.getLocation().getZ()));
@@ -1147,19 +1133,16 @@ final class TableScene {
                 String key = e.getKey() + ":" + sp.letter();
                 if (betShown.getOrDefault(key, 0L) == n) continue;
                 TableArt.Spot s = TableArt.betSpot(center, seat(seat), sp);
-                int level = Math.min(TableArt.CHIP_LEVELS, TableArt.chipLevel(n, min));
                 ItemDisplay pile = betPiles.get(key);
-                float sc = BET_SCALE * TableArt.chipScale(n, min);
+                // the zone's chips (economy:baccarat_chip_<zone>), a little bigger the more is on it
+                float sc = (float) (BET_SCALE * Math.min(1.4, 1 + 0.1 * Math.log((double) n / Math.max(1, min)) / Math.log(2)));
                 if (pile == null || !pile.isValid()) {
                     Vector3f from = offsetTo(seat(seat), s.x(), s.z(), 0.1);
-                    pile = item(at(s, 0.002), "economy:gamble_chips_" + level, sc, new Quaternionf(), from, true);
+                    pile = item(at(s, 0.002), "economy:baccarat_chip_" + sp.key(), sc, new Quaternionf(), from, true);
                     betPiles.put(key, pile);
                     ItemDisplay p0 = pile;
                     later(1, () -> animate(p0, pose(sc, new Quaternionf(), null), 5));
-                } else {
-                    pile.setItemStack(model("economy:gamble_chips_" + level));
-                    animate(pile, pose(sc, new Quaternionf(), null), 3);
-                }
+                } else animate(pile, pose(sc * 1.1f, new Quaternionf(), null), 2);
                 Component label = Lang.mm("hwatu.bac.bet-label", "spot", Lang.raw("hwatu.bac.spot-short." + sp.key()), "n", HallTable.fmt(n));
                 TextDisplay lt = betLabels.get(key);
                 if (lt == null || !lt.isValid()) betLabels.put(key, text(at(s, 0.3), label, 0.3f, true));
@@ -1170,8 +1153,8 @@ final class TableScene {
         }
     }
 
-    /** The chips on the felt are small piles (gamble_chips at this scale). */
-    static final float BET_SCALE = 0.3f;
+    /** The chips on the felt: baccarat_chip_&lt;zone&gt; at this scale (about a ring's width across). */
+    static final float BET_SCALE = 0.25f;
 
     private void clearBets() {
         for (ItemDisplay d : betPiles.values()) kill(d);
@@ -1190,7 +1173,7 @@ final class TableScene {
     /** 바카라 paid: the losing chips slide to the dealer, the house pays the winning ones, each seat's chips slide home. */
     private void payBaccarat(Table.Result r, int wait) {
         Baccarat.Spot won = r.coup().winner();
-        say(Lang.mm("hwatu.dealer.won-" + won.key(), "player", r.coup().playerTotal(), "banker", r.coup().bankerTotal()));
+        say(Lang.mm("hwatu.dealer." + "won-" + won.key(), "player", r.coup().playerTotal(), "banker", r.coup().bankerTotal()));
         Map<String, ItemDisplay> piles = new HashMap<>(betPiles);
         Map<String, TextDisplay> labels = new HashMap<>(betLabels);
         betPiles.clear();
@@ -1219,7 +1202,7 @@ final class TableScene {
                 double[] home = seat(seat);
                 Vector3f toSeat = new Vector3f((float) (home[0] - at.getX()), 0.02f, (float) (home[1] - at.getZ())).mul(0.45f);
                 if (back > bet) {   // paid: the house's chips land beside it first
-                    ItemDisplay paid = item(at.clone().add(0.12, 0, 0.04), "economy:gamble_chips_" + Math.min(TableArt.CHIP_LEVELS, TableArt.chipLevel(back - bet, b.minBet())),
+                    ItemDisplay paid = item(at.clone().add(0.1, 0, 0.04), "economy:baccarat_chip_" + sp.key(),
                             BET_SCALE, new Quaternionf(), new Vector3f((float) (dl.getX() - at.getX()), 0.1f, (float) (dl.getZ() - at.getZ())), true);
                     later(1, () -> animate(paid, pose(BET_SCALE, new Quaternionf(), null), 9));
                     later(22, () -> animate(paid, pose(BET_SCALE, new Quaternionf(), toSeat), 8));

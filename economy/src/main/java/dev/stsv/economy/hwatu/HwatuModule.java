@@ -1205,7 +1205,7 @@ public final class HwatuModule extends EcoModule {
             HwatuSpec.Room r = roomOf(pt.room());
             if (f.isEmpty() || g == null || r == null) continue;
             HallTable bt = bind(f.get(), g, r);
-            Location dealer = dealerOf(pt);
+            Location dealer = pt.dealer();   // the 바카라 table's dealer spot (null for the others)
             if (bt != null && dealer != null) halls.set(DEALER + bt.furniture(), place(dealer));
             bound++;
         }
@@ -1218,19 +1218,6 @@ public final class HwatuModule extends EcoModule {
         if (admin.isOnline()) {
             admin.sendMessage(Lang.msg("hwatu.hall-built", "tables", bound));
             for (String problem : placed.problems()) admin.sendMessage(Lang.msg("hwatu.hall-problem", "problem", problem));
-        }
-    }
-
-    /**
-     * The dealer's spot of a built 바카라 table, if the builder gives one (HallBuilder.PlacedTable#dealer, the hall's
-     * contract); null: worked out from the table (behind its flat edge).
-     */
-    private static Location dealerOf(HallBuilder.PlacedTable pt) {
-        try {
-            Object v = pt.getClass().getMethod("dealer").invoke(pt);
-            return v instanceof Location l ? l : null;
-        } catch (ReflectiveOperationException | RuntimeException e) {
-            return null;
         }
     }
 

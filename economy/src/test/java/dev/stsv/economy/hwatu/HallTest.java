@@ -141,7 +141,9 @@ class HallTest {
         assertNull(Controls.Button.LEAVE.move());
         for (Controls.Button b : Controls.Button.values()) {
             assertEquals(b, Controls.Button.of(b.key()));
-            assertEquals("economy:gamble_btn_" + b.key(), b.model(), "the asset contract's ids");
+            // the asset contract's ids: gamble_btn_<key>; 세븐 포커's 공개 ×3 share gamble_btn_open, 바카라's chips are the chip piles
+            String want = b.open() >= 0 ? "economy:gamble_btn_open" : b.chip() >= 0 ? "economy:gamble_chips_" + (b.chip() + 1) : "economy:gamble_btn_" + b.key();
+            assertEquals(want, b.model(), "the asset contract's ids");
         }
     }
 

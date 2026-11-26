@@ -183,7 +183,7 @@ public final class TableArt {
 
     /** buttonWidth: the most a row of buttons spans side to side (blocks), so it stays on the table and off the neighbours. */
     public static final Reach ROUND_REACH = new Reach(0.42, 0.62, 0.32, 0.5, 1.45), DUEL_REACH = new Reach(0.25, 0.42, 0.22, 0.3, 0.96),
-            POKER_REACH = new Reach(0.6, 0.69, 0.32, 0.5, 1.2), BACCARAT_REACH = new Reach(0.5, 0.66, 0.32, 0.48, 1.2);
+            POKER_REACH = new Reach(0.5, 0.6, 0.32, 0.42, 1.2), BACCARAT_REACH = new Reach(0.5, 0.58, 0.32, 0.45, 1.0);
 
     public static Reach reach(TableKind k) {
         return switch (k) {
@@ -255,13 +255,14 @@ public final class TableArt {
     /**
      * 세븐 포커's cards before a seat lie in two rows: the hidden ones (the two of the first three not opened, the 7th)
      * nearer the player at {@link Reach#card()}, the open ones (the opened one, the 4th ~ 6th) further in at POKER_OPEN, a
-     * little overlapped (the corner with the rank shows) so six seats' rows stay apart. Cards (pcard, 6 × 8 px like the
-     * 화투 cards) at {@link #PCARD_SCALE}.
+     * little overlapped (the corner with the rank shows) so six seats' rows stay apart and on the poker table's oval
+     * (5 × 5 cells, the oval 3 × 2.5 blocks: CasinoHallTest). Cards (pcard: 7 × 10 px, lying flat, bottom on the
+     * position, read from the north) at {@link #PCARD_SCALE}.
      */
-    public static final double POKER_OPEN = 0.47, POKER_HIDDEN_GAP = 0.2, POKER_OPEN_GAP = 0.15;
+    public static final double POKER_OPEN = 0.34, POKER_HIDDEN_GAP = 0.23, POKER_OPEN_GAP = 0.12;
     public static final float PCARD_SCALE = 0.5f;
     /** A playing card's half width and half depth at {@link #PCARD_SCALE} (blocks). */
-    public static final double PCARD_HALF_W = 3 / 16.0 * PCARD_SCALE, PCARD_HALF_D = 4 / 16.0 * PCARD_SCALE;
+    public static final double PCARD_HALF_W = 3.5 / 16.0 * PCARD_SCALE, PCARD_HALF_D = 5 / 16.0 * PCARD_SCALE;
 
     /**
      * Where card k (dealt order 0 ~ 6) of a 세븐 포커 hand lies: row and slot. The first three start in the hidden row (slots
@@ -286,13 +287,16 @@ public final class TableArt {
     // ------------------------------------------------------------------------------------------ 바카라
 
     /**
-     * The 바카라 table's layout from its middle and the way to the dealer (a unit vector on the ground): the dealer stands
-     * DEALER_OUT behind the middle; the 플레이어 hand lies on the players' left of the dealer's line and the 뱅커 hand on
-     * their right, HAND_IN towards the dealer, each in a row of three (the third card last); the shoe at the dealer's
-     * left, the discard at the dealer's right. Cards face the players (read from the curved side).
+     * The 바카라 table's layout (economy:baccarat_table, tools/assetgen/models/gamble.py · pcard_art.baccarat_print) from
+     * its middle and the way to the dealer (a unit vector on the ground): the dealer stands DEALER_OUT behind the middle
+     * (the furniture's cell (0, 2)); the hands are dealt into the printed card boxes, 플레이어 on the players' left of the
+     * dealer's line and 뱅커 on their right, HAND_IN towards the dealer, each a row of three (the third card across); the
+     * cards come from the shoe's mouth (the model's red shoe, the players' left) and go to the discard holder (their
+     * right). Cards face the players (read from the curved side).
      */
-    public static final double DEALER_OUT = 1.35, HAND_IN = 0.45, HAND_SIDE = 0.55, HAND_GAP = 0.3, SHOE_IN = 0.8, SHOE_SIDE = 1.05;
-    public static final float BAC_CARD_SCALE = 0.75f;
+    public static final double DEALER_OUT = 2.0, HAND_IN = 0.34, HAND_SIDE = 0.5, HAND_GAP = 0.27, SHOE_IN = 0.31, SHOE_SIDE = -1.19,
+            DISCARD_IN = 0.52, DISCARD_SIDE = 1.14;
+    public static final float BAC_CARD_SCALE = 0.5f;
 
     /** The players' right hand as they face the dealer (dx, dz the way to the dealer). */
     public static double[] rightOf(double dx, double dz) {
@@ -334,15 +338,24 @@ public final class TableArt {
         return new double[]{dx / len, dz / len};
     }
 
-    /** Where a seat's bets on 플레이어 · 뱅커 · 타이 lie: in a row before it, at BET_REACH (the spot's ordinal: left to right). */
-    public static final double BET_REACH = 0.55, BET_GAP = 0.26;
+    /**
+     * Where a seat's bets lie: on the printed half rings (타이 innermost, then 뱅커, then 플레이어 nearest the players), each
+     * ring's middle (blocks from the table's middle) on the line to the seat.
+     */
+    public static final double BET_PLAYER = 0.86, BET_BANKER = 0.64, BET_TIE = 0.44;
 
     public static Spot betSpot(double[] center, double[] seat, Baccarat.Spot spot) {
-        return along(center, seat, BET_REACH, row(3, BET_GAP).get(spot.ordinal()), true);
+        double r = switch (spot) {
+            case PLAYER -> BET_PLAYER;
+            case BANKER -> BET_BANKER;
+            case TIE -> BET_TIE;
+        };
+        double len = Math.max(1e-6, Math.hypot(seat[0] - center[0], seat[1] - center[1]));
+        return along(center, seat, r / len, 0, true);
     }
 
     /** 바카라's chip buttons lie in a row of their own nearer the player than the betting buttons (flat: they hide nothing). */
-    public static final double CHIP_REACH = 0.78;
+    public static final double CHIP_REACH = 0.67;
 
     /** Where one button of a seat's pad goes: `side` blocks to the sitter's right, drawn at `scale` (1 = full size). */
     public record Slot(double side, double scale) {}

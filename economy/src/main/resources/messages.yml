@@ -2237,13 +2237,14 @@ hwatu:
   poker:
     opened: "<gray>{player}<gray> 오픈: {card}"
     opened-already: "<gray>이미 한 장을 오픈했어요."
+    your-open: "<yellow>오픈할 패를 고르세요! <gray>{seconds}초 안에 패 앞 <yellow>[공개]</yellow> (안 고르면 가장 낮은 장)"
     round: "<#e8c15a>{n}번째 장 베팅</#e8c15a> <gray>· 먼저: <white>{player}</white> <dark_gray>(오픈 패 {hand}<dark_gray>)"
     street: "<gray>{n}번째 장 (앞면)을 돌려요."
     street-last: "<gray>마지막 7번째 장 (뒷면)을 돌려요. <yellow>마지막 베팅!"
   # 세븐 포커 족보 이름 (액션바 · 채팅 · 보드 제목). {ranks}: 투페어 K·7, 원페어 A, 플러시 ♠ A …
   poker-hand:
     royal: "<gold><bold>로티플"
-    back-straight-flush: "<gold>백스트레이트 플러시"
+    back-straight-flush: "<gold>백스티플"
     straight-flush: "<gold>스티플 {ranks}"
     four-card: "<#e8c15a>포카드 {ranks}"
     full-house: "<#e8c15a>풀하우스 {ranks}"
@@ -2282,6 +2283,7 @@ hwatu:
   # 바카라 (README "도박장" 바카라): 하우스(딜러)와
   bac:
     closed: "<gray>지금은 베팅 시간이 아니에요."
+    flash-bets: "<yellow>베팅하세요! <gray>{seconds}초 · 칩을 고르고 <#6bb6ff>플레이어</#6bb6ff> · <#ff6b6b>뱅커</#ff6b6b> · <green>타이</green>"
     min: "<red>한 번에 {min}칩 이상 걸어 주세요."
     over-max: "<red>한 판에 {max}칩까지 걸 수 있어요."
     over-cap: "<red>오늘 바카라에 더 걸 수 있는 칩은 {left}칩이에요. <gray>(하루 {cap}칩, 05시에 다시)"

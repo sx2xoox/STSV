@@ -14,6 +14,10 @@ it); printed labels are drawn as the text displays show them.
 
     gamble_hall.png      from the gate (front right: the open container doors, the stairs) and front left (scaffolding)
     gamble_hall_top.png  roof off: the ground floor (tables, counter, lounge, whiteboard) and the 2층 구경석 over it
+    gamble_annex.png     the 별관 (세븐 포커 · 바카라): from the yard by the gate, roof off, and the card room inside
+
+The tables are the pack's own furniture models (models/gamble.py, as the furniture shows them: scale 2 for the round,
+poker and baccarat tables), the 현장 소장 and the 딜러 stand at their anchors in their skins (economy_bus_skins).
 """
 
 import base64
@@ -57,6 +61,9 @@ COLOURS = {
     "steel": (90, 92, 96), "light": (255, 236, 170), "fire": (255, 140, 40), "pallet": (170, 136, 86), "cement": (196, 186, 160),
     "rebar": (120, 60, 40), "board": (240, 240, 236), "sign_red": (200, 30, 30), "lime_wall_banner": (128, 199, 31),
     "orange_wall_banner": (240, 118, 19),
+    # the 별관
+    "orange_terracotta": (161, 83, 37), "orange_concrete": (224, 97, 1), "red_wool": (161, 39, 34), "red_carpet": (161, 39, 34),
+    "potted_fern": (124, 68, 51), "fern": (88, 130, 52),
 }
 GLOW = {"lantern", "end_rod", "light", "fire", "sea_lantern"}
 GLASSY = {"gray_stained_glass_pane": 0.75, "glass_pane": 0.45, "green_stained_glass_pane": 0.7, "red_stained_glass": 0.7,
@@ -173,13 +180,15 @@ def block_shape(name, p, x, y, z, ox):
             return [el((x0 + 1, y0 - 12, a), (x1 - 1, y1 - 2, a + 1), name)]
         a = x0 if dx > 0 else x1 - 1
         return [el((a, y0 - 12, z0 + 1), (a + 1, y1 - 2, z1 - 1), name)]
+    if name == "potted_fern":
+        return [el((x0 + 5, y0, z0 + 5), (x1 - 5, y0 + 6, z1 - 5), name), el((x0 + 3, y0 + 6, z0 + 3), (x1 - 3, y0 + 14, z1 - 3), "fern")]
     if name == "cauldron":
         return [el((x0, y0 + 3, z0), (x1, y1, z1), name), el((x0 + 2, y0, z0 + 2), (x1 - 2, y0 + 3, z1 - 2), name)]
     return [el((x0, y0, z0), (x1, y1, z1), name, opacity=op)]
 
 
 def cube(name, p):
-    return not p and name in COLOURS and name not in GLASSY and not any(
+    return not p and name != "potted_fern" and name in COLOURS and name not in GLASSY and not any(
         name.endswith(s) for s in ("_pane", "_wall", "_slab", "_stairs", "_trapdoor", "_carpet", "pressure_plate")) and name not in (
         "iron_bars", "iron_chain", "lantern", "end_rod", "ladder", "lightning_rod", "cauldron") and not name.endswith("_banner")
 
@@ -394,7 +403,7 @@ def labels(data, ox, textures, cut):
 def surroundings(ox):
     """Grass round the lot."""
     els = []
-    for x0, x1, z0, z1 in ((-40, -17, -30, 50), (17, 40, -30, 50), (-16, 16, 29, 50), (-16, 16, -30, -10), (-16, -8, -9, -7), (8, 16, -9, -7)):
+    for x0, x1, z0, z1 in ((-40, -17, -30, 50), (31, 54, -30, 50), (-16, 30, 29, 50), (-16, 30, -30, -10), (-16, -8, -9, -7), (8, 30, -9, -7)):
         a, b = corner(x1, -2, z0), corner(x0, -1, z1)
         els.append(el((a[0] + ox, a[1], a[2]), (b[0] + ox + 16, b[1], b[2] + 16), "grass"))
     # the road the plates come off
@@ -406,10 +415,90 @@ def surroundings(ox):
     return els
 
 
+FURNITURE_SCALE = {"gamble_table_round": 2, "gamble_table_duel": 1, "poker_table": 2, "baccarat_table": 2}
+_TABLES = {}
+
+
+def real_table(t, ox, textures):
+    """A table as its furniture shows it: the model's (8, 8, 8) at the anchor block's middle, scaled up by the furniture's
+    scale; at the layout's yaw 180 (its front, seat 0, to the door) the model's own axes are the world's, and so the
+    preview's (x mirrored from the layout's: the world's for a hall facing south)."""
+    from models import gamble as G
+    name = t["item"].split(":")[1]
+    if name not in _TABLES:
+        _TABLES[name] = G.ALL[name]().to_preview()
+    pv = _TABLES[name]
+    textures.update(pv["textures"])
+    s = FURNITURE_SCALE[name]
+    c = at(t["x"] + 0.5, t["y"] + 0.5, t["z"] + 0.5, ox)
+    out = []
+    for e in pv["elements"]:
+        e = json.loads(json.dumps(e))
+        e["from"] = [c[i] + (e["from"][i] - 8) * s for i in range(3)]
+        e["to"] = [c[i] + (e["to"][i] - 8) * s for i in range(3)]
+        if e.get("rotation"):
+            axis, ang, o = e["rotation"]
+            e["rotation"] = [axis, ang, [c[i] + (o[i] - 8) * s for i in range(3)]]
+        out.append(e)
+    return out
+
+
+SKIN_DIR = HERE.parent.parent / "economy" / "content" / "economy" / "assets" / "economy" / "textures" / "entity" / "bus"
+
+
+def npc(key, x, y, z, yaw, ox, textures, slim=None):
+    """A Mannequin in a bus skin (economy:entity/bus/<key>) standing at a layout point, facing a layout yaw: the six
+    parts with both layers, the skin's own pixels on each face."""
+    import economy_bus_skins as B
+    im = Image.open(SKIN_DIR / f"{key}.png").convert("RGBA")
+    if slim is None:
+        slim = key == "dealer"
+    tk = f"skin_{key}"
+    b = io.BytesIO()
+    im.save(b, "PNG")
+    textures[tk] = "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
+    P = B.parts(slim)
+    a = 3 if slim else 4
+    c = at(x, y, z, ox)
+    # (part, x0 of the box from the body's middle (facing north: the wearer's right is +x), y0, its size w h d)
+    place = {"head": (-4, 24, 8, 8, 8), "body": (-4, 12, 8, 12, 4), "rarm": (4, 12, a, 12, 4), "larm": (-4 - a, 12, a, 12, 4),
+             "rleg": (0, 0, 4, 12, 4), "lleg": (-4, 0, 4, 12, 4)}
+    els = []
+    for part, ((u, v, w, h, d), (ou, ov)) in P.items():
+        px0, py0, bw, bh, bd = place[part]
+        for layer, (bu, bv) in enumerate(((u, v), (ou, ov))):
+            r = B.rects(bu, bv, w, h, d)
+            g = (0.5 if part == "head" else 0.25) * layer
+            frm = (c[0] + px0 - g, c[1] + py0 - g, c[2] - bd / 2 - g)
+            to = (c[0] + px0 + bw + g, c[1] + py0 + bh + g, c[2] + bd / 2 + g)
+
+            def uv(rect, flip_u=False, flip_v=False):
+                x0, y0, fw, fh = rect
+                u0, v0, u1, v1 = x0 / 4, y0 / 4, (x0 + fw) / 4, (y0 + fh) / 4
+                return [u1 if flip_u else u0, v1 if flip_v else v0, u0 if flip_u else u1, v0 if flip_v else v1]
+            faces = {"north": {"uv": uv(r["front"]), "texture": tk}, "south": {"uv": uv(r["back"]), "texture": tk},
+                     "east": {"uv": uv(r["right"]), "texture": tk}, "west": {"uv": uv(r["left"]), "texture": tk},
+                     "up": {"uv": uv(r["top"], True, True), "texture": tk}, "down": {"uv": uv(r["bottom"], True), "texture": tk}}
+            e = {"from": list(frm), "to": list(to), "faces": faces, "rotation": None, "shade": True}
+            # facing north is a Minecraft yaw of 180; turn to the layout's yaw (the preview's x is the world's: a turn the same way)
+            turn_by = 180 - yaw
+            if turn_by % 360:
+                e["post"] = [["y", turn_by, [c[0], c[1], c[2]]]]
+            els.append(e)
+    return els
+
+
 def scene(data, ox, cut, textures, models):
     els = blocks(data, ox, cut) + surroundings(ox) + labels(data, ox, textures, cut)
     for t in data["tables"]:
-        els += table(t, ox)
+        els += real_table(t, ox, textures)
+        if t.get("dealer"):
+            d = t["dealer"]
+            els += npc("dealer", d[0], d[1], d[2], d[3], ox, textures)
+    for k in ("counterNpc", "annexCounterNpc"):
+        p = data["anchors"].get(k)
+        if p:
+            els += npc("site_boss", p[0], p[1], p[2], p[3], ox, textures)
     for x, y, z, item, scale, yaw in data["props"]:
         if cut is not None and y >= cut:
             continue
@@ -451,14 +540,14 @@ def main(out_dir):
     W, H = 1000, 760
     # outside: from the gate, front right (the doors, the stairs) and front left (the scaffolding, the drum fire)
     els = scene(data, 0, None, textures, models)
-    centre = [0, 3 * 16, 10 * 16]
+    centre = [-7 * 16, 3 * 16, 10 * 16]
     views = [
-        {"x": 0, "y": 0, "w": W, "h": H, "az": -32, "el": 22, "k": 1.55, "radius": 30 * 16, "fov": 40, "far": 30000, "center": centre},
-        {"x": W, "y": 0, "w": W, "h": H, "az": 40, "el": 30, "k": 1.55, "radius": 30 * 16, "fov": 40, "far": 30000, "center": centre},
+        {"x": 0, "y": 0, "w": W, "h": H, "az": -32, "el": 22, "k": 1.55, "radius": 34 * 16, "fov": 40, "far": 30000, "center": centre},
+        {"x": W, "y": 0, "w": W, "h": H, "az": 40, "el": 30, "k": 1.55, "radius": 34 * 16, "fov": 40, "far": 30000, "center": centre},
     ]
     im = render("gamble_hall", els, textures, views, (W * 2, H))
     sheet(im, W, H, [("도박장 · 공사장 가설 사무소 (정문에서)", "파란 가림막 · 열린 컨테이너 문 · 2층 구경석 (노란 컨테이너) · 철계단 · 작업등 · 고깔"),
-                     ("왼쪽 앞에서", "철골 비계 · 분진망 · 드럼통 모닥불 · 팔레트 · 시멘트 포대 · 철근")], out_dir / "gamble_hall.png")
+                     ("왼쪽 앞에서", "철골 비계 · 분진망 · 드럼통 모닥불 · 팔레트 · 시멘트 포대 · 철근 · 오른쪽 끝 별관 (흰 · 주황 컨테이너)")], out_dir / "gamble_hall.png")
     # roof off: the ground floor, then the 2층 over it
     textures = {k: DP._tex(v, edge=k not in ("water", "grass", "road", "felt", "light", "fire")) for k, v in COLOURS.items()}
     els = scene(data, 0, ROOF, textures, models) + scene(data, 9000, UP_ROOF, textures, models)
@@ -469,6 +558,48 @@ def main(out_dir):
     im = render("gamble_hall_top", els, textures, views, (W * 2, H))
     sheet(im, W, H, [("지붕을 걷어 본 1층", "테이블 6 (앞줄 섯다 초보 · 홀짝 초보 · 주사위 초보, 뒷줄 섯다 일반 · 홀짝 일반 · 섯다 큰손) · 환전 창구 · 휴게"),
                      ("2층 구경석", "바닥에 뚫린 구멍(난간) 아래로 뒷줄 세 판이 보임 · 오른쪽 철계단으로 올라옴")], out_dir / "gamble_hall_top.png")
+    annex(data, out_dir)
+
+
+def annex(data, out_dir):
+    """gamble_annex.png: the 별관 from the yard by the gate, roof off from above, and inside: the baccarat table and its
+    dealer from the players' side, a poker table from the aisle."""
+    textures = {k: DP._tex(v, edge=k not in ("water", "grass", "road", "felt", "light", "fire")) for k, v in COLOURS.items()}
+    W, H = 1000, 760
+    ax = -20.5 * 16
+    els = scene(data, 0, None, textures, {}) + scene(data, 9000, ROOF, textures, {})
+    bac = next(t for t in data["tables"] if t["game"] == "baccarat")
+    pok = next(t for t in data["tables"] if t["game"] == "seven_poker")
+    views = [
+        {"x": 0, "y": 0, "w": W, "h": H, "az": 22, "el": 24, "k": 1.5, "radius": 14 * 16, "fov": 40, "far": 30000,
+         "center": [ax + 0.5 * 16, 2.5 * 16, 5 * 16]},
+        {"x": W, "y": 0, "w": W, "h": H, "az": 90, "el": 64, "k": 1.3, "radius": 17.5 * 16, "fov": 40, "far": 30000,
+         "center": [9000 + ax, 0, 12 * 16]},
+        {"x": 0, "y": H, "w": W, "h": H, "az": -14, "el": 34, "k": 1.7, "radius": 4.5 * 16, "fov": 40, "far": 30000,
+         "center": [9000 - (bac["x"] + 0.5) * 16, 20, (bac["z"] + 0.8) * 16]},
+        {"x": W, "y": H, "w": W, "h": H, "az": 50, "el": 42, "k": 1.7, "radius": 4.5 * 16, "fov": 40, "far": 30000,
+         "center": [9000 - (pok["x"] + 0.5) * 16, 16, (pok["z"] + 0.5) * 16]},
+    ]
+    im = render("gamble_annex", els, textures, views, (W * 2, H * 2))
+    font = ImageFont.truetype(FONT, 30)
+    small = ImageFont.truetype(FONT, 20)
+    s = Image.new("RGB", (im.width, im.height + 192), (27, 29, 34))
+    s.paste(im.crop((0, 0, im.width, H)), (0, 96))
+    s.paste(im.crop((0, H, im.width, 2 * H)), (0, 96 * 2 + H))
+    d = ImageDraw.Draw(s)
+    titles = [[("별관 (정문 쪽 마당에서)", "흰 · 주황 컨테이너 2동 · 열린 문 (x 15..19) · 별관 카드룸 간판 · 고깔 · 작업등 · 본관 뒤쪽과 통로로 이어짐"),
+               ("지붕을 걷어 본 별관", "세븐 포커 초보방 · 일반방, 바카라 일반방 (딜러는 뒤쪽 칸) · 환전 창구 2 (문 옆) · 빨간 통로 깔개 · 소파 · 정수기")],
+              [("바카라 테이블과 딜러", "플레이어 · 뱅커 · 타이 인쇄, 자리 번호 1~6, 칩 랙 · 슈 · 버림통, 딜러는 곧은 쪽 뒤 칸 (furniture [0, 0, 2])"),
+               ("세븐 포커 테이블", "드럼통 두 개 위 낡은 타원 테이블 · 검은 레일 · 칩 홈 · 자리 6 (원탁과 같은 번호)")]]
+    for r, row in enumerate(titles):
+        y0 = r * (H + 96)
+        for i, (t, sub) in enumerate(row):
+            d.text((i * W + 18, y0 + 10), t, fill=(245, 245, 245), font=font)
+            d.text((i * W + 18, y0 + 54), sub, fill=(185, 190, 200), font=small)
+    out = out_dir / "gamble_annex.png"
+    s.save(out, optimize=True)
+    print("gamble annex", out)
+
 
 
 if __name__ == "__main__":

@@ -67,6 +67,23 @@ the model's north side (the same yaw that turns a sign to a player turns these t
                        z 4.5 (0.22 block in front of the position; against a wall when the position is 0.22 block out
                        from it). Model +x is the viewer's left; the top-left 5 x 6 px (x 22..27, y 13..19) is held by the
                        receipt. The words are text displays.
+
+별관 (세븐 포커 · 바카라, docs/plans/도박장_기획.md §7):
+
+  poker_table          an old oval card table (green felt, black padded rail, wooden racetrack with a chip tray and a
+                       cup ring per seat, "세븐 포커" in worn gold: pcard_art.poker_print) on two oil drums. 5 x 5 cells,
+                       seats exactly as gamble_table_round's (ROUND_SEATS), scale 2.
+  baccarat_table       a half moon: the round side (-z) for six seats, the straight edge (+z) for the dealer; the printed
+                       layout (pcard_art.baccarat_print: 타이 8:1 · 뱅커 0.95:1 · 플레이어 1:1 rings, seat circles 1..6,
+                       the dealer's 플레이어 box at model (16, 13.5) and 뱅커 box at (0, 13.5) px), chip rack, shoe at the
+                       dealer's right (+x), discard holder at his left. Seats pcard_art.BACCARAT_SEATS_CELLS (clockwise
+                       from the dealer's left end, -x); the dealer's cell (0, 0, 2) (a cardboard mat, no barrier). Scale 2.
+  pcard_<a,2..10,j,q,k><s,h,d,c>, pcard_back
+                       a playing card lying flat, 7 x 10 px (x 4.5..11.5, z 3..13), 0.5 thick, bottom on the display's
+                       position, face up reading upright from the north; picture pcard_art (8 texels a px, atlas 112 x 80).
+  baccarat_chip_<player|banker|tie>
+                       a small pile in the zone's colour (blue, red, green), bottom on the display's position.
+  gamble_btn_<open|player|banker|tie>, gamble_btn_bet: 공개 플레이어 뱅커 타이 베팅, as the other buttons.
 """
 
 import math

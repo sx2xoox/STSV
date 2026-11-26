@@ -90,13 +90,27 @@ def source_numbers():
     N["timer_scale"] = _num(s, r"timer = text\(l, c, ([\d.]+)f")
     N["pop_up"], N["pop_allin"], N["pop_scale"] = _num(s, r"TextDisplay pop = text\(at\(s, ([\d.]+)\), what, b.allIn\(\) \? ([\d.]+)f : ([\d.]+)f", 3)
     N["pop_rise"] = _num(s, r"new Transformation\(new Vector3f\(0, ([\d.]+)f, 0\), base.getLeftRotation\(\), base.getScale\(\), base.getRightRotation\(\)\), 30\)")
-    N["label_up"], N["label_min"], N["label_scale"] = _num(s, r"text\(at\(s, 2 \* half \+ ([\d.]+)\), label\(.*?Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 3)
-    N["btn_lift"] = _num(s, r"Location l = at\(s, half \+ ([\d.]+)\);")
+    N["label_up"], N["label_min"], N["label_scale"] = _num(s, r"text\(at\(s, 2 \* half \+ \(chip \? [\d.]+ : ([\d.]+)\)\), label\(.*?Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 3)
+    N["btn_lift"] = _num(s, r"Location l = at\(s, chip \? [\d.]+ : half \+ ([\d.]+)\);")
     r = _num(a, r"ROUND_REACH = new Reach\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)", 5)
     N["reach"] = dict(card=r[0], button=r[1], dice=r[2], timer=r[3], width=r[4])
     N["card_gap"], N["button_gap"] = _num(a, r"CARD_GAP = ([\d.]+), BUTTON_GAP = ([\d.]+)", 2)
     hall = yaml.safe_load(HWATU_YML.read_text(encoding="utf-8"))["hall"]
     N["top_round"], N["top_duel"] = float(hall["top"]["round"]), float(hall["top"]["duel"])
+    N["top_poker"], N["top_baccarat"] = float(hall["top"]["poker"]), float(hall["top"]["baccarat"])
+    # 세븐 포커 · 바카라 (TableArt)
+    r = _num(a, r"POKER_REACH = new Reach\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)", 5)
+    N["poker_reach"] = dict(card=r[0], button=r[1], dice=r[2], timer=r[3], width=r[4])
+    r = _num(a, r"BACCARAT_REACH = new Reach\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)", 5)
+    N["bac_reach"] = dict(card=r[0], button=r[1], dice=r[2], timer=r[3], width=r[4])
+    N["poker_open"], N["poker_hidden_gap"], N["poker_open_gap"] = _num(a, r"POKER_OPEN = ([\d.]+), POKER_HIDDEN_GAP = ([\d.]+), POKER_OPEN_GAP = ([\d.]+);", 3)
+    N["pcard"] = _num(a, r"PCARD_SCALE = ([\d.]+)f")
+    (N["dealer_out"], N["hand_in"], N["hand_side"], N["hand_gap"], N["shoe_in"], N["shoe_side"]) = _num(
+        a, r"DEALER_OUT = ([\d.]+), HAND_IN = ([\d.]+), HAND_SIDE = ([\d.]+), HAND_GAP = ([\d.]+), SHOE_IN = ([\d.]+), SHOE_SIDE = (-?[\d.]+)", 6)
+    N["bac_card"] = _num(a, r"BAC_CARD_SCALE = ([\d.]+)f")
+    N["bet_player"], N["bet_banker"], N["bet_tie"] = _num(a, r"BET_PLAYER = ([\d.]+), BET_BANKER = ([\d.]+), BET_TIE = ([\d.]+);", 3)
+    N["chip_reach"] = _num(a, r"CHIP_REACH = ([\d.]+);")
+    N["bet_scale"] = _num(s, r"BET_SCALE = ([\d.]+)f")
     return N
 
 
@@ -250,8 +264,9 @@ def _box_faces(u, v, w, h, d, key):
     }
 
 
-def seated_player(skin_file, seat_pos, yaw, textures, out, head_pitch=18.0, head_turn=0.0, arms=-36.0):
-    """A player riding a seat display at seat_pos (blocks), facing yaw (Minecraft)."""
+def seated_player(skin_file, seat_pos, yaw, textures, out, head_pitch=18.0, head_turn=0.0, arms=-36.0, standing=False, rarm=None):
+    """A player riding a seat display at seat_pos (blocks), facing yaw (Minecraft); standing: on their feet at seat_pos
+    (the 바카라 dealer, a mannequin), rarm: the right arm's own swing (dealing)."""
     key = "skin:" + skin_file
     im = Image.open(SKINS / skin_file).convert("RGBA")
     if im.height == 32:
@@ -261,12 +276,12 @@ def seated_player(skin_file, seat_pos, yaw, textures, out, head_pitch=18.0, head
     b = io.BytesIO()
     im.save(b, "PNG")
     textures[key] = "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
-    feet = np.array(seat_pos, dtype=float) - np.array([0, 0.6, 0])
+    feet = np.array(seat_pos, dtype=float) - np.array([0, 0 if standing else 0.6, 0])
     world = trans(*(feet * PX)) @ rot_y(-yaw) @ scale(0.9375)
     poses = {
         "head": rot_y(head_turn) @ rot_x(head_pitch),
-        "rarm": rot_x(arms) @ rot_z(4), "larm": rot_x(arms) @ rot_z(-4),
-        "rleg": rot_y(-18) @ rot_x(-81), "lleg": rot_y(18) @ rot_x(-81),
+        "rarm": (rarm if rarm is not None else rot_x(arms)) @ rot_z(4), "larm": rot_x(arms) @ rot_z(-4),
+        "rleg": np.eye(4) if standing else rot_y(-18) @ rot_x(-81), "lleg": np.eye(4) if standing else rot_y(18) @ rot_x(-81),
     }
     for name, (base, over, (w, h, d), lo, pivot, inflate) in PARTS.items():
         m = world
@@ -488,7 +503,12 @@ HAND_EARLY = dict(HAND_LATE, pot=50, bettor=None, turn_left=18, street=1,
                   buttons=[("die", 0), ("check", 0), ("ping", 10), ("half", 25)])   # 하프: 0 + max(10, 50 / 2)
 
 
-def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, top_fix=None):
+KINDS = {"economy:gamble_table_round": "round", "economy:gamble_table_duel": "duel", "economy:poker_table": "poker",
+         "economy:baccarat_table": "baccarat"}
+
+
+def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, top_fix=None, extra=None, busy=()):
+    """busy: tables (index) the `extra` hand draws itself (no waiting sign); extra(N, msgs, tables, text, els, textures)."""
     """Elements and textures of the whole scene, billboards turned for this camera."""
     HAND = hand or HAND_LATE
     textures = {k: DP._tex(v, edge=k not in ("water", "grass", "road", "felt", "light", "fire")) for k, v in GHP.COLOURS.items()}
@@ -508,18 +528,20 @@ def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, t
     texts = []
     tables = []
     for t in hall["tables"]:
-        kind = "round" if t["item"].endswith("round") else "duel"
+        kind = KINDS[t["item"]]
         seats = [P(sx + 0.5, t["y"], sz + 0.5) for sx, sz in t["seats"]]
-        heights = [0.5, 0.5, 0.5, 0.5, 0.52, 0.5] if kind == "round" else [0.5, 0.5]
+        heights = {"round": [0.5, 0.5, 0.5, 0.5, 0.52, 0.5], "duel": [0.5, 0.5], "poker": [0.5] * 6,
+                   "baccarat": [0.5, 0.5, 0.5, 0.5, 0.5, 0.52]}[kind]
         for s, h in zip(seats, heights):
             s[1] += h
         anchor = P(t["x"] + 0.5, t["y"] + 0.5, t["z"] + 0.5)
-        k = 2 if kind == "round" else 1
+        k = 1 if kind == "duel" else 2
         # the core furniture's display: entity yaw = the table's yaw (180 here), then the item display's half turn
-        place(f"gamble_table_{kind}", display_matrix(anchor, rot_y(-t["yaw"]), k), textures, els)
-        centre = np.mean([[s[0], s[2]] for s in seats], axis=0)
-        top = t["y"] + (N["top_round"] if kind == "round" else N["top_duel"])
-        tables.append(dict(t=t, kind=kind, seats=seats, centre=centre, top=top))
+        place(t["item"].split(":")[1], display_matrix(anchor, rot_y(-t["yaw"]), k), textures, els)
+        # TableScene's middle: the chairs' middle, the 바카라 table's own anchor (its chairs stand round one side)
+        centre = np.array([anchor[0], anchor[2]]) if kind == "baccarat" else np.mean([[s[0], s[2]] for s in seats], axis=0)
+        top = t["y"] + N["top_" + kind]
+        tables.append(dict(t=t, kind=kind, seats=seats, centre=centre, top=top, anchor=anchor))
 
     def text(key, mm, pos, k, lift=0.0):
         im, w, n = text_texture(mm)
@@ -527,20 +549,25 @@ def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, t
         return pos, k, w, n
 
     # every other table: its sign (waiting), a few people at the back
-    games = {"sutda": "섯다", "dice": "주사위", "holjjak": "홀짝"}
+    games = {"sutda": "섯다", "dice": "주사위", "holjjak": "홀짝", "seven_poker": "세븐 포커", "baccarat": "바카라"}
     rooms = {"beginner": "초보방", "normal": "일반방", "high": "큰손방"}
-    antes = {"beginner": 10, "normal": 100, "high": 500}
-    maxes = {"sutda": 6, "dice": 6, "holjjak": 2}
+    antes = {"beginner": 1, "normal": 10, "high": 100}
+    maxes = {"sutda": 6, "dice": 6, "holjjak": 2, "seven_poker": 6, "baccarat": 6}
     waiting = {1: (2, "starting"), 2: (1, "alone"), 3: (3, "starting"), 4: (0, "alone"), 5: (2, "starting")}
     extra_skins = ["office_2.png", "courier_1.png", "student_2.png", "camper_2.png", "chatty_2.png", "office_3.png", "courier_2.png"]
     si = 0
     for i, T in enumerate(tables):
-        if i == 0:
+        if i == 0 or i in busy:
             continue
-        n, state = waiting[i]
+        n, state = waiting.get(i, (0, "alone"))
         st = raw(msgs, "hwatu.sign-alone") if state == "alone" else raw(msgs, "hwatu.sign-starting", seconds=7)
-        sign = raw(msgs, "hwatu.sign", game=games[T["t"]["game"]], room=rooms[T["t"]["room"]], ante=antes[T["t"]["room"]],
-                   n=n, max=maxes[T["t"]["game"]], state=st)
+        if T["t"]["game"] == "baccarat":
+            sign = raw(msgs, "hwatu.bac.sign", game="바카라", min=10, max="1,000", n=n, **{"max-seats": 6}, state=raw(msgs, "hwatu.bac.sign-waiting"),
+                       road=raw(msgs, "hwatu.bac.road-empty"), count=raw(msgs, "hwatu.bac.road-count", p=0, b=0, t=0))
+        else:
+            limit = "" if T["t"]["game"] not in ("sutda", "seven_poker") else raw(msgs, "hwatu.sign-limit", n=f"{antes[T['t']['room']] * 100:,}")
+            sign = raw(msgs, "hwatu.sign", game=games[T["t"]["game"]], room=rooms[T["t"]["room"]], ante=antes[T["t"]["room"]],
+                       n=n, max=maxes[T["t"]["game"]], state=st, limit=limit)
         c = T["centre"]
         text(f"sign{i}", sign, (c[0], T["t"]["y"] + N["sign_up"], c[1]), N["sign_scale"])
         for s in T["seats"][:n]:
@@ -604,10 +631,13 @@ def build(N, msgs, hall, cam_for_text, viewer_body=False, cut=None, hand=None, t
     # the sign over the table
     if HAND["bettor"] is None:
         state = raw(msgs, "hwatu.sign-street", n=HAND["street"])
-    sign_text = raw(msgs, "hwatu.sign", game="섯다", room="초보방", ante=HAND["ante"], n=len(HAND["seats"]), max=6, state=state)
+    sign_text = raw(msgs, "hwatu.sign", game="섯다", room="초보방", ante=HAND["ante"], n=len(HAND["seats"]), max=6, state=state,
+                    limit=raw(msgs, "hwatu.sign-limit", n=f"{HAND['ante'] * 100:,}"))
     sign = text("sign0", sign_text, (c[0], T["t"]["y"] + N["sign_up"], c[1]), N["sign_scale"])
-    texts.sort(key=lambda e: -e.pop("_depth"))
     marks = dict(centre=c, top=top, seats=seats, pot=pot, timer=timer, pop=pop, sign=sign, buttons=btns)
+    if extra is not None:
+        marks["extra"] = extra(N, msgs, tables, text, els, textures)
+    texts.sort(key=lambda e: -e.pop("_depth"))
     return els + texts, textures, marks
 
 
@@ -736,7 +766,7 @@ def card_point(N, marks, seat, side=0.0):
     return (x, marks["top"], z)
 
 
-def scene_sheet(N, msgs, hall):
+def scene_sheet(N, msgs, hall, more=()):
     W, H = 1920, 1080
     shots, panels = {}, []
     felt = felt_top()
@@ -779,8 +809,268 @@ def scene_sheet(N, msgs, hall):
             callout(im, "자리마다 한 장 (남의 것은 뒷면)", pj(card_point(N, marks, 1)), (40, 420))
             callout(im, f"테이블 표지판 '진행 중 · 1번째 장'", pj(top_of_text(marks["sign"])), (40, 60))
             panels.append(titled(im, "(라) 첫 장을 돌린 직후, 위에서", "카드는 한 장씩 가운데에서 미끄러져 옴 · 두 번째 장도 같은 순서로"))
-    stack(panels, OUT / "gamble_table_scene.png", width=1600)
+    stack(panels + list(more), OUT / "gamble_table_scene.png", width=1600)
     return shots
+
+
+# ------------------------------------------------------------------------------------------------
+# 세븐 포커 · 바카라 (the 별관's tables): a hand at each, drawn as TableScene draws it (TableArt's numbers from source)
+# ------------------------------------------------------------------------------------------------
+
+def table_index(hall, game):
+    return next(i for i, t in enumerate(hall["tables"]) if t["game"] == game)
+
+
+def poker_slot(k, opened):
+    """TableArt.pokerSlot: (row, slot) of card k (0 hidden row, 1 open row)."""
+    if k < 3:
+        return (1, 0) if k == opened else (0, k)
+    if k <= 5:
+        return (1, k - 2)
+    return (0, 2 if opened < 0 else opened)
+
+
+def poker_spot(N, centre, seat, row_, slot):
+    R = N["poker_reach"]
+    side = row(3, N["poker_hidden_gap"])[slot] if row_ == 0 else row(4, N["poker_open_gap"])[slot]
+    return along(centre, seat, R["card"] if row_ == 0 else N["poker_open"], side)
+
+
+# 세븐 포커 초보방 (ante 1), the 5th card's betting round: four players; the viewer (seat 0) holds K♠ K♥ hidden and
+# opened 7♦, then 7♣ and 2♠ came open: 투페어 K·7; 하프 by seat 2 (+19), now the viewer's turn: pot 38, 19 to call
+POKER_HAND = {
+    "ante": 1, "pot": 38, "me": 0, "bettor": 2, "turn_left": 13, "turn_total": 20,
+    "seats": {0: ("도토리", "student_1.png", ["ks", "7d", "kh", "7c", "2s"], 1), 1: ("새벽낚시", "camper_1.png", ["9h", "qs", "4d", "qd", "jc"], 1),
+              2: ("곰돌이", "office_1.png", ["ad", "3c", "8s", "ah", "5h"], 0), 3: ("치킨왕", "chicken_1.png", ["6c", "10d", "6s", "kd", "9c"], 2)},
+    "buttons": [("die", 0), ("call", 19), ("ddadang", 38), ("half", 47)],
+}
+
+
+def poker_extra(view):
+    def draw(N, msgs, tables, text, els, textures):
+        i = table_index(view["hall"], "seven_poker")
+        T = tables[i]
+        H = POKER_HAND
+        c, top, seats = T["centre"], T["top"], T["seats"]
+        xz = lambda k: (seats[k][0], seats[k][2])
+        for k, (name, skin, _cards, _o) in H["seats"].items():
+            if k == H["me"] and not view["body"]:
+                continue
+            s = seats[k]
+            seated_player(skin, s, yaw_toward(c[0] - s[0], c[1] - s[2]), textures, els, head_pitch=10 if k != H["me"] else 30)
+        marks = {"centre": c, "top": top, "seats": seats, "cards": {}}
+        for k, (name, skin, cards, opened) in H["seats"].items():
+            for j, cid in enumerate(cards):
+                r, sl = poker_slot(j, opened)
+                x, z, yaw = poker_spot(N, c, xz(k), r, sl)
+                shown = k == H["me"] or r == 1           # mine all face up, everyone's open row face up
+                y = top + 0.002 + (0.006 if r == 1 else 0) + j * 0.0015
+                place("pcard_" + cid if shown else "pcard_back", display_matrix((x, y, z), facing(yaw), N["pcard"]), textures, els)
+                marks["cards"][(k, j)] = (x, top, z)
+        lvl, sc = chip_level(H["pot"], H["ante"])
+        place(f"gamble_chips_{lvl}", display_matrix((c[0], top + 0.001, c[1]), np.eye(4), N["chips"] * sc), textures, els)
+        marks["pot"] = text("p_pot", raw(msgs, "hwatu.pot-label", pot=H["pot"]), (c[0], top + N["pot_up"], c[1]), N["pot_scale"])
+        R = N["poker_reach"]
+        nb = len(H["buttons"])
+        gap = min(N["button_gap"], R["width"] / nb)
+        bscale = gap / N["button_gap"]
+        btns = []
+        for (key, amount), side in zip(H["buttons"], row(nb, gap)):
+            x, z, yaw = along(c, xz(H["me"]), R["button"], side)
+            half = N["button_half_k"] * N["button"] * bscale
+            place(f"gamble_btn_{key}", display_matrix((x, top + half + N["btn_lift"], z), facing(yaw) @ rot_x(N["tilt"]), N["button"] * bscale), textures, els)
+            name = raw(msgs, f"hwatu.btn.{key}")
+            label = name if amount == 0 else raw(msgs, "hwatu.btn-label", name=name, amount=raw(msgs, "hwatu.btn-amount", n=f"{amount:,}"))
+            btns.append(text(f"p_btn_{key}", label, (x, top + 2 * half + N["label_up"], z), max(N["label_min"], N["label_scale"] * bscale)))
+        marks["buttons"] = btns
+        left, total = H["turn_left"], H["turn_total"]
+        full = int(math.floor(8.0 * left / total + 0.5))
+        bar = "▮" * full + "<dark_gray>" + "▮" * (8 - full) + "</dark_gray>"
+        x, z, _ = along(c, xz(H["me"]), R["timer"], 0)
+        marks["timer"] = text("p_timer", raw(msgs, "hwatu.timer", player=H["seats"][H["me"]][0], seconds=left, bar=bar), (x, top + N["timer_up"], z), N["timer_scale"])
+        act = raw(msgs, "hwatu.act.half", n="19")
+        x, z, _ = along(c, xz(H["bettor"]), R["timer"], 0)
+        marks["pop"] = text("p_pop", raw(msgs, "hwatu.bet-pop", player=H["seats"][H["bettor"]][0], act=act), (x, top + N["pop_up"], z), N["pop_scale"],
+                            lift=N["pop_rise"] / 3)
+        state = raw(msgs, "hwatu.sign-bet", player=H["seats"][H["bettor"]][0], act=act)
+        sign = raw(msgs, "hwatu.sign", game="세븐 포커", room="초보방", ante=1, n=len(H["seats"]), max=6, state=state,
+                   limit=raw(msgs, "hwatu.sign-limit", n="100"))
+        marks["sign"] = text("p_sign", sign, (c[0], T["t"]["y"] + N["sign_up"], c[1]), N["sign_scale"])
+        return marks
+    return draw
+
+
+# 바카라 일반방: three players; (eye) the bets are open, the viewer (seat 2) has 100 on 플레이어 and 10 on 타이, the 50 chip
+# picked; (over) the coup is face up: 플레이어 7♠ K♦ (7) : 뱅커 4♥ 2♣ 9♦ (5): 플레이어 승
+BAC_HAND = {
+    "me": 2, "seats": {0: ("새벽낚시", "camper_1.png", {"banker": 50}), 2: ("도토리", "student_1.png", {"player": 100, "tie": 10}),
+                       4: ("달빛여우", "chatty_1.png", {"player": 500})},
+    "player": ["7s", "kd"], "banker": ["4h", "2c", "9d"], "chips": [10, 50, 100, 500], "picked": 1, "left": 9, "road": "PBBPTPBBPPB",
+}
+
+
+def baccarat_extra(view):
+    def draw(N, msgs, tables, text, els, textures):
+        i = table_index(view["hall"], "baccarat")
+        T = tables[i]
+        H = BAC_HAND
+        c, top, seats = T["centre"], T["top"], T["seats"]
+        dl = T["t"]["dealer"]
+        dealer = P(dl[0], dl[1], dl[2])
+        d = np.array([dealer[0] - c[0], dealer[2] - c[1]])
+        d /= np.linalg.norm(d)
+        right = np.array([-d[1], d[0]])
+        bac = lambda inn, side, up=0.0: (c[0] + d[0] * inn + right[0] * side, top + up, c[1] + d[1] * inn + right[1] * side)
+        marks = {"centre": c, "top": top, "seats": seats}
+        xz = lambda k: (seats[k][0], seats[k][2])
+        for k, (name, skin, _b) in H["seats"].items():
+            if k == H["me"] and not view["body"]:
+                continue
+            s = seats[k]
+            seated_player(skin, s, yaw_toward(c[0] - s[0], c[1] - s[2]), textures, els, head_pitch=10 if k != H["me"] else 30)
+        # the dealer: a mannequin standing at its spot, facing the players, the dealing arm out
+        dyaw = yaw_toward(c[0] - dealer[0], c[1] - dealer[2])
+        seated_player("dealer.png", (dealer[0], dealer[1], dealer[2]), dyaw, textures, els, head_pitch=22, arms=-10, standing=True,
+                      rarm=rot_x(-55) if view["dealt"] else None)
+        marks["dealer"] = (dealer[0], dealer[1] + 1.9, dealer[2])
+        marks["speech"] = text("b_speech", raw(msgs, "hwatu.dealer.won-player" if view["dealt"] else "hwatu.dealer.place-bets", player=7, banker=5),
+                               (dealer[0], dealer[1] + 2.35, dealer[2]), 0.45)
+        # the bets on the printed rings
+        rings = {"player": N["bet_player"], "banker": N["bet_banker"], "tie": N["bet_tie"]}
+        shorts = {"player": "P", "banker": "B", "tie": "T"}
+        for k, (name, skin, b) in H["seats"].items():
+            sx, sz = xz(k)
+            ln = math.hypot(sx - c[0], sz - c[1])
+            for zone, n in b.items():
+                x, z, _ = along(c, (sx, sz), rings[zone] / ln, 0)
+                sc = N["bet_scale"] * min(1.4, 1 + 0.1 * math.log2(n / 10))
+                place(f"baccarat_chip_{zone}", display_matrix((x, top + 0.002, z), np.eye(4), sc), textures, els)
+                lab = raw(msgs, "hwatu.bac.bet-label", spot=raw(msgs, f"hwatu.bac.spot-short.{zone}"), n=f"{n:,}")
+                marks[f"bet_{k}_{zone}"] = text(f"b_bet_{k}_{zone}", lab, (x, top + 0.3, z), 0.3)
+        flat = facing(yaw_toward(-d[0], -d[1]))
+        if view["dealt"]:
+            for hand, cards in (("player", H["player"]), ("banker", H["banker"])):
+                for j, cid in enumerate(cards):
+                    side = (-N["hand_side"] if hand == "player" else N["hand_side"]) + row(3, N["hand_gap"])[j]
+                    p = bac(N["hand_in"], side, 0.002 + j * 0.002)
+                    rot = flat @ rot_y(90) if j == 2 else flat
+                    place("pcard_" + cid, display_matrix(p, rot, N["bac_card"]), textures, els)
+            marks["ptotal"] = text("b_pt", raw(msgs, "hwatu.bac.total-player", n=7), bac(N["hand_in"], -N["hand_side"], 0.42), 0.42)
+            marks["btotal"] = text("b_bt", raw(msgs, "hwatu.bac.total-banker", n=5), bac(N["hand_in"], N["hand_side"], 0.42), 0.42)
+            sx, sz = xz(H["me"])
+            x, z, _ = along(c, (sx, sz), 0.7, 0)
+            marks["gain"] = text("b_gain", raw(msgs, "hwatu.gain", n="90", player=H["seats"][H["me"]][0]), (x, top + 0.95, z), 0.4)
+            state = raw(msgs, "hwatu.bac.sign-result", won=raw(msgs, "hwatu.bac.won.player"), player=7, banker=5)
+            road = H["road"] + "P"
+        else:
+            # the viewer's chips (a row of their own, nearer them) and the betting buttons, the bets' timer
+            R = N["bac_reach"]
+            me = xz(H["me"])
+            nb = 4
+            gap = min(N["button_gap"], R["width"] / nb)
+            bscale = gap / N["button_gap"]
+            btns = []
+            for j, side in enumerate(row(4, gap)):
+                x, z, _ = along(c, me, N["chip_reach"], side)
+                on = j == H["picked"]
+                place(f"gamble_chips_{j + 1}", display_matrix((x, top + 0.002, z), np.eye(4), (0.36 if on else 0.27) * bscale), textures, els)
+                lab = raw(msgs, "hwatu.btn-chip-on" if on else "hwatu.btn-chip", n=f"{H['chips'][j]:,}")
+                btns.append(text(f"b_chip{j}", lab, (x, top + 0.13 + 0.1, z), max(N["label_min"], N["label_scale"] * bscale)))
+            mine = H["seats"][H["me"]][2]
+            for (key, zone), side in zip((("player", "player"), ("banker", "banker"), ("tie", "tie"), ("bet", None)), row(nb, gap)):
+                x, z, yaw = along(c, me, R["button"], side)
+                half = N["button_half_k"] * N["button"] * bscale
+                place(f"gamble_btn_{key}", display_matrix((x, top + half + N["btn_lift"], z), facing(yaw) @ rot_x(N["tilt"]), N["button"] * bscale), textures, els)
+                if zone is None:
+                    label = raw(msgs, "hwatu.btn.bet")
+                else:
+                    on = raw(msgs, "hwatu.btn-spot-on", n=f"{mine[zone]:,}") if zone in mine else ""
+                    label = raw(msgs, "hwatu.btn-spot", name=raw(msgs, f"hwatu.btn.{key}"), n=f"{H['chips'][H['picked']]:,}", on=on)
+                btns.append(text(f"b_btn_{key}", label, (x, top + 2 * half + N["label_up"], z), max(N["label_min"], N["label_scale"] * bscale)))
+            marks["buttons"] = btns
+            full = int(math.floor(8.0 * H["left"] / 15 + 0.5))
+            bar = "▮" * full + "<dark_gray>" + "▮" * (8 - full) + "</dark_gray>"
+            marks["timer"] = text("b_timer", raw(msgs, "hwatu.timer-bets", seconds=H["left"], bar=bar), bac(0.1, 0, 0.9), 0.4)
+            state = raw(msgs, "hwatu.bac.sign-bets", seconds=H["left"])
+            road = H["road"]
+        letters = "".join(raw(msgs, "hwatu.bac.road." + {"P": "player", "B": "banker", "T": "tie"}[ch]) for ch in road)
+        count = raw(msgs, "hwatu.bac.road-count", p=road.count("P"), b=road.count("B"), t=road.count("T"))
+        sign = raw(msgs, "hwatu.bac.sign", game="바카라", min=10, max="1,000", n=len(H["seats"]), **{"max-seats": 6}, state=state, road=letters, count=count)
+        marks["sign"] = text("b_sign", sign, (c[0], T["t"]["y"] + N["sign_up"], c[1]), N["sign_scale"])
+        return marks
+    return draw
+
+
+def seat_camera(hall, game, seat, pitch=-16.0, back=0.0):
+    """A seated player's eyes at that table, looking at its middle (바카라: the anchor)."""
+    t = hall["tables"][table_index(hall, game)]
+    seats = [P(sx + 0.5, t["y"], sz + 0.5) for sx, sz in t["seats"]]
+    s = seats[seat]
+    if game == "baccarat":
+        a = P(t["x"] + 0.5, t["y"], t["z"] + 0.5)
+        c = (a[0], a[2])
+    else:
+        c = np.mean([[x[0], x[2]] for x in seats], axis=0)
+    yaw = yaw_toward(c[0] - s[0], c[1] - s[2])
+    fwd = np.array([-math.sin(math.radians(yaw)), 0, math.cos(math.radians(yaw))])
+    eye = np.array([s[0], t["y"] + 0.5 - 0.6 + 1.62, s[2]]) - fwd * back
+    d = np.array([fwd[0] * math.cos(math.radians(pitch)), math.sin(math.radians(pitch)), fwd[2] * math.cos(math.radians(pitch))])
+    return camera(eye, eye + d * 4)
+
+
+def above_camera(hall, game, off=(-2.6, 3.2, -3.0)):
+    t = hall["tables"][table_index(hall, game)]
+    at = P(t["x"] + 0.5, t["y"] + 1.0, t["z"] + 0.5)
+    return camera(at + np.array(off), at, fov=60.0)
+
+
+def casino_sheet(N, msgs, hall):
+    W, H = 1920, 1080
+    shots, panels = {}, []
+    pi, bi = table_index(hall, "seven_poker"), table_index(hall, "baccarat")
+    views = (
+        ("poker_eye", seat_camera(hall, "seven_poker", 0), poker_extra, dict(body=False), None),
+        ("poker_over", above_camera(hall, "seven_poker"), poker_extra, dict(body=True), GHP.ROOF),
+        ("bac_eye", seat_camera(hall, "baccarat", 2, pitch=-20), baccarat_extra, dict(body=False, dealt=False), None),
+        ("bac_over", above_camera(hall, "baccarat", off=(2.4, 3.0, -3.2)), baccarat_extra, dict(body=True, dealt=True), GHP.ROOF),
+    )
+    for name, cam, maker, view, cut in views:
+        view = dict(view, hall=hall)
+        els, tex, marks = build(N, msgs, hall, cam, viewer_body=False, cut=cut, extra=maker(view), busy=(pi, bi))
+        im = render(f"gamble_scene_{name}", els, tex, cam, W, H)
+        shots[name] = im.copy()
+        m = marks["extra"]
+        pj = lambda p: project(cam, p, W, H)
+        if name == "poker_eye":
+            callout(im, "내 숨긴 패 K♠ K♥ (나만 앞면, 남에게는 뒷면)", pj(m["cards"][(0, 0)]), (40, 760))
+            callout(im, "내 오픈 패 7♦ 7♣ 2♠ (모두 앞면) → 투페어 K·7", pj(m["cards"][(0, 3)]), (1150, 640))
+            callout(im, "남의 오픈 줄 (앞면) · 숨긴 줄 (뒷면)", pj(m["cards"][(2, 3)]), (1200, 240))
+            callout(im, "내 버튼: 다이 · 콜 +19 · 따당 +38 · 하프 +47", pj(m["buttons"][0][0]), (40, 1010))
+            callout(im, "곰돌이 하프! +19칩", pj(top_of_text(m["pop"])), (1300, 120))
+            panels.append(titled(im, "(마) 세븐 포커 · 0번 자리의 눈 · 다섯 번째 장 베팅, 내 차례 (판 38칩)",
+                                 "숨긴 줄(가까이) = 처음 세 장 중 둘 + 7번째 장 · 오픈 줄(안쪽) = 고른 한 장 + 4 · 5 · 6번째 장 · poker_table"))
+        elif name == "poker_over":
+            callout(im, "테이블 표지판 '세븐 포커 · 초보방 · 한도 100칩'", pj(top_of_text(m["sign"])), (40, 60))
+            callout(im, "자리마다 두 줄 (숨긴 줄 뒷면 · 오픈 줄 앞면)", pj(m["cards"][(1, 2)]), (40, 700))
+            callout(im, "차례 시간 (0번)", pj(top_of_text(m["timer"])), (1300, 300))
+            panels.append(titled(im, "(바) 같은 순간, 위에서 (0번 사람에게 보이는 대로: 내 숨긴 패만 앞면)",
+                                 "도박장 별관 세븐 포커 초보방 (지붕 · 2층 걷어 냄) · 0 도토리(나) · 1 새벽낚시 · 2 곰돌이(하프) · 3 치킨왕"))
+        elif name == "bac_eye":
+            callout(im, "딜러 (마네킹, 스킨 economy:entity/bus/dealer): '베팅해 주세요.'", pj(m["dealer"]), (40, 80))
+            callout(im, "내 칩 고르기 (10 · 50 · 100 · 500, 고른 칩은 크게 · ▶)", pj(m["buttons"][1][0]), (40, 1010))
+            callout(im, "플레이어 · 뱅커 · 타이 (+고른 칩) · 베팅 끝", pj(m["buttons"][4][0]), (1150, 1010))
+            callout(im, "내 베팅: 플레이어 고리 100 · 타이 고리 10", pj(top_of_text(m["bet_2_player"])), (1250, 560))
+            callout(im, "팻말: 최근 결과 (P · B · T)", pj(top_of_text(m["sign"])), (1250, 60))
+            panels.append(titled(im, "(사) 바카라 · 2번 자리의 눈 · 베팅 시간 (9초 남음)",
+                                 "하우스(딜러)와 · 한 사람 한 판 1,000칩까지 · 하루 5,000칩까지 · 모두 [베팅 끝] 이면 바로 돌림 · baccarat_table"))
+        else:
+            callout(im, "플레이어 7♠ K♦ = 7", pj(top_of_text(m["ptotal"])), (40, 320))
+            callout(im, "뱅커 4♥ 2♣ 9♦ = 5 (셋째 장은 가로)", pj(top_of_text(m["btotal"])), (1250, 320))
+            callout(im, "딜러: '플레이어 승! 7 : 5'", pj(m["dealer"]), (40, 80))
+            callout(im, "+90칩 (플레이어 100 → 200, 타이 10 잃음)", pj(top_of_text(m["gain"])), (1250, 700))
+            panels.append(titled(im, "(아) 바카라 · 카드를 다 뒤집은 뒤, 위에서",
+                                 "슈(빨강) → 자리 앞 카드 상자로 한 장씩 미끄러져 와서 뒤집힘 · 플레이어 1:1 · 뱅커 0.95:1 · 타이 8:1"))
+    return panels, shots
 
 
 # ------------------------------------------------------------------------------------------------
@@ -803,14 +1093,15 @@ def hud_layer(screen, scene, glyphs):
     return gw, gh
 
 
-def hud_sheet(eye_shot):
+def hud_sheet(eye_shot, by_label=None):
     data = json.loads(HUD_JSON.read_text(encoding="utf-8"))
     glyphs = HUD.Glyphs()
     panels = []
     for sc in data["scenes"]:
         W, H, s = sc["width"], sc["height"], sc["scale"]
         if sc["kind"] == "hwatu":
-            screen = eye_shot.copy().resize((W, H))
+            shot = next((v for k, v in (by_label or {}).items() if sc["label"].startswith(k)), eye_shot)
+            screen = shot.copy().resize((W, H))
         else:
             screen = HUD._scene(W, H, water=False)
         gw, gh = hud_layer(screen, sc, glyphs)
@@ -855,12 +1146,13 @@ def hud_sheet(eye_shot):
 
 def main():
     N = source_numbers()
-    print("from source:", {k: v for k, v in N.items() if k != "reach"}, N["reach"])
+    print("from source:", {k: v for k, v in N.items() if k not in ("reach", "poker_reach", "bac_reach")}, N["reach"])
     msgs = messages()
     hall = json.loads(GHP.DATA.read_text(encoding="utf-8"))
-    shots = scene_sheet(N, msgs, hall)
+    more, casino = casino_sheet(N, msgs, hall)
+    shots = scene_sheet(N, msgs, hall, more)
     if HUD_JSON.exists():
-        hud_sheet(shots["eye"][0])
+        hud_sheet(shots["eye"][0], {"세븐 포커": casino["poker_eye"], "바카라": casino["bac_eye"]})
     else:
         print("no", HUD_JSON, "(run the plugin's GambleHudPreviewTest): gamble_hud.png not drawn")
 
