@@ -90,7 +90,7 @@ def source_numbers():
     N["timer_scale"] = _num(s, r"timer = text\(l, c, ([\d.]+)f")
     N["pop_up"], N["pop_allin"], N["pop_scale"] = _num(s, r"TextDisplay pop = text\(at\(s, ([\d.]+)\), what, b.allIn\(\) \? ([\d.]+)f : ([\d.]+)f", 3)
     N["pop_rise"] = _num(s, r"new Transformation\(new Vector3f\(0, ([\d.]+)f, 0\), base.getLeftRotation\(\), base.getScale\(\), base.getRightRotation\(\)\), 30\)")
-    N["label_up"], N["label_min"], N["label_scale"] = _num(s, r"text\(at\(s, lift \+ 2 \* half \+ \(chip \? [\d.]+ : ([\d.]+)\)\), label\(.*?Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 3)
+    N["chip_label_up"], N["label_up"], N["label_min"], N["label_scale"] = _num(s, r"text\(at\(s, lift \+ 2 \* half \+ \(chip \? ([\d.]+) : ([\d.]+)\)\), label\(.*?Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 4)
     N["btn_lift"] = _num(s, r"Location l = at\(s, chip \? [\d.]+ : half \+ ([\d.]+) \+ lift\);")
     r = _num(a, r"ROUND_REACH = new Reach\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)", 5)
     N["reach"] = dict(card=r[0], button=r[1], dice=r[2], timer=r[3], width=r[4])
@@ -979,7 +979,7 @@ def baccarat_extra(view):
                 on = j == H["picked"]
                 place(f"gamble_chips_{j + 1}", display_matrix((x, top + 0.002, z), np.eye(4), (N["chip_picked"] if on else N["chip_scale"]) * bscale), textures, els)
                 lab = raw(msgs, "hwatu.btn-chip-on" if on else "hwatu.btn-chip", n=f"{H['chips'][j]:,}")
-                btns.append(text(f"b_chip{j}", lab, (x, top + 0.13 + 0.1, z), max(N["label_min"], N["label_scale"] * bscale)))
+                btns.append(text(f"b_chip{j}", lab, (x, top + N["chip_label_up"], z), max(N["label_min"], N["label_scale"] * bscale)))
             mine = H["seats"][H["me"]][2]
             for (key, zone), side in zip((("player", "player"), ("banker", "banker"), ("tie", "tie"), ("bet", None)), row(nb, gap)):
                 x, z, yaw = along(c, me, R["button"], side)

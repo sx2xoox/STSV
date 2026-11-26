@@ -67,12 +67,12 @@ class GambleHudPreviewTest {
         for (int i = 1; i <= 6; i++)
             rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules.baccarat-" + i, "min", fmt(10), "max", fmt(1000), "cap", fmt(5000), "left", fmt(left),
                     "commission", 5, "tie", 8, "road", r.toString())));
-        return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", "바카라", "room", "초보방"), rows);
+        return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", "바카라", "room", Lang.raw("hwatu.bac.house")), rows);
     }
 
-    /** 세븐 포커, the 5th card's round, my turn: pot 380, 60 to call, 투페어 K·7 in hand. */
+    /** 세븐 포커 초보방, the 5th card's round, my turn (the scene preview's hand): pot 38, 19 to call, 투페어 K·7 in hand. */
     static Component pokerLine(long held) {
-        return line(Lang.raw("hwatu.line.my-turn", "seconds", 12), Lang.raw("hwatu.line.pot", "pot", fmt(380)), Lang.raw("hwatu.line.to-call", "n", fmt(60)),
+        return line(Lang.raw("hwatu.line.my-turn", "seconds", 13), Lang.raw("hwatu.line.pot", "pot", fmt(38)), Lang.raw("hwatu.line.to-call", "n", fmt(19)),
                 Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.poker-hand.two-pair", "ranks", "K·7")), Lang.raw("hwatu.line.chips", "n", fmt(held)));
     }
 
@@ -166,7 +166,7 @@ class GambleHudPreviewTest {
         scenes.add(scene(layout, client, "hwatu", "홀짝 · 상대가 굴릴 차례",
                 w, h, scale, sidebar, null, health, rules("holjjak", "홀짝", 10), holjjak));
         scenes.add(scene(layout, client, "hwatu", "세븐 포커 · 다섯 번째 장 베팅, 내 차례 (보드 = 포커 족보, 내 투페어 줄)",
-                w, h, scale, sidebar, null, health, poker(1, "two-pair", "K·7"), pokerLine(1240)));
+                w, h, scale, sidebar, null, health, poker(1, "two-pair", "K·7"), pokerLine(124)));
         scenes.add(scene(layout, client, "hwatu", "바카라 · 베팅 시간 (보드 = 배당 · 오늘 남은 베팅 · 최근 결과)",
                 w, h, scale, sidebar, null, health, baccarat(4890, "PBBPTPBBPPBT"), baccaratLine(1520)));
         scenes.add(scene(layout, client, "fishing", "낚시대회 순위 · 테이블에 앉지 않은 사람 (앉은 사람은 족보: 보드 우선순위)",
@@ -189,7 +189,7 @@ class GambleHudPreviewTest {
                 Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.hand.gwang13")), Lang.raw("hwatu.line.chips", "n", fmt(123_456)));
         Component pokerLong = line(Lang.raw("hwatu.line.my-turn", "seconds", 20), Lang.raw("hwatu.line.to-call", "n", fmt(5_000)),
                 Lang.raw("hwatu.line.hand", "hand", Lang.raw("hwatu.poker-hand.back-straight-flush", "ranks", "")), Lang.raw("hwatu.line.chips", "n", fmt(123_456)));
-        for (Component c : List.of(sutdaLine(20, 98_765), longest, firstStreet, dice, holjjak, pokerLine(1240), pokerLong, baccaratLine(1520)))
+        for (Component c : List.of(sutdaLine(20, 98_765), longest, firstStreet, dice, holjjak, pokerLine(124), pokerLong, baccaratLine(1520)))
             assertTrue(layout.messageWidth(c) <= 2 * HudLayout.BOARD_CLEAR_X, "the action bar's line stays off the board's corner: "
                     + layout.messageWidth(c) + " px: " + net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(c));
 

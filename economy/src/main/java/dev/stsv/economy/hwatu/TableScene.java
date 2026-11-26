@@ -1435,7 +1435,7 @@ final class TableScene {
             Quaternionf rot = chip ? new Quaternionf() : TableArt.facing(s.yaw()).rotateX((float) Math.toRadians(BUTTON_TILT));
             if (chip) {
                 scale = (b.chip() == host.chipOf(p.getUniqueId()) ? TableArt.CHIP_PICKED_SCALE : TableArt.CHIP_SCALE) * (float) slot.scale();
-                half = 0.06;
+                half = 0.0;   // a flat pile: its amount just over it
             }
             ItemDisplay d = item(l, b.model(), scale * 0.2f, rot, null, false);
             p.showEntity(plugin, d);
@@ -1452,7 +1452,7 @@ final class TableScene {
                 tag(x);
             });
             p.showEntity(plugin, hit);
-            TextDisplay label = text(at(s, lift + 2 * half + (chip ? 0.1 : 0.16)), label(t, p.getUniqueId(), b), (float) Math.max(0.16, 0.2 * slot.scale()), false);
+            TextDisplay label = text(at(s, lift + 2 * half + (chip ? 0.07 : 0.16)), label(t, p.getUniqueId(), b), (float) Math.max(0.16, 0.2 * slot.scale()), false);
             p.showEntity(plugin, label);
             pad.entities.add(d);
             pad.entities.add(hit);

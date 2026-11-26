@@ -2283,6 +2283,7 @@ hwatu:
   # 바카라 (README "도박장" 바카라): 하우스(딜러)와
   bac:
     closed: "<gray>지금은 베팅 시간이 아니에요."
+    house: "하우스"
     flash-bets: "<yellow>베팅하세요! <gray>{seconds}초 · 칩을 고르고 <#6bb6ff>플레이어</#6bb6ff> · <#ff6b6b>뱅커</#ff6b6b> · <green>타이</green>"
     min: "<red>한 번에 {min}칩 이상 걸어 주세요."
     over-max: "<red>한 판에 {max}칩까지 걸 수 있어요."

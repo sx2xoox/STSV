@@ -603,7 +603,7 @@ final class HallTable implements Table.Listener, Table.Bank {
             for (int i = 1; i <= Jokbo.RULE_ROWS; i++)
                 rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules." + "baccarat-" + i, "min", fmt(b.minBet()), "max", fmt(b.maxBet()), "cap", fmt(b.dailyCap()),
                         "left", fmt(left), "commission", b.commission(), "tie", b.tiePays(), "road", TableScene.road(table.road()))));
-            return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", gameName(), "room", roomName()), rows);
+            return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", gameName(), "room", Lang.raw("hwatu.bac.house")), rows);
         }
         if (game == Table.Game.SUTDA) {
             Sutda.Hand h = table.phase() == Table.Phase.WAITING || table.folded(viewer.getUniqueId()) ? null : table.hand(viewer.getUniqueId());
