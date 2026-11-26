@@ -173,3 +173,9 @@ ALL.update(GAMBLE.ALL)
 # the scissors, the bouquet … a passenger mannequin holds (python3 tools/assetgen/bus_hold_assets.py writes only these)
 from models import bus_hold as BUS_HOLD   # noqa: E402
 ALL.update(BUS_HOLD.ALL)
+
+# 편의점 알바 (models/store.py, items/store.yml): the GS26 store's furniture (counter, cigarette wall, shelves x
+# full / half / empty, fridges, freezer, appliances, eat bar, parasol, sign) and its display models (33 goods,
+# boxes, money, POS keys, scanner, vest); python3 tools/assetgen/store_assets.py writes only these
+from models import store as STORE   # noqa: E402
+ALL.update(STORE.ALL)

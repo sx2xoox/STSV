@@ -41,6 +41,8 @@ public record PeopleSpec(List<Integer> milestones, Set<String> never, String tit
 
     /** 만난 곳: the 마을버스 (a passenger carried to where they were going). */
     public static final String PLACE_BUS = "bus";
+    /** 만난 곳: the 편의점 (a customer served at the till, store.yml). */
+    public static final String PLACE_STORE = "store";
 
     public static PeopleSpec parse(ConfigurationSection c, List<String> problems) {
         List<Integer> ms = new ArrayList<>(c.getIntegerList("milestones"));

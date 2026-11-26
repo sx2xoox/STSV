@@ -3418,7 +3418,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** A speech bubble over this entity (riding it), gone after `life` ticks. */
-    org.bukkit.entity.TextDisplay bubble(Entity m, String text, long life) {
+    public org.bukkit.entity.TextDisplay bubble(Entity m, String text, long life) {
         return bubble(m, text, life, null);
     }
 
@@ -3545,7 +3545,7 @@ public final class BusModule extends EcoModule {
      * Which skin (bus.yml types.*.skins) a passenger of this kind wears: one at random (a pair's first half too). Null when
      * the kind has none.
      */
-    static String pickSkin(BusSpec.Type type, boolean partner) {
+    public static String pickSkin(BusSpec.Type type, boolean partner) {
         return partner ? partnerSkin(type, null, ThreadLocalRandom.current()) : pickSkin(type, ThreadLocalRandom.current());
     }
 
@@ -3559,7 +3559,7 @@ public final class BusModule extends EcoModule {
      * (신혼부부: the 한복 bride's 한복 groom), else one of partner-skins at random (커플: the girlfriend, 신혼부부: a
      * groom), else, a pair kind with no partner-skins (유치원생), any of skins.
      */
-    static String partnerSkin(BusSpec.Type type, String first, java.util.random.RandomGenerator rnd) {
+    public static String partnerSkin(BusSpec.Type type, String first, java.util.random.RandomGenerator rnd) {
         List<String> them = type.partnerSkins();
         if (them.isEmpty()) return pickSkin(type, rnd);
         String match = first == null ? null : type.pairs().get(BusSpec.Type.lookName(first));
@@ -3576,7 +3576,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** The same; a 별난 손님 is marked (SHINY) and a shiny ghost is a perfectly ordinary, visible person. */
-    Mannequin spawnGuest(Location at, BusSpec.Type type, String skin, boolean shiny, java.util.function.Consumer<Mannequin> more) {
+    public Mannequin spawnGuest(Location at, BusSpec.Type type, String skin, boolean shiny, java.util.function.Consumer<Mannequin> more) {
         return at.getWorld().spawn(at, Mannequin.class, x -> {
             if (shiny) x.getPersistentDataContainer().set(SHINY, PersistentDataType.BYTE, (byte) 1);
             x.setPersistent(false);
@@ -3640,7 +3640,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** A held thing's stack: the content item, else (before the pack has it) a paper of its model economy:model/<id>. */
-    static org.bukkit.inventory.ItemStack prop(String id) {
+    public static org.bukkit.inventory.ItemStack prop(String id) {
         org.bukkit.inventory.ItemStack it = null;
         try {
             it = dev.stsv.economy.util.Items.create(id, 1).orElse(null);
@@ -3736,7 +3736,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** A shiny one's skin (a shiny pair's other half: _s2), or null when not shiny or the kind has no skins. */
-    String shinySkin(BusSpec.Type type, boolean shiny, boolean partner) {
+    public String shinySkin(BusSpec.Type type, boolean shiny, boolean partner) {
         if (!shiny) return null;
         return partner ? spec.shiny().partnerSkin(type) : spec.shiny().skin(type);
     }
@@ -4240,7 +4240,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** The same with a ✦ before it for a 별난 손님. */
-    String typeTag(BusSpec.Type t, boolean shiny) {
+    public String typeTag(BusSpec.Type t, boolean shiny) {
         return shiny ? Lang.raw("bus.shiny-tag", "mark", BusSpec.Shiny.MARK) + typeTag(t) : typeTag(t);
     }
 
@@ -4250,7 +4250,7 @@ public final class BusModule extends EcoModule {
     }
 
     /** A 별난 손님 shows itself: a sparkle round them and a soft chime (everyone near hears it), louder when they appear. */
-    static void sparkle(Entity m, boolean appear) {
+    public static void sparkle(Entity m, boolean appear) {
         if (m == null || !m.isValid()) return;
         Location at = m.getLocation().add(0, 1.1, 0);
         m.getWorld().spawnParticle(Particle.END_ROD, at, appear ? 14 : 8, 0.35, 0.6, 0.35, 0.02);
