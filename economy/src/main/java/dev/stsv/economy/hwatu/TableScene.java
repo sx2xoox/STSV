@@ -1428,12 +1428,13 @@ final class TableScene {
                 scale = (float) (BUTTON_SCALE * TableArt.POKER_HIDDEN_GAP / TableArt.BUTTON_GAP);
                 half = BUTTON_HALF * TableArt.POKER_HIDDEN_GAP / TableArt.BUTTON_GAP;
             }
-            TableArt.Spot s = TableArt.along(center, at, chip ? TableArt.CHIP_REACH : reach.button(), side, true);
+            double out = chip ? TableArt.CHIP_RADIUS / Math.max(1e-6, Math.hypot(at[0] - center[0], at[1] - center[1])) : reach.button();
+            TableArt.Spot s = TableArt.along(center, at, out, side, true);
             double lift = kind == TableKind.POKER ? TableArt.POKER_BUTTON_LIFT : 0;   // over the hidden row's sight line
             Location l = at(s, chip ? 0.002 : half + 0.03 + lift);
             Quaternionf rot = chip ? new Quaternionf() : TableArt.facing(s.yaw()).rotateX((float) Math.toRadians(BUTTON_TILT));
             if (chip) {
-                scale = (b.chip() == host.chipOf(p.getUniqueId()) ? 0.36f : 0.27f) * (float) slot.scale();
+                scale = (b.chip() == host.chipOf(p.getUniqueId()) ? TableArt.CHIP_PICKED_SCALE : TableArt.CHIP_SCALE) * (float) slot.scale();
                 half = 0.06;
             }
             ItemDisplay d = item(l, b.model(), scale * 0.2f, rot, null, false);

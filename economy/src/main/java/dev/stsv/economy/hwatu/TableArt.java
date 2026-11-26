@@ -361,8 +361,12 @@ public final class TableArt {
         return along(center, seat, r / len, 0, true);
     }
 
-    /** 바카라's chip buttons lie in a row of their own nearer the player than the betting buttons (flat: they hide nothing). */
-    public static final double CHIP_REACH = 0.67;
+    /**
+     * 바카라's chip buttons lie in a row of their own on the padded rail before the seat (blocks from the middle: the felt
+     * ends at 1.28, the rail at 1.5), nearer the player than the betting buttons (flat: they hide nothing), small piles.
+     */
+    public static final double CHIP_RADIUS = 1.4;
+    public static final float CHIP_SCALE = 0.13f, CHIP_PICKED_SCALE = 0.17f;
 
     /** Where one button of a seat's pad goes: `side` blocks to the sitter's right, drawn at `scale` (1 = full size). */
     public record Slot(double side, double scale) {}

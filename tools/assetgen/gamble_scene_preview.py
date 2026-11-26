@@ -109,7 +109,8 @@ def source_numbers():
         a, r"DEALER_OUT = ([\d.]+), HAND_IN = ([\d.]+), HAND_SIDE = ([\d.]+), HAND_GAP = ([\d.]+), SHOE_IN = ([\d.]+), SHOE_SIDE = (-?[\d.]+)", 6)
     N["bac_card"] = _num(a, r"BAC_CARD_SCALE = ([\d.]+)f")
     N["bet_player"], N["bet_banker"], N["bet_tie"] = _num(a, r"BET_PLAYER = ([\d.]+), BET_BANKER = ([\d.]+), BET_TIE = ([\d.]+);", 3)
-    N["chip_reach"] = _num(a, r"CHIP_REACH = ([\d.]+);")
+    N["chip_radius"] = _num(a, r"CHIP_RADIUS = ([\d.]+);")
+    N["chip_scale"], N["chip_picked"] = _num(a, r"CHIP_SCALE = ([\d.]+)f, CHIP_PICKED_SCALE = ([\d.]+)f", 2)
     N["poker_lift"] = _num(a, r"POKER_BUTTON_LIFT = ([\d.]+);")
     N["poker_pile"] = _num(s, r"kind == TableKind.POKER \? CHIPS_SCALE \* ([\d.]+)f")
     N["bet_scale"] = _num(s, r"BET_SCALE = ([\d.]+)f")
@@ -974,9 +975,9 @@ def baccarat_extra(view):
             bscale = gap / N["button_gap"]
             btns = []
             for j, side in enumerate(row(4, gap)):
-                x, z, _ = along(c, me, N["chip_reach"], side)
+                x, z, _ = along(c, me, N["chip_radius"] / math.hypot(me[0] - c[0], me[1] - c[1]), side)
                 on = j == H["picked"]
-                place(f"gamble_chips_{j + 1}", display_matrix((x, top + 0.002, z), np.eye(4), (0.36 if on else 0.27) * bscale), textures, els)
+                place(f"gamble_chips_{j + 1}", display_matrix((x, top + 0.002, z), np.eye(4), (N["chip_picked"] if on else N["chip_scale"]) * bscale), textures, els)
                 lab = raw(msgs, "hwatu.btn-chip-on" if on else "hwatu.btn-chip", n=f"{H['chips'][j]:,}")
                 btns.append(text(f"b_chip{j}", lab, (x, top + 0.13 + 0.1, z), max(N["label_min"], N["label_scale"] * bscale)))
             mine = H["seats"][H["me"]][2]
