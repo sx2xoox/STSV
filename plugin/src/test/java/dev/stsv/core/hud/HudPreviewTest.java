@@ -106,15 +106,17 @@ class HudPreviewTest {
                 full(1920, 1080, 0, "1080p 자동 GUI · 사이드바를 왼쪽 끝에 → 손님 목록은 오른쪽 끝 (말풍선까지 화면 안)",
                         atLeft(layout, client, rows, 1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal,
                         Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km"), 23, 0)));
-        // a full 16-seat bus: more than 8 riders go in two columns side by side (the same row fonts), each row shorter
+        // a full 리무진 관광버스: 16 riders in one column down the left (16: from a row higher, the lowest above the bars)
         Component nav = Component.text("1번 동항선 ↗ 다음 시장 앞 · 1.2km");
         pages.put("bus_overlay_16", List.of(
-                full(1920, 1080, 2, "손님 16명 · 사이드바 오른쪽 끝 → 두 줄로 (넓어서 다 보임)", atRight(1920, 1080, 2, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
-                full(1920, 1080, 3, "손님 16명 · 사이드바 오른쪽 끝 → 두 줄로", atRight(1920, 1080, 3, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
-                full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바 오른쪽 끝 → 두 줄 (긴 것은 …)", atRight(1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
+                full(1920, 1080, 2, "손님 16명 · 사이드바 오른쪽 끝", atRight(1920, 1080, 2, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
+                full(1920, 1080, 3, "손님 16명 · 사이드바 오른쪽 끝", atRight(1920, 1080, 3, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
+                full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바 오른쪽 끝 (맨 아랫줄도 체력바 위)", atRight(1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
                 full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바 기본 자리", null, normal, nav, 23, 0),
-                full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바를 왼쪽 끝에 → 손님 목록은 오른쪽",
-                        atLeft(layout, client, rows, 1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0)));
+                full(1920, 1080, 4, "손님 16명 · 1080p 자동 GUI · 사이드바를 왼쪽 끝에 → 손님 목록은 오른쪽 (아래 줄은 가운데를 비켜)",
+                        atLeft(layout, client, rows, 1920, 1080, 4, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0),
+                full(2560, 1440, 0, "손님 16명 · 1440p 자동 GUI (높이 240) · 사이드바 오른쪽 끝 → 아래 줄은 가운데(체력바 · 안내 문구)를 비켜 …",
+                        atRight(2560, 1440, 0, HudLayout.Size.NORMAL, 54), normal, nav, 23, 0)));
 
         JsonObject root = new JsonObject();
         JsonObject out = new JsonObject();
@@ -150,9 +152,8 @@ class HudPreviewTest {
                             new HudLayout.OverlayRow("tourist_1", "mood_bad", Lang.mm("bus.overlay-row", "color", "#ffd166", "type", "관광객", "dest", "동항 앞", "left", "4:12")),
                             new HudLayout.OverlayRow("vip_2", "mood_great", Lang.mm("bus.overlay-row", "color", "#ffcf40", "type", "VIP", "dest", "동항 앞", "left", "5:30")));
                     HudLayout.Placement at = s.place() == null ? layout.defaults() : s.place();
-                    int sw = layout.panelWidth(rows, at), room = HudLayout.overlayRoom(at.right(), sw, 2);
-                    int left = HudLayout.overlayLeft(at.right(), sw, layout.overlayWidth(bus, room, 0), 2);
-                    for (HudClient.Draw d : client.lay(layout.overlay(bus, left, room, 0)).draws()) draws.add(draw(d, "top", 3 + d.y()));
+                    int left = HudLayout.overlayLeft(at.right(), layout.panelWidth(rows, at), layout.overlayWidth(bus), 2);
+                    for (HudClient.Draw d : client.lay(layout.overlay(bus, left)).draws()) draws.add(draw(d, "top", 3 + d.y()));
                 }
                 for (HudClient.Draw d : client.lay(layout.actionBar(s.health(), s.message())).draws()) draws.add(draw(d, "bottom", d.y() - 72));
                 entry.add("draws", draws);
@@ -194,13 +195,12 @@ class HudPreviewTest {
         return out;
     }
 
-    /** A rider's row as BusModule makes it (the real messages: bus.overlay-row, its compact form). */
+    /** A rider's row as BusModule makes it (the real message: bus.overlay-row). */
     static HudLayout.OverlayRow bus(String face, String mood, String color, String type, String dest, String left) {
-        return new HudLayout.OverlayRow(face, mood, Lang.mm("bus.overlay-row", "color", color, "type", type, "dest", dest, "left", left),
-                null, Lang.mm("bus.overlay-compact", "color", color, "type", type, "dest", dest, "left", left));
+        return new HudLayout.OverlayRow(face, mood, Lang.mm("bus.overlay-row", "color", color, "type", type, "dest", dest, "left", left));
     }
 
-    /** A full 16-seat bus, the next to get off first (HudLayoutTest.sixteenRiders with the real messages). */
+    /** A full 리무진 관광버스 (16 passengers), the next to get off first (HudLayoutTest.sixteenRiders with the real messages). */
     static List<HudLayout.OverlayRow> sixteen() {
         return List.of(
                 new HudLayout.OverlayRow("grandma_2", "mood_great", Lang.mm("bus.overlay-talk", "color", "#e0a8ff", "type", "할머니"),

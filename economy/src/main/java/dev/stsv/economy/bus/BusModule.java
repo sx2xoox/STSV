@@ -3524,10 +3524,8 @@ public final class BusModule extends EcoModule {
             }
             String dest = x.secret ? "???" : x.dest == -1 ? Lang.raw("bus.next-stop") : s == null ? "?" : s.name();
             String when = x.secret ? "???" : clock(left) + (x.dozing ? Lang.raw("bus.dozing") : "");
-            // more than 8 riders (a 16-seat bus): two columns side by side, each row in the shorter form (HudLayout.layOverlay)
             out.add(new dev.stsv.core.hud.HudLayout.OverlayRow(x.face, mood,
-                    Lang.mm("bus.overlay-row", "color", color, "type", name, "dest", dest, "left", when), null,
-                    Lang.mm("bus.overlay-compact", "color", color, "type", name, "dest", dest, "left", when)));
+                    Lang.mm("bus.overlay-row", "color", color, "type", name, "dest", dest, "left", when)));
         }
         return out;
     }

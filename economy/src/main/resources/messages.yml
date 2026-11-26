@@ -1415,7 +1415,6 @@ bus:
   overlay-talk: "<{color}>{type}</{color}>"
   overlay-said: "<#2a2630>{said}"
   overlay-row: "<{color}>{type}</{color}> <gray>→</gray> <white>{dest}</white> <gray>{left}"
-  overlay-compact: "<{color}>{type}</{color}> <gray>▶</gray><white>{dest}</white> <gray>{left}"
   arrive: "<#3fb34f>🔔</#3fb34f> <gray>이번 정류장은 <white>{stop}</white>입니다"
   announce-next: "<#3fb34f>🔔</#3fb34f> <gray>다음 정류장은 <white>{stop}</white>입니다"
   transfer: "<#ffd166>환승</#ffd166> {type} <gray>→ {dest}"
