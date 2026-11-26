@@ -1932,6 +1932,7 @@ f826549d6af3626a5e803652a6a60ea24f3f9a2d economy/secrets/vein.yml
 7697fdc399921ffcea5b2be43f6ef6a8caee2cac economy/shop.yml
 7e533ef59687185c41b39cc0bebd2ef8fc926826 economy/shop.yml
 83ea0e0a9a4e74d71dbf74fc9b4a7aaada752c24 economy/shop.yml
+8b0404730bcfbcb46ce1d87c5268dda9f2717fae economy/shop.yml
 8f130d0693ee5dafedc2209626f6af1fd083f43d economy/shop.yml
 90feb8b32016a32ca8eff3fa150ab407028c9917 economy/shop.yml
 97a44bb8e507a0fc1028ad8029f5f2484c916eb9 economy/shop.yml
