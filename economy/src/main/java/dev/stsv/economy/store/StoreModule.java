@@ -927,10 +927,11 @@ public final class StoreModule extends EcoModule {
                 : tier == null ? spec.earn(mood, g.type.tip() * g.tipX, !t.c.mistake())
                 : tier.earn(spec, mood, g.type.tip() * g.tipX, !t.c.mistake(), t.c.bill());
         sh.log.served(stars, earn, t.c.bill(), !t.c.mistake());
+        long paidNow = payNow(sh);
         Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) {
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.6f);
-            HudModule.flash(p, Lang.mm("store.served", "type", eco.bus().typeTag(g.type, g.s.shiny()), "stars", starText(stars), "g", gold(earn)), 2000);
+            HudModule.flash(p, Lang.mm("store.served", "type", eco.bus().typeTag(g.type, g.s.shiny()), "stars", starText(stars), "g", gold(paidNow)), 2000);
             if (!sh.test && eco.people() != null) eco.people().met(p, g.type.id(), g.s.shiny(), PeopleSpec.PLACE_STORE);
         }
         say(g, "thanks");
@@ -1157,6 +1158,7 @@ public final class StoreModule extends EcoModule {
                     t.g.s.mood(spec.mood().over());
                     say(t.g, "over");
                     sh.log.overpaid(t.c.overpaid());
+                    payNow(sh);
                     HudModule.flash(p, Lang.mm("store.over", "won", won(t.c.overpaid()), "change", won(before)), 3000);
                 }
                 default -> {}
@@ -1431,14 +1433,22 @@ public final class StoreModule extends EcoModule {
         Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) stripTools(p);
         ShiftLog.Payout pay = sh.log.payout(spec, shop.share());
-        if (!sh.test && pay.pay() > 0) core.economy().deposit(sh.worker, pay.pay(), "store");
-        if (p != null) receipt(p, shop, sh, pay, why);
+        long rest = sh.log.settle(spec, shop.share(), true);   // the rating bonus (and anything held back), the rest was paid per customer
+        if (!sh.test && rest > 0) core.economy().deposit(sh.worker, rest, "store");
+        if (p != null) receipt(p, shop, sh, pay, why, rest);
         clicks.forget(sh.worker);
         hints.forget(sh.worker);
         if (core.hud() != null) core.hud().refreshBoard();
     }
 
-    private void receipt(Player p, Shop shop, Shift sh, ShiftLog.Payout pay, String why) {
+    /** Pays what the shift has earned since the last pay (손님마다 바로; the rating bonus waits for clock-out). */
+    private long payNow(Shift sh) {
+        long g = sh.log.settle(spec, sh.shop.share(), false);
+        if (g > 0 && !sh.test) core.economy().deposit(sh.worker, g, "store");
+        return g;
+    }
+
+    private void receipt(Player p, Shop shop, Shift sh, ShiftLog.Payout pay, String why, long rest) {
         if (why != null) p.sendMessage(Lang.msg(why));
         long minutes = Math.max(1, (System.currentTimeMillis() - sh.started) / 60000);
         p.sendMessage(Lang.mm("store.receipt-head", "store", shop.name, "minutes", minutes));
@@ -1449,7 +1459,8 @@ public final class StoreModule extends EcoModule {
                 "covered", won(sh.log.coveredWon()), "fines", gold(pay.fines())));
         p.sendMessage(Lang.mm(shop.owner != null ? "store.receipt-share-own" : "store.receipt-share", "share", Math.round(pay.shareRate() * 100),
                 "cut", gold(pay.share()), "deduct", pay.deduction() > 0 ? Lang.raw("store.receipt-deduct", "g", gold(pay.deduction())) : ""));
-        p.sendMessage(Lang.mm(sh.test ? "store.receipt-test" : "store.receipt-pay", "pay", gold(pay.pay())));
+        p.sendMessage(Lang.mm(sh.test ? "store.receipt-test" : "store.receipt-pay", "pay", gold(sh.test ? pay.pay() : sh.log.paid()),
+                "during", gold(Math.max(0, sh.log.paid() - rest)), "rest", gold(rest)));
         String word = pay.served() == 0 ? "store.word-none" : pay.stars() >= 4.5 ? "store.word-5" : pay.stars() >= 3.5 ? "store.word-4"
                 : pay.stars() >= 2.5 ? "store.word-3" : "store.word-low";
         p.sendMessage(Lang.mm("store.receipt-word", "line", Lang.raw(word)));
@@ -2151,6 +2162,7 @@ public final class StoreModule extends EcoModule {
         g.tipX *= o.tip();
         if (o.bonus() > 0) sh.log.bonus(o.bonus());
         if (o.won() > 0) sh.log.covered(o.won());
+        payNow(sh);
         if (o.waste() && sh.shop.chores.giveExpired(rules.waste().place())) {
             drawWaste(sh);
             refreshShelf(sh.shop, rules.waste().place());
@@ -2246,6 +2258,7 @@ public final class StoreModule extends EcoModule {
         if (!g.tallied) {
             g.tallied = true;
             sh.log.handled(spec.stars(g.type.floor(g.s.mood(spec.patience()))), 0);
+            payNow(sh);
             met(sh, g);
         }
         g.s.leave(sh, Shopper.Exit.PAID);
@@ -2292,6 +2305,7 @@ public final class StoreModule extends EcoModule {
                 IdCheck.Verdict v = IdCheck.judge(g.card, true);
                 if (v == IdCheck.Verdict.SOLD_MINOR) {
                     sh.log.fine(rules.id().fine());
+                    payNow(sh);
                     sayLine(g, rules.id().lines("sold-minor"));
                     p.playSound(me, Sound.ENTITY_VILLAGER_NO, 0.7f, 0.8f);
                     HudModule.flash(p, Lang.mm("store.id-fined", "g", gold(rules.id().fine())), 3500);
@@ -2307,6 +2321,7 @@ public final class StoreModule extends EcoModule {
                 for (String x : t.c.items()) if (!rules.id().items().contains(x)) keep.add(x);
                 if (v == IdCheck.Verdict.REFUSED_MINOR) {
                     sh.log.bonus(rules.id().bonus());
+                    payNow(sh);
                     g.s.mood(rules.id().refusedMinor());
                     sayLine(g, rules.id().lines("refused-minor"));
                     p.playSound(me, Sound.ENTITY_PLAYER_LEVELUP, 0.4f, 1.8f);
@@ -2478,6 +2493,7 @@ public final class StoreModule extends EcoModule {
         if (pr == null) return;
         long w = Trouble.escaped(pr.price());
         sh.log.covered(w);
+        payNow(sh);
         Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) HudModule.flash(p, Lang.mm("store.stolen", "item", pr.name(), "g", gold(Math.round(w * spec.pay().overpayRate()))), 3500);
     }
@@ -2507,6 +2523,7 @@ public final class StoreModule extends EcoModule {
         if (thief) {
             g.caught = true;
             sh.log.bonus(o.bonus());
+            payNow(sh);
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
             HudModule.flash(p, Lang.mm("store.caught", "item", spec.products().get(g.stolen).name(), "g", gold(o.bonus())), 3000);
         } else {

@@ -2387,7 +2387,7 @@ store:
   receipt-earned: "<gray>번 돈 <white>{earned} G</white> + 평점 보너스 <white>{bonus} G</white> <dark_gray>({rate}%)"
   receipt-share: "<gray>직영점 몫 {share}% → <white>{cut} G</white>{deduct}"
   receipt-deduct: " <red>- 거스름돈 · 손해 · 벌금 {g} G"
-  receipt-pay: "<gold><b>받은 돈 {pay} G"
+  receipt-pay: "<gold><b>받은 돈 {pay} G</b> <gray>(손님마다 {during} G + 퇴근 때 평점 보너스 {rest} G)"
   receipt-test: "<gray>시험 근무라 받은 돈 없음 <dark_gray>(진짜였다면 {pay} G)"
   receipt-word: "<gray>오늘의 한마디: <white>{line}"
   word-none: "손님이 안 왔네요. 조용한 날도 있죠."

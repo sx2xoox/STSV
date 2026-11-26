@@ -15,7 +15,7 @@ public final class ShiftLog {
                          int mistakes, double bonusRate, long fines, int handled, double shareRate) {}
 
     private int served, lost, mistakes, starSum, starCount, handled;
-    private long earned, sales, overpaid, covered, fines;
+    private long earned, sales, overpaid, covered, fines, paid;
 
     /** A customer paid and left: their ★, what they earned (G, before the share), their bill (원), whether it went without a mistake. */
     public void served(int stars, long earn, long bill, boolean accurate) {
@@ -112,5 +112,25 @@ public final class ShiftLog {
         long deduction = Math.round((overpaid + covered) * spec.pay().overpayRate()) + fines;
         long pay = Math.max(0, share - deduction);
         return new Payout(earned, bonus, share, deduction, pay, avg, served, lost, sales, mistakes, rate, fines, handled, shareRate);
+    }
+
+    /**
+     * Pays as the shift goes (주인 결정 2026-11-26: 손님마다 바로): what is owed now and not yet paid. Before clock-out the
+     * rating bonus is left out (it is known only at the end); withBonus at clock-out pays the rest, so the total is the same
+     * as one payout at the end. A deduction never takes back what was paid: it only holds back the next pay.
+     */
+    public long settle(StoreSpec spec, double shareRate, boolean withBonus) {
+        long target;
+        if (withBonus) target = payout(spec, shareRate).pay();
+        else target = Math.max(0, Math.round(earned * shareRate) - Math.round((overpaid + covered) * spec.pay().overpayRate()) - fines);
+        long delta = target - paid;
+        if (delta <= 0) return 0;
+        paid += delta;
+        return delta;
+    }
+
+    /** Paid so far this shift. */
+    public long paid() {
+        return paid;
     }
 }
