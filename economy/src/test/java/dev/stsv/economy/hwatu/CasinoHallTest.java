@@ -216,6 +216,12 @@ class CasinoHallTest {
             TableArt.Spot h = TableArt.pokerSpot(mid, seat, TableArt.POKER_REACH, 0, 1);
             assertTrue(Math.hypot(b.x(), b.z()) >= Math.hypot(h.x(), h.z()) + TableArt.PCARD_HALF_D - 0.02);
             assertTrue(onOval(b.x(), b.z()));
+            // a sitter's eye (1.52 over the floor, the top 0.88: 0.64 over it, at the chair) sees the near edge of their
+            // hidden row under the lifted buttons
+            double eye = 1.52 - 0.88, chair = Math.hypot(seat[0], seat[1]);
+            double near = Math.hypot(h.x(), h.z()) + TableArt.PCARD_HALF_D, at = Math.hypot(b.x(), b.z());
+            double sight = eye * (at - near) / (chair - near);
+            assertTrue(sight < TableArt.POKER_BUTTON_LIFT, "the sight line passes under the buttons: " + sight);
         }
     }
 

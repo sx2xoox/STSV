@@ -1006,8 +1006,12 @@ final class TableScene {
             x.setDescription(Lang.mm("hwatu.dealer-description"));
             String skin = host.dealerSkin();
             try {
+                // the dealer's skin is slim (economy_bus_skins.py): " slim" may also be written after the key
+                boolean slim = !skin.endsWith(" classic");
+                String key = skin.replace(" slim", "").replace(" classic", "").trim();
                 x.setProfile(io.papermc.paper.datacomponent.item.ResolvableProfile.resolvableProfile().name("dealer")
-                        .skinPatch(sp -> sp.body(net.kyori.adventure.key.Key.key(skin))).build());
+                        .skinPatch(sp -> sp.body(net.kyori.adventure.key.Key.key(key))
+                                .model(slim ? org.bukkit.profile.PlayerTextures.SkinModel.SLIM : org.bukkit.profile.PlayerTextures.SkinModel.CLASSIC)).build());
             } catch (RuntimeException e) {
                 plugin.getLogger().warning("[hwatu.yml] hall.dealer-skin 키가 잘못됨: " + skin);
             }

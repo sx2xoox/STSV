@@ -52,6 +52,9 @@ final class ReservedCellGuard implements Listener {
 
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent e) {
+        // FurnitureModule.mayBuild only asks the protection plugins whether this player may build here (e.g. a canvas
+        // put on an easel, whose own cell is of course a furniture cell): never refuse that question for the cell itself
+        if (furniture.probing()) return;
         if (reserved(e.getBlockPlaced())) {
             e.setCancelled(true);
             return;

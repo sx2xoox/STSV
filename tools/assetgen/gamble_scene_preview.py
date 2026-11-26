@@ -90,8 +90,8 @@ def source_numbers():
     N["timer_scale"] = _num(s, r"timer = text\(l, c, ([\d.]+)f")
     N["pop_up"], N["pop_allin"], N["pop_scale"] = _num(s, r"TextDisplay pop = text\(at\(s, ([\d.]+)\), what, b.allIn\(\) \? ([\d.]+)f : ([\d.]+)f", 3)
     N["pop_rise"] = _num(s, r"new Transformation\(new Vector3f\(0, ([\d.]+)f, 0\), base.getLeftRotation\(\), base.getScale\(\), base.getRightRotation\(\)\), 30\)")
-    N["label_up"], N["label_min"], N["label_scale"] = _num(s, r"text\(at\(s, 2 \* half \+ \(chip \? [\d.]+ : ([\d.]+)\)\), label\(.*?Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 3)
-    N["btn_lift"] = _num(s, r"Location l = at\(s, chip \? [\d.]+ : half \+ ([\d.]+)\);")
+    N["label_up"], N["label_min"], N["label_scale"] = _num(s, r"text\(at\(s, lift \+ 2 \* half \+ \(chip \? [\d.]+ : ([\d.]+)\)\), label\(.*?Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 3)
+    N["btn_lift"] = _num(s, r"Location l = at\(s, chip \? [\d.]+ : half \+ ([\d.]+) \+ lift\);")
     r = _num(a, r"ROUND_REACH = new Reach\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)", 5)
     N["reach"] = dict(card=r[0], button=r[1], dice=r[2], timer=r[3], width=r[4])
     N["card_gap"], N["button_gap"] = _num(a, r"CARD_GAP = ([\d.]+), BUTTON_GAP = ([\d.]+)", 2)
@@ -110,6 +110,8 @@ def source_numbers():
     N["bac_card"] = _num(a, r"BAC_CARD_SCALE = ([\d.]+)f")
     N["bet_player"], N["bet_banker"], N["bet_tie"] = _num(a, r"BET_PLAYER = ([\d.]+), BET_BANKER = ([\d.]+), BET_TIE = ([\d.]+);", 3)
     N["chip_reach"] = _num(a, r"CHIP_REACH = ([\d.]+);")
+    N["poker_lift"] = _num(a, r"POKER_BUTTON_LIFT = ([\d.]+);")
+    N["poker_pile"] = _num(s, r"kind == TableKind.POKER \? CHIPS_SCALE \* ([\d.]+)f")
     N["bet_scale"] = _num(s, r"BET_SCALE = ([\d.]+)f")
     return N
 
@@ -868,7 +870,7 @@ def poker_extra(view):
                 place("pcard_" + cid if shown else "pcard_back", display_matrix((x, y, z), facing(yaw), N["pcard"]), textures, els)
                 marks["cards"][(k, j)] = (x, top, z)
         lvl, sc = chip_level(H["pot"], H["ante"])
-        place(f"gamble_chips_{lvl}", display_matrix((c[0], top + 0.001, c[1]), np.eye(4), N["chips"] * sc), textures, els)
+        place(f"gamble_chips_{lvl}", display_matrix((c[0], top + 0.001, c[1]), np.eye(4), N["chips"] * N["poker_pile"] * sc), textures, els)
         marks["pot"] = text("p_pot", raw(msgs, "hwatu.pot-label", pot=H["pot"]), (c[0], top + N["pot_up"], c[1]), N["pot_scale"])
         R = N["poker_reach"]
         nb = len(H["buttons"])
@@ -878,10 +880,11 @@ def poker_extra(view):
         for (key, amount), side in zip(H["buttons"], row(nb, gap)):
             x, z, yaw = along(c, xz(H["me"]), R["button"], side)
             half = N["button_half_k"] * N["button"] * bscale
-            place(f"gamble_btn_{key}", display_matrix((x, top + half + N["btn_lift"], z), facing(yaw) @ rot_x(N["tilt"]), N["button"] * bscale), textures, els)
+            lift = N["poker_lift"]
+            place(f"gamble_btn_{key}", display_matrix((x, top + half + N["btn_lift"] + lift, z), facing(yaw) @ rot_x(N["tilt"]), N["button"] * bscale), textures, els)
             name = raw(msgs, f"hwatu.btn.{key}")
             label = name if amount == 0 else raw(msgs, "hwatu.btn-label", name=name, amount=raw(msgs, "hwatu.btn-amount", n=f"{amount:,}"))
-            btns.append(text(f"p_btn_{key}", label, (x, top + 2 * half + N["label_up"], z), max(N["label_min"], N["label_scale"] * bscale)))
+            btns.append(text(f"p_btn_{key}", label, (x, top + lift + 2 * half + N["label_up"], z), max(N["label_min"], N["label_scale"] * bscale)))
         marks["buttons"] = btns
         left, total = H["turn_left"], H["turn_total"]
         full = int(math.floor(8.0 * left / total + 0.5))

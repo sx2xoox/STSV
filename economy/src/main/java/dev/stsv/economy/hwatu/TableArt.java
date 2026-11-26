@@ -264,9 +264,9 @@ public final class TableArt {
     /**
      * 세븐 포커's buttons float this high over the rail (blocks, under them): the oval has no room for the hidden row far
      * enough in, so a button standing on the rail would hide it; a sitter's eye (1.52 over the floor, the top 0.88) sees
-     * the near edge of the hidden row under a button lifted this much (CasinoHallTest).
+     * both of their rows (hidden and open) under a button lifted this much (CasinoHallTest).
      */
-    public static final double POKER_BUTTON_LIFT = 0.24;
+    public static final double POKER_BUTTON_LIFT = 0.33;
     public static final float PCARD_SCALE = 0.5f;
     /** A playing card's half width and half depth at {@link #PCARD_SCALE} (blocks). */
     public static final double PCARD_HALF_W = 3.5 / 16.0 * PCARD_SCALE, PCARD_HALF_D = 5 / 16.0 * PCARD_SCALE;
