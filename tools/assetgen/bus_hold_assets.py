@@ -38,7 +38,7 @@ CHICKEN = REPO / "docs" / "previews" / "bus_chicken_hold.png"
 FONT = HERE / "fonts" / "Sunflower-Medium.ttf"
 
 # what each kind holds per look (bus.yml types.*.hold / hold-off; the shiny <id>_s1 holds what its first look holds):
-# kind -> [(main, off) of look 1, 2, 3]
+# kind -> [(main, off) of look 1, 2, 3 (, 4: 신혼부부's 한복 groom; a pair's shiny <id>_s2 holds what look 2 holds)]
 HOLDS = {
     "chicken": [("bus_hold_chicken", None)] * 3,
     "interview": [(None, "bus_hold_folder")] * 3,
@@ -50,7 +50,7 @@ HOLDS = {
     "dogwalker": [("bus_hold_cane", "bus_hold_leash")] * 3,
     "motionsick": [(None, None), (None, None), ("bus_hold_towel", "bus_hold_plastic_bag")],
     "kid": [(None, None), (None, None), (None, "bus_hold_shoe_bag")],
-    "bride": [("bus_hold_bouquet", None), (None, None), (None, None)],
+    "bride": [("bus_hold_bouquet", None), (None, None), (None, None), (None, None)],
     "magician": [("bus_hold_wand", None), (None, "bus_hold_cards"), ("bus_hold_wand", "bus_hold_rose")],
     # never painted on the skin: a new thing in hand, the skin as it was
     "hiker": [("bus_hold_pole", None)] * 3,
@@ -74,19 +74,22 @@ def write_models():
 
 
 def write_skins():
-    """Only the kinds of SKIN_TYPES: their three looks and their shiny one, the same functions the full script uses."""
+    """Only the kinds of SKIN_TYPES: their looks and their shiny one(s), the same functions the full script uses."""
     import economy_bus_skins as B
     out = []
     idx = {tid: i for i, (tid, _, _) in enumerate(B.TYPES)}
     fns = {tid: fn for tid, _, fn in B.TYPES}
     for tid in SKIN_TYPES:
-        for v in range(1, B.VARIANTS + 1):
+        for v in range(1, B.looks(tid) + 1):
             s = fns[tid](v)
             s.finish().save(B.OUT / f"{tid}_{v}.png")
             out.append(f"{tid}_{v}")
         if tid not in B.SHINY_SKIP:
             B.shiny(tid, fns[tid], idx[tid]).finish().save(B.OUT / f"{tid}_s1.png")
             out.append(f"{tid}_s1")
+            if tid in B.SHINY_PARTNER:
+                B.shiny(tid, fns[tid], idx[tid], B.SHINY_PARTNER[tid]).finish().save(B.OUT / f"{tid}_s2.png")
+                out.append(f"{tid}_s2")
     return out
 
 

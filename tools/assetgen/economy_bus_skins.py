@@ -23,7 +23,7 @@ company colours), and the fifth batch 시장 아줌마 market, 동네 아저씨 
 닭 든 할머니 chicken (the hen in her arms is a held model), 지각생 tardy, 면접 청년 interview, 엿장수 yeot, 외국인 여행객 traveler (no
 flags), 큰소리 통화남 phone, 반말 아저씨 rude, 무임승차 청년 dodger, 벨 장난 꼬마 prankster, 쩍벌남 spread, 민원 아줌마
 complainer, 과자 부스러기 학생 crumbs, 친절한 신사 gentleman, 무당 shaman, 우체부 mailman (no emblem), 붕어빵 장수 bungeo,
-신혼부부 bride (bride, groom, 한복 bride), 경찰 police (no badge or lettering), 마술사 magician, 씨름 선수 wrestler, 건달 thug (tattoos with no lettering
+신혼부부 bride (bride, groom, 한복 bride, 한복 groom: four looks), 경찰 police (no badge or lettering), 마술사 magician, 씨름 선수 wrestler, 건달 thug (tattoos with no lettering
 or real group's marks).
 Colours are flat per area; the depth comes from the outer layer (hair volume, hats,
 jackets, cardigans, backpacks, glasses) and one shared light pass (finish()), so faces stay clean: eyes are
@@ -4715,8 +4715,66 @@ def bungeo(v):
     return s
 
 
+def samo(col, wing):
+    """a groom's 사모 (the black gauze hat of 사모관대): a round crown over the top and rows 0-2, a raised back
+    (rows 0-3 behind), and its two flat wings (뿔) standing out at the back of each side"""
+    K, Wg = C(col), C(wing)
+
+    def f(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return shade(K, 1.1) if 2 <= x <= 5 and 1 <= y <= 4 else K
+        if fc == "front":
+            return K if y <= 1 or (y == 2 and x in (0, 7)) else None
+        if fc == "back":
+            return K if y <= 3 else None
+        if fc in SIDES:
+            f_ = fwd(fc, x, 8)
+            if f_ >= 6 and 1 <= y <= 3:
+                return Wg                                  # the wings
+            return K if y <= 1 or (y == 2 and f_ >= 2) else None
+        return None
+    return lambda s: s.paint("head", f, layer=1)
+
+
 def bride(v):
-    """신혼부부: the bride in white with a veil, the groom in a black tuxedo, the bride again in a wedding 한복"""
+    """신혼부부: the bride in white with a veil, the groom in a black tuxedo, the bride again in a wedding 한복, and her
+    groom in 사모관대 (look 4: the partner of look 3; bus.yml types.bride.pairs)"""
+    if v == 4:
+        # the 한복 groom: a black 사모 with its wings, a deep blue round-collared 단령 robe to the ankles, a 흉배 (a gold
+        # square with a white crane) on the chest, a red 각대 belt with gold plaques, black 목화 boots
+        s, sk = Skin(), "f0c4a0"
+        head(s, sk, "16161a", "slick", mouth="a8584f", extra=[smile("a8584f"), samo("1a1a22", "2c2c36")])
+        robe = "24408c"
+        R = C(robe)
+
+        def b(fc, x, y, w, h):
+            if fc == "front":
+                if (x, y) in ((2, 0), (5, 0), (3, 1), (4, 1)):
+                    return C("f6f4ee")                     # the round collar's white inner edge
+                if y == 0 and x in (3, 4):
+                    return C(sk)
+                if 3 <= y <= 6 and 2 <= x <= 5:
+                    if (x, y) in ((3, 4), (4, 4), (4, 5)):
+                        return C("fafafa")                 # the crane
+                    if (x, y) == (3, 5):
+                        return C("d8303a")                 # its red crown
+                    return C("e8c25a") if y in (3, 6) or x in (2, 5) else C("2a3a8a")
+            if y == 8 and fc != "top":
+                return C("e8c25a") if fc == "front" and x in (1, 3, 4, 6) else C("b8202a")   # the 각대
+            if fc in ("front", "back") and y == 9 and x in (0, 7):
+                return C("b8202a")                         # the belt hanging low at the sides
+            return R
+        body(s, b)
+        arms(s, robe, sk, sleeve=10, cuff=shade_hex(robe, 0.8))
+        s.paint("rarm", lambda fc, x, y, w, h: shade(R, 0.9) if fc not in ("top", "bottom") and y < 10 else None, 1)   # the wide sleeves
+        s.paint("larm", lambda fc, x, y, w, h: shade(R, 0.9) if fc not in ("top", "bottom") and y < 10 else None, 1)
+        legs(s, robe, "141418", shoe_rows=2)
+        for lg in ("rleg", "lleg"):
+            s.paint(lg, lambda fc, x, y, w, h: (shade(R, 0.9) if x % 2 else R) if fc not in ("top", "bottom") and y <= 9 else None, 1)
+            s.paint(lg, lambda fc, x, y, w, h: C("f4f4f0") if fc == "front" and y == 9 else None)   # white 버선 at the boot tops
+        return s
     if v == 1:
         # a white dress with a sweetheart neckline, a veil and a tiara, a bouquet
         s, sk = Skin(slim=True), "f6d0b2"
@@ -5029,6 +5087,13 @@ TYPES = [("resident", "동네 주민", resident), ("student", "학생", student)
          ("bungeo", "붕어빵 장수", bungeo), ("bride", "신혼부부", bride), ("police", "경찰", police),
          ("magician", "마술사", magician), ("wrestler", "씨름 선수", wrestler), ("thug", "건달", thug)]
 VARIANTS = 3
+# kinds with more looks than VARIANTS (a pair's partner looks: 신혼부부 4 = the 한복 groom)
+LOOKS = {"bride": 4}
+
+
+def looks(tid):
+    """how many looks (<id>_1 .. <id>_n) a kind has"""
+    return LOOKS.get(tid, VARIANTS)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -5144,7 +5209,7 @@ def build():
     """id -> (skin image, slim)"""
     out = {}
     for tid, _, fn in TYPES:
-        for v in range(1, VARIANTS + 1):
+        for v in range(1, looks(tid) + 1):
             s = fn(v)
             out[f"{tid}_{v}"] = (s.finish(), s.slim)
     return out
@@ -5158,6 +5223,9 @@ def build():
 # ---------------------------------------------------------------------------------------------
 
 SHINY_SKIP = {"shades"}
+# the pair kinds (bus.yml pair: true): their other half's shiny <id>_s2 is this look recoloured the same way (theme and
+# pin of _s1), so a shiny pair is two people, not twins: a man and a woman (커플, 신혼부부), a boy and a girl (유치원생)
+SHINY_PARTNER = {"couple": 2, "kinder": 2, "bride": 2}
 # theme -> how a colour changes: ("gold", ...) a gold ramp by lightness; ("pastel", hue shift, tint) a hue turn, softened
 SHINY_THEMES = [
     ("gold", None, None),
@@ -5233,9 +5301,10 @@ def shiny_pin(s, kind, col, light):
     s.paint("head", lambda fc, x, y, w, h: px.get((x, y)) if fc == "front" else None, 1)
 
 
-def shiny(tid, fn, i):
-    """The kind's 별난 look (see above): its first skin, recoloured, with its pin and two glints on the chest."""
-    s = fn(1)
+def shiny(tid, fn, i, look=1):
+    """The kind's 별난 look (see above): its first skin (or `look`: a pair's other half), recoloured, with its pin and
+    two glints on the chest."""
+    s = fn(look)
     theme = SHINY_THEMES[i % len(SHINY_THEMES)]
     pin = SHINY_PINS[i % len(SHINY_PINS)]
     im = s.im
@@ -5278,13 +5347,16 @@ SILHOUETTE = OUT.parent / "people" / "unknown.png"
 
 
 def build_shiny():
-    """<id>_s1 -> (skin image, slim) for every kind but SHINY_SKIP."""
+    """<id>_s1 -> (skin image, slim) for every kind but SHINY_SKIP, and <id>_s2 for the pair kinds (SHINY_PARTNER)."""
     out = {}
     for i, (tid, _, fn) in enumerate(TYPES):
         if tid in SHINY_SKIP:
             continue
         s = shiny(tid, fn, i)
         out[f"{tid}_s1"] = (s.finish(), s.slim)
+        if tid in SHINY_PARTNER:
+            s = shiny(tid, fn, i, SHINY_PARTNER[tid])
+            out[f"{tid}_s2"] = (s.finish(), s.slim)
     return out
 
 
@@ -5315,13 +5387,13 @@ def sheet(skins, path, types=None):
     small = ImageFont.truetype(str(HERE / "fonts" / "Sunflower-Medium.ttf"), 14)
     cw, ch = 64 * 2 + 16 + 40 + 24, 128 + 52
     types = [t for t in TYPES if types is None or t[0] in types]
-    W, H = 150 + cw * VARIANTS, ch * len(types) + 10
+    W, H = 150 + cw * max(looks(t[0]) for t in types), ch * len(types) + 10
     img = Image.new("RGBA", (W, H), (58, 62, 70, 255))
     d = ImageDraw.Draw(img)
     for r, (tid, name, _) in enumerate(types):
         y = 10 + r * ch
         d.text((12, y + 60), name, font=font, fill="white")
-        for v in range(1, VARIANTS + 1):
+        for v in range(1, looks(tid) + 1):
             key = f"{tid}_{v}"
             im, slim = skins[key]
             x = 150 + (v - 1) * cw
@@ -5336,7 +5408,7 @@ def sheet(skins, path, types=None):
 
 
 def shiny_sheet(skins, shinies, path, cols=6):
-    """별난 손님 preview: each kind's first look beside its shiny one (front and back, 4x)."""
+    """별난 손님 preview: each kind's first look beside its shiny one (a pair's _s2: the partner look beside it)."""
     from PIL import ImageDraw, ImageFont
     small = ImageFont.truetype(str(HERE / "fonts" / "Sunflower-Medium.ttf"), 14)
     names = {tid: name for tid, name, _ in TYPES}
@@ -5347,10 +5419,11 @@ def shiny_sheet(skins, shinies, path, cols=6):
     d = ImageDraw.Draw(img)
     for k, key in enumerate(keys):
         tid = key[:-3]
+        base = f"{tid}_{SHINY_PARTNER[tid]}" if key.endswith("_s2") else f"{tid}_1"
         x, y = 10 + (k % cols) * cw, 10 + (k // cols) * ch
         d.rectangle((x - 4, y - 4, x + cw - 14, y + ch - 10), fill=(72, 77, 86, 255))
         d.text((x, y), f"{names[tid]} {key}", font=small, fill=(255, 230, 150))
-        for j, (im, slim) in enumerate((skins[f"{tid}_1"], shinies[key])):
+        for j, (im, slim) in enumerate((skins[base], shinies[key])):
             img.alpha_composite(flat(im, slim).resize((64, 128), Image.NEAREST), (x + j * 136, y + 20))
             img.alpha_composite(flat(im, slim, back=True).resize((64, 128), Image.NEAREST), (x + j * 136 + 66, y + 20))
     img.save(path)
