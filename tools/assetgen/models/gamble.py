@@ -607,7 +607,7 @@ def _cards():
 # ================================================================================================
 
 CHIP = {"R": ("pepper", 2, ("car_white", 3)), "B": ("signal_blue", 1, ("car_white", 3)), "W": ("car_white", 3, ("pepper", 2)),
-        "K": ("iron", 3, ("gold", 2))}
+        "K": ("iron", 3, ("gold", 2)), "G": ("bottle_green", 1, ("car_white", 3))}
 
 
 def chip_paint(cx, cz, colour, edge=True):
@@ -670,20 +670,20 @@ PILES = {
 }
 
 
-def _pile_centre(n):
-    stacks, fans, edges, loose = PILES[n]
+def _pile_centre(n, pile=None):
+    stacks, fans, edges, loose = pile or PILES[n]
     pts = [(a, b) for (a, b, *_r) in stacks + fans + edges + loose]
     xs, zs = [a for a, _ in pts], [b for _, b in pts]
     return (min(xs) + max(xs)) / 2, (min(zs) + max(zs)) / 2
 
 
-def chips(n):
+def chips(n, name=None, pile=None):
     """Neat casino-chip stacks, each chip a disc 6 across and 1 thick, one colour a stack, the upper half of some tall
     stacks sitting a hair off the lower (a hand stacked them); from the third pile up a stack knocked into a fanned-out run, then chips
     standing on their edge leaning on a stack, and loose chips. Black chips (K, gold inserts) from the fourth."""
-    m = BModel(f"gamble_chips_{n}", floor=0, shift=(0, 8, 0))
-    stacks, fans, edges, loose = PILES[n]
-    gx0, gz0 = _pile_centre(n)
+    m = BModel(name or f"gamble_chips_{n}", floor=0, shift=(0, 8, 0))
+    stacks, fans, edges, loose = pile or PILES[n]
+    gx0, gz0 = _pile_centre(n, pile)
     bx, bz = round((8 - gx0 * GRID) * 4) / 4, round((8 - gz0 * GRID) * 4) / 4
 
     def at(gx, gz):
@@ -1262,6 +1262,304 @@ def ramp_rgb(name, i):
 
 
 # ================================================================================================
+# 트럼프 (세븐 포커 · 바카라): playing cards, plain models with their picture at 8 texels a px (pcard_art)
+# ================================================================================================
+
+def pcard_model(name, atlas):
+    """A playing card lying flat, 7 x 10 px (x 4.5..11.5, z 3..13), 0.5 thick, its bottom on y 8 (the display's
+    position): the face on top reading upright from the north (pcard_art.face, the atlas's left half), the back under
+    it, the edges the white of the card's margin."""
+    tex = _surface(f"{name}_tex", atlas)
+    m = Model(name)
+    m.group("card")
+    edge = [57, 1, 58, 2]
+    m.box("card", (4.5, 8, 3), (11.5, 8.5, 13), tex,
+          uv={"up": [56, 80, 0, 0], "down": [56, 0, 112, 80], "north": edge, "south": edge, "east": edge, "west": edge})
+    return gui(m, fill=0.9)
+
+
+def _pcards():
+    import pcard_art as PC
+    out = {}
+    for s in PC.SUITS:
+        for r in PC.RANKS:
+            key = f"pcard_{r}{s}"
+            out[key] = (lambda k=key, rr=r, ss=s: pcard_model(k, lambda rr=rr, ss=ss: PC.atlas(rr, ss)))
+    out["pcard_back"] = lambda: pcard_model("pcard_back", PC.back_atlas)
+    return out
+
+
+# ================================================================================================
+# 세븐 포커 테이블 (poker_table) · 6 seats, and 바카라 테이블 (baccarat_table) · 6 seats and the dealer
+# ================================================================================================
+
+def coarse_stadium(m, name, c, half, r, lo, hi, paint, step=2):
+    """A stadium (a rectangle 2 * half long along x with half discs of radius r on its ends) in rows `step` deep along
+    z, like coarse_cyl: few boxes, their corners on one grid."""
+    for (a, b, hw) in coarse_bands(2 * r, step):
+        m.box(name, (c[0] - half - hw, lo, c[1] + a), (c[0] + half + hw, hi, c[1] + b), paint(vrim=0))
+
+
+def beer_crate(m, name, ox, oz, ramp, step, seed=0):
+    """An upturned plastic beer crate (맥주 상자) for a seat, one box: ribbed sides with a dark hand slot on each long
+    side, the bottom (now the top) a grid of drain slots, a sheet of cardboard on it; scuffs."""
+    m.group(name)
+
+    def decal(c):
+        dx, dz = c.p[0] - ox, c.p[2] - oz
+        y = c.p[1]
+        if c.face == "up":
+            if -3 <= dx < 2.5 and -2.5 <= dz < 3 and not (abs(dx + 0.25) < 0.3):
+                return ("bean", 2 if h3(c.i[0], c.i[2], 0, seed + 5) > 0.08 else 1)   # the cardboard cushion
+            if c.i[0] % 2 == 0 and c.i[2] % 2 == 0:
+                return (ramp, step - 2)                     # drain slots
+            return None
+        if c.face == "down":
+            return None
+        u = dx if c.face in ("north", "south") else dz
+        if 5 <= y < 6.5 and abs(u) < 1.8:
+            return (ramp, step - 2)                         # the hand slot
+        if math.floor(y) in (1, 3) or (abs(u) > 3.4):
+            return (ramp, step - 1)                         # the ribs
+        if y < 0.75 and h3(c.i[0], c.i[1], c.i[2], seed) < 0.5:
+            return ("soot", 2)
+        return None
+    m.box("crate", (ox - 4, 0, oz - 4), (ox + 4, 8, oz + 4), Paint(ramp, step, "lacquer", noise=0.03, rim=1.1, decal=decal))
+
+
+def drum_paint(ramp, step, seed):
+    """A 200 l drum's paint: two rolling hoops painted lighter, rust coming through, a stencilled band."""
+    def rust(c):
+        if c.face == "down":
+            return None
+        y = c.p[1]
+        if c.face == "up":
+            return ("iron", 2) if h3(c.i[0], c.i[2], 0, seed) < 0.3 else None
+        if math.floor(y) in (3, 7):
+            return (ramp, step + 1)
+        v = vnoise(c.p[0], y * 1.5, c.p[2], 2.2, seed)
+        if v > 0.8 or (y < 1 and v > 0.5):
+            return ("copper", 1)
+        if v > 0.7:
+            return ("soil", 2)
+        return None
+    return Paint(ramp, step, "metal", noise=0.04, decal=rust)
+
+
+def poker_table():
+    """세븐 포커 테이블: an old oval card table out of a closed 하우스 (green felt, a black padded rail, a varnished
+    wooden racetrack with a chip tray and a cup ring in front of every seat, 세븐 포커 printed in worn gold in the
+    middle, a betting line round it, burns and a duct-taped tear) laid on two 200 l oil drums. Six seats as the round
+    table's (ROUND_SEATS: seat 0 the front, clockwise, all facing the middle): plastic chairs front and back, upturned
+    beer crates and 포장마차 stools between. 5 x 5 cells, drawn at real size and shrunk by 2 like the round table."""
+    m = HModel("poker_table", floor=0, scale=2)
+    cx = cz = 8
+    HALF, R = 4, 20                                         # x -16..32, z -12..28
+
+    def edge_of(c):
+        """Distance in from the oval's edge, and the angle round its middle."""
+        x = min(max(c.p[0], cx - HALF), cx + HALF)
+        d = math.hypot(c.p[0] - x, c.p[2] - cz)
+        return R - d, math.atan2(c.p[2] - cz, c.p[0] - cx)
+
+    seats_at = [math.atan2(sz * 16, sx * 16) for (sx, sz) in ROUND_SEATS]
+    burns = [(-11, -3, 1.2), (13, 6, 1.0), (2, 9, 1.1), (-6, 7.5, 0.9), (17, -5, 1.0)]
+    tapes = [("silver", (-17, 4), (-11, 8), 2.0), ("blue", (9, -9), (16, -6), 1.8)]
+    felt = felt_top(cx, cz, 30, burns, tapes, pot=6, seed=3)
+
+    def top(c):
+        if c.face == "down":
+            return ("wood_dark", 0)
+        e, a = edge_of(c)
+        if c.face != "up":
+            # the rail's black vinyl rolled over the edge, a stitched seam along its middle, a silver tape patch
+            if math.floor(c.p[1]) == 12 and (c.i[0] + c.i[2]) % 2 == 0:
+                return ("rubber", 3)
+            if -0.3 < a < 0.25 and c.p[1] > 11.5:
+                return ("steel", 4)
+            return ("rubber", 1 if c.p[1] < 12 else 2)
+        if e < 3.5:
+            # the padded rail: lit on its outer half, the seam, cracks in the vinyl, a cup ring right of each seat
+            for k, sa in enumerate(seats_at):
+                ca = sa + 0.32
+                da = abs((a - ca + math.pi) % (2 * math.pi) - math.pi)
+                if da < 0.07 and 0.8 < e < 2.8:
+                    return ("soot", 0)
+                if da < 0.11 and 0.5 < e < 3.1:
+                    return ("steel", 2)
+            if abs(e - 1.75) < 0.3 and math.floor(a * 30) % 2 == 0:
+                return ("rubber", 3)
+            if h3(c.i[0], c.i[2], 0, 21) < 0.04:
+                return ("rubber", 0)
+            if 2.1 < a < 2.5 and e < 3.4:
+                return ("steel", 4 if e > 0.5 else 3)          # the old tape patch
+            return ("rubber", 2 if e < 1.75 else 1)
+        if e < 5.5:
+            # the racetrack: varnished wood, a chip tray sunk in it in front of every seat (chips stacked in it)
+            for k, sa in enumerate(seats_at):
+                da = (a - sa + math.pi) % (2 * math.pi) - math.pi
+                if abs(da) < 0.17 and 3.7 < e < 5.3:
+                    lane = math.floor((da + 0.17) / 0.34 * 5)
+                    if e < 4.0 or e > 5.0:
+                        return ("wood_dark", 0)
+                    return [("pepper", 2), ("signal_blue", 1), ("car_white", 3), ("pepper", 2), ("iron", 3)][lane % 5]
+            if abs(e - 5.25) < 0.26:
+                return ("wood_dark", 1)
+            return ("wood", 3 if math.floor(a * 40) % 7 else 2)
+        if abs(e - 9) < 0.5:
+            return ("gold", 1)                               # the betting line
+        if e < 6.2:
+            return ("felt", 0)                               # the felt tucked under the racetrack
+        return felt(c)
+    m.group("top")
+    coarse_stadium(m, "top", (cx, cz), HALF, R, 10.5, 14, Paint("felt", 2, "weave", noise=0.02, rim=0.5, decal=top))
+    words = _surface("poker_print", PC_ART().poker_print)
+    pw, ph = PC_ART().POKER_PRINT
+    m.plate("print", (cx - 12, 14.02, cz - 4), (cx + 12, 14.02, cz + 4), {"up": (words, [pw, ph, 0, 0]), "down": (words, [0, 0, pw, ph])})
+    # two oil drums under it, a brick shimming one
+    m.group("drums")
+    coarse_cyl(m, "drum_blue", (cx - 9, cz), 12, 0, 10.5, drum_paint("police_blue", 2, 5))
+    coarse_cyl(m, "drum_red", (cx + 9, cz), 12, 0.75, 10.5, drum_paint("pepper", 2, 9))
+    m.box("shim", (cx + 4, 0, cz - 4), (cx + 14, 0.75, cz + 4), Paint("brick", 2, noise=0.05))
+    # the seats, seat 0 in front, clockwise
+    for i, (sx, sz) in enumerate(ROUND_SEATS):
+        ox, oz = sx * 16 + 8, sz * 16 + 8
+        if i == 0:
+            plastic_chair(m, "seat0_chair", ox, oz, "n", plastic("leaf", 2))
+        elif i == 3:
+            plastic_chair(m, "seat3_chair", ox, oz, "s", plastic("car_white", 2))
+        elif i in (1, 4):
+            beer_crate(m, f"seat{i}_crate", ox, oz, "gold" if i == 1 else "bottle_green", 3 if i == 1 else 2, seed=i)
+        else:
+            stool(m, f"seat{i}_stool", ox, oz, plastic("pepper", 2) if i == 2 else plastic("signal_blue", 1))
+    return gui(m)
+
+
+def PC_ART():
+    import pcard_art
+    return pcard_art
+
+
+def baccarat_table():
+    """바카라 테이블: a half-moon table (the round side for the players, the straight edge for the dealer) with brown
+    leather padding round the curve and sides, green felt printed with the layout (pcard_art.baccarat_print: 타이 8:1,
+    뱅커 0.95:1, 플레이어 1:1 in three half rings, a numbered circle for every seat, the dealer's 플레이어 and 뱅커 card
+    boxes), on the dealer's edge a wooden chip rack full of chips, the card shoe at the dealer's right, the discard
+    holder at the left. It stands on stacked cinder blocks; a flattened box on the floor is where the dealer stands.
+
+    Seats: six round the curve, clockwise seen from above from the dealer's left end to the right end:
+    (-2, 0) (-2, -1) (-1, -2) (1, -2) (2, -1) (2, 0) (pcard_art.BACCARAT_SEATS_CELLS), each facing the middle; the
+    dealer's spot is the cell (0, 2) behind the straight edge (a furniture cell with no barrier: the dealer NPC stands
+    there facing the front, -z). 5 x 5 cells, drawn at real size and shrunk by 2."""
+    PC = PC_ART()
+    m = HModel("baccarat_table", floor=0, scale=2)
+    cx = cz = 8
+    R = 24
+    BACK = 26                                               # the dealer's edge
+
+    def edge_of(c):
+        if c.p[2] < cz:
+            return R - math.hypot(c.p[0] - cx, c.p[2] - cz)
+        return min(c.p[0] - (cx - R), (cx + R) - c.p[0])
+
+    def top(c):
+        if c.face == "down":
+            return ("wood_dark", 0)
+        e = edge_of(c)
+        if c.face != "up":
+            if c.face == "south":
+                return ("wood_dark", 1 if c.p[1] > 12.5 else 0)       # the dealer's edge: a plain wooden apron
+            if math.floor(c.p[1]) == 12 and (c.i[0] + c.i[2]) % 2 == 0:
+                return ("leather", 3)
+            return ("leather", 1 if c.p[1] < 12 else 2)
+        if c.p[2] > BACK - 1.25:
+            return ("wood_dark", 2)                         # the dealer's wooden lip
+        if e < 3.5:
+            if abs(e - 1.75) < 0.3 and (math.floor(c.p[0]) + math.floor(c.p[2])) % 2 == 0:
+                return ("leather", 3)                       # the stitching
+            if h3(c.i[0], c.i[2], 0, 31) < 0.035:
+                return ("leather", 0)                       # worn cracks
+            return ("leather", 2 if e < 1.75 else 1)
+        if e < 4.2:
+            return ("felt", 0)
+        v = vnoise(c.p[0] + 40, 0, c.p[2] + 40, 3.5, 17)
+        return ("felt", 3 if v > 0.86 else 1 if v < 0.12 else 2)
+    m.group("top")
+    lo, hi = 10.5, 14
+    tp = Paint("felt", 2, "weave", noise=0.02, rim=0.5, decal=top)
+    for (a, b, hw) in coarse_bands(2 * R, 2):
+        if a >= 0:
+            continue
+        m.box("top", (cx - hw, lo, cz + a), (cx + hw, hi, cz + min(b, 0)), tp(vrim=0))
+    m.box("top", (cx - R, lo, cz), (cx + R, hi, BACK), tp(vrim=0))
+    lay = _surface("baccarat_print", PC.baccarat_print)
+    lw, lh = PC.BACCARAT_PRINT
+    m.plate("layout", (-16, 14.02, -16), (32, 14.02, 24), {"up": (lay, [lw, lh, 0, 0]), "down": (lay, [0, 0, lw, lh])})
+    # the dealer's things on the table
+    m.group("dealer")
+
+    def rack(c):
+        if c.face != "up":
+            return ("wood_dark", 1)
+        z = c.p[2]
+        if 20.5 < z < 24.5 and 0 < c.p[0] < 16:
+            col = math.floor(c.p[0]) % 16
+            lane = [("pepper", 2), ("signal_blue", 1), ("bottle_green", 1), ("iron", 3), ("car_white", 3), ("gold", 2),
+                    ("pepper", 2), ("signal_blue", 1)][col // 2]
+            if math.floor(c.p[0]) % 2 == 1:
+                return ("wood_dark", 0)                     # the dividers
+            return lane if (c.i[2] % 2 == 0) else (lane[0], lane[1] - 1)   # the chips' edges
+        return ("wood", 2)
+    m.box("rack", (-0.5, 14, 20), (16.5, 15.25, 25), Paint("wood_dark", 1, "grain", axis="x", decal=rack))
+
+    def shoe(c):
+        # a red acrylic shoe: the card backs inside seen through it, the top card's white edge at its mouth
+        if c.face == "up" and c.p[2] < 14.75:
+            return ("car_white", 3)
+        if c.face in ("east", "west") and 15 <= c.p[1] < 16.5 and c.p[2] > 14:
+            return ("indigo", 1)
+        return None
+    sp = Paint("pepper", 1, "lacquer", noise=0.0, rim=1.3, decal=shoe)
+    m.box("shoe", (24, 14, 14), (30, 17.5, 21.5), sp)
+    m.box("shoe_mouth", (24.5, 14, 12), (29.5, 15.25, 14), sp)
+    m.box("discard", (-13, 14, 13), (-7.5, 15.75, 19.5), Paint("steel", 4, "metal", noise=0.0,
+                                                               decal=lambda c: ("indigo", 1) if c.face == "up" else None))
+    # cinder blocks under it, and the dealer's cardboard mat
+    m.group("legs")
+
+    def block(c):
+        if c.face in ("north", "south") and 1 < (c.p[0] % 8) < 3.5 and 1.5 < (c.p[1] % 5.25) < 4:
+            return ("soot", 1)                              # the hollow cores
+        if math.floor(c.p[1]) in (5,) and c.face in SIDES:
+            return ("mortar", 1)
+        return None
+    cin = Paint("stone", 2, "speckle", noise=0.06, decal=block)
+    for (x0, z0) in ((-8, -6), (16, -6), (-8, 14), (16, 14)):
+        m.box("cinder", (x0, 0, z0), (x0 + 8, 10.5, z0 + 4), cin)
+    m.box("mat", (cx - 7, 0, 33), (cx + 7, 0.25, 46), Paint("bean", 2, "paper",
+                                                            decal=lambda c: ("bean", 1) if c.face == "up" and abs(c.p[0] - 7.5) < 0.3 else None))
+    # the players' seats (clockwise from the dealer's left)
+    seats = PC.BACCARAT_SEATS_CELLS
+    for i, (sx, sz) in enumerate(seats):
+        ox, oz = sx * 16 + 8, sz * 16 + 8
+        if sz == -2:
+            plastic_chair(m, f"seat{i}_chair", ox, oz, "n", plastic("pepper", 2) if sx < 0 else plastic("car_white", 2))
+        elif sz == -1:
+            stool(m, f"seat{i}_stool", ox, oz, plastic("signal_blue", 1))
+        else:
+            bucket(m, f"seat{i}_bucket", ox, oz, label="sapphire" if sx < 0 else None, drips=("leaf", 2) if sx > 0 else None,
+                   cardboard=sx > 0, seed=i)
+    return gui(m)
+
+
+BAC_CHIPS = {
+    # zone -> a little pile in its colour: stacks [(gx, gz, height, colour)], no fans, edges or loose ones but one
+    "player": ([(0, 0, 4, "B"), (1, 0, 2, "B")], [], [], [(0.5, -1, "W")]),
+    "banker": ([(0, 0, 4, "R"), (1, 0, 2, "R")], [], [], [(0.5, -1, "W")]),
+    "tie": ([(0, 0, 3, "G"), (1, 0, 2, "G")], [], [], [(0.5, -1, "K")]),
+}
+
+# ================================================================================================
 
 FURNITURE = {
     "gamble_table_round": table_round,
@@ -1273,6 +1571,8 @@ FURNITURE = {
     "gamble_prop_drumfire": prop_drumfire,
     "gamble_prop_sign": prop_sign,
     "gamble_prop_pallet": prop_pallet,
+    "poker_table": poker_table,
+    "baccarat_table": baccarat_table,
 }
 
 DISPLAY = {}
@@ -1285,5 +1585,8 @@ DISPLAY["gamble_cup"] = cup
 for _k in ART.BUTTON_WORDS:
     DISPLAY[f"gamble_btn_{_k}"] = (lambda k=_k: button_model(k))
 DISPLAY["gamble_whiteboard"] = whiteboard
+DISPLAY.update(_pcards())
+for _z in BAC_CHIPS:
+    DISPLAY[f"baccarat_chip_{_z}"] = (lambda z=_z: chips(0, f"baccarat_chip_{z}", BAC_CHIPS[z]))
 
 ALL = {**FURNITURE, **DISPLAY}

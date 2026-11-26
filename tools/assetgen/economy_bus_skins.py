@@ -8,7 +8,7 @@ textures, so nothing is uploaded to Mojang.
     python3 economy_bus_skins.py --sheet out.png --types farmer,drunk   # the sheet with only these types
     python3 economy_bus_skins.py --shiny-sheet shiny.png   # + the 별난 손님 sheet (each kind's first look and its <id>_s1)
 
-Also NPCs drawn the same way that are not passengers (NPCS: 현장 소장 site_boss of the 도박장), written to the same folder.
+Also NPCs drawn the same way that are not passengers (NPCS: 현장 소장 site_boss of the 도박장, 딜러 dealer of its 별관's baccarat table), written to the same folder.
 
 A texture at assets/economy/textures/entity/bus/<id>.png is the key "economy:entity/bus/<id>"
 (ResolvableProfile.skinPatch().body(key), with .model(SLIM) for the slim ones: see SLIM / main()).
@@ -5193,7 +5193,132 @@ def site_boss():
     return s
 
 
-NPCS = {"site_boss": site_boss}
+def dealer():
+    """딜러 (도박장 별관의 바카라 테이블, docs/plans/도박장_기획.md §7): a young woman casino dealer, neat and friendly, not
+    sexualised: a glossy dark brown bob with side-swept bangs and a small gold hairpin, soft brows, bright eyes with a
+    lash line, a little blush and a gentle smile; a crisp white shirt with a pointed collar, a red bow tie, a fitted
+    black vest (a V showing the shirt, two gold buttons, its points at the hem) with a gold name badge, white sleeves
+    with black arm garters and gold cufflinks, black slacks with a crease, black flats. Slim arms."""
+    s, sk = Skin(slim=True), "f6d2b6"
+    hair, hair_lit = "5a3022", "7e4a32"
+    H, HL, SKN = C(hair), C(hair_lit), C(sk)
+
+    def inner(fc, x, y, w, h):
+        if fc == "top":
+            return HL if (x + y) % 4 == 0 else H
+        if fc == "bottom":
+            return shade(SKN, 0.9)
+        if fc == "back":
+            return H if y <= 6 else shade(SKN, 0.92)
+        if fc in SIDES:
+            f = fwd(fc, x, 8)
+            return H if (y <= 5 or (y == 6 and f >= 2)) and not (f == 0 and y >= 3) else SKN
+        # front: side-swept bangs (heavier on the wearer's right = the viewer's left), hair down both sides
+        if y == 0 or (y == 1 and x <= 5) or (y == 2 and x <= 2):
+            return HL if (y == 1 and x in (2, 3)) else H
+        if x in (0, 7) and y <= 5:
+            return H
+        if y == 3 and x in (1, 2, 5, 6):
+            return C("2a1a1a") if x in (1, 6) or y == 3 else None    # the lash line over each eye
+        if y == 4 and x in (1, 2, 5, 6):
+            return C("24161c") if x in (2, 5) else C("fbf8f4")      # the eyes: a dark iris inside, a white
+        if y == 5 and x in (1, 6):
+            return C("f0a8a0")                                    # a little blush
+        if y == 5 and x in (3, 4):
+            return shade(SKN, 0.93)
+        if y == 6 and x in (3, 4):
+            return C("d0606a")                                    # the smile
+        if y == 6 and x in (2, 5):
+            return shade(SKN, 0.94)                               # the smile's corners lifted
+        return SKN
+    s.paint("head", inner)
+    # the lash line: both eyes' upper row dark (outer and inner pixel)
+    s.paint("head", lambda fc, x, y, w, h: C("2a1a1a") if fc == "front" and y == 3 and x in (1, 2, 5, 6) else None)
+    s.paint("head", lambda fc, x, y, w, h: C("2a1a1a") if fc == "front" and (x, y) in ((0, 3), (7, 3)) else None)   # the lashes' flick
+    s.paint("head", lambda fc, x, y, w, h: C("8a5a44") if fc == "front" and y == 2 and x in (5, 6) else None)   # a soft brow under the fringe
+
+    def outer(fc, x, y, w, h):
+        # the bob's volume: the crown, the fringe's front edge, the sides to the jaw, curving in at the ends
+        if fc == "top":
+            return HL if (x + 2 * y) % 5 == 0 else H
+        if fc == "bottom":
+            return None
+        if fc == "front":
+            if y == 0 or (y == 1 and x <= 4):
+                return HL if (x, y) in ((1, 1), (2, 1)) else H
+            if x in (0, 7) and 1 <= y <= 6:
+                return shade(H, 0.85) if y == 6 else H
+            if (x, y) == (6, 1):
+                return C("e8c050")                                # the gold hairpin
+            return None
+        if fc in SIDES:
+            f = fwd(fc, x, 8)
+            if y <= 5 or (y == 6 and f >= 1):
+                if fc == "left" and y == 1 and f in (1, 2):
+                    return C("e8c050")                            # the pin seen from the side
+                return HL if (y == 1 and f % 3 == 1) else H
+            return None
+        if fc == "back":
+            if y <= 6:
+                return shade(H, 0.85) if y == 6 else (HL if (x + y) % 5 == 0 else H)
+            return None
+        return None
+    s.paint("head", outer, 1)
+
+    shirt, vest, bow = "fafafa", "1e1e24", "c8202e"
+    SH, V, B = C(shirt), C(vest), C(bow)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if y == 0 and x in (2, 5):
+                return shade(SH, 0.86)                            # the collar's points
+            if y <= 1 and 2 <= x <= 5:
+                if x in (3, 4):
+                    return shade(B, 0.8) if y == 0 else B         # the bow tie's knot
+                return B if y in (0, 1) else SH
+            if x in (3, 4) and y in (3, 5):
+                return shade(SH, 0.88)                            # the shirt's buttons
+            return SH
+        return SH
+    body(s, b)
+
+    def v(fc, x, y, w, h):
+        # the vest on the outer layer: a V opening down to row 5, gold buttons, its points at the hem, a name badge
+        if fc == "bottom":
+            return None
+        if fc == "top":
+            return V if x in (0, 1, 6, 7) else None
+        if fc == "front":
+            if y <= 5 and 2 + (y >= 1) * 0 <= x <= 5 and abs(x - 3.5) <= 2.5 - y * 0.4:
+                return None
+            if y == 1 and x in (2, 5):
+                return None
+            if y == 11 and x in (3, 4):
+                return None                                       # the points: the shirt shows between them
+            if x in (3, 4) and y in (7, 9):
+                return C("e8c050") if x == 3 else V
+            if (x, y) in ((5, 4), (6, 4)):
+                return C("e8c050") if x == 5 else C("f8f0d8")      # the name badge
+            return shade(V, 1.18) if x in (2, 5) and y <= 7 else V
+        if fc == "back":
+            if y == 6:
+                return shade(V, 1.3)                              # the back belt
+            return shade(V, 0.95) if x in (3, 4) else V
+        return V
+    s.paint("body", v, 1)
+    arms(s, shirt, sk, sleeve=11, cuff=shirt)
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: C("1e1e24") if fc not in ("top", "bottom") and y == 3 else None)      # the arm garter
+        s.paint(a, lambda fc, x, y, w, h: shade(SH, 0.9) if fc not in ("top", "bottom") and y == 10 else None)   # the cuff
+        s.paint(a, lambda fc, x, y, w, h: C("e8c050") if fc in ("left", "right") and y == 10 and x == 1 else None)   # the cufflink
+    legs(s, "24242c", "141418", shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(C("24242c"), 1.25) if fc == "front" and x == 1 and y < 11 else None)   # the crease
+        s.paint(lg, lambda fc, x, y, w, h: SKN if fc in ("front", "left", "right") and y == 10 else None)   # a glimpse of ankle over the flats
+    return s
+
+
+NPCS = {"site_boss": site_boss, "dealer": dealer}
 
 
 def build_npcs():

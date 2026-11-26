@@ -134,7 +134,7 @@ public final class HwatuModule extends EcoModule {
         for (HallStore.Binding b : halls.tables()) bindQuiet(b);
         eco.onReset(this::reset);
         core.admin().add(EcoPlugin.ADMIN_OWNER, "도박장",
-                "건설 · 제거 · 테이블 <종목> <방> | 해제 | 목록 · 위치 · 창구 · 칠판 · 시험 [인원] | 섯다 패 <카드> <카드> | 끝 · 기록 [플레이어] · 칩 <플레이어> [수]",
+                "건설 · 제거 · 테이블 <종목> <방> | 해제 | 목록 · 딜러 · 위치 · 창구 · 칠판 · 시험 [인원] | 섯다 패 <카드> <카드> | 끝 · 기록 [플레이어] · 칩 <플레이어> [수]",
                 "도박장 짓기 · 테이블 묶기 (보고 있는 테이블) · /화투방 위치 · 혼자 봇과 시험 판 (진짜 칩 · 골드 · 기록 없음) · 판 기록 (세탁 감시) · 칩 보기·정하기",
                 this::admin, this::adminComplete);
         purgeStrays();
@@ -252,6 +252,19 @@ public final class HwatuModule extends EcoModule {
         return store.account(player, today()).chips;
     }
 
+    /** 바카라: the chips a player bet today (baccarat.daily-wager-cap). */
+    long wageredToday(UUID player) {
+        return store.account(player, today()).wagered;
+    }
+
+    /** Where a 바카라 table's dealer stands (set by the hall's builder or /관리자 도박장 딜러), or null: behind its flat edge. */
+    Location dealerSpot(HallTable t) {
+        return place(halls.get(DEALER + t.furniture()));
+    }
+
+    /** 바카라 road of a table (the last results survive a restart): hall setting key. */
+    private static final String DEALER = "dealer:", ROAD = "road:";
+
     /** Chips not held in a running hand (a 시험 판 holds none: its chips are pretend). */
     long available(UUID player) {
         HallTable t = seated.get(player);
@@ -330,6 +343,16 @@ public final class HwatuModule extends EcoModule {
             if (eco.rank() != null) eco.rank().gambled(u, delta * spec.buyPrice());
         }
         if (r.burned() > 0) core.economy().burn(r.burned() * spec.buyPrice(), "hwatu_rake", t.game().key() + " " + t.room().id());
+        if (r.game() == Table.Game.BACCARAT) {
+            // the house: chips it won are destroyed (and the gold behind them); chips it paid out are new (their gold appears
+            // only when they are cashed). Each one's bets count against today's cap.
+            long house = 0;
+            for (UUID u : r.players()) {
+                house -= r.net(u);
+                store.wagered(u, r.put().getOrDefault(u, 0L), day);
+            }
+            if (house > 0) core.economy().burn(house * spec.buyPrice(), "hwatu_baccarat_house", t.room().id());
+        }
         // the log: who put in what and got what (admin review: who lost to whom)
         StringBuilder d = new StringBuilder();
         for (UUID u : r.players()) {
@@ -340,6 +363,7 @@ public final class HwatuModule extends EcoModule {
         }
         store.log(now(), t.game().key(), t.room().id(), r.players(), r.pot(), r.burned(), d.toString());
         announce(t, r, this::chips, false);
+        if (r.game() == Table.Game.BACCARAT) saveRoad(t);
         for (UUID u : r.players()) {
             Player p = Bukkit.getPlayer(u);
             if (p != null && HwatuRules.resting(store.account(u, day).net, spec.lossCap())) p.sendMessage(Lang.msg("hwatu.resting-now", "cap", fmt(spec.lossCap())));
@@ -347,8 +371,23 @@ public final class HwatuModule extends EcoModule {
         refreshBoard();
     }
 
+    /** Keeps a 바카라 table's road over a restart. */
+    private void saveRoad(Table t) {
+        for (HallTable h : tables.values()) if (h.table() == t) halls.set(ROAD + h.furniture(), t.road());
+    }
+
+    /** A 바카라 table's stored road ("" if none). */
+    String road(HallTable t) {
+        String r = halls.get(ROAD + t.furniture());
+        return r == null ? "" : r;
+    }
+
     /** Tells everyone in a finished hand who won with what, and their own result (`chipsOf`: what they hold now). */
     void announce(Table t, Table.Result r, java.util.function.ToLongFunction<UUID> chipsOf, boolean test) {
+        if (r.game() == Table.Game.BACCARAT) {
+            announceBaccarat(t, r, chipsOf, test);
+            return;
+        }
         // the main pot (with side pots: each one after it, contested only by those who put in that much)
         List<Component> lines = new ArrayList<>();
         List<Table.PotResult> pots = r.pots();
@@ -367,7 +406,7 @@ public final class HwatuModule extends EcoModule {
             Player p = Bukkit.getPlayer(u);
             if (p == null) continue;
             for (Component line : lines) p.sendMessage(line);
-            if (t.game() == Table.Game.SUTDA && !r.uncontested()) {
+            if (t.game().bets() && !r.uncontested()) {
                 List<String> hands = new ArrayList<>();
                 for (UUID o : r.players()) hands.add(mini(o) + " <gray>" + detail(r, o));
                 p.sendMessage(Lang.msg("hwatu.hands", "hands", String.join("<dark_gray> · </dark_gray>", hands)));
@@ -379,6 +418,25 @@ public final class HwatuModule extends EcoModule {
         }
     }
 
+    /** 바카라's result: the cards and totals, who won, then each player's bets and what came back. */
+    private void announceBaccarat(Table t, Table.Result r, java.util.function.ToLongFunction<UUID> chipsOf, boolean test) {
+        Baccarat.Coup c = r.coup();
+        List<String> pc = new ArrayList<>(), bc = new ArrayList<>();
+        for (PCard x : c.player()) pc.add(HallTable.cardText(x));
+        for (PCard x : c.banker()) bc.add(HallTable.cardText(x));
+        Component line = Lang.msg("hwatu.bac.result", "won", Lang.raw("hwatu.bac.won." + c.winner().key()), "player", c.playerTotal(), "banker", c.bankerTotal(),
+                "pcards", String.join(" ", pc), "bcards", String.join(" ", bc), "natural", c.natural() ? Lang.raw("hwatu.bac.natural") : "");
+        for (UUID u : r.players()) {
+            Player p = Bukkit.getPlayer(u);
+            if (p == null) continue;
+            p.sendMessage(line);
+            long net = r.net(u);
+            String key = (test ? "hwatu.test-" : "hwatu.") + (net >= 0 ? "my-win" : "my-loss");
+            p.sendMessage(Lang.msg(key, "n", fmt(Math.abs(net)), "chips", fmt(chipsOf.applyAsLong(u))));
+            p.playSound(p.getLocation(), net > 0 ? Sound.ENTITY_PLAYER_LEVELUP : net == 0 ? Sound.BLOCK_NOTE_BLOCK_HAT : Sound.BLOCK_NOTE_BLOCK_BASS, 0.6f, net > 0 ? 1.4f : 0.8f);
+        }
+    }
+
     /** What a player had in a finished hand, as MiniMessage ("" if nothing to say). */
     private String detail(Table.Result r, UUID u) {
         String d = r.detail().get(u);
@@ -386,6 +444,18 @@ public final class HwatuModule extends EcoModule {
         if (d.equals("die")) return Lang.raw("hwatu.hand.die");
         String hand = HAND + d;
         return switch (r.game()) {
+            case POKER -> {
+                String[] v = d.split("\\|", 2);
+                yield Lang.raw("hwatu.poker-hand." + v[0], "ranks", v.length > 1 ? v[1] : "");
+            }
+            case BACCARAT -> {
+                List<String> on = new ArrayList<>();
+                for (Baccarat.Spot sp : Baccarat.Spot.values()) {
+                    long n = TableScene.betOf(d, sp);
+                    if (n > 0) on.add(Lang.raw("hwatu.bac.line-bet", "spot", Lang.raw("hwatu.bac.spot-short." + sp.key()), "n", fmt(n)));
+                }
+                yield String.join(" ", on);
+            }
             case SUTDA -> Lang.raw(hand);
             case HOLJJAK -> Lang.raw(hand) + (r.die() > 0 ? " " + Lang.raw("hwatu.die-face", "n", r.die()) : "");
             case DICE -> {
@@ -451,12 +521,13 @@ public final class HwatuModule extends EcoModule {
         TableKind k = null;
         Entity e = Bukkit.getEntity(b.furniture());
         if (e instanceof org.bukkit.entity.ItemDisplay d) k = core.furniture().fromDisplay(d).map(f -> TableKind.of(f.item().key().asString())).orElse(null);
-        if (k == null) k = g == Table.Game.HOLJJAK ? TableKind.DUEL : TableKind.ROUND;   // not loaded now: the kind its game needs
+        if (k == null && g != null) k = TableKind.forGame(g);   // not loaded now: the kind its game needs
         if (g == null || r == null) {
             eco.getLogger().warning("[도박장] 테이블 묶음의 종목/방이 없음: " + b);
             return null;
         }
         HallTable t = new HallTable(this, b, k, g, r);
+        if (g == Table.Game.BACCARAT) t.table().road(road(t));
         tables.put(b.furniture(), t);
         return t;
     }
@@ -848,12 +919,8 @@ public final class HwatuModule extends EcoModule {
             it.editMeta(meta -> {
                 List<Component> lore = new ArrayList<>();
                 for (ChipStore.Hand h : hands) {
-                    String game = switch (h.game()) {
-                        case "holjjak" -> gameName(Table.Game.HOLJJAK);
-                        case "dice" -> gameName(Table.Game.DICE);
-                        case "sutda" -> gameName(Table.Game.SUTDA);
-                        default -> h.game();
-                    };
+                    Table.Game g = gameOf(h.game());
+                    String game = g == null ? h.game() : gameName(g);
                     String room = spec.rooms().stream().filter(r -> r.id().equals(h.room())).map(HwatuSpec.Room::name).findFirst().orElse(h.room());
                     lore.add(Lang.item("hwatu.record-line", "when", WHEN.format(Instant.ofEpochMilli(h.at()).atZone(zone)), "game", game, "room", room,
                             "pot", fmt(h.pot())));
@@ -890,8 +957,15 @@ public final class HwatuModule extends EcoModule {
 
     /** A game by its name (홀짝) or key (holjjak), or null. */
     private Table.Game gameOf(String s) {
-        for (Table.Game g : Table.Game.values()) if (g.key().equals(s) || gameName(g).equals(s)) return g;
+        if (s == null) return null;
+        String t = s.replace(" ", "");
+        for (Table.Game g : Table.Game.values()) if (g.key().equals(s) || gameName(g).replace(" ", "").equals(t)) return g;
         return null;
+    }
+
+    /** A game's name as typed in a command (no spaces: 세븐포커). */
+    private String gameWord(Table.Game g) {
+        return gameName(g).replace(" ", "");
     }
 
     /** A room by its name (초보방) or id (beginner), or null. */
@@ -941,6 +1015,7 @@ public final class HwatuModule extends EcoModule {
             case "건설" -> adminBuild(s);
             case "제거" -> adminRemove(s);
             case "테이블" -> adminTable(s, rest);
+            case "딜러" -> adminDealer(s);
             case "위치", "창구", "칠판" -> adminPlace(s, a[0]);
             case "시험" -> adminTest(s, rest);
             case "기록" -> {
@@ -1018,24 +1093,42 @@ public final class HwatuModule extends EcoModule {
             p.sendMessage(Lang.msg("hwatu.table-unbound", "game", t.gameName(), "room", t.room().name()));
             return;
         }
-        if (a.length < 2) {
-            p.sendMessage(Lang.msg("hwatu.admin-usage"));
-            return;
-        }
-        Table.Game g = gameOf(a[0]);
-        HwatuSpec.Room r = roomOf(a[1]);
+        Table.Game g = a.length >= 1 ? gameOf(a[0]) : null;
+        // 바카라 has no room of its own (its bets are baccarat:'s): the first room unless one is named
+        HwatuSpec.Room r = a.length >= 2 ? roomOf(a[1]) : g == Table.Game.BACCARAT ? spec.rooms().getFirst() : null;
         if (g == null || r == null) {
             p.sendMessage(Lang.msg("hwatu.admin-usage"));
             return;
         }
         TableKind k = TableKind.of(f.get().item().key().asString());
-        if (TableKind.usable(k.seats(), spec.game(g).max()).size() < 2) {
+        if (!k.fits(g)) {
+            p.sendMessage(Lang.msg(g == Table.Game.BACCARAT ? "hwatu.table-not-baccarat" : "hwatu.table-baccarat-only", "game", gameName(g)));
+            return;
+        }
+        if (TableKind.usable(k.seats(), spec.game(g).max()).size() < g.least()) {
             p.sendMessage(Lang.msg("hwatu.table-too-small", "game", gameName(g)));
             return;
         }
         bind(f.get(), g, r);
         p.sendMessage(Lang.msg("hwatu.table-bound", "game", gameName(g), "room", r.name(), "ante", fmt(r.ante()),
                 "seats", Math.min(k.seats(), spec.game(g).max())));
+    }
+
+    /** /관리자 도박장 딜러: the 바카라 table looked at (or the nearest) gets its dealer where the admin stands, facing it. */
+    private void adminDealer(CommandSender s) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("hwatu.test-player-only"));
+            return;
+        }
+        HallTable t = tableNear(p);
+        if (t == null || t.game() != Table.Game.BACCARAT) {
+            p.sendMessage(Lang.msg("hwatu.dealer-no-table"));
+            return;
+        }
+        Location l = p.getLocation();
+        halls.set(DEALER + t.furniture(), place(new Location(l.getWorld(), l.getX(), l.getY(), l.getZ(), l.getYaw(), 0)));
+        t.redrawScene();
+        p.sendMessage(Lang.msg("hwatu.place-set", "what", "딜러"));
     }
 
     /** /관리자 도박장 위치 (where /화투방 brings people) · 창구 (the 현장 소장 here) · 칠판 (the whiteboard text here). */
@@ -1111,7 +1204,9 @@ public final class HwatuModule extends EcoModule {
             Table.Game g = gameOf(pt.game());
             HwatuSpec.Room r = roomOf(pt.room());
             if (f.isEmpty() || g == null || r == null) continue;
-            bind(f.get(), g, r);
+            HallTable bt = bind(f.get(), g, r);
+            Location dealer = dealerOf(pt);
+            if (bt != null && dealer != null) halls.set(DEALER + bt.furniture(), place(dealer));
             bound++;
         }
         // tables of an earlier build of this hall that are gone now (it builds over itself)
@@ -1123,6 +1218,19 @@ public final class HwatuModule extends EcoModule {
         if (admin.isOnline()) {
             admin.sendMessage(Lang.msg("hwatu.hall-built", "tables", bound));
             for (String problem : placed.problems()) admin.sendMessage(Lang.msg("hwatu.hall-problem", "problem", problem));
+        }
+    }
+
+    /**
+     * The dealer's spot of a built 바카라 table, if the builder gives one (HallBuilder.PlacedTable#dealer, the hall's
+     * contract); null: worked out from the table (behind its flat edge).
+     */
+    private static Location dealerOf(HallBuilder.PlacedTable pt) {
+        try {
+            Object v = pt.getClass().getMethod("dealer").invoke(pt);
+            return v instanceof Location l ? l : null;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return null;
         }
     }
 
@@ -1209,7 +1317,7 @@ public final class HwatuModule extends EcoModule {
             p.sendMessage(Lang.msg("hwatu.test-no-table"));
             return null;
         }
-        int players = n > 0 ? n : t.game() == Table.Game.HOLJJAK ? 2 : 3;
+        int players = n > 0 ? n : t.game() == Table.Game.HOLJJAK ? 2 : t.game() == Table.Game.BACCARAT ? 1 : 3;
         String why = t.startTest(p, f.get(), players);
         if (why != null) {
             p.sendMessage(Lang.msg(why));
@@ -1262,12 +1370,8 @@ public final class HwatuModule extends EcoModule {
         List<ChipStore.Hand> hands = store.hands(player, 15);
         s.sendMessage(Text.msg("<gold>도박장 기록 <gray>(" + who + ", 최근 " + hands.size() + "판, 새것부터 · 넣은 칩→받은 칩)"));
         for (ChipStore.Hand h : hands) {
-            String game = switch (h.game()) {
-                case "holjjak" -> gameName(Table.Game.HOLJJAK);
-                case "dice" -> gameName(Table.Game.DICE);
-                case "sutda" -> gameName(Table.Game.SUTDA);
-                default -> h.game();
-            };
+            Table.Game g = gameOf(h.game());
+            String game = g == null ? h.game() : gameName(g);
             String room = spec.rooms().stream().filter(r -> r.id().equals(h.room())).map(HwatuSpec.Room::name).findFirst().orElse(h.room());
             s.sendMessage(Text.msg("<dark_gray>#" + h.id() + " <gray>" + WHEN.format(Instant.ofEpochMilli(h.at()).atZone(zone)) + " <white>" + game + " " + room
                     + " <gray>판 " + fmt(h.pot()) + "칩 · 소각 " + fmt(h.burned()) + "칩 <dark_gray>| <white>" + Text.plain(h.detail())));
@@ -1278,11 +1382,11 @@ public final class HwatuModule extends EcoModule {
     private List<String> adminComplete(CommandSender s, String[] a) {
         String last = a[a.length - 1];
         List<String> out = new ArrayList<>();
-        if (a.length == 1) out.addAll(List.of("건설", "제거", "테이블", "위치", "창구", "칠판", "시험", "기록", "칩"));
+        if (a.length == 1) out.addAll(List.of("건설", "제거", "테이블", "딜러", "위치", "창구", "칠판", "시험", "기록", "칩"));
         else switch (a[0]) {
             case "테이블" -> {
                 if (a.length == 2) {
-                    for (Table.Game g : Table.Game.values()) out.add(gameName(g));
+                    for (Table.Game g : Table.Game.values()) out.add(gameWord(g));
                     out.addAll(List.of("해제", "목록"));
                 } else if (a.length == 3 && gameOf(a[1]) != null) for (HwatuSpec.Room r : spec.rooms()) out.add(r.name());
             }

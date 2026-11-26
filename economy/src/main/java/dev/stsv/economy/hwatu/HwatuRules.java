@@ -55,13 +55,13 @@ public final class HwatuRules {
     }
 
     /**
-     * Chips a player must hold to sit and to be dealt in. 홀짝 · 주사위: the ante (a hand never takes more). 섯다: ante ×
+     * Chips a player must hold to sit and to be dealt in. 홀짝 · 주사위: the ante (a hand never takes more). 섯다 · 세븐 포커: ante ×
      * sitAntes (hwatu.yml games.sutda.sit-antes, at least 1). A 섯다 hand can never take more than the player holds
      * (short of chips they go all-in and play for the side pots they matched), so even 1 ante is safe; a few antes make
      * sure a player can pay the ante, open with 삥 and answer a 따당 before going all-in.
      */
     public static long need(Table.Game game, long ante, int sitAntes) {
-        if (game != Table.Game.SUTDA) return ante;
+        if (game != Table.Game.SUTDA && game != Table.Game.POKER) return ante;
         return ante * Math.max(1, sitAntes);
     }
 

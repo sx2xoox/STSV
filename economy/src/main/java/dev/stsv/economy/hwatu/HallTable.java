@@ -60,6 +60,8 @@ final class HallTable implements Table.Listener, Table.Bank {
     private UUID lastTurn;
     private long lastDeadline;
     private int lostFor;
+    /** 바카라: the chip each seated player picked (index into baccarat.chips) */
+    private final Map<UUID, Integer> chip = new HashMap<>();
 
     HallTable(HwatuModule mod, HallStore.Binding binding, TableKind kind, Table.Game game, HwatuSpec.Room room) {
         this.mod = mod;
@@ -153,7 +155,8 @@ final class HallTable implements Table.Listener, Table.Bank {
             Location anchor = f.get().display().getLocation();
             List<Location> spots = mod.furniture().seats(f.get());
             if (spots.size() < 2) return;
-            scene = new TableScene(this, mod.plugin(), anchor.getWorld(), spots, anchor.getBlockY(), anchor.getBlockY() + mod.hall().top(kind), kind);
+            scene = new TableScene(this, mod.plugin(), anchor.getWorld(), spots, anchor.getBlockY(), anchor.getBlockY() + mod.hall().top(kind), kind,
+                    anchor, mod.dealerSpot(this));
             scene.spawn();
             for (Player p : Bukkit.getOnlinePlayers()) scene.showTo(p);
         }
@@ -176,13 +179,55 @@ final class HallTable implements Table.Listener, Table.Bank {
         }
     }
 
+    /** Draws the table anew (the dealer's spot changed). */
+    void redrawScene() {
+        if (scene != null) scene.remove();
+        scene = null;
+        keepScene();
+    }
+
     void showTo(Player p) {
         if (scene != null) scene.showTo(p);
     }
 
-    /** Every tick: the animations. */
+    /**
+     * Every tick: the animations, and a running hand's deadline (세븐 포커's and 바카라's short dealing pauses end on the
+     * tick, not on the next second).
+     */
     void frame() {
         if (scene != null) scene.tick();
+        if (table.phase() == Table.Phase.PLAYING) {
+            long now = System.currentTimeMillis();
+            if (now >= table.deadline()) table.tick(now, this, this);
+            if (test != null) test.tick(now);
+        }
+    }
+
+    /** The 바카라 dealer's skin (hwatu.yml hall.dealer-skin). */
+    String dealerSkin() {
+        return mod.hall().dealerSkin();
+    }
+
+    /** 바카라: which chip a seated player picked (0: the smallest). */
+    int chipOf(UUID u) {
+        int n = mod.spec().baccarat().chips().size();
+        return Math.clamp(chip.getOrDefault(u, 0), 0, Math.max(0, n - 1));
+    }
+
+    /** 바카라: what the picked chip is worth. */
+    long chipValue(UUID u) {
+        return mod.spec().baccarat().chips().get(chipOf(u));
+    }
+
+    /** A playing card as MiniMessage: red for ♥ ♦, white for ♠ ♣ ("K♥"). */
+    static String cardText(PCard c) {
+        return Lang.raw(c.suit().red() ? "hwatu.pcard-red" : "hwatu.pcard-black", "card", c.label());
+    }
+
+    /** 바카라: what this player bet today before this round (real chips: the store; 시험: the pretend count). */
+    @Override
+    public long wagered(UUID u) {
+        return test != null ? test.wagered.getOrDefault(u, 0L) : mod.wageredToday(u);
     }
 
     private void redraw() {
@@ -238,9 +283,10 @@ final class HallTable implements Table.Listener, Table.Bank {
             endTest(true);
             return;
         }
-        boolean folding = table.inHand(u);
+        boolean folding = table.inHand(u) && game != Table.Game.BACCARAT;
         seats.remove(u);
         out.remove(u);
+        chip.remove(u);
         resit.remove(u);
         mod.unseat(u, this);
         if (scene != null) scene.dropPad(u);
@@ -274,6 +320,23 @@ final class HallTable implements Table.Listener, Table.Bank {
         if (!seats.containsKey(u)) return;
         if (scene != null) scene.pressed(u, b);
         p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.4f);
+        if (b.chip() >= 0) {   // 바카라: pick a chip
+            chip.put(u, b.chip());
+            redraw();
+            return;
+        }
+        if (b.spot() != null) {   // 바카라: the picked chip on 플레이어 · 뱅커 · 타이
+            String why = table.wager(u, b.spot(), chipValue(u), System.currentTimeMillis(), this, this);
+            if (why != null) {
+                long room = table.betRoom(u, wagered(u), stack(u) + (table.phase() == Table.Phase.PLAYING ? table.put(u) : 0));
+                HudModule.flash(p, Lang.mm(why, "min", fmt(mod.spec().baccarat().minBet()), "max", fmt(mod.spec().baccarat().maxBet()),
+                        "cap", fmt(mod.spec().baccarat().dailyCap()), "left", fmt(Math.max(0, mod.spec().baccarat().dailyCap() - wagered(u) - table.put(u))),
+                        "room", fmt(room), "need", fmt(table.need())));
+                p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 1.2f);
+                redraw();
+            }
+            return;
+        }
         switch (b) {
             case LEAVE -> standUp(u);
             case READY -> {
@@ -352,13 +415,49 @@ final class HallTable implements Table.Listener, Table.Bank {
 
     @Override
     public void street(Table t) {
-        tell(Lang.msg("hwatu.street-two"));
+        if (game == Table.Game.POKER) {   // a betting round of 세븐 포커: who opens it (the best open cards)
+            UUID first = t.turn();
+            if (first != null) {
+                Poker.Hand h = t.showing(first);
+                tell(Lang.msg("hwatu.poker.round", "n", t.street(), "player", mini(first), "hand", h == null ? "" : pokerName(h)));
+            }
+        } else tell(Lang.msg("hwatu.street-two"));
         if (scene != null) scene.street();
+    }
+
+    /** A 세븐 포커 hand's name as MiniMessage: "투페어 K·7". */
+    static String pokerName(Poker.Hand h) {
+        return Lang.raw("hwatu.poker-hand." + h.code(), "ranks", h.ranksText());
     }
 
     @Override
     public void rolled(Table t, UUID player) {
         if (scene != null) scene.rolled(player);
+    }
+
+    @Override
+    public void opened(Table t, UUID player) {
+        List<PCard> c = t.pcards(player);
+        int k = t.openedIndex(player);
+        if (k >= 0 && k < c.size()) tell(Lang.msg("hwatu.poker.opened", "player", mini(player), "card", cardText(c.get(k))));
+    }
+
+    @Override
+    public void dealt(Table t) {
+        if (game == Table.Game.POKER && t.street() > 3) {
+            tell(Lang.msg(t.street() == 7 ? "hwatu.poker.street-last" : "hwatu.poker.street", "n", t.street()));
+        } else if (game == Table.Game.BACCARAT && t.shuffled()) tell(Lang.msg("hwatu.bac.new-shoe"));
+    }
+
+    @Override
+    public void wagered(Table t, UUID player, Baccarat.Spot spot, long amount) {
+        Player p = Bukkit.getPlayer(player);
+        if (p != null) p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.6f, 1.6f);
+    }
+
+    @Override
+    public void betsOpen(Table t) {
+        if (scene != null) scene.betsOpen();
     }
 
     /** Whose move it is now and which (null: nobody's). */
@@ -421,7 +520,9 @@ final class HallTable implements Table.Listener, Table.Bank {
 
     @Override
     public void finished(Table t, Table.Result r) {
-        boolean big = test == null && r.pot() >= mod.hall().bigPot() && !r.winners().isEmpty();
+        long most = 0;
+        for (UUID u : r.players()) most = Math.max(most, r.net(u));
+        boolean big = test == null && !r.winners().isEmpty() && (game == Table.Game.BACCARAT ? most >= mod.hall().bigPot() : r.pot() >= mod.hall().bigPot());
         if (test != null) test.finished(r);
         else mod.settle(t, r);
         if (scene != null) scene.finished(r, big);
@@ -466,6 +567,26 @@ final class HallTable implements Table.Listener, Table.Bank {
      */
     HudLayout.Board board(Player viewer) {
         List<HudLayout.Board.Row> rows = new ArrayList<>();
+        if (game == Table.Game.POKER) {   // 세븐 포커's 족보: my made hand's page, its row lit
+            UUID me = viewer.getUniqueId();
+            Poker.Hand h = table.phase() == Table.Phase.WAITING || table.folded(me) || !table.players().contains(me) ? null : table.pokerHand(me);
+            String code = h == null ? null : h.code();
+            int page = Jokbo.pokerPage(code, System.currentTimeMillis());
+            for (String r : Jokbo.POKER.get(page))
+                rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.poker-jokbo." + r, "c", r.equals(code) ? Lang.raw("hwatu.jokbo-mine") : Lang.raw("hwatu.jokbo-row"))));
+            if (h != null) return new HudLayout.Board(Lang.mm("hwatu.jokbo-title-mine", "hand", pokerName(h)), rows);
+            String note = Lang.raw("hwatu.poker-jokbo-notes." + "p" + (page + 1));
+            return new HudLayout.Board(Lang.mm("hwatu.jokbo-title", "page", page + 1, "pages", Jokbo.POKER.size(), "note", note), rows);
+        }
+        if (game == Table.Game.BACCARAT) {   // 바카라's rules, my bets left today, the road
+            HwatuSpec.BaccaratSpec b = mod.spec().baccarat();
+            UUID me = viewer.getUniqueId();
+            long left = Math.max(0, b.dailyCap() - wagered(me) - (table.phase() == Table.Phase.PLAYING ? table.put(me) : 0));
+            for (int i = 1; i <= Jokbo.RULE_ROWS; i++)
+                rows.add(new HudLayout.Board.Row(null, Lang.mm("hwatu.rules.baccarat-" + i, "min", fmt(b.minBet()), "max", fmt(b.maxBet()), "cap", fmt(b.dailyCap()),
+                        "left", fmt(left), "commission", b.commission(), "tie", b.tiePays(), "road", TableScene.road(table.road()))));
+            return new HudLayout.Board(Lang.mm("hwatu.rules-title", "game", gameName(), "room", roomName()), rows);
+        }
         if (game == Table.Game.SUTDA) {
             Sutda.Hand h = table.phase() == Table.Phase.WAITING || table.folded(viewer.getUniqueId()) ? null : table.hand(viewer.getUniqueId());
             String code = h == null ? null : h.code();
@@ -494,21 +615,27 @@ final class HallTable implements Table.Listener, Table.Bank {
         List<ActionLine.Part> parts = new ArrayList<>();
         long left = secondsLeft();
         boolean in = t.players().contains(me);
+        if (game == Table.Game.BACCARAT) return baccaratLine(viewer);
         switch (t.phase()) {
             case WAITING -> parts.add(part(t.seats().size() < 2 ? "hwatu.line.alone" : "hwatu.line.starting", 0, "seconds", left));
             case PLAYING -> {
+                if (t.step() == Table.Step.OPEN && in && !t.folded(me))
+                    parts.add(part(t.openedIndex(me) < 0 ? "hwatu.line.my-open" : "hwatu.line.wait-open", 0, "seconds", left));
+                else if (t.step() == Table.Step.DEAL) parts.add(part("hwatu.line.dealing", 0, "n", t.street()));
+                else {
                 UUID turn = t.turn();
                 if (turn != null && turn.equals(me))
                     parts.add(part(t.step() == Table.Step.ROLL ? "hwatu.line.my-roll" : t.step() == Table.Step.PICK ? "hwatu.line.my-pick" : "hwatu.line.my-turn", 0, "seconds", left));
                 else if (turn != null) parts.add(part("hwatu.line.turn", 0, "seconds", left));   // whose: the timer over their seat
                 else parts.add(part("hwatu.line.showing", 0, "seconds", left));
+                }
                 parts.add(part("hwatu.line.pot", 2, "pot", fmt(t.pot())));
                 if (in && t.folded(me)) parts.add(part("hwatu.line.folded", 0));
                 else if (in) {
                     int seat = t.players().indexOf(me);
                     if (t.allIn(me)) parts.add(part("hwatu.line.allin", 0));
                     else if (t.atLimit(me)) parts.add(part("hwatu.line.limit", 0));
-                    else if (game == Table.Game.SUTDA && t.betting() != null && seat >= 0 && t.betting().toCall(seat) > 0)
+                    else if (game.bets() && t.betting() != null && seat >= 0 && seat < t.betting().players() && t.betting().toCall(seat) > 0)
                         parts.add(part(t.limitReached() ? "hwatu.line.to-call-limit" : "hwatu.line.to-call", 0, "n", fmt(t.betting().toCall(seat))));
                     String mine = mine(t, me);
                     if (mine != null) parts.add(new ActionLine.Part(mine, plain(mine), 0));
@@ -540,9 +667,59 @@ final class HallTable implements Table.Listener, Table.Bank {
         return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(dev.stsv.core.util.Text.mm(mm));
     }
 
-    /** My cards (one: the card, two: the 족보), my dice or my call, as MiniMessage; null if nothing yet. */
+    /**
+     * 바카라's line: the window's time (or the cards coming), what I bet where, the chip I picked, what I may still bet
+     * today (baccarat.daily-wager-cap), my chips; the result: what I won or lost.
+     */
+    private Component baccaratLine(Player viewer) {
+        UUID me = viewer.getUniqueId();
+        Table t = table;
+        HwatuSpec.BaccaratSpec b = mod.spec().baccarat();
+        List<ActionLine.Part> parts = new ArrayList<>();
+        long left = secondsLeft();
+        long put = t.phase() == Table.Phase.PLAYING ? t.put(me) : 0;
+        switch (t.phase()) {
+            case WAITING -> parts.add(part("hwatu.bac.line-waiting", 0));
+            case PLAYING -> {
+                if (t.step() == Table.Step.BETS) parts.add(part(t.betsDone(me) ? "hwatu.bac.line-done" : "hwatu.bac.line-bets", 0, "seconds", left));
+                else parts.add(part("hwatu.bac.line-dealing", 0));
+                long[] mine = t.bets(me);
+                List<String> on = new ArrayList<>();
+                for (Baccarat.Spot sp : Baccarat.Spot.values())
+                    if (mine[sp.ordinal()] > 0) on.add(Lang.raw("hwatu.bac.line-bet", "spot", Lang.raw("hwatu.bac.spot-short." + sp.key()), "n", fmt(mine[sp.ordinal()])));
+                if (!on.isEmpty()) {
+                    String mm = String.join(" ", on);
+                    parts.add(new ActionLine.Part(mm, plain(mm), 0));
+                }
+                if (t.step() == Table.Step.BETS) parts.add(part("hwatu.bac.line-chip", 2, "n", fmt(chipValue(me))));
+            }
+            case RESULT -> {
+                Table.Result r = t.last();
+                if (r != null && r.players().contains(me)) {
+                    long net = r.net(me);
+                    parts.add(part(net > 0 ? "hwatu.line.won" : net == 0 ? "hwatu.bac.line-push" : "hwatu.line.lost", 0, "n", fmt(Math.abs(net))));
+                } else if (r != null && r.coup() != null) parts.add(part("hwatu.bac.line-result", 0, "won", Lang.raw("hwatu.bac.won." + r.coup().winner().key())));
+                parts.add(part("hwatu.line.next", 0, "seconds", left));
+            }
+        }
+        parts.add(part("hwatu.bac.line-left", 1, "n", fmt(Math.max(0, b.dailyCap() - wagered(me) - put))));
+        parts.add(part(test != null ? "hwatu.line.test-chips" : "hwatu.line.chips", 3, "n", fmt(held(me) - put)));
+        String sep = Lang.raw("hwatu.line.sep");
+        List<String> kept = new ArrayList<>();
+        for (ActionLine.Part p : ActionLine.fit(parts, ActionLine.MOST, ActionLine.width(plain(sep)))) kept.add(p.mm());
+        return Lang.mm("hwatu.line.all", "line", String.join(sep, kept));
+    }
+
+    /** My cards (one: the card, two: the 족보; 세븐 포커: my made hand), my dice or my call, as MiniMessage; null if nothing yet. */
     private String mine(Table t, UUID me) {
         switch (game) {
+            case POKER -> {
+                Poker.Hand h = t.pokerHand(me);
+                return h == null ? null : Lang.raw("hwatu.line.hand", "hand", pokerName(h));
+            }
+            case BACCARAT -> {
+                return null;
+            }
             case SUTDA -> {
                 Card[] c = t.cards(me);
                 if (c == null || c.length == 0) return null;
@@ -598,7 +775,8 @@ final class HallTable implements Table.Listener, Table.Bank {
         out.clear();
         resit.clear();
         List<Integer> usable = usableSeats();
-        int n = Math.clamp(players, 2, Math.min(table.max(), usable.size()));
+        // 바카라 is played against the house: the admin alone (bots would only bet for show)
+        int n = game == Table.Game.BACCARAT ? 1 : Math.clamp(players, 2, Math.min(table.max(), usable.size()));
         int seat = keep != null ? keep : pickSeat(f, admin.getLocation());
         if (keep == null && (seat < 0 || !mod.furniture().sit(admin, f, seat))) {
             redraw();
@@ -666,7 +844,11 @@ final class HallTable implements Table.Listener, Table.Bank {
         final UUID admin;
         final List<UUID> bots = new ArrayList<>();
         final Map<UUID, Long> chips = new HashMap<>();
+        /** 바카라: pretend bets today (the daily cap works in a 시험 판 too, on its own count) */
+        final Map<UUID, Long> wagered = new HashMap<>();
         final Map<UUID, Entity> bodies = new HashMap<>();
+        /** 세븐 포커: when each bot opens its card (they pick at once, each after a moment's thought) */
+        private final Map<UUID, Long> openAt = new HashMap<>();
         long net;
         private String thinking;
         private long actAt;
@@ -738,6 +920,24 @@ final class HallTable implements Table.Listener, Table.Bank {
         }
 
         void tick(long now) {
+            if (table.phase() == Table.Phase.PLAYING && table.step() == Table.Step.OPEN) {
+                for (UUID b : bots) {
+                    if (!table.inHand(b) || table.openedIndex(b) >= 0) continue;
+                    Long at = openAt.get(b);
+                    if (at == null) openAt.put(b, now + HwatuBot.delay(table.moveSeconds(), mod.rng().nextDouble()));
+                    else if (now >= at) {
+                        openAt.remove(b);
+                        List<PCard> c = table.pcards(b);
+                        if (c.size() < 3) continue;
+                        int k = HwatuBot.pokerOpen(c.subList(0, 3));
+                        Entity body = bodies.get(b);
+                        if (body instanceof Mannequin mq) mq.swingMainHand();
+                        table.act(b, k == 0 ? Table.Move.OPEN1 : k == 1 ? Table.Move.OPEN2 : Table.Move.OPEN3, now, HallTable.this);
+                    }
+                }
+                return;
+            }
+            openAt.clear();
             UUID turn = table.turn();
             if (turn == null || !mod.isBot(turn)) {
                 thinking = null;
@@ -763,6 +963,19 @@ final class HallTable implements Table.Listener, Table.Bank {
             if (table.step() == Table.Step.PICK) return HwatuBot.callsOdd(mod.rng().nextDouble()) ? Table.Move.ODD : Table.Move.EVEN;
             if (table.step() == Table.Step.ROLL) return Table.Move.ROLL;
             if (table.step() != Table.Step.BET) return null;
+            if (game == Table.Game.POKER) {
+                Betting b = table.betting();
+                int seat = table.players().indexOf(bot);
+                if (b == null || seat < 0 || b.turn() != seat) return null;
+                Poker.Hand threat = null;   // the best open cards of the others still in
+                for (UUID o : table.players()) {
+                    if (o.equals(bot) || !table.inHand(o)) continue;
+                    Poker.Hand h = table.showing(o);
+                    if (h != null && (threat == null || h.beats(threat))) threat = h;
+                }
+                double strength = HwatuBot.pokerStrength(table.pcards(bot), threat);
+                return Table.move(HwatuBot.poker(strength, b, seat, mod.rng().nextDouble()));
+            }
             Card[] c = table.cards(bot);
             Betting b = table.betting();
             int seat = table.players().indexOf(bot);
@@ -774,6 +987,7 @@ final class HallTable implements Table.Listener, Table.Bank {
         /** Only the pretend chips move: nothing is stored, logged, burned or counted. */
         void finished(Table.Result r) {
             for (UUID u : r.players()) chips.put(u, Math.max(0, chips(u) + r.net(u)));
+            if (r.game() == Table.Game.BACCARAT) for (UUID u : r.players()) wagered.merge(u, r.put().getOrDefault(u, 0L), Long::sum);
             net += r.net(admin);
             mod.announce(table, r, this::chips, true);
         }

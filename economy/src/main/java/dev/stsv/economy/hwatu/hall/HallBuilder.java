@@ -61,8 +61,10 @@ import java.util.function.IntConsumer;
  * HallBuilder job = HallBuilder.build(eco, STSVPlugin.get(), "main", site, dataDir.resolve("hall/main.undo"),
  *         HallBuilder.Settings.of(eco.getConfig()), pct -> admin.sendActionBar(...), placed -> {
  *             // placed.warp(): /화투방 target · placed.counterNpc(): spawn the 현장 소장 there
- *             // placed.whiteboard(): TextDisplay of 오늘의 큰 판 · placed.tables(): six, each with its furniture UUID,
- *             // game ("sutda" / "dice" / "holjjak") and room ("beginner" / "normal" / "high")
+ *             // placed.whiteboard(): TextDisplay of 오늘의 큰 판 · placed.tables(): nine, each with its furniture UUID,
+ *             // game ("sutda" / "dice" / "holjjak" / "seven_poker" / "baccarat") and room ("beginner" / "normal" / "high");
+ *             // the baccarat table's PlacedTable.dealer(): where its dealer NPC (skin economy:entity/bus/dealer) stands
+ *             // placed.annexCounterNpc() / annexCounter(): the 별관's second chip counter (the same NPC kind as the boss's)
  *             // placed.problems(): what did not go (a table item missing from the content pack, a cell taken...)
  *         });
  * // keep site (world, x, y, z, facing) and the name somewhere; after a restart:
@@ -120,8 +122,10 @@ public final class HallBuilder {
      *
      * @param furniture its furniture's display entity, or null (not placed / not found in a loaded chunk)
      * @param anchor    its anchor block's middle (feet level on the floor), its front's yaw
+     * @param dealer    the baccarat table's dealer spot (the middle of the cell behind its straight edge, feet on the
+     *                  floor, facing the players and the door), or null for a table without a dealer
      */
-    public record PlacedTable(HallLayout.Table table, Location anchor, Location centre, Location sign, UUID furniture) {
+    public record PlacedTable(HallLayout.Table table, Location anchor, Location centre, Location sign, UUID furniture, Location dealer) {
         public String game() {
             return table.game().id;
         }
@@ -146,9 +150,13 @@ public final class HallBuilder {
      * @param gallery    the 2층 구경석's front walkway, looking down at the back row
      * @param smoke      where a wisp of smoke may rise (over the tables, the drum fire, the lounge)
      * @param problems   what did not go (empty: all of it)
+     * @param annexCounterNpc the 별관 chip counter's NPC place (by the 별관's doors, behind its desk), facing the customers
+     * @param annexCounter    where a customer stands at that desk, facing the NPC
+     * @param annexDoor       just inside the 별관's own doors (from the yard), looking in
      */
     public record Placed(String name, HallLayout.Site site, Location gate, Location warp, Location counterNpc, Location counter,
-                         Location whiteboard, Location gallery, List<Location> smoke, List<PlacedTable> tables, List<String> problems) {
+                         Location whiteboard, Location gallery, List<Location> smoke, List<PlacedTable> tables, List<String> problems,
+                         Location annexCounterNpc, Location annexCounter, Location annexDoor) {
         /** Is a point inside the hall (either floor)? */
         public boolean inside(Location at) {
             return at.getWorld() != null && site.inside(at.getWorld().getName(), at.getX(), at.getY(), at.getZ());
@@ -490,7 +498,8 @@ public final class HallBuilder {
     private PlacedTable table(HallLayout.Table t, UUID furniture) {
         double[] a = site.at(t.x() + 0.5, t.y(), t.z() + 0.5);
         float yaw = site.yaw(t.yaw());
-        return new PlacedTable(t, new Location(world, a[0], a[1], a[2], yaw, 0), loc(world, site, t.centre()), loc(world, site, t.sign()), furniture);
+        return new PlacedTable(t, new Location(world, a[0], a[1], a[2], yaw, 0), loc(world, site, t.centre()), loc(world, site, t.sign()), furniture,
+                t.dealer() == null ? null : loc(world, site, t.dealer()));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -511,7 +520,7 @@ public final class HallBuilder {
         for (HallLayout.Table t : HallLayout.of().tables()) {
             double[] a = site.at(t.x() + 0.5, t.y(), t.z() + 0.5);
             tables.add(new PlacedTable(t, new Location(world, a[0], a[1], a[2], site.yaw(t.yaw()), 0), loc(world, site, t.centre()),
-                    loc(world, site, t.sign()), found.get(t.index())));
+                    loc(world, site, t.sign()), found.get(t.index()), t.dealer() == null ? null : loc(world, site, t.dealer())));
         }
         return anchors(name, site, world, tables, List.of());
     }
@@ -522,7 +531,7 @@ public final class HallBuilder {
         for (HallLayout.Point p : l.smoke()) smoke.add(loc(world, site, p));
         return new Placed(name, site, loc(world, site, l.gate()), loc(world, site, l.warp()), loc(world, site, l.counterNpc()),
                 loc(world, site, l.counter()), loc(world, site, l.whiteboard()), loc(world, site, l.gallery()), List.copyOf(smoke),
-                List.copyOf(tables), problems);
+                List.copyOf(tables), problems, loc(world, site, l.annexCounterNpc()), loc(world, site, l.annexCounter()), loc(world, site, l.annexDoor()));
     }
 
     private static Location loc(World world, HallLayout.Site site, HallLayout.Point p) {

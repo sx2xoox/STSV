@@ -4,12 +4,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The two 도박장 table pieces (core furniture with seats, README "도박장"): the round one (6 seats: 섯다 · 주사위) and the duel
- * one (2 seats: 홀짝). Seat index = the item's seat list order: 0 at the table's front, then clockwise. Pure (unit-tested).
+ * The 도박장 table pieces (core furniture with seats, README "도박장"): the round one (6 seats: 섯다 · 주사위), the duel
+ * one (2 seats: 홀짝), the poker table (6 seats like the round one: 세븐 포커) and the half-moon baccarat table (6 seats
+ * round its curved side, the dealer behind its flat edge). Seat index = the item's seat list order: 0 at the table's
+ * front, then clockwise. Pure (unit-tested).
  */
 public enum TableKind {
     ROUND("economy:gamble_table_round", 6),
-    DUEL("economy:gamble_table_duel", 2);
+    DUEL("economy:gamble_table_duel", 2),
+    POKER("economy:poker_table", 6),
+    BACCARAT("economy:baccarat_table", 6);
 
     private final String item;
     private final int seats;
@@ -25,6 +29,21 @@ public enum TableKind {
 
     public int seats() {
         return seats;
+    }
+
+    /** The kind a game is bound to when its furniture is not loaded (the one built for it). */
+    public static TableKind forGame(Table.Game g) {
+        return switch (g) {
+            case HOLJJAK -> DUEL;
+            case POKER -> POKER;
+            case BACCARAT -> BACCARAT;
+            default -> ROUND;
+        };
+    }
+
+    /** 바카라 needs its own table (the dealer's side); every other game any table with chairs enough. */
+    public boolean fits(Table.Game g) {
+        return g == Table.Game.BACCARAT ? this == BACCARAT : this != BACCARAT;
     }
 
     /** The kind of a furniture item id, or null if it is not a 도박장 table. */

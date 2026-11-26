@@ -388,3 +388,477 @@ gamble_whiteboard:
   lore: ["<gray>도박장 표시용 · 오늘의 큰 판"]
   model: gamble_whiteboard
   max-stack: 1
+
+# ── 별관: 세븐 포커 · 바카라 (docs/plans/도박장_기획.md §7, 모델 models/gamble.py · pcard_art.py) ───────────────
+
+poker_table:
+  material: paper
+  name: "<#3f8f5a>세븐 포커 테이블"
+  lore: ["<gray>도박장 가구 · 5×5칸 · 좌석 6", "<gray>드럼통 두 개 위에 낡은 타원 포커 테이블 (검은 레일 · 칩 홈)", "<yellow>우클릭: 앉기"]
+  model: poker_table
+  max-stack: 1
+  furniture:
+    # 가운데 3×3 = 테이블, 둘레 여섯 칸 = 자리 (원탁과 같은 자리 · 번호). 모델은 2배로 줄여 굽고 2배로 표시
+    cells: [[-1, 0, -1], [0, 0, -1], [1, 0, -1], [-1, 0, 0], [0, 0, 0], [1, 0, 0], [-1, 0, 1], [0, 0, 1], [1, 0, 1],
+            [0, 0, -2], [2, 0, -1], [2, 0, 1], [0, 0, 2], [-2, 0, 1], [-2, 0, -1]]
+    scale: [2, 2, 2]
+    seats:
+      - { cell: [0, 0, -2], height: 0.5, facing: 180.0 }   # 0: 초록 의자
+      - { cell: [2, 0, -1], height: 0.5, facing: -116.57 }   # 1: 노란 맥주 상자
+      - { cell: [2, 0, 1], height: 0.5, facing: -63.43 }   # 2: 빨간 포장마차 의자
+      - { cell: [0, 0, 2], height: 0.5, facing: 0.0 }   # 3: 흰 의자
+      - { cell: [-2, 0, 1], height: 0.5, facing: 63.43 }   # 4: 초록 맥주 상자
+      - { cell: [-2, 0, -1], height: 0.5, facing: 116.57 }   # 5: 파란 포장마차 의자
+
+baccarat_table:
+  material: paper
+  name: "<#3f8f5a>바카라 테이블"
+  lore: ["<gray>도박장 가구 · 5×5칸 · 좌석 6 + 딜러 자리", "<gray>반달 테이블 (플레이어 · 뱅커 · 타이 인쇄, 슈 · 칩 랙)", "<yellow>우클릭: 앉기"]
+  model: baccarat_table
+  max-stack: 1
+  furniture:
+    # 가운데 3×3 = 테이블 (둥근 쪽 = 앞 -z, 곧은 쪽 = 딜러), 둥근 쪽 둘레 여섯 칸 = 자리, [0, 0, 2] = 딜러가 서는 칸 (막힘 없음)
+    # 자리 순서: 위에서 보아 시계 방향, 딜러의 왼쪽 끝(-x)에서 오른쪽 끝(+x)까지 (테이블 인쇄의 원 번호 = 자리 + 1)
+    cells: [[-1, 0, -1], [0, 0, -1], [1, 0, -1], [-1, 0, 0], [0, 0, 0], [1, 0, 0], [-1, 0, 1], [0, 0, 1], [1, 0, 1],
+            [-2, 0, 0], [-2, 0, -1], [-1, 0, -2], [1, 0, -2], [2, 0, -1], [2, 0, 0], [0, 0, 2]]
+    scale: [2, 2, 2]
+    seats:
+      - { cell: [-2, 0, 0], height: 0.5, facing: 90.0 }   # 0: 파란 줄 페인트 통
+      - { cell: [-2, 0, -1], height: 0.5, facing: 116.57 }   # 1: 파란 포장마차 의자
+      - { cell: [-1, 0, -2], height: 0.5, facing: 153.43 }   # 2: 빨간 의자
+      - { cell: [1, 0, -2], height: 0.5, facing: -153.43 }   # 3: 흰 의자
+      - { cell: [2, 0, -1], height: 0.5, facing: -116.57 }   # 4: 파란 포장마차 의자
+      - { cell: [2, 0, 0], height: 0.52, facing: -90.0 }   # 5: 판지 깐 페인트 통
+
+# 바카라 베팅 표시 (표시용 칩 더미: 바닥 = 위치, 구역 색)
+
+baccarat_chip_player:
+  material: paper
+  name: "<#6aa6ff>플레이어 베팅 칩"
+  lore: ["<gray>도박장 표시용 · 바카라 플레이어에 건 칩"]
+  model: baccarat_chip_player
+  max-stack: 1
+
+baccarat_chip_banker:
+  material: paper
+  name: "<#ff6262>뱅커 베팅 칩"
+  lore: ["<gray>도박장 표시용 · 바카라 뱅커에 건 칩"]
+  model: baccarat_chip_banker
+  max-stack: 1
+
+baccarat_chip_tie:
+  material: paper
+  name: "<#72e08e>타이 베팅 칩"
+  lore: ["<gray>도박장 표시용 · 바카라 타이에 건 칩"]
+  model: baccarat_chip_tie
+  max-stack: 1
+
+# 새 게임 버튼 (노란 안전 표지판, 가운데 = 위치)
+
+gamble_btn_open:
+  material: paper
+  name: "<white>공개 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_open
+  max-stack: 1
+
+gamble_btn_player:
+  material: paper
+  name: "<white>플레이어 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_player
+  max-stack: 1
+
+gamble_btn_banker:
+  material: paper
+  name: "<white>뱅커 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_banker
+  max-stack: 1
+
+gamble_btn_tie:
+  material: paper
+  name: "<white>타이 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_tie
+  max-stack: 1
+
+gamble_btn_bet:
+  material: paper
+  name: "<white>베팅 버튼"
+  lore: ["<gray>도박장 표시용 · 내 차례 버튼"]
+  model: gamble_btn_bet
+  max-stack: 1
+
+# 트럼프 (세븐 포커 · 바카라: 7×10 px, 눕혀 놓음, 바닥 = 위치, 앞면 = 위, 북쪽에서 바로 읽힘)
+
+pcard_as:
+  material: paper
+  name: "<white>스페이드 A"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_as
+  max-stack: 1
+
+pcard_2s:
+  material: paper
+  name: "<white>스페이드 2"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_2s
+  max-stack: 1
+
+pcard_3s:
+  material: paper
+  name: "<white>스페이드 3"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_3s
+  max-stack: 1
+
+pcard_4s:
+  material: paper
+  name: "<white>스페이드 4"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_4s
+  max-stack: 1
+
+pcard_5s:
+  material: paper
+  name: "<white>스페이드 5"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_5s
+  max-stack: 1
+
+pcard_6s:
+  material: paper
+  name: "<white>스페이드 6"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_6s
+  max-stack: 1
+
+pcard_7s:
+  material: paper
+  name: "<white>스페이드 7"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_7s
+  max-stack: 1
+
+pcard_8s:
+  material: paper
+  name: "<white>스페이드 8"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_8s
+  max-stack: 1
+
+pcard_9s:
+  material: paper
+  name: "<white>스페이드 9"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_9s
+  max-stack: 1
+
+pcard_10s:
+  material: paper
+  name: "<white>스페이드 10"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_10s
+  max-stack: 1
+
+pcard_js:
+  material: paper
+  name: "<white>스페이드 J"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_js
+  max-stack: 1
+
+pcard_qs:
+  material: paper
+  name: "<white>스페이드 Q"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_qs
+  max-stack: 1
+
+pcard_ks:
+  material: paper
+  name: "<white>스페이드 K"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_ks
+  max-stack: 1
+
+pcard_ah:
+  material: paper
+  name: "<white>하트 A"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_ah
+  max-stack: 1
+
+pcard_2h:
+  material: paper
+  name: "<white>하트 2"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_2h
+  max-stack: 1
+
+pcard_3h:
+  material: paper
+  name: "<white>하트 3"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_3h
+  max-stack: 1
+
+pcard_4h:
+  material: paper
+  name: "<white>하트 4"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_4h
+  max-stack: 1
+
+pcard_5h:
+  material: paper
+  name: "<white>하트 5"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_5h
+  max-stack: 1
+
+pcard_6h:
+  material: paper
+  name: "<white>하트 6"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_6h
+  max-stack: 1
+
+pcard_7h:
+  material: paper
+  name: "<white>하트 7"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_7h
+  max-stack: 1
+
+pcard_8h:
+  material: paper
+  name: "<white>하트 8"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_8h
+  max-stack: 1
+
+pcard_9h:
+  material: paper
+  name: "<white>하트 9"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_9h
+  max-stack: 1
+
+pcard_10h:
+  material: paper
+  name: "<white>하트 10"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_10h
+  max-stack: 1
+
+pcard_jh:
+  material: paper
+  name: "<white>하트 J"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_jh
+  max-stack: 1
+
+pcard_qh:
+  material: paper
+  name: "<white>하트 Q"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_qh
+  max-stack: 1
+
+pcard_kh:
+  material: paper
+  name: "<white>하트 K"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_kh
+  max-stack: 1
+
+pcard_ad:
+  material: paper
+  name: "<white>다이아 A"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_ad
+  max-stack: 1
+
+pcard_2d:
+  material: paper
+  name: "<white>다이아 2"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_2d
+  max-stack: 1
+
+pcard_3d:
+  material: paper
+  name: "<white>다이아 3"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_3d
+  max-stack: 1
+
+pcard_4d:
+  material: paper
+  name: "<white>다이아 4"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_4d
+  max-stack: 1
+
+pcard_5d:
+  material: paper
+  name: "<white>다이아 5"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_5d
+  max-stack: 1
+
+pcard_6d:
+  material: paper
+  name: "<white>다이아 6"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_6d
+  max-stack: 1
+
+pcard_7d:
+  material: paper
+  name: "<white>다이아 7"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_7d
+  max-stack: 1
+
+pcard_8d:
+  material: paper
+  name: "<white>다이아 8"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_8d
+  max-stack: 1
+
+pcard_9d:
+  material: paper
+  name: "<white>다이아 9"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_9d
+  max-stack: 1
+
+pcard_10d:
+  material: paper
+  name: "<white>다이아 10"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_10d
+  max-stack: 1
+
+pcard_jd:
+  material: paper
+  name: "<white>다이아 J"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_jd
+  max-stack: 1
+
+pcard_qd:
+  material: paper
+  name: "<white>다이아 Q"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_qd
+  max-stack: 1
+
+pcard_kd:
+  material: paper
+  name: "<white>다이아 K"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_kd
+  max-stack: 1
+
+pcard_ac:
+  material: paper
+  name: "<white>클로버 A"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_ac
+  max-stack: 1
+
+pcard_2c:
+  material: paper
+  name: "<white>클로버 2"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_2c
+  max-stack: 1
+
+pcard_3c:
+  material: paper
+  name: "<white>클로버 3"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_3c
+  max-stack: 1
+
+pcard_4c:
+  material: paper
+  name: "<white>클로버 4"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_4c
+  max-stack: 1
+
+pcard_5c:
+  material: paper
+  name: "<white>클로버 5"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_5c
+  max-stack: 1
+
+pcard_6c:
+  material: paper
+  name: "<white>클로버 6"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_6c
+  max-stack: 1
+
+pcard_7c:
+  material: paper
+  name: "<white>클로버 7"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_7c
+  max-stack: 1
+
+pcard_8c:
+  material: paper
+  name: "<white>클로버 8"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_8c
+  max-stack: 1
+
+pcard_9c:
+  material: paper
+  name: "<white>클로버 9"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_9c
+  max-stack: 1
+
+pcard_10c:
+  material: paper
+  name: "<white>클로버 10"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_10c
+  max-stack: 1
+
+pcard_jc:
+  material: paper
+  name: "<white>클로버 J"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_jc
+  max-stack: 1
+
+pcard_qc:
+  material: paper
+  name: "<white>클로버 Q"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_qc
+  max-stack: 1
+
+pcard_kc:
+  material: paper
+  name: "<white>클로버 K"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_kc
+  max-stack: 1
+
+pcard_back:
+  material: paper
+  name: "<white>트럼프 뒷면"
+  lore: ["<gray>도박장 표시용 · 테이블 위 트럼프"]
+  model: pcard_back
+  max-stack: 1

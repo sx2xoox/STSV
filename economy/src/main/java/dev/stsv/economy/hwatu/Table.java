@@ -27,6 +27,15 @@ import java.util.random.RandomGenerator;
  *                    a second betting round (체크 again while nobody bet), showdown ({@link Sutda}) of the main pot and
  *                    each side pot ({@link Pots}); everyone but one folding ends it at once; 구사 replays with the same
  *                    pot (no new ante), dealt anew street by street
+ *            세븐 포커: three cards each face down (DEAL: a pause while they fly in), each player picks one to open
+ *                    (OPEN, all at once; timers.open: the lowest opens), then five betting rounds of the same
+ *                    {@link Betting}, each opened by the best open cards ({@link Poker}): after the open card, after
+ *                    the 4th · 5th · 6th card (open) and after the 7th (hidden); showdown of the best five of seven per
+ *                    pot; everyone but one folding ends it at once
+ *            바카라: the house game, from one player: BETS (baccarat.bet-seconds, ends early once everyone seated pressed
+ *                    베팅 끝) where each seated player puts chips on 플레이어 · 뱅커 · 타이 ({@link #wager}); nobody bet: the
+ *                    window opens again; else the dealer deals ({@link Baccarat}, DEAL: the cards fly in and flip) and
+ *                    every bet is paid by the house (no 자릿세, no pots: chips come from and go to nowhere)
  *          leaving mid-hand folds (the chips put in stay in the pot); one player left wins the pot
  *          a 섯다 player's stake is every chip they hold when the hand starts (the bank's {@link Bank#stack}): they can
  *          never put in more, so chips never go below 0; and nobody puts more than the 한도 ({@link #handLimit}: ante ×
@@ -39,7 +48,7 @@ import java.util.random.RandomGenerator;
 public final class Table {
 
     public enum Game {
-        HOLJJAK("holjjak"), DICE("dice"), SUTDA("sutda");
+        HOLJJAK("holjjak"), DICE("dice"), SUTDA("sutda"), POKER("seven_poker"), BACCARAT("baccarat");
 
         private final String key;
 
@@ -50,18 +59,30 @@ public final class Table {
         public String key() {
             return key;
         }
+
+        /** 섯다 · 세븐 포커: played with {@link Betting} rounds (삥 · 체크 · 콜 · 따당 · 하프 · 다이, 올인, 한도, 사이드 판). */
+        public boolean bets() {
+            return this == SUTDA || this == POKER;
+        }
+
+        /** 홀짝 · 주사위 · 섯다 · 세븐 포커 need two players; 바카라 is played against the house, alone too. */
+        public int least() {
+            return this == BACCARAT ? 1 : 2;
+        }
     }
 
     public enum Phase { WAITING, PLAYING, RESULT }
 
     /**
      * PICK: 홀짝's call; ROLL: someone ({@link #turn}) is to press 굴리기 (홀짝's caller, 주사위 each player in turn);
-     * SHOW: everything is rolled, shown for timers.reveal before the result; BET: a 섯다 betting round ({@link #street}).
+     * SHOW: everything is rolled, shown for timers.reveal before the result; BET: a 섯다 · 세븐 포커 betting round
+     * ({@link #street}); OPEN: 세븐 포커's players each pick the card to open; DEAL: cards are flying in (세븐 포커 between
+     * rounds, 바카라's coup), a short pause; BETS: 바카라's betting window.
      */
-    public enum Step { PICK, ROLL, SHOW, BET }
+    public enum Step { PICK, ROLL, SHOW, BET, OPEN, DEAL, BETS }
 
-    /** 홀짝's call, 굴리기 and 섯다's actions. */
-    public enum Move { ODD, EVEN, ROLL, DIE, CHECK, PING, CALL, DDADANG, HALF }
+    /** 홀짝's call, 굴리기, 섯다 · 세븐 포커's actions, 세븐 포커's open (one of the first three cards), 바카라's 베팅 끝. */
+    public enum Move { ODD, EVEN, ROLL, DIE, CHECK, PING, CALL, DDADANG, HALF, OPEN1, OPEN2, OPEN3, BAC_DONE }
 
     /** The 섯다 action of a move (null: 홀 · 짝). */
     public static Betting.Action action(Move m) {
@@ -100,6 +121,11 @@ public final class Table {
         default int chair(UUID player) {
             return 0;
         }
+
+        /** 바카라: the chips this player already bet today (05시 to 05시) at 바카라, for baccarat.daily-wager-cap. */
+        default long wagered(UUID player) {
+            return 0;
+        }
     }
 
     /**
@@ -134,6 +160,18 @@ public final class Table {
 
         /** 주사위 · 홀짝: this player rolled (pressed 굴리기, or the timer did for them); changed() follows. */
         default void rolled(Table t, UUID player) {}
+
+        /** 세븐 포커: this player opened a card (or the timer did); changed() follows. */
+        default void opened(Table t, UUID player) {}
+
+        /** 세븐 포커: a street was dealt (the cards are coming); 바카라: the coup was dealt. changed() follows. */
+        default void dealt(Table t) {}
+
+        /** 바카라: a bet was placed on a spot; changed() follows. */
+        default void wagered(Table t, UUID player, Baccarat.Spot spot, long amount) {}
+
+        /** 바카라: the betting window opened (again). */
+        default void betsOpen(Table t) {}
     }
 
     /** One pot of a finished hand (섯다 may have side pots): its chips, its winners, each one's share, what burned. */
@@ -144,10 +182,13 @@ public final class Table {
      * the odd chips of a split (destroyed). detail: per player what they had (섯다 hand code, 주사위 "a+b", 홀짝 the call
      * "odd"/"even" for the caller), "die" for a player who folded or left. uncontested: everyone else folded or left.
      * pots: the main pot first, then 섯다's side pots; winners: everyone who won a pot (the main pot's first). put is
-     * after the chips nobody matched went back ({@link Pots#uncalled}), so pot = the sum of put.
+     * after the chips nobody matched went back ({@link Pots#uncalled}), so pot = the sum of put. 세븐 포커's detail: the
+     * hand's code and its ranks ("two-pair|K·7"). 바카라: pot is every bet, payout what the house paid back (more than was
+     * put in for a win: chips made), burned 0, no pots, detail the bets ("P100,B0,T10"), coup the cards.
      */
     public record Result(Game game, List<UUID> players, Map<UUID, Long> put, Map<UUID, Long> payout, long pot, long burned,
-                         List<UUID> winners, Map<UUID, String> detail, int die, boolean uncontested, List<PotResult> pots) {
+                         List<UUID> winners, Map<UUID, String> detail, int die, boolean uncontested, List<PotResult> pots,
+                         Baccarat.Coup coup) {
 
         /** Chips won (+) or lost (-) by a player in this hand. */
         public long net(UUID player) {
@@ -183,6 +224,21 @@ public final class Table {
     private Result last;
     /** 시험 판 (/관리자 도박장 시험 섯다 패): the cards some players get in the next 섯다 hand's first deal. */
     private final Map<UUID, Card[]> forced = new LinkedHashMap<>();
+    /** 세븐 포커: each player's cards in the order dealt (0 1 2 face down, one of them opened, 3 4 5 open, 6 hidden) */
+    private final Map<UUID, List<PCard>> pcards = new HashMap<>();
+    /** 세븐 포커: which of the first three cards each player opened */
+    private final Map<UUID, Integer> opened = new HashMap<>();
+    private List<PCard> pdeck = new ArrayList<>();
+    /** 세븐 포커: what comes when the DEAL pause is over (OPEN or BET) */
+    private Step afterDeal;
+    /** 바카라: each player's bets this round (index = {@link Baccarat.Spot#ordinal()}), who pressed 베팅 끝, the cards */
+    private final Map<UUID, long[]> bets = new LinkedHashMap<>();
+    private final java.util.Set<UUID> done = new java.util.HashSet<>();
+    private Baccarat.Shoe shoe;
+    private Baccarat.Coup coup;
+    private boolean shuffled;
+    private String road = "";
+    private int coups;
 
     private final RandomGenerator rng;
 
@@ -222,6 +278,115 @@ public final class Table {
         return spec.game(game).max();
     }
 
+    /** 바카라: the road (the last results, oldest first: P B T). */
+    public String road() {
+        return road;
+    }
+
+    /** 바카라: the road as it was stored (a restart keeps the table's last results). */
+    public void road(String r) {
+        if (r == null) return;
+        StringBuilder b = new StringBuilder();
+        for (char c : r.toCharArray()) if (Baccarat.Spot.of(c) != null) b.append(c);
+        int keep = spec.baccarat().road();
+        road = b.length() > keep ? b.substring(b.length() - keep) : b.toString();
+    }
+
+    /** 바카라: the cards of the coup being dealt or just paid (null: none yet this round). */
+    public Baccarat.Coup coup() {
+        return coup;
+    }
+
+    /** 바카라: how many coups this table dealt (a change: new cards). */
+    public int coups() {
+        return coups;
+    }
+
+    /** 바카라: this coup came out of a fresh shoe (the cut card came). */
+    public boolean shuffled() {
+        return shuffled;
+    }
+
+    /** 바카라: a player's bets this round, by spot (zeros if none). */
+    public long[] bets(UUID u) {
+        long[] b = bets.get(u);
+        return b == null ? new long[3] : b.clone();
+    }
+
+    /** 바카라: everyone's bets this round, in the order they first bet. */
+    public Map<UUID, long[]> allBets() {
+        Map<UUID, long[]> out = new LinkedHashMap<>();
+        for (Map.Entry<UUID, long[]> e : bets.entrySet()) out.put(e.getKey(), e.getValue().clone());
+        return out;
+    }
+
+    /** 바카라: this player pressed 베팅 끝 (or cannot bet more) this round. */
+    public boolean betsDone(UUID u) {
+        return done.contains(u);
+    }
+
+    /**
+     * 바카라: what this player may still bet this round: the least of what the round's 최대 베팅 leaves, what today's cap
+     * leaves (`wageredToday`: bet before this round today) and their chips (`stack`, read when they first bet: all they
+     * hold then).
+     */
+    public long betRoom(UUID u, long wageredToday, long stack) {
+        HwatuSpec.BaccaratSpec b = spec.baccarat();
+        long mine = put(u);
+        long s = stake.getOrDefault(u, stack);
+        return Math.max(0, Math.min(b.maxBet() - mine, Math.min(b.dailyCap() - wageredToday - mine, s - mine)));
+    }
+
+    /** 세븐 포커: the player's cards so far in the order dealt (empty if none). */
+    public List<PCard> pcards(UUID u) {
+        List<PCard> c = pcards.get(u);
+        return c == null ? List.of() : List.copyOf(c);
+    }
+
+    /** 세븐 포커: which of the first three cards the player opened (-1: not yet). */
+    public int openedIndex(UUID u) {
+        Integer i = opened.get(u);
+        return i == null ? -1 : i;
+    }
+
+    /** 세븐 포커: whether card k of a player is open to everyone (the opened one of the first three, the 4th ~ 6th). */
+    public boolean isOpen(UUID u, int k) {
+        if (k >= 3 && k <= 5) return true;
+        return k < 3 && k == openedIndex(u);
+    }
+
+    /** 세븐 포커: the player's open cards (what everyone sees), in the order they came. */
+    public List<PCard> openCards(UUID u) {
+        List<PCard> c = pcards.get(u), out = new ArrayList<>();
+        if (c == null) return out;
+        for (int k = 0; k < c.size(); k++) if (isOpen(u, k)) out.add(c.get(k));
+        return out;
+    }
+
+    /** 세븐 포커: the best hand of all the player's cards (what they hold, seen by them alone), or null. */
+    public Poker.Hand pokerHand(UUID u) {
+        List<PCard> c = pcards.get(u);
+        return c == null || c.isEmpty() ? null : Poker.best(c);
+    }
+
+    /** 세븐 포커: what the player's open cards show (decides who bets first), or null. */
+    public Poker.Hand showing(UUID u) {
+        List<PCard> c = openCards(u);
+        return c.isEmpty() ? null : Poker.best(c);
+    }
+
+    /** 세븐 포커: who opens the betting round: the player still in with the best open cards (players index; 0 if none). */
+    public int opener() {
+        List<Poker.Hand> hands = new ArrayList<>();
+        for (int i = 0; i < players.size(); i++) {
+            UUID u = players.get(i);
+            boolean in = betting == null || !betting.folded(i);
+            hands.add(in && !out[i] ? showing(u) : null);
+        }
+        int b = Poker.bestOf(hands);
+        return Math.max(0, b);
+    }
+
     public boolean full() {
         return seats.size() >= max();
     }
@@ -240,14 +405,14 @@ public final class Table {
         return Math.min(Betting.MOST, ante() * k);
     }
 
-    /** In the running 섯다 hand with chips left but nothing more to put in: at the hand limit (한도). */
+    /** In the running 섯다 · 세븐 포커 hand with chips left but nothing more to put in: at the hand limit (한도). */
     public boolean atLimit(UUID u) {
-        return game == Game.SUTDA && inHand(u) && left(u) > 0 && put(u) >= handLimit();
+        return game.bets() && inHand(u) && left(u) > 0 && put(u) >= handLimit();
     }
 
-    /** The running 섯다 hand reached the limit: someone still in put in the 한도, so nobody can raise any more. */
+    /** The running 섯다 · 세븐 포커 hand reached the limit: someone still in put in the 한도, so nobody can raise any more. */
     public boolean limitReached() {
-        if (game != Game.SUTDA || phase != Phase.PLAYING) return false;
+        if (!game.bets() || phase != Phase.PLAYING) return false;
         long cap = handLimit();
         for (UUID u : players) if (inHand(u) && put(u) >= cap) return true;
         return false;
@@ -287,14 +452,17 @@ public final class Table {
     public boolean inHand(UUID u) {
         int i = players.indexOf(u);
         if (phase != Phase.PLAYING || i < 0) return false;
-        return game == Game.SUTDA ? !betting.folded(i) : !out[i];
+        if (game.bets()) return betting == null ? !out[i] : !betting.folded(i);
+        return game == Game.BACCARAT || !out[i];
     }
 
     /** Folded or left in this hand (also shown during the result). */
     public boolean folded(UUID u) {
         int i = players.indexOf(u);
         if (i < 0) return false;
-        return game == Game.SUTDA ? betting != null && betting.folded(i) : out.length > i && out[i];
+        if (game == Game.BACCARAT) return false;
+        if (game.bets()) return betting != null ? betting.folded(i) : out.length > i && out[i];
+        return out.length > i && out[i];
     }
 
     /** What a player put in this hand (0 if not in it). */
@@ -303,23 +471,23 @@ public final class Table {
     }
 
     /**
-     * Chips held by the running hand (not yet won or lost, not to be cashed): what was put in, and in 섯다 the whole stake
-     * (it may all be bet).
+     * Chips held by the running hand (not yet won or lost, not to be cashed): what was put in, and in 섯다 · 세븐 포커 ·
+     * 바카라 the whole stake (it may all be bet).
      */
     public long committed(UUID u) {
         if (phase != Phase.PLAYING) return 0;
-        return game == Game.SUTDA ? Math.max(put(u), stake.getOrDefault(u, 0L)) : put(u);
+        return game.bets() || game == Game.BACCARAT ? Math.max(put(u), stake.getOrDefault(u, 0L)) : put(u);
     }
 
-    /** What a 섯다 player can still put in this hand (0: all-in or not in it). */
+    /** What a 섯다 · 세븐 포커 player can still put in this hand (0: all-in or not in it). */
     public long left(UUID u) {
         if (phase != Phase.PLAYING || !stake.containsKey(u)) return 0;
         return Math.max(0, stake.get(u) - put(u));
     }
 
-    /** In the running 섯다 hand with nothing left to bet. */
+    /** In the running 섯다 · 세븐 포커 hand with nothing left to bet. */
     public boolean allIn(UUID u) {
-        return game == Game.SUTDA && inHand(u) && left(u) == 0;
+        return game.bets() && inHand(u) && left(u) == 0;
     }
 
     public long pot() {
@@ -339,9 +507,12 @@ public final class Table {
         return c == null || c.length < 2 ? null : Sutda.of(c[0], c[1]);
     }
 
-    /** How long the current move may take (seconds): 굴리기 has its own timer (timers.roll), the rest timers.turn. */
+    /** How long the current move may take (seconds): 굴리기 has its own timer (timers.roll), opening timers.open, 바카라's bets baccarat.bet-seconds, the rest timers.turn. */
     public int moveSeconds() {
-        return step == Step.ROLL ? spec.rollSeconds() : spec.turnSeconds();
+        if (step == Step.ROLL) return spec.rollSeconds();
+        if (step == Step.OPEN) return spec.openSeconds();
+        if (step == Step.BETS) return spec.baccarat().betSeconds();
+        return spec.turnSeconds();
     }
 
     public int[] rolls(UUID u) {
@@ -366,10 +537,14 @@ public final class Table {
 
     // ------------------------------------------------------------------------------------------ seats
 
-    /** Sits down (to wait for the next hand if one is running); false if full or already seated. */
+    /** Sits down (to wait for the next hand if one is running; 바카라: to bet in the open window); false if full or already seated. */
     public boolean sit(UUID u, long now) {
         if (full() || seats.contains(u)) return false;
         seats.add(u);
+        if (game == Game.BACCARAT) {
+            if (phase == Phase.WAITING) deadline = now;   // the window opens on the next tick
+            return true;
+        }
         if (phase == Phase.WAITING && seats.size() >= 2 && deadline == 0) deadline = now + spec.startSeconds() * 1000L;
         return true;
     }
@@ -377,12 +552,37 @@ public final class Table {
     /** Stands up; in a running hand that is a fold (what was put in stays in the pot). */
     public void leave(UUID u, long now, Listener l) {
         seats.remove(u);
-        if (phase == Phase.WAITING && seats.size() < 2) deadline = 0;
+        if (phase == Phase.WAITING && seats.size() < game.least()) deadline = 0;
+        if (game == Game.BACCARAT) {
+            done.remove(u);
+            if (phase == Phase.PLAYING && step == Step.BETS) {   // the window is open: their bets come back (nothing moved yet)
+                int i = players.indexOf(u);
+                if (i >= 0) {
+                    players.remove(i);
+                    put.remove(u);
+                    stake.remove(u);
+                    bets.remove(u);
+                }
+                if (seats.isEmpty() && players.isEmpty()) {
+                    phase = Phase.WAITING;
+                    step = null;
+                    deadline = 0;
+                } else if (everyoneDone()) closeBets(now, l);
+            }
+            // once dealt, their bets stay and are paid like everyone's
+            l.changed(this);
+            return;
+        }
         if (inHand(u)) {
             int i = players.indexOf(u);
-            if (game == Game.SUTDA) {
+            if (game.bets() && betting != null) {
                 betting.fold(i);
-                afterBet(now, l);
+                if (step == Step.BET) afterBet(now, l);
+                else if (betting.active() <= 1) finishUncontested(now, l);
+            } else if (game.bets()) {   // 세븐 포커 before the first betting round (dealing · opening)
+                out[i] = true;
+                if (active() <= 1) finishUncontested(now, l);
+                else if (step == Step.OPEN && everyoneOpened()) firstRound(now, l);
             } else {
                 UUID before = turn();
                 out[i] = true;
@@ -398,7 +598,7 @@ public final class Table {
     }
 
     private int active() {
-        if (game == Game.SUTDA) return betting.active();
+        if (game.bets() && betting != null) return betting.active();
         int a = 0;
         for (boolean o : out) if (!o) a++;
         return a;
@@ -410,6 +610,15 @@ public final class Table {
     public void tick(long now, Bank bank, Listener l) {
         switch (phase) {
             case WAITING -> {
+                if (game == Game.BACCARAT) {
+                    if (seats.isEmpty()) {
+                        deadline = 0;
+                        return;
+                    }
+                    openBets(now, l);
+                    l.changed(this);
+                    return;
+                }
                 if (seats.size() < 2) {
                     deadline = 0;
                     return;
@@ -444,7 +653,7 @@ public final class Table {
             case RESULT -> {
                 if (now < deadline) return;
                 phase = Phase.WAITING;
-                deadline = seats.size() >= 2 ? now : 0;   // the result was the pause: the next hand starts on the next tick
+                deadline = seats.size() >= game.least() ? now : 0;   // the result was the pause: the next hand starts on the next tick
                 l.changed(this);
             }
         }
@@ -465,6 +674,9 @@ public final class Table {
         replays = 0;
         betting = null;
         last = null;
+        pcards.clear();
+        opened.clear();
+        afterDeal = null;
         int shift = Math.floorMod(dealer++, ok.size());
         for (int k = 0; k < ok.size(); k++) players.add(ok.get((shift + k) % ok.size()));
         for (UUID u : players) {
@@ -491,7 +703,214 @@ public final class Table {
                 deadline = now + spec.turnSeconds() * 1000L;
                 if (betting.done()) afterBet(now, l);   // nobody can bet (all-in on the ante): the second card, the showdown
             }
+            case POKER -> {
+                pdeck = PCard.deck();
+                Collections.shuffle(pdeck, rng);
+                deals++;
+                street = 3;
+                for (int k = 0; k < 3; k++) for (UUID u : players) pcards.computeIfAbsent(u, x -> new ArrayList<>()).add(pdeck.removeLast());
+                dealPause(Step.OPEN, 3 * players.size(), now);
+                l.dealt(this);
+            }
+            case BACCARAT -> throw new IllegalStateException("바카라 starts with openBets");
         }
+    }
+
+    // ------------------------------------------------------------------------------------------ 세븐 포커
+
+    /** How long cards take to fly in (millis): a little for the dealer, then each card. */
+    public static final long DEAL_BASE_MS = 500, DEAL_CARD_MS = 200;
+
+    /** The dealer is dealing `cards` cards: a pause, then `next`. */
+    private void dealPause(Step next, int cards, long now) {
+        step = Step.DEAL;
+        afterDeal = next;
+        deadline = now + DEAL_BASE_MS + DEAL_CARD_MS * cards;   // the open buttons · the round come once the cards are down
+    }
+
+    private boolean everyoneOpened() {
+        for (int i = 0; i < players.size(); i++) if (!out[i] && !opened.containsKey(players.get(i))) return false;
+        return true;
+    }
+
+    /** Everyone still in opened a card (or the timer opened it): the first betting round, opened by the best open card. */
+    private void firstRound(long now, Listener l) {
+        betting = null;   // who left before betting is out[] (carried into the rounds as a fold)
+        pokerRound(now, l);
+    }
+
+    /** A betting round of 세븐 포커, opened by the best open cards (folds carry over). */
+    private void pokerRound(long now, Listener l) {
+        Betting prev = betting;
+        int first = opener();
+        long[] left = new long[players.size()], most = new long[players.size()];
+        boolean[] gone = new boolean[players.size()];
+        long cap = handLimit();
+        for (int i = 0; i < players.size(); i++) {
+            UUID u = players.get(i);
+            left[i] = Math.max(0, stake.get(u) - put(u));
+            most[i] = Math.max(0, cap - put(u));
+            gone[i] = (prev != null && prev.folded(i)) || out[i];
+        }
+        betting = new Betting(ante(), pot(), left, gone, most, first);
+        lastBet = null;
+        step = Step.BET;
+        deadline = now + spec.turnSeconds() * 1000L;
+        l.street(this);
+        l.changed(this);
+        if (betting.done()) afterBet(now, l);   // everyone left is all-in: the next card, the showdown
+    }
+
+    /** The next card to everyone still in (4th ~ 6th open, 7th hidden), from the opener round the table, then a pause. */
+    private void nextStreet(long now, Listener l) {
+        street++;
+        int n = 0;
+        for (int i = 0; i < players.size(); i++) {
+            if (betting.folded(i)) continue;
+            pcards.get(players.get(i)).add(pdeck.removeLast());
+            n++;
+        }
+        dealPause(Step.BET, n, now);
+        l.dealt(this);
+        l.changed(this);
+    }
+
+    /** 세븐 포커's showdown: the best five of seven of each player still in, pot by pot. */
+    private void pokerShowdown(long now, Listener l) {
+        Map<UUID, String> detail = new LinkedHashMap<>();
+        for (int i = 0; i < players.size(); i++) {
+            UUID u = players.get(i);
+            if (betting.folded(i)) detail.put(u, "die");
+            else {
+                Poker.Hand h = pokerHand(u);
+                detail.put(u, h.code() + "|" + h.ranksText());
+            }
+        }
+        settleBets(detail, false, now, l);
+    }
+
+    // ------------------------------------------------------------------------------------------ 바카라
+
+    /** 바카라: the betting window opens (a new round): nobody has bet. */
+    private void openBets(long now, Listener l) {
+        hands++;
+        players.clear();
+        put.clear();
+        stake.clear();
+        bets.clear();
+        done.clear();
+        coup = null;
+        shuffled = false;
+        last = null;
+        lastBet = null;
+        out = new boolean[0];
+        phase = Phase.PLAYING;
+        step = Step.BETS;
+        deadline = now + spec.baccarat().betSeconds() * 1000L;
+        l.betsOpen(this);
+    }
+
+    /**
+     * 바카라: a seated player puts `amount` chips on a spot (one press of 플레이어 · 뱅커 · 타이 with the picked chip). Null,
+     * or why not (a message key): not the betting window, under the 최소 베팅, past the round's 최대 베팅, past today's cap
+     * (baccarat.daily-wager-cap: what they bet today before this round is the bank's {@link Bank#wagered}), more than
+     * their chips, or they may not play (the bank's refusal: too new, resting, too few chips).
+     */
+    public String wager(UUID u, Baccarat.Spot spot, long amount, long now, Bank bank, Listener l) {
+        if (game != Game.BACCARAT || phase != Phase.PLAYING || step != Step.BETS) return "hwatu.bac.closed";
+        if (!seats.contains(u)) return "hwatu.not-in-hand";
+        HwatuSpec.BaccaratSpec b = spec.baccarat();
+        if (amount < b.minBet()) return "hwatu.bac.min";
+        boolean first = !players.contains(u);
+        if (first) {
+            String why = bank.refusal(u, b.minBet());
+            if (why != null) return why;
+        }
+        long stack = first ? Math.clamp(bank.stack(u), 0, Betting.MOST) : stake.get(u);
+        long mine = put(u), today = bank.wagered(u);
+        if (mine + amount > b.maxBet()) return "hwatu.bac.over-max";
+        if (today + mine + amount > b.dailyCap()) return "hwatu.bac.over-cap";
+        if (mine + amount > stack) return "hwatu.bac.short";
+        if (first) {
+            players.add(u);
+            stake.put(u, stack);
+        }
+        done.remove(u);
+        bets.computeIfAbsent(u, k -> new long[3])[spot.ordinal()] += amount;
+        put.merge(u, amount, Long::sum);
+        l.wagered(this, u, spot, amount);
+        if (betRoom(u, today, stack) < b.minBet()) done.add(u);   // nothing more can go on: as good as 베팅 끝
+        if (everyoneDone()) closeBets(now, l);
+        else l.changed(this);
+        return null;
+    }
+
+    /** Every seated player pressed 베팅 끝 (or can bet no more), and someone bet. */
+    private boolean everyoneDone() {
+        if (players.isEmpty()) return false;
+        for (UUID u : seats) if (!done.contains(u)) return false;
+        return true;
+    }
+
+    /** 바카라: no more bets. Nobody bet: the window opens again; else the dealer deals the coup. */
+    private void closeBets(long now, Listener l) {
+        if (players.isEmpty()) {
+            if (seats.isEmpty()) {
+                phase = Phase.WAITING;
+                step = null;
+                deadline = 0;
+                l.changed(this);
+                return;
+            }
+            openBets(now, l);
+            l.changed(this);
+            return;
+        }
+        if (shoe == null) shoe = new Baccarat.Shoe(rng);
+        shuffled = shoe.ready();
+        coup = Baccarat.deal(shoe);
+        coups++;
+        deals++;
+        out = new boolean[players.size()];
+        step = Step.DEAL;
+        deadline = now + dealMillis(coup);
+        l.dealt(this);
+        l.changed(this);
+    }
+
+    /** How long a coup takes to deal and turn over (millis): each card slides in and flips, then the totals. */
+    public static long dealMillis(Baccarat.Coup c) {
+        return BAC_DEAL_BASE_MS + BAC_CARD_MS * (c.player().size() + c.banker().size());
+    }
+
+    /** 바카라's pacing (millis): before the first card, then each card's slide and flip (TableScene follows it). */
+    public static final long BAC_DEAL_BASE_MS = 1500, BAC_CARD_MS = 1000;
+
+    /** 바카라: the coup is face up; the house pays every bet (or takes it). */
+    private void settleBaccarat(long now, Listener l) {
+        HwatuSpec.BaccaratSpec b = spec.baccarat();
+        Baccarat.Spot won = coup.winner();
+        Map<UUID, Long> payout = new LinkedHashMap<>();
+        Map<UUID, String> detail = new LinkedHashMap<>();
+        List<UUID> winners = new ArrayList<>();
+        long pot = 0;
+        for (UUID u : players) {
+            long[] mine = bets.get(u);
+            long back = 0;
+            for (Baccarat.Spot s : Baccarat.Spot.values()) back += Baccarat.payout(s, mine[s.ordinal()], won, b.commission(), b.tiePays());
+            if (back > 0) payout.put(u, back);
+            if (back > put(u)) winners.add(u);
+            pot += put(u);
+            detail.put(u, "P" + mine[0] + ",B" + mine[1] + ",T" + mine[2]);
+        }
+        road = Baccarat.road(road, won, b.road());
+        last = new Result(game, List.copyOf(players), Map.copyOf(put), Map.copyOf(payout), pot, 0, List.copyOf(winners),
+                Collections.unmodifiableMap(detail), 0, false, List.of(), coup);
+        phase = Phase.RESULT;
+        step = null;
+        deadline = now + spec.resultSeconds() * 1000L;
+        l.finished(this, last);
+        l.changed(this);
     }
 
     /**
@@ -499,6 +918,7 @@ public final class Table {
      * the hand limit leaves after what they put in so far.
      */
     private Betting round(Betting prev) {
+        if (game == Game.POKER) throw new IllegalStateException("세븐 포커: pokerRound");
         long[] left = new long[players.size()], most = new long[players.size()];
         boolean[] out = new boolean[players.size()];
         long cap = handLimit();
@@ -569,6 +989,24 @@ public final class Table {
                 else roll(u, now, l);
             }
             case SHOW -> settleRolls(now, l);
+            case OPEN -> {   // the timer opens the lowest card of whoever did not pick
+                for (int i = 0; i < players.size(); i++) {
+                    UUID u = players.get(i);
+                    if (out[i] || opened.containsKey(u)) continue;
+                    opened.put(u, Poker.lowest(pcards.get(u).subList(0, 3)));
+                    l.opened(this, u);
+                }
+                firstRound(now, l);
+            }
+            case DEAL -> {
+                if (game == Game.BACCARAT) settleBaccarat(now, l);
+                else if (afterDeal == Step.OPEN) {
+                    step = Step.OPEN;
+                    deadline = now + spec.openSeconds() * 1000L;
+                    l.changed(this);
+                } else pokerRound(now, l);
+            }
+            case BETS -> closeBets(now, l);
             case BET -> {
                 int seat = betting.turn();
                 if (seat < 0) afterBet(now, l);
@@ -581,7 +1019,26 @@ public final class Table {
 
     /** A player's move; null if done, else why not (a message key). */
     public String act(UUID u, Move m, long now, Listener l) {
+        if (game == Game.BACCARAT) {
+            if (m != Move.BAC_DONE) return "hwatu.bad-bet";
+            if (phase != Phase.PLAYING || step != Step.BETS) return "hwatu.bac.closed";
+            if (!seats.contains(u)) return "hwatu.not-in-hand";
+            done.add(u);
+            if (everyoneDone() || (seats.stream().allMatch(done::contains) && players.isEmpty())) closeBets(now, l);
+            else l.changed(this);
+            return null;
+        }
         if (phase != Phase.PLAYING || !inHand(u)) return "hwatu.not-in-hand";
+        if (step == Step.OPEN) {
+            int k = m == Move.OPEN1 ? 0 : m == Move.OPEN2 ? 1 : m == Move.OPEN3 ? 2 : -1;
+            if (k < 0) return "hwatu.not-your-turn";
+            if (opened.containsKey(u)) return "hwatu.poker.opened-already";
+            opened.put(u, k);
+            l.opened(this, u);
+            if (everyoneOpened()) firstRound(now, l);
+            else l.changed(this);
+            return null;
+        }
         if (!u.equals(turn())) return "hwatu.not-your-turn";
         if (step == Step.PICK) {
             if (m != Move.ODD && m != Move.EVEN) return "hwatu.not-your-turn";
@@ -607,6 +1064,7 @@ public final class Table {
     /** What the seat may do now (empty when it is not their turn or no 섯다 round runs). */
     public java.util.Set<Betting.Action> legal(UUID u) {
         int seat = players.indexOf(u);
+        if (betting != null && seat >= betting.players()) return java.util.EnumSet.noneOf(Betting.Action.class);
         if (phase != Phase.PLAYING || step != Step.BET || betting == null || seat < 0) return java.util.EnumSet.noneOf(Betting.Action.class);
         return betting.legal(seat);
     }
@@ -629,6 +1087,11 @@ public final class Table {
         }
         if (betting.active() <= 1) {
             finishUncontested(now, l);
+            return;
+        }
+        if (game == Game.POKER) {
+            if (street < 7) nextStreet(now, l);
+            else pokerShowdown(now, l);
             return;
         }
         if (street < 2) secondStreet(now, l);
@@ -658,20 +1121,21 @@ public final class Table {
         Map<UUID, String> detail = new LinkedHashMap<>();
         for (int i = 0; i < players.size(); i++) detail.put(players.get(i), betting.folded(i) ? "die" : null);
         for (int k = 0; k < in.size(); k++) detail.put(players.get(in.get(k)), hands.get(k).code());
-        settleSutda(detail, false, now, l);
+        settleBets(detail, false, now, l);
     }
 
     /**
-     * A 섯다 hand ends: the chips nobody matched go back, then the main pot and each side pot is won by the best hand among
-     * those who may win it ({@link Sutda#showdown} on them alone, no 재경기), each pot paying its own 자릿세.
+     * A 섯다 · 세븐 포커 hand ends: the chips nobody matched go back, then the main pot and each side pot is won by the
+     * best hand among those who may win it ({@link Sutda#showdown} on them alone, no 재경기; {@link Poker#winners}), each
+     * pot paying its own 자릿세.
      */
-    private void settleSutda(Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
+    private void settleBets(Map<UUID, String> detail, boolean uncontested, long now, Listener l) {
         int n = players.size();
         long[] c = new long[n];
         boolean[] folded = new boolean[n];
         for (int i = 0; i < n; i++) {
             c[i] = put(players.get(i));
-            folded[i] = betting.folded(i);
+            folded[i] = betting != null ? betting.folded(i) : out[i];
         }
         long[] back = Pots.uncalled(c);
         for (int i = 0; i < n; i++) {
@@ -684,7 +1148,11 @@ public final class Table {
             List<Integer> e = p.eligible();
             List<UUID> won = new ArrayList<>();
             if (e.size() == 1) won.add(players.get(e.getFirst()));
-            else if (e.size() > 1) {
+            else if (e.size() > 1 && game == Game.POKER) {
+                List<Poker.Hand> hands = new ArrayList<>();
+                for (int i : e) hands.add(pokerHand(players.get(i)));
+                for (int k : Poker.winners(hands)) won.add(players.get(e.get(k)));
+            } else if (e.size() > 1) {
                 List<Sutda.Hand> hands = new ArrayList<>();
                 for (int i : e) {
                     Card[] cs = hole.get(players.get(i));
@@ -763,8 +1231,8 @@ public final class Table {
             detail.put(players.get(i), f ? "die" : null);
             if (!f) winners.add(players.get(i));
         }
-        if (game == Game.SUTDA) {
-            settleSutda(detail, true, now, l);
+        if (game.bets()) {
+            settleBets(detail, true, now, l);
             return;
         }
         finish(winners, detail, true, now, l);
@@ -789,7 +1257,7 @@ public final class Table {
             }
         }
         last = new Result(game, List.copyOf(players), Map.copyOf(put), Map.copyOf(payout), pot, burned, List.copyOf(winners),
-                Collections.unmodifiableMap(detail), die, uncontested, List.copyOf(pots));
+                Collections.unmodifiableMap(detail), die, uncontested, List.copyOf(pots), null);
         phase = Phase.RESULT;
         step = null;
         deadline = now + spec.resultSeconds() * 1000L;
@@ -804,8 +1272,17 @@ public final class Table {
             put.clear();
             stake.clear();
         }
+        if (game == Game.BACCARAT) {
+            players.clear();
+            put.clear();
+            stake.clear();
+            bets.clear();
+            done.clear();
+            coup = null;
+        }
         lastBet = null;
         street = 0;
+        step = null;
         phase = Phase.WAITING;
         deadline = 0;
     }

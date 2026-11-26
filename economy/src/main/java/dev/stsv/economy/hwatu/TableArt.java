@@ -96,13 +96,22 @@ public final class TableArt {
     // ------------------------------------------------------------------------------------------ cards
 
     /**
-     * Whether a card is shown face up to everyone: only at the 섯다 showdown (a hand that ended by showing, not one everyone
-     * else folded out of), and never a folded player's. Before that each owner alone sees the face of theirs.
+     * Whether a card is shown face up to everyone: only at the 섯다 · 세븐 포커 showdown (a hand that ended by showing, not
+     * one everyone else folded out of), and never a folded player's. Before that each owner alone sees the face of theirs
+     * (세븐 포커's open cards excepted: {@link #seesPokerCard}).
      */
     public static boolean revealed(Table t, UUID owner) {
         Table.Result r = t.last();
-        return t.game() == Table.Game.SUTDA && t.phase() == Table.Phase.RESULT && r != null && !r.uncontested()
+        return t.game().bets() && t.phase() == Table.Phase.RESULT && r != null && !r.uncontested()
                 && r.players().contains(owner) && !"die".equals(r.detail().get(owner));
+    }
+
+    /**
+     * 세븐 포커: who sees the face of card k of an owner: everyone if it is open (the one they opened, the 4th ~ 6th) or the
+     * hand is shown down, else the owner alone (the other two of the first three, the 7th).
+     */
+    public static boolean seesPokerCard(Table t, UUID viewer, UUID owner, int k) {
+        return t.isOpen(owner, k) || seesFace(viewer, owner, revealed(t, owner));
     }
 
     /** Who sees the face of an owner's card: the owner always, everyone once it is revealed. */
@@ -173,21 +182,167 @@ public final class TableArt {
     public record Reach(double card, double button, double dice, double timer, double buttonWidth) {}
 
     /** buttonWidth: the most a row of buttons spans side to side (blocks), so it stays on the table and off the neighbours. */
-    public static final Reach ROUND_REACH = new Reach(0.42, 0.62, 0.32, 0.5, 1.45), DUEL_REACH = new Reach(0.25, 0.42, 0.22, 0.3, 0.96);
+    public static final Reach ROUND_REACH = new Reach(0.42, 0.62, 0.32, 0.5, 1.45), DUEL_REACH = new Reach(0.25, 0.42, 0.22, 0.3, 0.96),
+            POKER_REACH = new Reach(0.6, 0.69, 0.32, 0.5, 1.2), BACCARAT_REACH = new Reach(0.5, 0.66, 0.32, 0.48, 1.2);
 
     public static Reach reach(TableKind k) {
-        return k == TableKind.DUEL ? DUEL_REACH : ROUND_REACH;
+        return switch (k) {
+            case DUEL -> DUEL_REACH;
+            case POKER -> POKER_REACH;
+            case BACCARAT -> BACCARAT_REACH;
+            default -> ROUND_REACH;
+        };
+    }
+
+    /**
+     * A table's size as the things on it see it (blocks): about how far its chairs are from the middle, and how far from
+     * the middle its top still holds something (the round · poker top is 3 across with the chairs 2 out, the duel crate 1
+     * across with its chairs 1 out).
+     */
+    public record Size(double seat, double top) {}
+
+    public static final Size ROUND_SIZE = new Size(2.0, 1.45), DUEL_SIZE = new Size(1.0, 0.5);
+
+    public static Size size(TableKind k) {
+        return k == TableKind.DUEL ? DUEL_SIZE : ROUND_SIZE;
     }
 
     /** Gaps between things side by side (blocks): wider than the things (a card 0.28, a button 0.3, a die 0.15 across). */
     public static final double CARD_GAP = 0.32, BUTTON_GAP = 0.34, DIE_GAP = 0.2;
 
+    /** The 주사위 cup's height (gamble_cup, blocks at scale 1; 8 px across). */
+    public static final double CUP_HEIGHT = 8.5 / 16.0;
+
     /**
-     * The 주사위 cup (gamble_cup, {@link #CUP_HEIGHT} blocks tall at scale 1, 8 px across) stands over its player's dice;
-     * lifted off a roll it is put down mouth up CUP_ASIDE further out (of the way to the seat) and CUP_SIDE blocks to the
-     * sitter's right, clear of the dice and of the neighbours'.
+     * Footprints on the table top seen from above (radius, blocks, at the scales TableScene draws them): the cup (8 px at
+     * 0.9), a die (4 px at 0.6, its half diagonal: it lands turned), the 홀짝 bowl (11 px at 0.8) and its die (×1.3). CLEAR:
+     * the least gap kept between two of them.
      */
-    public static final double CUP_ASIDE = 0.15, CUP_SIDE = 0.2, CUP_HEIGHT = 8.5 / 16.0;
+    public static final double CUP_FOOT = 0.235, DIE_FOOT = 0.11, BOWL_FOOT = 0.28, BOWL_DIE_FOOT = 0.14, CLEAR = 0.03;
+
+    /** How much further out (blocks, towards the seat) than the dice a lifted cup is put down. */
+    public static final double CUP_OUT = 0.26;
+
+    /** Where a lifted cover goes: `reach` of the way out to the seat (as {@link #along}), `side` blocks to the sitter's right. */
+    public record Aside(double reach, double side) {}
+
+    /**
+     * Where a 주사위 cup is put down mouth up once lifted off a roll (2026-11-26 fix: it used to stand between its player
+     * and the dice, hiding them): to the sitter's right of the dice row, beside it and a little further out, with
+     * {@link #CLEAR} between it and every die, so the dice stay in full view of their player and the table. Null when the
+     * table top has no room for that (the duel crate): the cup is lifted away instead and comes back with the next hand.
+     */
+    public static Aside cupAside(Reach r, Size size, int dice) {
+        double side = Math.max(0, dice - 1) / 2.0 * DIE_GAP + DIE_FOOT + CUP_FOOT + CLEAR;
+        double out = r.dice() * size.seat() + CUP_OUT;
+        if (Math.hypot(out, side) + CUP_FOOT > size.top()) return null;
+        return new Aside(out / size.seat(), side);
+    }
+
+    /**
+     * Where the 홀짝 bowl is put down once lifted off the die (still mouth down, the die in the middle in full view): beside
+     * it, across the line between the two players, so it stands in neither one's way. Null when the top has no room (the
+     * duel crate): the bowl is lifted away and comes back down for the next hand.
+     */
+    public static Aside bowlAside(Size size) {
+        double side = BOWL_DIE_FOOT + BOWL_FOOT + CLEAR;
+        if (side + BOWL_FOOT > size.top()) return null;
+        return new Aside(0, side);
+    }
+
+    // ------------------------------------------------------------------------------------------ 세븐 포커's cards
+
+    /**
+     * 세븐 포커's cards before a seat lie in two rows: the hidden ones (the two of the first three not opened, the 7th)
+     * nearer the player at {@link Reach#card()}, the open ones (the opened one, the 4th ~ 6th) further in at POKER_OPEN, a
+     * little overlapped (the corner with the rank shows) so six seats' rows stay apart. Cards (pcard, 6 × 8 px like the
+     * 화투 cards) at {@link #PCARD_SCALE}.
+     */
+    public static final double POKER_OPEN = 0.47, POKER_HIDDEN_GAP = 0.2, POKER_OPEN_GAP = 0.15;
+    public static final float PCARD_SCALE = 0.5f;
+    /** A playing card's half width and half depth at {@link #PCARD_SCALE} (blocks). */
+    public static final double PCARD_HALF_W = 3 / 16.0 * PCARD_SCALE, PCARD_HALF_D = 4 / 16.0 * PCARD_SCALE;
+
+    /**
+     * Where card k (dealt order 0 ~ 6) of a 세븐 포커 hand lies: row and slot. The first three start in the hidden row (slots
+     * 0 1 2); the one opened moves to the open row's slot 0; the 4th ~ 6th take open slots 1 ~ 3; the 7th takes the hidden
+     * slot the opened card left. opened: which of the first three was opened (-1: not yet).
+     */
+    public static double[] pokerSlot(int k, int opened) {
+        if (k < 3) {
+            if (k == opened) return new double[]{1, 0};
+            return new double[]{0, k};
+        }
+        if (k <= 5) return new double[]{1, k - 2};
+        return new double[]{0, opened < 0 ? 2 : opened};
+    }
+
+    /** The spot of a 세븐 포커 card: row 0 hidden (3 slots), row 1 open (4 slots); facing its seat. */
+    public static Spot pokerSpot(double[] center, double[] seat, Reach r, int row, int slot) {
+        double side = row == 0 ? row(3, POKER_HIDDEN_GAP).get(Math.clamp(slot, 0, 2)) : row(4, POKER_OPEN_GAP).get(Math.clamp(slot, 0, 3));
+        return along(center, seat, row == 0 ? r.card() : POKER_OPEN, side, true);
+    }
+
+    // ------------------------------------------------------------------------------------------ 바카라
+
+    /**
+     * The 바카라 table's layout from its middle and the way to the dealer (a unit vector on the ground): the dealer stands
+     * DEALER_OUT behind the middle; the 플레이어 hand lies on the players' left of the dealer's line and the 뱅커 hand on
+     * their right, HAND_IN towards the dealer, each in a row of three (the third card last); the shoe at the dealer's
+     * left, the discard at the dealer's right. Cards face the players (read from the curved side).
+     */
+    public static final double DEALER_OUT = 1.35, HAND_IN = 0.45, HAND_SIDE = 0.55, HAND_GAP = 0.3, SHOE_IN = 0.8, SHOE_SIDE = 1.05;
+    public static final float BAC_CARD_SCALE = 0.75f;
+
+    /** The players' right hand as they face the dealer (dx, dz the way to the dealer). */
+    public static double[] rightOf(double dx, double dz) {
+        return new double[]{-dz, dx};
+    }
+
+    /** A point `in` towards the dealer and `side` to the players' right of the middle. */
+    public static double[] bac(double[] center, double[] toDealer, double in, double side) {
+        double[] r = rightOf(toDealer[0], toDealer[1]);
+        return new double[]{center[0] + toDealer[0] * in + r[0] * side, center[1] + toDealer[1] * in + r[1] * side};
+    }
+
+    /** Card k (0 ~ 2) of a hand (player: true) on the 바카라 table. */
+    public static double[] bacCard(double[] center, double[] toDealer, boolean player, int k) {
+        double side = (player ? -HAND_SIDE : HAND_SIDE) + row(3, HAND_GAP).get(Math.clamp(k, 0, 2));
+        return bac(center, toDealer, HAND_IN, side);
+    }
+
+    /**
+     * The way from a 바카라 table's middle to its dealer: from the dealer's spot when known, else away from the chairs
+     * (they stand round the curved side, so their middle lies off the table's middle towards it), else away from seat 0.
+     */
+    public static double[] toDealer(double[] center, List<double[]> seats, double[] dealer) {
+        double dx, dz;
+        if (dealer != null) {
+            dx = dealer[0] - center[0];
+            dz = dealer[1] - center[1];
+        } else {
+            double[] m = center(seats);
+            dx = center[0] - m[0];
+            dz = center[1] - m[1];
+            if (Math.hypot(dx, dz) < 0.15 && !seats.isEmpty()) {
+                dx = center[0] - seats.getFirst()[0];
+                dz = center[1] - seats.getFirst()[1];
+            }
+        }
+        double len = Math.hypot(dx, dz);
+        if (len < 1e-6) return new double[]{0, -1};
+        return new double[]{dx / len, dz / len};
+    }
+
+    /** Where a seat's bets on 플레이어 · 뱅커 · 타이 lie: in a row before it, at BET_REACH (the spot's ordinal: left to right). */
+    public static final double BET_REACH = 0.55, BET_GAP = 0.26;
+
+    public static Spot betSpot(double[] center, double[] seat, Baccarat.Spot spot) {
+        return along(center, seat, BET_REACH, row(3, BET_GAP).get(spot.ordinal()), true);
+    }
+
+    /** 바카라's chip buttons lie in a row of their own nearer the player than the betting buttons (flat: they hide nothing). */
+    public static final double CHIP_REACH = 0.78;
 
     /** Where one button of a seat's pad goes: `side` blocks to the sitter's right, drawn at `scale` (1 = full size). */
     public record Slot(double side, double scale) {}

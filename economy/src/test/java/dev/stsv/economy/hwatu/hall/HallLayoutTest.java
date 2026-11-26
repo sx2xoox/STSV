@@ -74,14 +74,17 @@ class HallLayoutTest {
         for (HallLayout.Table t : L.tables()) {
             if (!first) b.append(',');
             first = false;
-            b.append(String.format(Locale.ROOT, "{\"index\":%d,\"x\":%d,\"y\":%d,\"z\":%d,\"yaw\":%s,\"item\":\"%s\",\"game\":\"%s\",\"room\":\"%s\",\"title\":\"%s\",\"seats\":[",
+            b.append(String.format(Locale.ROOT, "{\"index\":%d,\"x\":%d,\"y\":%d,\"z\":%d,\"yaw\":%s,\"item\":\"%s\",\"game\":\"%s\",\"room\":\"%s\",\"title\":\"%s\",",
                     t.index(), t.x(), t.y(), t.z(), t.yaw(), t.item(), t.game().id, t.room().id, t.title()));
+            if (t.dealer() != null) b.append(String.format(Locale.ROOT, "\"dealer\":[%s,%s,%s,%s],", t.dealer().x(), t.dealer().y(), t.dealer().z(), t.dealer().yaw()));
+            b.append("\"seats\":[");
             for (int i = 0; i < t.seats().size(); i++) b.append(i == 0 ? "" : ",").append('[').append(t.seats().get(i)[0]).append(',').append(t.seats().get(i)[2]).append(']');
             b.append("]}");
         }
         b.append("],\"anchors\":{");
         Map<String, HallLayout.Point> anchors = Map.of("gate", L.gate(), "warp", L.warp(), "counterNpc", L.counterNpc(), "counter", L.counter(),
-                "whiteboard", L.whiteboard(), "gallery", L.gallery());
+                "whiteboard", L.whiteboard(), "gallery", L.gallery(), "annexCounterNpc", L.annexCounterNpc(), "annexCounter", L.annexCounter(),
+                "annexDoor", L.annexDoor());
         first = true;
         for (Map.Entry<String, HallLayout.Point> e : anchors.entrySet()) {
             if (!first) b.append(',');
@@ -115,32 +118,65 @@ class HallLayoutTest {
     }
 
     @Test
-    void sixTablesInThePlansOrder() {
+    void nineTablesInThePlansOrder() {
         List<HallLayout.Table> t = L.tables();
-        assertEquals(6, t.size());
-        String[][] want = {{"sutda", "beginner"}, {"sutda", "normal"}, {"sutda", "high"}, {"dice", "beginner"}, {"holjjak", "beginner"}, {"holjjak", "normal"}};
-        for (int i = 0; i < 6; i++) {
-            assertEquals(i, t.get(i).index());
-            assertEquals(want[i][0], t.get(i).game().id);
-            assertEquals(want[i][1], t.get(i).room().id);
-            assertEquals(t.get(i).game() == HallLayout.Game.HOLJJAK ? HallLayout.DUEL : HallLayout.ROUND, t.get(i).item());
-            assertEquals(t.get(i).round() ? 6 : 2, t.get(i).seats().size());
+        assertEquals(9, t.size());
+        String[][] want = {{"sutda", "beginner"}, {"sutda", "normal"}, {"sutda", "high"}, {"dice", "beginner"}, {"holjjak", "beginner"}, {"holjjak", "normal"},
+                {"seven_poker", "beginner"}, {"seven_poker", "normal"}, {"baccarat", "normal"}};
+        for (int i = 0; i < 9; i++) {
+            HallLayout.Table x = t.get(i);
+            assertEquals(i, x.index());
+            assertEquals(want[i][0], x.game().id);
+            assertEquals(want[i][1], x.room().id);
+            assertEquals(switch (x.game()) {
+                case HOLJJAK -> HallLayout.DUEL;
+                case SEVEN_POKER -> HallLayout.POKER;
+                case BACCARAT -> HallLayout.BACCARAT;
+                default -> HallLayout.ROUND;
+            }, x.item());
+            assertEquals(x.game() == HallLayout.Game.HOLJJAK ? 2 : 6, x.seats().size());
+            assertEquals(i >= 6, x.annex(), x.title());
+            assertEquals(x.game() == HallLayout.Game.BACCARAT, x.dealer() != null, x.title() + ": a dealer only at the baccarat table");
         }
         // no two tables share a block, and each has an aisle (a block) all round it
-        for (int i = 0; i < 6; i++) for (int j = i + 1; j < 6; j++) {
+        for (int i = 0; i < 9; i++) for (int j = i + 1; j < 9; j++) {
             for (int[] a : t.get(i).footprint()) for (int[] b : t.get(j).footprint())
                 assertTrue(Math.max(Math.abs(a[0] - b[0]), Math.abs(a[2] - b[2])) >= 2, t.get(i).title() + " too close to " + t.get(j).title());
         }
         Map<Long, String> solid = solid();
-        HallLayout.Box hall = L.hall();
         for (HallLayout.Table x : t) {
+            HallLayout.Box hall = x.annex() ? L.annex().getFirst() : L.hall();
             for (int[] c : x.footprint()) {
-                assertTrue(hall.containsBlock(c[0], c[1], c[2]), x.title() + " outside the hall");
+                assertTrue(hall.containsBlock(c[0], c[1], c[2]), x.title() + " outside its room");
                 assertNotNull(solid.get(key(c[0], c[1] - 1, c[2])), x.title() + ": no floor under " + c[0] + "," + c[2]);
                 for (int y = 0; y < 2; y++) assertFalse(solid.containsKey(key(c[0], c[1] + y, c[2])), x.title() + ": something in its place at " + c[0] + "," + (c[1] + y) + "," + c[2]);
             }
             for (int[] s : x.seats()) assertTrue(x.footprint().stream().anyMatch(c -> c[0] == s[0] && c[2] == s[2]), x.title() + ": a seat outside its place");
         }
+    }
+
+    /**
+     * The 별관's baccarat table: its seats round the curve (towards the door), clockwise from above from the dealer's left
+     * (the furniture's seat order, turned as the hall turns it), its dealer in the furniture's cell behind the straight
+     * edge (2 behind the anchor, away from the door), facing the players, inside the table's own place, with room behind
+     * him to walk round; the poker tables seat as the round ones.
+     */
+    @Test
+    void theBaccaratDealerStandsBehindItsStraightEdge() {
+        HallLayout.Table bac = L.tables().stream().filter(x -> x.game() == HallLayout.Game.BACCARAT).findFirst().orElseThrow();
+        HallLayout.Point d = bac.dealer();
+        assertEquals(bac.x() + 0.5, d.x(), 1e-9);
+        assertEquals(bac.z() + HallLayout.DEALER_BACK + 0.5, d.z(), 1e-9);
+        assertEquals(bac.y(), d.y(), 1e-9);
+        assertEquals(180f, d.yaw(), "facing the players (and the door)");
+        assertTrue(bac.footprint().stream().anyMatch(c -> c[0] == bac.x() && c[2] == bac.z() + HallLayout.DEALER_BACK), "in the table's own place");
+        for (int[] s : bac.seats()) assertTrue(s[2] <= bac.z(), "seats round the curve, the door's side");
+        assertEquals(bac.x() + 2, bac.seats().getFirst()[0], "seat 0 at the dealer's left (the hall's +x as it is drawn)");
+        for (HallLayout.Table p : L.tables()) if (p.game() == HallLayout.Game.SEVEN_POKER)
+            for (int i = 0; i < 6; i++) {
+                assertEquals(p.x() + HallLayout.roundSeats().get(i)[0], p.seats().get(i)[0]);
+                assertEquals(p.z() + HallLayout.roundSeats().get(i)[1], p.seats().get(i)[2]);
+            }
     }
 
     // ------------------------------------------------------------------------------------------
@@ -179,7 +215,7 @@ class HallLayoutTest {
             int[] c = todo.poll();
             for (int[] s : steps) {
                 int x = c[0] + s[0], z = c[2] + s[1];
-                if (Math.abs(x) > HallLayout.LOT + 1 || z < HallLayout.APRON - 1 || z > HallLayout.BACK + 1) continue;
+                if (x < -HallLayout.LOT - 1 || x > HallLayout.LOT_RIGHT + 1 || z < HallLayout.APRON - 1 || z > HallLayout.BACK + 1) continue;
                 for (int dy = 1; dy >= -3; dy--) {
                     int y = c[1] + dy;
                     if (dy == 1 && !passable(solid.get(key(c[0], c[1] + 2, c[2])))) continue;   // no room to jump
@@ -203,7 +239,7 @@ class HallLayoutTest {
     }
 
     @Test
-    void everySeatTheCounterAndTheGalleryCanBeWalkedTo() {
+    void everySeatTheDealerTheCountersAndTheGalleryCanBeWalkedTo() {
         int[] gate = block(L.gate());
         Set<Long> from = reach(gate[0], gate[1], gate[2]);
         Set<Long> taken = tableCells();
@@ -224,15 +260,32 @@ class HallLayoutTest {
             }
             assertTrue(round >= 8, t.title() + ": hardly room to watch (" + round + ")");
         }
-        for (HallLayout.Point p : List.of(L.warp(), L.counter(), L.counterNpc(), L.gallery())) {
+        for (HallLayout.Point p : List.of(L.warp(), L.counter(), L.counterNpc(), L.gallery(), L.annexCounter(), L.annexCounterNpc(), L.annexDoor())) {
             int[] b = block(p);
             assertTrue(from.contains(key(b[0], b[1], b[2])), "cannot walk to " + p);
         }
+        // the dealer's spot (inside the table's place, which nobody walks through) has a walkable block next to it
+        for (HallLayout.Table t : L.tables()) {
+            if (t.dealer() == null) continue;
+            int[] d = block(t.dealer());
+            boolean ok = false;
+            for (int[] n : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                long k = key(d[0] + n[0], d[1], d[2] + n[1]);
+                ok |= !taken.contains(k) && from.contains(k);
+            }
+            assertTrue(ok, t.title() + ": the dealer cannot walk to his spot");
+        }
+        // the 별관 from the hall itself: through the passage (not only round by the yard)
+        int[] warp = block(L.warp());
+        Set<Long> inside = new HashSet<>();
+        for (long k : reach(warp[0], warp[1], warp[2])) inside.add(k);
+        int[] ac = block(L.annexCounter());
+        assertTrue(inside.contains(key(ac[0], ac[1], ac[2])), "the 별관 from the hall's door");
         // the whiteboard can be read from the back aisle
         int[] wb = block(L.whiteboard());
         assertTrue(from.contains(key(wb[0], 1, wb[2] - 2)), "nowhere to stand before the whiteboard");
         // the gallery looks straight down onto the back row: its hole is over them
-        for (HallLayout.Table t : L.tables()) if (t.z() > 13) assertTrue(HallLayout.VOID.containsBlock(t.x(), HallLayout.ROOF, t.z()), t.title());
+        for (HallLayout.Table t : L.tables()) if (t.z() > 13 && !t.annex()) assertTrue(HallLayout.VOID.containsBlock(t.x(), HallLayout.ROOF, t.z()), t.title());
     }
 
     @Test
@@ -240,12 +293,21 @@ class HallLayoutTest {
         HallLayout.Box hall = L.hall();
         for (HallLayout.Point p : List.of(L.warp(), L.counter(), L.counterNpc(), L.whiteboard(), L.gallery()))
             assertTrue(hall.contains(p.x(), p.y(), p.z()), "outside the hall: " + p);
-        assertFalse(hall.contains(L.gate().x(), L.gate().y(), L.gate().z()));
+        assertFalse(L.inside(L.gate().x(), L.gate().y(), L.gate().z()));
+        HallLayout.Box annex = L.annex().getFirst();
+        for (HallLayout.Point p : List.of(L.annexCounter(), L.annexCounterNpc(), L.annexDoor()))
+            assertTrue(annex.contains(p.x(), p.y(), p.z()), "outside the 별관: " + p);
+        for (HallLayout.Table t : L.tables()) if (t.dealer() != null) assertTrue(annex.contains(t.dealer().x(), t.dealer().y(), t.dealer().z()));
+        // the 별관's boss and customer face each other across its desk, the customer on the room's side
+        assertEquals(180f, Math.abs(L.annexCounterNpc().yaw() - L.annexCounter().yaw()));
+        assertTrue(L.annexCounterNpc().x() > L.annexCounter().x());
+        // the passage counts as inside
+        assertTrue(L.inside(HallLayout.HALF + 2.5, 1.5, HallLayout.PASS_Z0 + 1.5));
         // the boss and the customer face each other across the desk
         assertEquals(180f, Math.abs(L.counterNpc().yaw() - L.counter().yaw()));
         assertTrue(L.counterNpc().x() < L.counter().x());
         assertEquals(180f, L.whiteboard().yaw());
-        assertEquals(6 + 2, L.smoke().size());
+        assertEquals(9 + 3, L.smoke().size(), "over every table, the two drum fires, the lounge");
     }
 
     @Test

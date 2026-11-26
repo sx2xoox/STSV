@@ -32,9 +32,25 @@ import java.util.Set;
  *  z=-6 └──────────── 정문 (x -2..2, 노랑·검정 줄무늬 기둥) · "공사중 · 관계자 외 출입금지" ─────────────────┘
  * </pre>
  *
+ * <p>별관 (annex, docs/plans/도박장_기획.md §7): two more containers joined side by side to the right of the stairs
+ * (x {@link #ANNEX_X0} .. {@link #ANNEX_X1}, z 1 .. 23: a white one and an orange one, inner walls cut out), its own open
+ * doors onto the yard (x 15 .. 19), a covered passage from the hall's back right corner (x 11 .. 13, z 19 .. 23,
+ * doorways z 20 .. 22): 세븐 포커 초보방 · 일반방 (poker_table) and 바카라 일반방 (baccarat_table, its dealer at the back,
+ * facing the door) down its middle, a second chip counter by its door, a red runner, lamps. The lot grows to the right
+ * (x -16 .. {@link #LOT_RIGHT}: 47 wide).
+ *
+ * <pre>
+ *  z=23 ┌─ 통로 (x 11..13, z 19..23) ─┬────────── 별관 (x 14..27) ───────────┐
+ *       │  (본관 뒤 오른쪽 구석과 이어짐) │ [바카라 일반방] z 19, 딜러 z 21 (뒤)  │
+ *       │                              │ [세븐 포커 일반방] z 13                │
+ *       │  철계단 (x 11..13)            │ [세븐 포커 초보방] z 7                 │
+ *       │                              │ 문 (x 15..19)     환전 창구 2 (x 24)    │
+ *  z=1  └──────────────────────────────┴───────────────────────────────────────┘
+ * </pre>
+ *
  * Real blocks for everything built (ground, hoarding, scaffolding, the containers, stairs, the inside), display models
  * ({@link Prop}: the economy:gamble_prop_* items) for the clutter, text displays ({@link Label}) for printed signs, and
- * the six tables ({@link Table}: core furniture, placed by the builder). Nothing a player could open (no chests, no
+ * the nine tables ({@link Table}: core furniture, placed by the builder; six in the hall, three in the 별관). Nothing a player could open (no chests, no
  * barrels, no doors): the only things that do something are the tables and the counter's NPC (HwatuModule's).
  */
 public final class HallLayout {
@@ -76,7 +92,11 @@ public final class HallLayout {
 
     /** What is played at a table (HwatuModule's game ids). */
     public enum Game {
-        SUTDA("sutda", "섯다"), DICE("dice", "주사위"), HOLJJAK("holjjak", "홀짝");
+        SUTDA("sutda", "섯다"), DICE("dice", "주사위"), HOLJJAK("holjjak", "홀짝"),
+        /** 별관: 세븐 포커 (poker_table). */
+        SEVEN_POKER("seven_poker", "세븐 포커"),
+        /** 별관: 바카라 (baccarat_table, a dealer NPC at {@link Table#dealer}). */
+        BACCARAT("baccarat", "바카라");
 
         public final String id, word;
 
@@ -109,23 +129,34 @@ public final class HallLayout {
 
     /** The two table items (core furniture with seats: docs/plans/도박장_기획.md §2). */
     public static final String ROUND = "economy:gamble_table_round", DUEL = "economy:gamble_table_duel";
+    /** The 별관's two table items (items/gamble.yml): 세븐 포커 (6 seats as the round table's) and 바카라 (6 seats round its curve). */
+    public static final String POKER = "economy:poker_table", BACCARAT = "economy:baccarat_table";
 
     /**
-     * One of the six tables.
+     * One of the nine tables (six in the hall, three in the 별관).
      *
-     * @param index     0 .. 5 in the plan's order (섯다 초보 · 섯다 일반 · 섯다 큰손 · 주사위 초보 · 홀짝 초보 · 홀짝 일반)
+     * @param index     0 .. 5 in the plan's order (섯다 초보 · 섯다 일반 · 섯다 큰손 · 주사위 초보 · 홀짝 초보 · 홀짝 일반), then the
+     *                  별관's 6 .. 8 (세븐 포커 초보 · 세븐 포커 일반 · 바카라 일반)
      * @param x         its anchor block (the furniture's own block: its middle), y the floor it stands on (+1 of the floor block)
      * @param yaw       the way its front (seat 0) faces
      * @param footprint the blocks it keeps clear for itself and its chairs (kept free of everything else)
-     * @param seats     where the chairs are, assumed (seat 0 in front, then clockwise seen from above): for the
+     * @param seats     where the chairs are, assumed (seat 0 in front, then clockwise seen from above; the baccarat
+     *                  table's round its curve from the dealer's left): for the
      *                  layout's checks only, the furniture's own seats are what count
      * @param centre    the middle of its top (cards and chips go round it)
      * @param sign      where its 팻말 (종목 · 방 · 판돈) floats
+     * @param dealer    the baccarat table's dealer: standing in the cell behind its straight edge (the furniture's cell
+     *                  (0, 0, 2), 2 blocks behind the anchor, away from the door), facing the players; null for the others
      */
     public record Table(int index, int x, int y, int z, float yaw, String item, Game game, Room room, List<int[]> footprint,
-                        List<int[]> seats, Point centre, Point sign) {
+                        List<int[]> seats, Point centre, Point sign, Point dealer) {
         public boolean round() {
             return ROUND.equals(item);
+        }
+
+        /** In the 별관 (세븐 포커 · 바카라)? */
+        public boolean annex() {
+            return POKER.equals(item) || BACCARAT.equals(item);
         }
 
         /** "섯다 큰손방". */
@@ -142,7 +173,7 @@ public final class HallLayout {
      * @param blocks     the build, bottom up
      * @param props      display models (clutter)
      * @param labels     printed text
-     * @param tables     the six tables, by index
+     * @param tables     the nine tables, by index (0 .. 5 the hall's, 6 .. 8 the 별관's)
      * @param gate       outside the lot's gate, looking in
      * @param warp       just inside the hall's door, looking in (where /화투방 brings people)
      * @param counterNpc where the 현장 소장 (the chip exchange's NPC) stands behind the desk, facing the customers
@@ -152,10 +183,22 @@ public final class HallLayout {
      * @param smoke      where a wisp of 담배연기 may rise (over each table, by the drum fire)
      * @param hall       the inside of the hall (both floors): "in the 도박장"
      * @param bounds     everything it touches
+     * @param annex      the inside of the 별관 and its passage from the hall (also "in the 도박장")
+     * @param annexCounterNpc the 별관 chip counter's NPC place (behind its desk by the door), facing the customers
+     * @param annexCounter    where a customer stands at that desk, facing the NPC
+     * @param annexDoor  just inside the 별관's own doors, looking in
      */
     public record Layout(List<Box> clear, List<Column> columns, List<Block> blocks, List<Prop> props, List<Label> labels, List<Table> tables,
                          Point gate, Point warp, Point counterNpc, Point counter, Point whiteboard, Point gallery, List<Point> smoke,
-                         Box hall, Box bounds) {}
+                         Box hall, Box bounds, List<Box> annex, Point annexCounterNpc, Point annexCounter, Point annexDoor) {
+
+        /** Is a point in the hall or its 별관 (either floor, the passage)? */
+        public boolean inside(double x, double y, double z) {
+            if (hall.contains(x, y, z)) return true;
+            for (Box b : annex) if (b.contains(x, y, z)) return true;
+            return false;
+        }
+    }
 
     // ------------------------------------------------------------------------------------------
     // the plan
@@ -163,6 +206,12 @@ public final class HallLayout {
 
     /** The lot (inside the hoarding at x ±LOT, z FRONT .. BACK), how high it is cleared, how deep its foundations go. */
     public static final int LOT = 16, FRONT = -6, BACK = 28, CLEAR = 20, FOUNDATION = 24;
+    /** The lot's right edge (the hoarding at x LOT_RIGHT; on the left it stays at -LOT): the 별관 made it wider. */
+    public static final int LOT_RIGHT = 30;
+    /** The 별관: two containers (x ANNEX_X0 .. ANNEX_X0 + 6 white, .. ANNEX_X1 orange), z HALL_Z0 .. HALL_Z1, floor y 0, roof 4. */
+    public static final int ANNEX_X0 = 14, ANNEX_X1 = 27;
+    /** The passage from the hall's back right corner to the 별관 (x 11 .. 13), its doorways z PASS_Z0 .. PASS_Z1. */
+    public static final int PASS_Z0 = 20, PASS_Z1 = 22;
     /** The apron outside the gate (x ±APRON_HALF, z APRON .. FRONT - 1): where the sign stands, the plates come out. */
     public static final int APRON = -9, APRON_HALF = 7;
     /** The hall: three containers joined side by side (x ±HALF, z HALL_Z0 .. HALL_Z1), floor at y 0, walls 1..3, roof 4. */
@@ -225,12 +274,13 @@ public final class HallLayout {
         d.stairs();
         d.scaffold();
         d.inside();
+        d.annex();
         d.yard();
         d.connect();
         List<Block> out = new ArrayList<>(d.blocks.values());
         out.sort(Comparator.comparingInt(Block::y));
-        Box clear = new Box(-LOT, 0, APRON, LOT, CLEAR, BACK);
-        Box bounds = new Box(-LOT - 1, -FOUNDATION - 2, APRON - 1, LOT + 1, CLEAR, BACK + 1);
+        Box clear = new Box(-LOT, 0, APRON, LOT_RIGHT, CLEAR, BACK);
+        Box bounds = new Box(-LOT - 1, -FOUNDATION - 2, APRON - 1, LOT_RIGHT + 1, CLEAR, BACK + 1);
         return new Layout(List.of(clear), List.copyOf(d.columns), List.copyOf(out), List.copyOf(d.props), List.copyOf(d.labels),
                 List.copyOf(d.tables),
                 new Point(0.5, 0, FRONT + 1.5, 0),
@@ -241,7 +291,11 @@ public final class HallLayout {
                 new Point(0.5, ROOF + 1, UP_Z0 + 1.5, 0),
                 List.copyOf(d.smoke),
                 new Box(-HALF + 1, 1, HALL_Z0 + 1, HALF - 1, UP_ROOF - 1, HALL_Z1 - 1),
-                bounds);
+                bounds,
+                List.of(new Box(ANNEX_X0 + 1, 1, HALL_Z0 + 1, ANNEX_X1 - 1, ROOF - 1, HALL_Z1 - 1), new Box(HALF, 1, PASS_Z0, ANNEX_X0, 2, PASS_Z1)),
+                new Point(25.5, 1, 3.5, 270),
+                new Point(23.5, 1, 3.5, 90),
+                new Point(17.5, 1, HALL_Z0 + 1.5, 0));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -258,7 +312,7 @@ public final class HallLayout {
     }
 
     private void lot() {
-        for (int x = -LOT; x <= LOT; x++) {
+        for (int x = -LOT; x <= LOT_RIGHT; x++) {
             for (int z = FRONT; z <= BACK; z++) {
                 // patches a few blocks across (trodden dirt, spread gravel), a little scatter inside them
                 int patch = noise(Math.floorDiv(x + noise(z, 7, 2), 3), Math.floorDiv(z + noise(x, 3, 2), 3), 10), fine = noise(x, z, 9);
@@ -277,6 +331,9 @@ public final class HallLayout {
         for (int z = APRON; z <= 0; z++) for (int x = -2; x <= 2; x++) set(x, -1, z, Math.floorMod(z, 2) == 0 ? "polished_deepslate" : "deepslate_tiles");
         // under the hall: gravel (it sits on it)
         for (int x = -HALF; x <= HALF; x++) for (int z = HALL_Z0; z <= HALL_Z1; z++) set(x, -1, z, "gravel");
+        for (int x = HALF + 1; x <= ANNEX_X1; x++) for (int z = HALL_Z0; z <= HALL_Z1; z++) if (x >= ANNEX_X0 || z >= PASS_Z0 - 1) set(x, -1, z, "gravel");
+        // the plates on to the 별관's doors
+        for (int z = FRONT + 1; z <= 0; z++) for (int x = 15; x <= 19; x++) set(x, -1, z, Math.floorMod(z, 2) == 0 ? "polished_deepslate" : "deepslate_tiles");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -284,13 +341,13 @@ public final class HallLayout {
     // ------------------------------------------------------------------------------------------
 
     private void hoarding() {
-        for (int x = -LOT; x <= LOT; x++) {
+        for (int x = -LOT; x <= LOT_RIGHT; x++) {
             fence(x, FRONT);
             fence(x, BACK);
         }
         for (int z = FRONT + 1; z < BACK; z++) {
             fence(-LOT, z);
-            fence(LOT, z);
+            fence(LOT_RIGHT, z);
         }
         // the gate: two striped posts, a striped beam over it (5 wide, 3 high), the opening onto the plates
         for (int x = -2; x <= 2; x++) for (int y = 0; y <= 2; y++) set(x, y, FRONT, AIR);
@@ -303,10 +360,11 @@ public final class HallLayout {
         labels.add(new Label(12.5, 0.7, FRONT - 0.02, 180, "<white><bold>무 재 해</bold> 현 장", 2.2f, 0));
         labels.add(new Label(7.0, 0.75, FRONT - 0.02, 180, "<red><bold>공사중</bold></red> <black>· 관계자 외 출입금지", 1.25f, 0xF0FFFFFF));
         labels.add(new Label(0.5, 0.55, BACK + 1.02, 0, "<white><bold>안 전 제 일", 3.5f, 0));
+        labels.add(new Label(23.5, 0.55, FRONT - 0.02, 180, "<white><bold>안 전 제 일", 3.0f, 0));
     }
 
     private void fence(int x, int z) {
-        boolean post = (Math.abs(x) == LOT && (z == FRONT || z == BACK)) || (z == FRONT || z == BACK ? Math.floorMod(x, 4) == 0 : Math.floorMod(z, 4) == 2);
+        boolean post = ((x == -LOT || x == LOT_RIGHT) && (z == FRONT || z == BACK)) || (z == FRONT || z == BACK ? Math.floorMod(x, 4) == 0 : Math.floorMod(z, 4) == 2);
         set(x, 0, z, post ? "light_gray_concrete" : "blue_concrete");
         set(x, 1, z, post ? "light_gray_concrete" : "blue_concrete");
         set(x, 2, z, "white_concrete");
@@ -323,6 +381,8 @@ public final class HallLayout {
     private static final Paint GREEN = new Paint("green_concrete", "green_terracotta", "brown_terracotta");
     private static final Paint BLUE = new Paint("blue_concrete", "blue_terracotta", "gray_concrete");
     private static final Paint YELLOW = new Paint("yellow_concrete", "yellow_terracotta", "gray_concrete");
+    private static final Paint WHITE = new Paint("white_concrete", "light_gray_concrete", "gray_concrete");
+    private static final Paint ORANGE = new Paint("orange_terracotta", "orange_concrete", "brown_terracotta");
 
     /** Which container a hall x is in (its paint) and its walls' x. */
     private static Paint module(int x) {
@@ -529,7 +589,7 @@ public final class HallLayout {
             Point centre = new Point(x + 0.5, y + 1.0, z + 0.5, 180);
             boolean open = VOID.containsBlock(x, ROOF, z);
             Point sign = new Point(x + 0.5, y + dev.stsv.economy.hwatu.TableArt.SIGN_UP, z + 0.5, 180);   // between its bulb and the ceiling (TableScene)
-            tables.add(new Table(i, x, y, z, 180, (String) t[2], (Game) t[3], (Room) t[4], List.copyOf(foot), List.copyOf(seats), centre, sign));
+            tables.add(new Table(i, x, y, z, 180, (String) t[2], (Game) t[3], (Room) t[4], List.copyOf(foot), List.copyOf(seats), centre, sign, null));
             smoke.add(new Point(x + 0.5, y + 1.8, z + 0.5, 0));
             if (!open) set(x, ROOF - 1, z, "lantern[hanging=true]");   // a bare bulb over each (the back row's hang through the hole)
             // an old grey blanket thrown on the plywood under it (the chairs scrape on it, not the floor)
@@ -572,10 +632,9 @@ public final class HallLayout {
             set(x, y + 1, 22, x == -9 ? "green_terracotta" : AIR);
         }
         set(-9, y, 21, "green_terracotta");
-        set(9, y, 22, "spruce_planks");
-        set(8, y, 22, "spruce_planks");
-        set(9, y + 1, 22, "oak_planks");
-        set(9, y, 21, "cauldron");
+        set(8, y, 22, "spruce_planks");                         // drinks crates (clear of the 별관 passage's doorway at x 9)
+        set(8, y + 1, 22, "oak_planks");
+        set(7, y, 22, "cauldron");
         // air conditioners high on the long walls
         for (int x : new int[]{-9, 9}) set(x, ROOF - 1, 14, "white_concrete");
         // high-vis vests hung on the front wall by the door, posters
@@ -592,6 +651,149 @@ public final class HallLayout {
         }
         set(7, ROOF - 1, 4, "lantern[hanging=true]");
         smoke.add(new Point(5.5, 2.2, 5.5, 0));
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // 별관: two more containers to the right of the stairs, a passage from the hall's back right corner, the card room
+    // ------------------------------------------------------------------------------------------
+
+    /** The 별관's tables: anchor x, z, item, game, room (all facing the door, as the hall's: yaw 180). */
+    private static final Object[][] ANNEX_TABLES = {
+            {20, 7, POKER, Game.SEVEN_POKER, Room.BEGINNER},
+            {20, 13, POKER, Game.SEVEN_POKER, Room.NORMAL},
+            {20, 19, BACCARAT, Game.BACCARAT, Room.NORMAL},
+    };
+
+    /** The baccarat table's chairs round its curve (hall cells, as roundSeats: the furniture's x turned), from the dealer's left. */
+    static List<int[]> baccaratSeats() {
+        return List.of(new int[]{2, 0}, new int[]{2, -1}, new int[]{1, -2}, new int[]{-1, -2}, new int[]{-2, -1}, new int[]{-2, 0});
+    }
+
+    /** Where the baccarat dealer stands from the table's anchor (the furniture's cell (0, 0, 2): behind the straight edge). */
+    public static final int DEALER_BACK = 2;
+
+    private static Paint annexModule(int x) {
+        return x <= ANNEX_X0 + 6 ? WHITE : ORANGE;
+    }
+
+    private static boolean annexEdge(int x) {
+        return x == ANNEX_X0 || x == ANNEX_X0 + 6 || x == ANNEX_X0 + 7 || x == ANNEX_X1;
+    }
+
+    private void annex() {
+        int x0 = ANNEX_X0, x1 = ANNEX_X1, z0 = HALL_Z0, z1 = HALL_Z1, y = 1;
+        for (int x = x0; x <= x1; x++) {
+            Paint p = annexModule(x);
+            for (int z = z0; z <= z1; z++) {
+                boolean wall = x == x0 || x == x1 || z == z0 || z == z1;
+                set(x, 0, z, wall ? p.rail() : plywood(x, z));
+                boolean rim = wall || annexEdge(x);
+                set(x, ROOF, z, rim ? p.rail() : Math.floorMod(z, 2) == 0 ? p.rib() : p.panel());
+                if (!wall) continue;
+                boolean corner = (x == x0 || x == x1) && (z == z0 || z == z1);
+                boolean post = corner || (z == z0 || z == z1) && annexEdge(x);
+                for (int yy = 1; yy < ROOF; yy++) {
+                    int along = z == z0 || z == z1 ? x : z;
+                    set(x, yy, z, post ? p.rail() : Math.floorMod(along, 2) == 0 ? p.rib() : p.panel());
+                }
+            }
+        }
+        // its own doors, open on to the yard (the white container's end: 5 wide, 2 high), the leaves swung round in front
+        for (int x = 15; x <= 19; x++) {
+            set(x, 1, z0, AIR);
+            set(x, 2, z0, AIR);
+            set(x, 3, z0, WHITE.rail());
+            set(x, 0, z0, plywood(x, z0));
+            set(x, 0, z0 - 1, "spruce_slab[type=bottom]");
+            set(x, -1, z0 - 2, Math.floorMod(x, 2) == 0 ? "yellow_concrete" : "black_concrete");
+        }
+        for (int x : new int[]{x0, 20}) {
+            for (int z = z0 - 2; z <= z0 - 1; z++) for (int yy = 1; yy <= 3; yy++) set(x, yy, z, z == z0 - 2 ? WHITE.rail() : yy == 2 ? WHITE.rib() : WHITE.panel());
+        }
+        labels.add(new Label(17.5, 3.2, z0 - 0.03, 180, "<black><bold>별 관</bold> <dark_gray>· 카 드 룸", 1.4f, 0xF0F0F0F0));
+        labels.add(new Label(23.5, 3.15, z0 - 0.03, 180, "<#ffd84a><bold>세븐 포커 · 바카라", 1.0f, 0xE0202020));
+        // windows: frosted glass with bars, in the far long wall, the ends
+        for (int z : new int[]{6, 7, 8, 12, 13, 14, 18, 19}) set(x1, 2, z, "gray_stained_glass_pane");
+        for (int x : new int[]{22, 23, 24}) set(x, 2, z0, "gray_stained_glass_pane");
+        for (int x : new int[]{16, 17, 23, 24, 25}) set(x, 2, z1, "gray_stained_glass_pane");
+        // the passage from the hall's back right corner: floor, two walls, a roof (the stair landing keeps its end)
+        for (int x = HALF + 1; x < x0; x++) {
+            for (int z = PASS_Z0 - 1; z <= PASS_Z1 + 1; z++) {
+                boolean wall = z == PASS_Z0 - 1 || z == PASS_Z1 + 1;
+                set(x, 0, z, wall ? WHITE.rail() : plywood(x, z));
+                if (wall) for (int yy = 1; yy < ROOF; yy++) set(x, yy, z, Math.floorMod(x, 2) == 0 ? WHITE.rib() : WHITE.panel());
+                if (at(x, ROOF, z) == null) set(x, ROOF, z, Math.floorMod(z, 2) == 0 ? WHITE.rib() : WHITE.rail());
+            }
+        }
+        for (int z = PASS_Z0; z <= PASS_Z1; z++) {
+            for (int yy = 1; yy <= 2; yy++) {
+                set(HALF, yy, z, AIR);
+                set(x0, yy, z, AIR);
+            }
+            set(HALF, 0, z, plywood(HALF, z));
+            set(x0, 0, z, plywood(x0, z));
+        }
+        labels.add(new Label(HALF - 0.02, 3.1, 21.5, 270, "<#ffd84a><bold>별관 →</bold> <white>세븐 포커 · 바카라", 0.8f, 0xD0202020));
+        set(12, ROOF - 1, 21, "lantern[hanging=true]");
+        // --- the three tables, a bulb over each, a blanket (grey under the poker tables, red under the baccarat one)
+        for (int i = 0; i < ANNEX_TABLES.length; i++) {
+            Object[] t = ANNEX_TABLES[i];
+            int x = (int) t[0], z = (int) t[1];
+            boolean bac = BACCARAT.equals(t[2]);
+            List<int[]> foot = new ArrayList<>();
+            for (int dx = -2; dx <= 2; dx++) for (int dz = -2; dz <= 2; dz++) foot.add(new int[]{x + dx, y, z + dz});
+            List<int[]> seats = new ArrayList<>();
+            for (int[] c : bac ? baccaratSeats() : roundSeats()) seats.add(new int[]{x + c[0], y, z + c[1]});
+            Point centre = new Point(x + 0.5, y + 1.0, z + 0.5, 180);
+            Point sign = new Point(x + 0.5, y + dev.stsv.economy.hwatu.TableArt.SIGN_UP, z + 0.5, 180);
+            Point dealer = bac ? new Point(x + 0.5, y, z + DEALER_BACK + 0.5, 180) : null;
+            tables.add(new Table(TABLES.length + i, x, y, z, 180, (String) t[2], (Game) t[3], (Room) t[4], List.copyOf(foot), List.copyOf(seats),
+                    centre, sign, dealer));
+            smoke.add(new Point(x + 0.5, y + 1.8, z + 0.5, 0));
+            set(x, ROOF - 1, z, "lantern[hanging=true]");
+            for (int[] c : foot) if (Math.abs(c[0] - x) + Math.abs(c[2] - z) <= 3) set(c[0], 0, c[2], bac ? "red_wool" : "gray_wool");
+        }
+        // the dealer's back wall: the game's name, the house rules
+        labels.add(new Label(20.5, 2.55, z1 - 0.03, 0, "<#ffd84a><bold>바 카 라", 1.3f, 0xE0202020));
+        labels.add(new Label(20.5, 1.95, z1 - 0.03, 0, "<white>뱅커 승 0.95배 · 타이 8배 · 플레이어 1배", 0.55f, 0xC0202020));
+        // --- the second chip counter by the door: a desk, the NPC behind it, a cabinet and a safe, a lamp
+        for (int z = 2; z <= 4; z++) set(24, y, z, "light_gray_concrete");
+        set(24, y + 1, 2, "green_carpet");
+        set(24, y + 1, 3, "light_weighted_pressure_plate");
+        set(24, y + 1, 4, "lantern");
+        set(26, y, 2, "light_gray_concrete");
+        set(26, y + 1, 2, "light_gray_concrete");
+        set(25, y, 2, "iron_trapdoor[facing=east,half=bottom,open=true]");   // a drawer front
+        set(26, y, 5, "black_concrete");
+        set(26, y + 1, 5, "dark_oak_slab[type=bottom]");
+        set(25, ROOF - 1, 3, "lantern[hanging=true]");
+        labels.add(new Label(x1 - 0.02, 2.3, 3.5, 270, "<#ffd84a><bold>칩 환전</bold>\n<white>별관 창구", 1.0f, 0xD0202020));
+        // --- a red runner down the left aisle from the doors to the passage, a sofa and a water cooler on the right
+        for (int z = 2; z <= 21; z++) set(16, y, z, "red_carpet");
+        for (int z = PASS_Z0; z <= PASS_Z1; z++) set(15, y, z, "red_carpet");
+        for (int z = 10; z <= 12; z++) set(26, y, z, "spruce_stairs[facing=west,half=bottom,shape=straight]");
+        set(26, y, 9, "spruce_slab[type=bottom]");
+        set(26, y, 13, "spruce_slab[type=bottom]");
+        set(26, y, 16, "white_concrete");
+        set(26, y + 1, 16, "light_blue_stained_glass");
+        set(26, y, 22, "green_terracotta");
+        set(25, y, 22, "green_terracotta");
+        set(26, y + 1, 22, "green_terracotta");
+        set(21, y, 2, "potted_fern");
+        set(15, y, 10, "cauldron");                               // the ashtray stand
+        // fluorescent tubes over the aisles, a bulb by the passage
+        for (int z = 9; z <= 11; z++) {
+            set(16, ROOF - 1, z, "end_rod[facing=north]");
+            set(24, ROOF - 1, z + 6, "end_rod[facing=north]");
+        }
+        set(16, ROOF - 1, 21, "lantern[hanging=true]");
+        labels.add(new Label(ANNEX_X0 + 1.02, 2.4, 13.5, 90, "<red><bold>금 연</bold>\n<black>외 상 사 절", 0.8f, 0xF0FFFFFF));
+        // an air conditioner high on the far wall, its outdoor unit outside
+        set(x1 - 1, ROOF - 1, 10, "white_concrete");
+        set(x1 + 1, 0, 10, "white_concrete");
+        set(x1 + 1, 0, 11, "light_gray_concrete");
+        set(x0, ROOF + 1, z0, "lantern");
+        set(x1, ROOF + 1, z0, "lantern");
     }
 
     // ------------------------------------------------------------------------------------------
@@ -619,9 +821,9 @@ public final class HallLayout {
         prop(-14.5, 0.15, 8.5, "pallet", 0);
         prop(-14.5, 0, 12.5, "cement", 90);
         prop(-14.5, 0, 18.5, "rebar", 0);
-        prop(13.5, 0, 22.5, "rebar", 0);
+        prop(28.5, 0, 17.5, "rebar", 90);
         prop(-6.5, 0, 25.5, "rebar", 90);
-        prop(14.5, 0, 2.5, "pallet", 0);
+        prop(28.5, 0, 6.5, "pallet", 0);                          // (the 별관 took the old spot by the stairs)
         for (int z = 22; z <= 24; z++) set(-15, 0, z, "stripped_spruce_log[axis=z]");
         set(-14, 0, 23, "stripped_spruce_log[axis=z]");
         set(-14, 1, 23, "stripped_spruce_log[axis=z]");
@@ -645,8 +847,15 @@ public final class HallLayout {
         set(13, 0, 26, "light_blue_terracotta");               // its door
         set(13, 1, 26, "light_blue_terracotta");
         // a hose reel / barrels by the stairs
-        set(14, 0, 12, "blue_terracotta");
-        set(14, 0, 13, "blue_terracotta");
+        set(28, 0, 12, "blue_terracotta");
+        set(28, 0, 13, "blue_terracotta");
+        // by the 별관: a work light on the yard's new front right corner, cones at its doors, cement on a pallet
+        prop(28.5, 0, -3.5, "worklight", 315);
+        prop(13.5, 0, -1.5, "cone", 0);
+        prop(21.5, 0, -1.5, "cone", 0);
+        prop(28.5, 0, 9.5, "cement", 90);
+        prop(28.5, 0, 25.5, "drumfire", 0);
+        smoke.add(new Point(28.5, 1.6, 25.5, 0));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -795,11 +1004,16 @@ public final class HallLayout {
             return out;
         }
 
-        /** Is a world point inside the hall (either floor)? */
+        /** Is a world point inside the hall (either floor) or its 별관 (or the passage to it)? */
         public boolean inside(String inWorld, double px, double py, double pz) {
             if (!world.equals(inWorld)) return false;
-            int[] b = box(of().hall());
-            return px >= b[0] && px < b[3] + 1 && py >= b[1] && py < b[4] + 1 && pz >= b[2] && pz < b[5] + 1;
+            List<Box> rooms = new ArrayList<>(of().annex());
+            rooms.addFirst(of().hall());
+            for (Box r : rooms) {
+                int[] b = box(r);
+                if (px >= b[0] && px < b[3] + 1 && py >= b[1] && py < b[4] + 1 && pz >= b[2] && pz < b[5] + 1) return true;
+            }
+            return false;
         }
 
         @Override

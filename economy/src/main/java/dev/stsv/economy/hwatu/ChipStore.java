@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 화투방 chips (README "화투방"): every player's chips, a number on the account and never an item (eco_hwatu_chip: chips,
  * and for the day it was last touched: chips bought and the net won (+) / lost (-) that day), and the log of every hand
- * (eco_hwatu_hand) for /관리자 도박장 기록. Accounts are read whole at start, kept in memory, written through.
+ * (eco_hwatu_hand) for /관리자 도박장 기록; and the chips bet at 바카라 that day (wagered: baccarat.daily-wager-cap). Accounts are read whole at start, kept in memory, written through.
  */
 public final class ChipStore {
 
@@ -20,6 +20,8 @@ public final class ChipStore {
         public int day;
         public long bought;
         public long net;
+        /** 바카라: chips bet today (every bet, won or lost) */
+        public long wagered;
     }
 
     /** One logged hand. players: "uuid,uuid,..."; detail: who put in what and got what, readable. */
@@ -38,16 +40,18 @@ public final class ChipStore {
                 "CREATE TABLE IF NOT EXISTS eco_hwatu_chip (player CHAR(36) NOT NULL PRIMARY KEY, chips BIGINT NOT NULL, day INT NOT NULL, "
                         + "bought BIGINT NOT NULL, net BIGINT NOT NULL)",
                 "CREATE TABLE IF NOT EXISTS eco_hwatu_hand (" + id + ", at BIGINT NOT NULL, game VARCHAR(16) NOT NULL, room VARCHAR(32) NOT NULL, "
-                        + "players TEXT NOT NULL, pot BIGINT NOT NULL, burned BIGINT NOT NULL, detail TEXT NOT NULL)")));
+                        + "players TEXT NOT NULL, pot BIGINT NOT NULL, burned BIGINT NOT NULL, detail TEXT NOT NULL)"),
+                List.of("ALTER TABLE eco_hwatu_chip ADD COLUMN wagered BIGINT NOT NULL DEFAULT 0")));
         accounts.clear();
         db.sync(c -> {
-            for (Object[] r : Db.query(c, "SELECT player, chips, day, bought, net FROM eco_hwatu_chip",
-                    rs -> new Object[]{rs.getString(1), rs.getLong(2), rs.getInt(3), rs.getLong(4), rs.getLong(5)})) {
+            for (Object[] r : Db.query(c, "SELECT player, chips, day, bought, net, wagered FROM eco_hwatu_chip",
+                    rs -> new Object[]{rs.getString(1), rs.getLong(2), rs.getInt(3), rs.getLong(4), rs.getLong(5), rs.getLong(6)})) {
                 Account a = new Account();
                 a.chips = (Long) r[1];
                 a.day = (Integer) r[2];
                 a.bought = (Long) r[3];
                 a.net = (Long) r[4];
+                a.wagered = (Long) r[5];
                 accounts.put(UUID.fromString((String) r[0]), a);
             }
             return null;
@@ -63,6 +67,7 @@ public final class ChipStore {
         if (a.day == today) {
             out.bought = a.bought;
             out.net = a.net;
+            out.wagered = a.wagered;
         }
         return out;
     }
@@ -73,12 +78,14 @@ public final class ChipStore {
             a.day = today;
             a.bought = 0;
             a.net = 0;
+            a.wagered = 0;
         }
         return a;
     }
 
     private void save(UUID player, Account a) {
-        db.execute(db.upsert("eco_hwatu_chip", List.of("player"), List.of("chips", "day", "bought", "net")), player.toString(), a.chips, a.day, a.bought, a.net);
+        db.execute(db.upsert("eco_hwatu_chip", List.of("player"), List.of("chips", "day", "bought", "net", "wagered")), player.toString(), a.chips, a.day,
+                a.bought, a.net, a.wagered);
     }
 
     /** Chips bought (the gold was taken by the caller). */
@@ -103,6 +110,14 @@ public final class ChipStore {
         Account a = mutable(player, today);
         a.chips = Math.max(0, a.chips + delta);
         a.net += delta;
+        save(player, a);
+    }
+
+    /** 바카라: chips bet today (counted against baccarat.daily-wager-cap, a new day at 05시 starts from 0). */
+    public void wagered(UUID player, long n, int today) {
+        if (n <= 0) return;
+        Account a = mutable(player, today);
+        a.wagered += n;
         save(player, a);
     }
 

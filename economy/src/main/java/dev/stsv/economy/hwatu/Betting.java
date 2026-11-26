@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * One 섯다 betting round (README "도박장 (화투방)"): 삥 · 체크 · 콜 · 따당 · 하프 · 다이, with all-in. Seats are 0..n-1 in
- * turn order; the first seat that can still bet acts first. Amounts are what each seat put in during this round (the ante
+ * One 섯다 · 세븐 포커 betting round (README "도박장 (화투방)"): 삥 · 체크 · 콜 · 따당 · 하프 · 다이, with all-in. Seats
+ * are 0..n-1 in turn order; the first seat that can still bet acts first (세븐 포커: from the seat with the best open cards). Amounts are what each seat put in during this round (the ante
  * and earlier rounds of the hand are in `basePot`, what a seat can still put in is its `stack`). Pure (unit-tested).
  *
  * <pre>
@@ -74,6 +74,14 @@ public final class Betting {
      * before this round), or null for none.
      */
     public Betting(long ante, long basePot, long[] stacks, boolean[] out, long[] limits) {
+        this(ante, basePot, stacks, out, limits, 0);
+    }
+
+    /**
+     * The same with the seat that acts first (세븐 포커: the best open cards; the first seat from it that can still bet),
+     * the others following in seat order round the table.
+     */
+    public Betting(long ante, long basePot, long[] stacks, boolean[] out, long[] limits, int first) {
         if (stacks.length < 2) throw new IllegalArgumentException("players " + stacks.length);
         if (ante < 1) throw new IllegalArgumentException("ante " + ante);
         this.n = stacks.length;
@@ -91,13 +99,15 @@ public final class Betting {
             most[i] = limits == null ? MOST : Math.clamp(limits[i], 0, MOST);
             pending[i] = able(i);
         }
-        for (int i = 0; i < n; i++) {
+        int from = Math.floorMod(first, n);
+        for (int k = 0; k < n; k++) {
+            int i = (from + k) % n;
             if (able(i)) {
                 turn = i;
                 break;
             }
         }
-        if (turn < 0) turn = 0;
+        if (turn < 0) turn = from;
     }
 
     /** A round where every seat holds the same (tests, bots). */

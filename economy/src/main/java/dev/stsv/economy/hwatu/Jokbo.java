@@ -18,10 +18,33 @@ public final class Jokbo {
             List.of("ali", "doksa", "gupping", "jangpping", "jangsa", "seryuk"),
             List.of("kkeut", "ttaengjabi", "amhaeng", "gusa", "meong-gusa", "kkeut-note"));
 
+    /**
+     * 세븐 포커's pages, highest first (hwatu.poker-jokbo.&lt;row&gt;): the hands ({@link Poker#CODES}) and, on the last page,
+     * notes (the suit order of an exact tie, best five of seven, who bets first).
+     */
+    public static final List<List<String>> POKER = List.of(
+            List.of("royal", "back-straight-flush", "straight-flush", "four-card", "full-house", "flush"),
+            List.of("mountain", "back-straight", "straight", "triple", "two-pair", "one-pair"),
+            List.of("top", "note-suit", "note-best", "note-open", "note-back", "note-limit"));
+
+    /** The page of 세븐 포커's 족보 that holds a hand's code ({@link Poker.Hand#code()}), or -1. */
+    public static int pokerPageOf(String code) {
+        if (code == null) return -1;
+        for (int i = 0; i < POKER.size(); i++) if (POKER.get(i).contains(code)) return i;
+        return -1;
+    }
+
+    /** The 세븐 포커 page to show now: the one with my made hand once I hold cards, else turning with the clock. */
+    public static int pokerPage(String code, long now) {
+        int mine = pokerPageOf(code);
+        if (mine >= 0) return mine;
+        return (int) Math.floorMod(now / PAGE_MILLIS, (long) POKER.size());
+    }
+
     /** How long a page stays (millis) before the next. */
     public static final long PAGE_MILLIS = 4000;
 
-    /** The rules rows of 주사위 / 홀짝 (hwatu.rules.&lt;key&gt;-1 ...). */
+    /** The rules rows of 주사위 / 홀짝 / 바카라 (hwatu.rules.&lt;key&gt;-1 ...). */
     public static final int RULE_ROWS = 6;
 
     /** The row of a hand ({@link Sutda.Hand#code()}): 9땡 ~ 2땡 share one, so do 갑오 · 끗 · 망통. */

@@ -24,13 +24,57 @@ import java.util.Map;
  *   holjjak: { name: "홀짝", max: 2 }
  *   dice:    { name: "주사위", max: 6, dice: 2 }
  *   sutda:   { name: "섯다", max: 6, sit-antes: 3, replays: 1 }   # sit with ante × sit-antes; raise any number of times up to the 한도 (all-in)
+ *   seven_poker: { name: "세븐 포커", max: 6, sit-antes: 3 }       # the same betting, five rounds (3 cards → open one → 4th · 5th · 6th open → 7th hidden)
+ *   baccarat: { name: "바카라", max: 6 }                         # against the house (the dealer), works alone
+ * timers: { …, open: 10 }        # 세븐 포커: picking the card to open (the timer opens the lowest)
+ * baccarat: { min-bet: 10, max-bet: 1000, daily-wager-cap: 5000, chips: [10, 50, 100, 500], bet-seconds: 15,
+ *             commission-percent: 5, tie-pays: 8, road: 12 }
  * </pre>
  */
 public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePercent, long lossCap, long minAgeMs,
                         int turnSeconds, int startSeconds, int revealSeconds, int resultSeconds, int rollSeconds,
-                        List<Room> rooms, Map<Table.Game, GameSpec> games, long testChips, int handLimitAntes) {
+                        List<Room> rooms, Map<Table.Game, GameSpec> games, long testChips, int handLimitAntes,
+                        int openSeconds, BaccaratSpec baccarat) {
 
     public record Room(String id, String name, long ante) {}
+
+    /**
+     * 바카라 (the house game): the least a bet may be, the most one player bets in one round (all spots together), the
+     * most one player bets in a day (all rounds, 05시 to 05시: the house pays from nowhere, so this caps what it can
+     * pay out), the chip amounts a player picks from, how long the bets are open, the banker's commission (%), what a tie
+     * pays (n:1) and how many results the road shows.
+     */
+    public record BaccaratSpec(long minBet, long maxBet, long dailyCap, List<Long> chips, int betSeconds, int commission, int tiePays, int road) {
+
+        public static final BaccaratSpec DEFAULT = new BaccaratSpec(10, 1000, 5000, List.of(10L, 50L, 100L, 500L), 15, 5, 8, 12);
+
+        static BaccaratSpec parse(ConfigurationSection c, List<String> problems) {
+            if (c == null) {
+                problems.add("baccarat 이 없음 (기본값을 씀)");
+                return DEFAULT;
+            }
+            long min = c.getLong("min-bet", 10), max = c.getLong("max-bet", 1000), cap = c.getLong("daily-wager-cap", 5000);
+            if (min < 1) problems.add("baccarat.min-bet: 1 이상");
+            if (max < min) problems.add("baccarat.max-bet: min-bet 이상");
+            if (cap < min) problems.add("baccarat.daily-wager-cap: min-bet 이상 (하루에 걸 수 있는 칩, 하우스가 칩을 만들어 내므로 꼭 둠)");
+            List<Long> chips = new ArrayList<>();
+            for (Object o : c.getList("chips", List.of(10, 50, 100, 500))) if (o instanceof Number n) chips.add(n.longValue());
+            if (chips.isEmpty() || chips.size() > 4) problems.add("baccarat.chips: 1~4개 (칩 고르는 버튼)");
+            for (int i = 0; i < chips.size(); i++) {
+                if (chips.get(i) < min) problems.add("baccarat.chips: " + chips.get(i) + " 이 min-bet 보다 작음");
+                if (i > 0 && chips.get(i) <= chips.get(i - 1)) problems.add("baccarat.chips: 커지는 순서로");
+            }
+            int bet = c.getInt("bet-seconds", 15), commission = c.getInt("commission-percent", 5), tie = c.getInt("tie-pays", 8), road = c.getInt("road", 12);
+            if (bet < 5 || bet > 60) problems.add("baccarat.bet-seconds: 5~60");
+            if (commission < 0 || commission > 50) problems.add("baccarat.commission-percent: 0~50");
+            if (tie < 1 || tie > 20) problems.add("baccarat.tie-pays: 1~20");
+            if (road < 1 || road > 30) problems.add("baccarat.road: 1~30");
+            long m = Math.max(1, min);
+            List<Long> ok = chips.stream().filter(x -> x >= m).distinct().sorted().limit(4).toList();
+            return new BaccaratSpec(m, Math.max(m, max), Math.max(m, cap), ok.isEmpty() ? List.of(m) : ok, Math.clamp(bet, 5, 60),
+                    Math.clamp(commission, 0, 50), Math.clamp(tie, 1, 20), Math.clamp(road, 1, 30));
+        }
+    }
 
     /** max players at a table; dice: how many dice a player rolls; sitAntes (chips to sit, in antes) · replays: 섯다. */
     public record GameSpec(String name, int max, int dice, int sitAntes, int replays) {}
@@ -41,6 +85,7 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
 
     /** Chips a player must hold to be dealt in at this game and room. */
     public long need(Table.Game g, Room r) {
+        if (g == Table.Game.BACCARAT) return baccarat.minBet();
         GameSpec s = game(g);
         return HwatuRules.need(g, r.ante(), s.sitAntes());
     }
@@ -83,15 +128,19 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
                 continue;
             }
             int max = s.getInt("max");
-            int min = 2, top = g == Table.Game.HOLJJAK ? 2 : 6;
+            int min = g == Table.Game.BACCARAT ? 1 : 2, top = g == Table.Game.HOLJJAK ? 2 : 6;
             if (max < min || max > top) problems.add("games." + g.key() + ".max: " + min + "~" + top);
             int dice = g == Table.Game.DICE ? s.getInt("dice") : 0;
             if (g == Table.Game.DICE && (dice < 1 || dice > 3)) problems.add("games.dice.dice: 1~3");
-            int sit = g == Table.Game.SUTDA ? s.getInt("sit-antes", 3) : 1, replays = g == Table.Game.SUTDA ? s.getInt("replays") : 0;
-            if (sit < 1) problems.add("games.sutda.sit-antes: 1 이상 (앉는 데 드는 칩 = 판돈 × 이만큼)");
+            boolean bets = g == Table.Game.SUTDA || g == Table.Game.POKER;
+            int sit = bets ? s.getInt("sit-antes", 3) : 1, replays = g == Table.Game.SUTDA ? s.getInt("replays") : 0;
+            if (sit < 1) problems.add("games." + g.key() + ".sit-antes: 1 이상 (앉는 데 드는 칩 = 판돈 × 이만큼)");
             if (replays < 0) problems.add("games.sutda.replays: 0 이상");
             games.put(g, new GameSpec(s.getString("name", g.key()), Math.clamp(max, min, top), Math.clamp(dice, 0, 3), Math.max(1, sit), Math.max(0, replays)));
         }
+        int open = c.getInt("timers.open", 10);
+        if (open < 3) problems.add("timers.open: 3초 이상 (세븐 포커 오픈할 패 고르기)");
+        BaccaratSpec bac = BaccaratSpec.parse(c.getConfigurationSection("baccarat"), problems);
         long test = c.getLong("test-chips", 100_000);
         // sitting at the biggest room's 섯다 must fit under the daily loss cap and the daily buy limit (when they are on),
         // and under the test table's pretend chips
@@ -103,6 +152,6 @@ public record HwatuSpec(long buyPrice, long cashPrice, long dailyBuy, int rakePe
         }
         return new HwatuSpec(Math.max(1, buy), Math.clamp(cash, 1, Math.max(1, buy)), Math.max(0, daily), Math.clamp(rake, 1, 50), Math.max(0, cap),
                 Math.max(0, hours) * 3_600_000L, Math.max(5, turn), Math.max(1, start), Math.max(1, reveal), Math.max(1, result), Math.max(3, roll), rooms, games,
-                Math.max(1, test), Math.max(0, limit));
+                Math.max(1, test), Math.max(0, limit), Math.max(3, open), bac);
     }
 }
