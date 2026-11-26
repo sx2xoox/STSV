@@ -346,7 +346,7 @@ def _shelf_state(level, i, kind, n, state, side):
 def shelf(cat, state):
     m = HModel(f"store_shelf_{cat}_{state}", floor=0)
     word, colour = CATEGORY[cat]
-    white = Paint("car_white", 3, "metal", noise=0.02, rim=1.0)
+    white = Paint("car_white", 3, noise=0.0, rim=1.0)
     m.group("frame")
 
     def plinth_d(c):
@@ -355,7 +355,7 @@ def shelf(cat, state):
         if c.face in ("east", "west"):
             return ("iron", 3) if c.p[1] < 2.5 else ("car_white", 2)
         return None
-    m.box("plinth", (0.5, 0, Z0), (15.5, 3, Z1), Paint("car_white", 2, "metal", noise=0.02, decal=plinth_d))
+    m.box("plinth", (0.5, 0, Z0), (15.5, 3, Z1), Paint("car_white", 2, noise=0.0, decal=plinth_d))
 
     def peg(c):
         if c.face in ("east", "west") and c.i[1] % 3 == 0 and c.i[2] % 3 == 0:
@@ -373,7 +373,7 @@ def shelf(cat, state):
         if c.face in ("east", "west") and y >= 27:
             return colour
         return None
-    end = Paint("car_white", 3, "metal", noise=0.02, rim=1.0, decal=end_d)
+    end = Paint("car_white", 3, noise=0.0, rim=1.0, decal=end_d)
     m.box("end_n", (0, 0, -15.75), (16, 28, Z0), end)
     m.box("end_s", (0, 0, Z1), (16, 28, 31.75), end)
     # the header along the top: its long sides are the category picture (plates), its ends and top plain
@@ -469,7 +469,7 @@ def glass(u0, u1, v0, v1, axis_v=1):
 
 def fridge(state):
     m = HModel(f"store_fridge_{state}", floor=0, planes=(("z>", 16),))
-    case = Paint("car_white", 3, "metal", noise=0.02, rim=1.0)
+    case = Paint("car_white", 3, noise=0.0, rim=1.0)
     m.group("case")
 
     def kick(c):
