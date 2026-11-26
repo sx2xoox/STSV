@@ -302,8 +302,10 @@ ea8796fb1f91c7e99923382f3a9746a4ba31c40b economy/assets/economy/models/item/gui/
 a46c7730c316bd9f03c924a52bc444e57d5cbc9a economy/assets/economy/textures/entity/bus/bride_1.png
 99e8000474b1dc5f06aa19db6d5bf3fa605a268d economy/assets/economy/textures/entity/bus/bride_2.png
 c9db7e80520b8176dd767ec439c6de8e82738188 economy/assets/economy/textures/entity/bus/bride_3.png
+db2acc3d080d47149bb35d9d22dcd4eb63c49c3e economy/assets/economy/textures/entity/bus/bride_4.png
 8fbeeccb02339cb8c49e61e350365a8b2017a3ed economy/assets/economy/textures/entity/bus/bride_s1.png
 b91e69edcebdeb01bad66ec48979a506149b843b economy/assets/economy/textures/entity/bus/bride_s1.png
+5527ab38994c8db54568730024f6d262593168f1 economy/assets/economy/textures/entity/bus/bride_s2.png
 aabc050f99e5e547cdeb0f964824b84c3558a0fa economy/assets/economy/textures/entity/bus/bungeo_1.png
 1b3dab6814e7d871aaa98d2ff3e3e88d5652b499 economy/assets/economy/textures/entity/bus/bungeo_2.png
 38d9a6c02e873d6621a0307644fbb871096e53ab economy/assets/economy/textures/entity/bus/bungeo_3.png
@@ -332,6 +334,7 @@ ecb27015700076f9702d5ab63ec1c3047717017d economy/assets/economy/textures/entity/
 0fc89d65f5f1e08aa0ac7bf7de59f88cd359456f economy/assets/economy/textures/entity/bus/couple_2.png
 f6c431bce1e6ae72a764d7893bdecdf6ce8cbbd8 economy/assets/economy/textures/entity/bus/couple_3.png
 9bc5ec51eda7872fdf908db0ba85ff19fbdfe891 economy/assets/economy/textures/entity/bus/couple_s1.png
+b0f3a80cda7a559668977dbd41a55f14108a168f economy/assets/economy/textures/entity/bus/couple_s2.png
 7f56326847b54bca0652ebf3c7912c6789bceb4a economy/assets/economy/textures/entity/bus/courier_1.png
 75b4fd1836337ded380707f1a86c8fc28247c5dc economy/assets/economy/textures/entity/bus/courier_2.png
 9f18795c3b45824135c831d19e33f63e2b96d932 economy/assets/economy/textures/entity/bus/courier_3.png
@@ -409,6 +412,7 @@ fb7d27d27ab65453ca606982149e898957cc91a6 economy/assets/economy/textures/entity/
 12ecd68dbc51e281fc4e0921a53db9789a84b472 economy/assets/economy/textures/entity/bus/kinder_2.png
 a4b278624d1e3e005ebce1bc35465198fb1841e4 economy/assets/economy/textures/entity/bus/kinder_3.png
 6f8f89373bf4a9fafd8c81f57dae289624b89cd5 economy/assets/economy/textures/entity/bus/kinder_s1.png
+b7dd2824d0a39359953802b55615a2dc8856bb94 economy/assets/economy/textures/entity/bus/kinder_s2.png
 202a44afc7fe45def0be3f035f4964b9ee15b24a economy/assets/economy/textures/entity/bus/magician_1.png
 7ac14f0ebd661e12eeeb9908f8f9016f25e32053 economy/assets/economy/textures/entity/bus/magician_1.png
 b12614c8498d40ec815a9b8f6a50313255c7f025 economy/assets/economy/textures/entity/bus/magician_2.png
@@ -934,6 +938,7 @@ eeb4d8e0d4fa8198df09db6ce0b303e97e923b23 economy/assets/economy/textures/item/gu
 37d33c3d9b90e76a52f2ba396066016bd6b3f011 economy/bus.yml
 44202ab54f577de517af7c27352e38402e8ecf69 economy/bus.yml
 6374bd05cdb73d6018a78dffaae2561d531cbc66 economy/bus.yml
+638c9e5630c4d6ac1768f4a03e0d317f0a8c0a31 economy/bus.yml
 69d4b975bbd8a6540bb1c3122c5aca87047d0b85 economy/bus.yml
 731a66f8338e73f00f6f03a7420d9474674b2aae economy/bus.yml
 861c62c468f9110c2bb81a58795474cdec360421 economy/bus.yml
