@@ -24,7 +24,8 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
     /** The talk situations every kind has (its own or the default lines). */
     public static final List<String> SITUATIONS = List.of("enter", "browse", "pay", "wait", "thanks", "angry");
     /** The extra situations (default lines only, a kind may have its own). */
-    public static final List<String> EXTRA = List.of("empty", "warm", "short", "over", "recognize", "card", "cash", "burnt", "warmed");
+    public static final List<String> EXTRA = List.of("empty", "warm", "short", "over", "recognize", "card", "cash", "burnt", "warmed",
+            "dry", "expired", "messy");
 
     /** A product: its id (economy:store_item_&lt;id&gt; is its model), name, price (원, the till's number) and place. */
     public record Product(String id, String name, int price, String place, double weight) {
@@ -244,19 +245,33 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
      * its likes with `taste` (by weight), else from every product (by the product's weight); the same product at most twice.
      */
     public List<String> pickItems(Customer c, RandomGenerator rnd) {
-        int n = c.min() + (c.max() > c.min() ? rnd.nextInt(c.max() - c.min() + 1) : 0);
+        return pickItems(c, rnd, null, 0);
+    }
+
+    /**
+     * The same in a store that sells only `sold` (null: everything; 내 가게 등급) and lets each customer take `more` things
+     * more (at most 5): likes it does not sell are skipped, a kind with no like left takes from what it sells.
+     */
+    public List<String> pickItems(Customer c, RandomGenerator rnd, Set<String> sold, int more) {
+        int max = Math.clamp(c.max() + more, 1, 5), min = Math.clamp(c.min() + Math.max(0, more), 1, max);
+        int n = min + (max > min ? rnd.nextInt(max - min + 1) : 0);
+        Map<String, Double> likes = new LinkedHashMap<>();
+        c.likes().forEach((k, v) -> {
+            if (sold == null || sold.contains(k)) likes.put(k, v);
+        });
+        Map<String, Double> all = allWeights(sold);
         List<String> out = new ArrayList<>();
         for (int i = 0; i < n && out.size() < 5; i++) {
-            boolean fromLikes = !c.likes().isEmpty() && rnd.nextDouble() < c.taste();
-            String id = fromLikes ? weighted(c.likes(), out, rnd) : weighted(allWeights(), out, rnd);
+            boolean fromLikes = !likes.isEmpty() && rnd.nextDouble() < c.taste();
+            String id = fromLikes ? weighted(likes, out, rnd) : weighted(all, out, rnd);
             if (id != null) out.add(id);
         }
         return out;
     }
 
-    private Map<String, Double> allWeights() {
+    private Map<String, Double> allWeights(Set<String> sold) {
         Map<String, Double> m = new LinkedHashMap<>();
-        for (Product p : products.values()) m.put(p.id(), p.weight());
+        for (Product p : products.values()) if (sold == null || sold.contains(p.id())) m.put(p.id(), p.weight());
         return m;
     }
 
@@ -283,8 +298,13 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
 
     /** Seconds to the next customer at this hour: min .. max × the time of day's every. */
     public double interval(int hour, RandomGenerator rnd) {
+        return interval(hour, rnd, 1);
+    }
+
+    /** The same with `busy` × as many customers (장날 1.5: they come 1/1.5 as far apart). */
+    public double interval(int hour, RandomGenerator rnd, double busy) {
         double s = spawn.min() + rnd.nextDouble() * (spawn.max() - spawn.min());
-        return s * time(hour).every();
+        return s * time(hour).every() / Math.max(0.1, busy);
     }
 
     /** The lines of a kind in a situation: its own, else the default ones (null: none). */

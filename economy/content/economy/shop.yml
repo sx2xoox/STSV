@@ -582,7 +582,7 @@ buy:
       # ── 다음 쪽: 그림 그리기 (content/stsv/items/furniture_easel.yml; 캔버스·붓은 생활 용품) ──
       - { page: true }
       - { item: stsv:easel, price: 5000 }             # 이젤 (빈 캔버스를 올려 그림을 그림)
-  # 탈것: 리어카만 팖 (1세대, 끌고 다니는 짐칸 135칸). 다른 탈것(골프 카트·1톤 트럭·경찰차, 짐자전거·배달 오토바이·사륜 오토바이·소형 화물 밴·탑차)은 관리자만 지급
+  # 탈것 (+ 편의점 권리증): 리어카만 팖 (1세대, 끌고 다니는 짐칸 135칸). 다른 탈것(골프 카트·1톤 트럭·경찰차, 짐자전거·배달 오토바이·사륜 오토바이·소형 화물 밴·탑차)은 관리자만 지급
   vehicles:
     name: "탈것"
     icon: stsv:hand_cart
@@ -605,6 +605,10 @@ buy:
       - { item: stsv:mini_bus, price: 500000 }       # 소형 버스 (10칸/초, 5인승: 손님 4)
       - { item: stsv:village_bus, price: 1500000 }   # 마을버스 (9칸/초, 9인승: 손님 8)
       - { item: stsv:limousine_bus, price: 3000000 } # 리무진 관광버스 (10칸/초, 17인승: 손님 16)
+      # 편의점 내 가게 권리증 (README "편의점" 내 가게, store.yml own.tiers): 버스와 같은 값 · 같은 벌이. 내 땅에서 들고 우클릭
+      - { item: economy:store_license_alley, price: 500000 }      # 골목점 (손님 2 · 상품 12종)
+      - { item: economy:store_license_standard, price: 1500000 }  # 표준점 (손님 4 · 상품 22종 · 시식대)
+      - { item: economy:store_license_large, price: 3000000 }     # 대형점 (손님 6 · 상품 전부: 술 · 담배 · 즉석 조리)
       # 어선 1~4세대 (하역장에 팔 수 없어서 같은 세대 도로·농기계보다 조금 쌈)
       - { item: stsv:raft, price: 20000 }            # 뗏목
       - { item: stsv:rowboat, price: 100000 }        # 나룻배

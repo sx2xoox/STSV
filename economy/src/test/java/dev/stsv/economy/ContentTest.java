@@ -185,7 +185,8 @@ class ContentTest {
         ShopCatalog.BuyCategory vehicles = shop.buyCategories().stream().filter(c -> c.id().equals("vehicles")).findFirst().orElseThrow();
         assertTrue(vehicles.single(), "one vehicle a purchase");
         assertEquals(List.of("stsv:jige", "stsv:hand_cart", "stsv:cargo_bicycle", "stsv:ox_cart", "stsv:delivery_scooter", "stsv:power_tiller",
-                        "stsv:cargo_van", "stsv:light_truck", "stsv:combine", "stsv:mini_bus", "stsv:village_bus", "stsv:limousine_bus", "stsv:raft", "stsv:rowboat", "stsv:fishing_boat", "stsv:coastal_boat"),
+                        "stsv:cargo_van", "stsv:light_truck", "stsv:combine", "stsv:mini_bus", "stsv:village_bus", "stsv:limousine_bus",
+                        "economy:store_license_alley", "economy:store_license_standard", "economy:store_license_large", "stsv:raft", "stsv:rowboat", "stsv:fishing_boat", "stsv:coastal_boat"),
                 vehicles.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(pieces.contains(furniture.icon()), "a piece is the icon");
         for (String id : pieces) if (shop.sell().containsKey(id)) problems.add("furniture is not sold to the shop: " + id);
@@ -284,8 +285,8 @@ class ContentTest {
         // 연마 진주 and its 북어포 among them), 21 old 손질대 goods (예전 물건: the shop buys them, nothing makes them), 6 job machines + the press, the
         // 통발 and the 가두리, 3 crates of catch (원양 조업: fish.yml net), 32 crop items (15 seeds, 17 harvests), 98 fish
         assertEquals(6, jobs.jobs().size());
-        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 98 + 4 + 1 + 12 + 1 + 18 + 21 + 50 + 63 + 23 + 96, ours.size(),
-                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 98 fish (6 떼물고기) + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지) + 21 화투방 (섯다 패 20장 + 뒷면) + 50 도박장 (items/gamble.yml: 탁자 2, 소품 7, 패 21, 칩 5, 주사위, 사발, 주사위 컵, 버튼 11, 화이트보드) + 63 도박장 별관 (세븐 포커 · 바카라 테이블 2, 트럼프 53, 바카라 칩 3, 버튼 5) + 23 버스 손님이 든 물건 (items/bus.yml bus_hold_*: 닭과 날개 편 닭, 21가지) + 96 편의점 (items/store.yml: 가구 26, 상품 33, 상자 5, 소품 4, 지폐 · 동전 6, 버튼 20, 스캐너, 조끼)");
+        assertEquals(6 + 8 + 149 + 12 + 7 + 21 + 7 + 2 + 3 + 32 + 98 + 4 + 1 + 12 + 1 + 18 + 21 + 50 + 63 + 23 + 96 + 32, ours.size(),
+                "6 finds + 8 specials + 149 goods + 12 4세대 goods + 7 4세대 materials + 21 old goods + 7 machines + 2 fishing gear + 3 crates of catch + 32 crop items + 98 fish (6 떼물고기) + 4 장신구 (the one base item, box, fragment, 용궁 상자) + 1 골드 스킨북 상자 + 12 버스 분실물 (10 kinds, a spoiled lunchbox, a keepsake ball) + 1 버스 선물 (배) + 18 숨은 비밀 물건 (13 + 족보, 빛바랜 사진, 페인트 조각, 삐삐, 삐삐의 편지) + 21 화투방 (섯다 패 20장 + 뒷면) + 50 도박장 (items/gamble.yml: 탁자 2, 소품 7, 패 21, 칩 5, 주사위, 사발, 주사위 컵, 버튼 11, 화이트보드) + 63 도박장 별관 (세븐 포커 · 바카라 테이블 2, 트럼프 53, 바카라 칩 3, 버튼 5) + 23 버스 손님이 든 물건 (items/bus.yml bus_hold_*: 닭과 날개 편 닭, 21가지) + 96 편의점 (items/store.yml: 가구 26, 상품 33, 상자 5, 소품 4, 지폐 · 동전 6, 버튼 20, 스캐너, 조끼) + 32 편의점 2차 (items/store_extra.yml: 권리증 3, 음식 25, 뜨거운 컵라면 3, 폐기 삼각김밥)");
         assertEquals(7, machines.size());
         assertEquals(149 + 12 + 7, machines.values().stream().flatMap(x -> x.recipes().stream()).map(MachineSpec.Recipe::output).distinct().count());
         YamlConfiguration legacy = yaml("shop.yml");

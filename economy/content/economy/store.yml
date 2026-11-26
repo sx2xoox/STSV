@@ -1,4 +1,5 @@
 # 편의점 알바 (README "편의점", docs/plans/편의점_기획안.md) — 1차: 서버가 지은 직영점 (GS26) 에서 알바.
+# 2차 (이 파일 아래쪽): 내 가게 3등급 · 신분증 · 진상 응대 12종 · 폐기 · 청소 · 온수 · 날씨 수요 · 플레이어 손님. 장면은 store_scenes.yml
 # 카운터 뒤 옷걸이를 우클릭하면 근무 시작 (조끼 · 스캐너), 다시 우클릭하면 퇴근 (정산). 자리 비움 shift.afk 초면 자동 퇴근.
 # 손님은 마을버스 손님 종류 그대로 (bus.yml types: 이름 · 스킨 · 별난 손님). 여기에는 편의점에 오는 종류 · 취향 · 대사 · 보수만.
 # 모든 시각은 게임 시간 (마인크래프트 하루 20분: 06시 = 하루의 시작).
@@ -165,6 +166,10 @@ talk:
   cash: ["현금이요~", "(지폐를 내민다)", "여기 있어요"]
   burnt: ["이거… 탔잖아요!", "도시락이 숯이 됐네…", "아 냄새… 다 탔어요"]
   warmed: ["앗 뜨거, 감사합니다!", "따끈따끈하네~", "잘 먹을게요!"]
+  # 2차: dry 온수기 물이 없음 · expired 유통기한 지난 걸 집음 · messy 바닥이 더러움 (들어올 때)
+  dry: ["어? 뜨거운 물이 안 나오네…", "온수기 물이 없어요?", "컵라면을 생으로 먹으라고요?"]
+  expired: ["이거 유통기한 지났잖아요!", "어? 빨간 딱지 붙은 거네…", "폐기를 진열해 놓으면 어떡해요"]
+  messy: ["어머, 바닥이 끈적끈적하네", "여기 뭐 쏟았나 봐요", "청소 좀 하지…"]
 
 # ── 손님 (bus.yml 손님 종류만, weight 0 인 숨은 손님은 안 됨) ──────────────────────────────────────
 # weight 오는 비율, items [최소, 최대] 고르는 개수 (5개까지), likes 좋아하는 상품 (taste 확률로 여기서, 아니면 아무거나),
@@ -198,7 +203,7 @@ customers:
     weight: 10
     items: [1, 2]
     likes: {candy: 5, tissue: 3, egg: 3, banana_milk: 2, bandage: 2}
-    hours: [6, 20]
+    hours: [6, 21]
     talk:
       enter: ["아이고 여가 뭐 이리 밝노", "총각, 여 사탕 있나?", "에구구, 문이 혼자 열리네", "아이고 시원타~"]
       browse: ["이게 다 뭐꼬… 글씨가 쪼매해서", "손주 줄 사탕 하나 사야제", "계란은 어디 있노~"]
@@ -503,3 +508,357 @@ customers:
       wait: ["아유 다리야~ 보따리 무거워", "시장보다 줄이 길어~", "얼른 가서 저녁 해야 되는데"]
       thanks: ["이거 하나 잡숴요~", "수고해요~ 다음 장날에 또 와요", "아유 고마워라"]
       angry: ["아유 됐어요, 시장 가서 사요", "저녁 늦겠네, 가요~", "에휴, 손이 떨어지겠다"]
+  # ── 2차: 진상 · 장면에 나오는 손님 (bus.yml 그대로의 사람들) ──────────────────────────────────────
+  complainer:
+    weight: 3
+    items: [1, 2]
+    likes: {tissue: 3, water: 2, egg: 2, coffee_cup: 2}
+    talk:
+      enter: ["여기 바닥이 왜 이렇게 미끄러워요?", "사장님 계세요? …알바생이네", "에어컨 좀 세게 틀지"]
+      browse: ["이거 유통기한 언제까지예요?", "가격표가 왜 안 붙어 있어?", "어제보다 비싸졌네?"]
+      pay: ["계산해요. 똑바로 찍어요", "영수증 꼭 줘요", "봉투값 받는 거 아니죠?"]
+      wait: ["내가 이 가게 몇 년 다닌 줄 알아요?", "줄 관리를 이렇게 해요?", "본사 번호가 몇 번이더라…"]
+      thanks: ["…수고해요", "다음엔 똑바로 해요", "흥"]
+      angry: ["본사에 다 얘기할 거예요!", "여기 다시는 안 와요!", "리뷰에 다 쓸 거야!"]
+  dodger:
+    weight: 3
+    items: [1, 2]
+    likes: {gum: 3, jelly: 2, coffee_can: 2, soda: 2, chocolate: 2}
+    talk:
+      enter: ["…", "(모자를 깊게 눌러쓴다)", "(두리번거리며 들어온다)"]
+      browse: ["(진열대 사이를 어슬렁)", "…이거 얼마지", "(주위를 힐끔 본다)"]
+      pay: ["…이거요", "(물건을 툭 내려놓는다)", "카드…"]
+      wait: ["…아직이에요?", "(발끝을 톡톡)", "쯧"]
+      thanks: ["…ㄳ", "(고개만 까딱)", "…"]
+      angry: ["…됐어요", "(후다닥 나간다)", "에이"]
+  prankster:
+    weight: 3
+    items: [1, 2]
+    hours: [9, 21]
+    likes: {candy: 4, jelly: 4, ice_bar: 3, gum: 3, soda: 2}
+    talk:
+      enter: ["히히 편의점이다~", "(문을 열었다 닫았다) 딸랑딸랑~", "아저씨 안녕~ 히히"]
+      browse: ["이거 공짜예요? 히히", "(사탕 통을 흔들어 본다)", "아이스크림 냉동고 열어 놔야지~"]
+      pay: ["이거요! 히히", "(동전을 탑처럼 쌓는다)", "깎아 주면 안 돼요?"]
+      wait: ["심심해~", "(계산대 종을 땡땡 친다)", "언제 해요오~"]
+      thanks: ["메롱~", "아저씨 안녕~ 히히", "또 올게요~"]
+      angry: ["치, 엄마한테 이를 거야!", "메롱 메롱~", "(문을 쾅 하고 뛰어나간다)"]
+  gentleman:
+    weight: 2
+    items: [1, 2]
+    likes: {coffee_cup: 3, water: 2, chocolate: 2, tissue: 2, lottery: 1}
+    talk:
+      enter: ["안녕하십니까. 수고가 많으십니다", "(모자를 살짝 들어 인사한다)", "실례합니다"]
+      browse: ["허허, 요즘은 별것이 다 있군요", "이 커피가 맛있다고 손녀가 그러더군요", "천천히 둘러보겠습니다"]
+      pay: ["계산 부탁드립니다", "천천히 하셔도 괜찮습니다", "카드로 하겠습니다"]
+      wait: ["기다리는 것도 괜찮습니다", "(뒷짐을 지고 기다린다)", "바쁘시지요, 허허"]
+      thanks: ["늘 건강하십시오", "좋은 하루 되십시오", "다음 손님께도 친절하시길"]
+      angry: ["…허허, 다음에 오지요", "약속이 있어서 이만", "실례했습니다"]
+  phone:
+    weight: 4
+    items: [1, 2]
+    likes: {coffee_can: 4, gum: 3, water: 2, hotbar: 2}
+    talk:
+      enter: ["(전화 중) 어어 나 편의점이야!!", "여보세요? 잘 안 들려!!", "(통화하며 문을 밀고 들어온다)"]
+      browse: ["어 잠깐만, 뭐 사 오라고 했지?!", "(통화 중) 아니 그게 아니라!!", "캔커피? 아 그거!!"]
+      pay: ["(통화하며 물건을 내려놓는다)", "어 계산 중이야!! 잠깐만!!", "(카드를 던지듯 내민다)"]
+      wait: ["어 줄 서 있어!! 길어!!", "(통화 중) 아 진짜?! 하하하!!", "뭐라고?! 안 들려!!"]
+      thanks: ["(통화하며 그냥 나간다)", "어 나 나왔어!!", "어어 다 샀어!!"]
+      angry: ["아 여기 너무 오래 걸려!! 끊어!!", "(통화하며 휙 나간다)", "딴 데 갈게!!"]
+  wrestler:
+    weight: 1.5
+    items: [3, 5]
+    likes: {dosirak: 5, samgak_bulgogi: 4, ramen_big: 4, banana_milk: 3, egg: 3, hotbar: 2}
+    talk:
+      enter: ["(문틀에 어깨가 걸린다) 허허, 미안합니다", "대회 끝나고 밥 먹으러 왔습니다!", "끙차"]
+      browse: ["도시락… 다섯 개면 되려나", "삼각김밥은 한 입 거리네요", "(진열대 앞에 서니 통로가 꽉 찬다)"]
+      pay: ["이거 다 계산해 주세요!", "많지요? 허허", "제가 들고 갈 수 있습니다!"]
+      wait: ["기다리겠습니다!", "(가만히 서 있는데도 든든하다)", "배는 고프지만 참겠습니다"]
+      thanks: ["천하장사 되면 또 오겠습니다!", "감사합니다!", "(악수하려다 손이 아파 보여 멈춘다)"]
+      angry: ["…훈련 시간이라 가 보겠습니다", "아쉽지만 다음에!", "(문틀에 또 어깨가 걸린다)"]
+  bride:
+    weight: 2
+    items: [2, 4]
+    likes: {ice_cone: 4, banana_milk: 3, chocolate: 3, coffee_cup: 2, beer: 2}
+    talk:
+      enter: ["여보 여기 편의점 들렀다 가자~", "저희 신혼이에요~♥", "(손을 꼭 잡고 들어온다)"]
+      browse: ["여보 이거 우리 집 냉장고에 넣자~", "신혼집엔 휴지가 필수래~", "아이스크림 하나씩 먹을까?"]
+      pay: ["이거 계산이요~ 여보가 낼 거예요♥", "아니 내가 낼게~", "우리 공동 통장 카드로요~"]
+      wait: ["기다리는 것도 데이트지~", "(서로 어깨에 기댄다)", "여보 다리 안 아파?"]
+      thanks: ["감사합니다~ 행복하세요♥", "또 올게요 둘이서~", "결혼 잘했다~"]
+      angry: ["여보 그냥 가자~", "딴 데서 사자~", "분위기 깨졌어~"]
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# 2차 (기획안 §5 §6 §7 §13): 내 가게 · 신분증 · 진상 응대 · 폐기 · 청소 · 온수 · 날씨 수요 · 플레이어 손님
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+
+# ── 내 가게 (기획안 §13): 상점 탈것 칸에서 권리증을 사서 내 땅에서 들고 우클릭 → 그 자리에 가게가 지어짐 ─────────────
+# 한 사람 한 가게. 가게 터 (17×17칸, 서 있는 곳에서 보는 쪽으로) 가 모두 내가 주인인 땅 안이어야 함.
+# 윗 등급 권리증을 쓰면 지금 등급 값을 돌려받고 (= 차액만 냄) 더 크게 다시 지음. 옷걸이를 웅크리고 두 번 우클릭하면 철거 (권리증으로 돌아옴).
+# 보수는 100% 내 몫. 손님 한 명 = base + 계산한 금액(원) × margin + 팁 + 정확 (몫 떼기 전, 1차 와 같은 팁 · 정확 · 평점 보너스).
+#   max-inside: 안에 손님 몇 명까지 · items: 손님마다 더 사는 개수 · products: 파는 상품 (all = 전부) · without: 없는 가구
+# 시간당 (1차 의 어림 그대로: 기분 약 80, 평점 보너스 10%):
+#   골목점: 손님 2명까지라 시간당 약 55명 × (550 + 팁 150 + 정확 60) × 1.1 ≈ 4.6만  (소형 버스 50만: 3~4만 → 일감 섞어 5~7만)
+#   표준점: 약 62명 × (450 + 3개 × 약 1,750원 × 0.1 + 150 + 60) × 1.1 ≈ 8.1만    (마을버스 150만: 4~6만 → 8~11만)
+#   대형점: 약 62명 × (450 + 3개 × 약 2,050원 × 0.18 + 150 + 60) × 1.1 ≈ 12만     (리무진 300만: 5~8만 → 11~15만)
+#   (StoreRulesTest 가 같은 계산으로 확인. 직영점 알바 = 약 2만, 렌트 버스와 같은 자리)
+own:
+  tiers:
+    alley:
+      name: 골목점
+      price: 500000
+      license: economy:store_license_alley
+      max-inside: 2
+      items: 0
+      base: 550
+      margin: 0
+      # 계산대 1 · 진열대 2 (도시락 · 과자) · 냉장 1. 시식대 · 온수기 · 전자레인지 · 냉동고 없음
+      without: [shelf_noodle, shelf_daily, fridge_1, fridge_2, freezer, eatbar, kettle, microwave]
+      products: [samgak_tuna, samgak_bibim, samgak_bulgogi, chips, jelly, candy, chocolate, banana_milk, coffee_can, water, soda, gum]
+    standard:
+      name: 표준점
+      price: 1500000
+      license: economy:store_license_standard
+      max-inside: 4
+      items: 1
+      base: 450
+      margin: 0.1
+      # 진열대 4 · 냉장 2 · 시식대 · 전자레인지 · 온수기 · 냉동고
+      without: [fridge_2]
+      products: [samgak_tuna, samgak_bibim, samgak_bulgogi, chips, jelly, candy, chocolate, banana_milk, coffee_can, water, soda, gum,
+                 ramen_red, ramen_mild, ramen_big, dosirak, tissue, umbrella, battery, ice_bar, hangover, lottery]
+    large:
+      name: 대형점
+      price: 3000000
+      license: economy:store_license_large
+      max-inside: 6
+      items: 1
+      base: 450
+      margin: 0.18
+      # 전부: 술 · 담배 · 즉석 조리 (핫바 · 구운 계란) 같은 비싼 상품까지
+      without: []
+      products: all
+
+# ── 신분증 (기획안 §5): items 를 든 어려 보이는 손님 → 계산대 위 [신분증 확인] [판매] [거절] ─────────────────
+# 신분증의 해로 연 나이 age 살이 넘으면 성인. 형 · 언니 신분증 (sibling) 은 해는 성인이지만 사진이 다른 얼굴 → 거절이 맞음.
+# 미성년자에게 팔면 벌금 fine G (보수에서), 미성년자를 거절하면 bonus G, 성인을 괜히 거절하면 기분 refused-adult.
+# kinds: young 어려 보여서 물어볼 확률 · minor 그중 진짜 미성년자 · sibling 미성년자가 형 신분증을 낼 확률 · tries 평소 안 사는데 사 보는 확률
+id:
+  items: [soju, beer, cigarette]
+  age: 19
+  fine: 3000
+  bonus: 300
+  refused-adult: -35
+  refused-minor: -10
+  kinds:
+    student: {young: 1, minor: 1, sibling: 0.5, tries: 0.08}
+    tardy: {young: 1, minor: 1, sibling: 0.3, tries: 0.04}
+    univ: {young: 0.6, minor: 0.15, sibling: 0, tries: 0}
+    soldier: {young: 0.5, minor: 0, sibling: 0, tries: 0.1}
+    couple: {young: 0.25, minor: 0, sibling: 0, tries: 0}
+  names: [김민준, 이서연, 박지호, 최수아, 정우진, 강하은, 조현우, 윤지민, 장도윤, 임채원, 한지훈, 오유나]
+  talk:
+    ask: ["(맥주를 슥 내민다)", "이거요… (눈을 피한다)", "이것도 같이 계산이요"]
+    show: ["(신분증을 꺼낸다) 여기요…", "아 신분증이요? 네 여기요", "(지갑을 한참 뒤진다) …여기요"]
+    sold: ["감사합니다~", "네~ 수고하세요", "(고개를 끄덕인다)"]
+    sold-minor: ["헉 감사합니다! (후다닥)", "(봉지를 꼭 쥐고 서둘러 나간다)", "앗싸… 아니 감사합니다!"]
+    refused-minor: ["아… 네…", "(얼굴이 빨개진다) 그냥 이것만 할게요", "형한테 혼나겠다…"]
+    refused-adult: ["저 스물다섯인데요?!", "제가 그렇게 어려 보여요? …칭찬이죠?", "아 진짜, 신분증 보여 드릴까요?!"]
+
+# ── 플레이어 손님 (기획안 §7): 근무자가 있으면 진열대를 우클릭 (다음 상품) · 웅크리고 우클릭 (담기) → 계산대 우클릭 →
+# 알바생이 찍으면 돈이 나가고 진짜 음식이 됨. 근무자가 없으면 무인 계산대: unmanned-items 만, unmanned 배 값.
+# 값 (G) = 상품 값(원) × rate. 낸 돈은 서버로 사라짐 (소모처), 알바생은 낸 돈의 commission 만큼 수당. 한 번에 most 개까지 (계산대에 다섯 칸)
+players:
+  rate: 0.01
+  unmanned: 1.2
+  commission: 0.25
+  most: 5
+  unmanned-items: [samgak_tuna, samgak_bibim, ramen_red, ramen_mild, banana_milk, coffee_can, water, soda, chips, candy]
+  # 상품 -> 음식 아이템 (items/store_extra.yml). 컵라면은 뜨거운 물을 부어야 (온수기 우클릭) 먹을 수 있음 (hot)
+  food:
+    samgak_tuna: economy:store_food_samgak_tuna
+    samgak_bibim: economy:store_food_samgak_bibim
+    samgak_bulgogi: economy:store_food_samgak_bulgogi
+    dosirak: economy:store_food_dosirak
+    hotbar: economy:store_food_hotbar
+    egg: economy:store_food_egg
+    ramen_red: economy:store_food_ramen_red
+    ramen_mild: economy:store_food_ramen_mild
+    ramen_big: economy:store_food_ramen_big
+    banana_milk: economy:store_food_banana_milk
+    coffee_can: economy:store_food_coffee_can
+    coffee_cup: economy:store_food_coffee_cup
+    soda: economy:store_food_soda
+    ion_drink: economy:store_food_ion_drink
+    water: economy:store_food_water
+    hangover: economy:store_food_hangover
+    chips: economy:store_food_chips
+    shrimp: economy:store_food_shrimp
+    choco_snack: economy:store_food_choco_snack
+    jelly: economy:store_food_jelly
+    chocolate: economy:store_food_chocolate
+    candy: economy:store_food_candy
+    gum: economy:store_food_gum
+    ice_bar: economy:store_food_ice_bar
+    ice_cone: economy:store_food_ice_cone
+  hot:
+    ramen_red: economy:store_food_ramen_red_hot
+    ramen_mild: economy:store_food_ramen_mild_hot
+    ramen_big: economy:store_food_ramen_big_hot
+
+# ── 폐기 (기획안 §5): place 진열대에서 근무 every 초마다 하나씩 유통기한이 지남 (빨간 딱지, most 개까지) ──────────────
+# 손님이 집으면 항의 (기분 complain). 근무자가 그 진열대를 우클릭하면 폐기를 들고 → 폐기 바구니 우클릭으로 버림.
+# 버릴 때 하나는 내 것 (food: 알바의 낙). 공시생은 폐기를 "몰래 하나 더" 받고 싶어 함 (진상 exam)
+waste:
+  place: meal
+  every: 240
+  most: 3
+  complain: -15
+  food: economy:store_food_waste
+
+# ── 청소 · 온수 (기획안 §5) ─────────────────────────────────────────────────────────────────────
+# 음료를 꺼낸 손님이 spill 확률로 통로에 쏟음 (messy 종류는 그 배). 엎지른 곳 · 시식대에 남긴 컵 하나마다 들어오는 손님 기분 mood
+# (most 개까지). 대걸레 통을 우클릭해 대걸레를 들고 → 쏟은 곳을 바라보고 우클릭. 컵은 그냥 바라보고 우클릭.
+# 온수기: 컵 water 잔. 컵라면 손님이 한 잔씩 씀, 비면 실망 (dry). 근무자가 온수기를 우클릭하면 가득.
+# 컵라면 손님은 eat 확률로 시식대에서 eat-seconds 초 먹고 감, cup 확률로 컵을 두고 감
+mess:
+  spill: 0.03
+  messy: {kid: 3, drunk: 3, prankster: 3}
+  mood: -6
+  most: 3
+  water: 8
+  dry: -12
+  eat: 0.5
+  eat-seconds: [15, 30]
+  cup: 0.5
+
+# ── 날씨 · 달력 (기획안 §6): 비 오면 우산, 여름엔 아이스크림 (가게에 있을 때만), 장날 (버스 달력) 엔 손님 market 배 ─────────
+demand:
+  rain: {chance: 0.35, items: {umbrella: 1}}
+  summer: {months: [6, 7, 8], chance: 0.3, items: {ice_bar: 2, ice_cone: 1}}
+  market: 1.5
+
+# ── 진상 응대 12종 (기획안 §6 표) ─────────────────────────────────────────────────────────────────
+# 손님 머리 위 (계산대에선 계산대 끝 위) 에 버튼 2~3개 → 바라보고 우클릭. 정답이 하나가 아님: 그 손님의 기분 · 같이 있는 사람에 따라 다름.
+#   good: 좋은 응대 보너스 (G) · catch: 슬쩍 손님 잡기 · parcel: 택배 접수 · hangover: 취객에게 숙취해소제
+#   lottery: 즉석복권 큰 당첨 big · 작은 당첨 small 확률 · ghost: 새벽 (1~5시) 1초마다 빈 문 종이 울릴 확률
+# list.<종류>: kind 버스 손님 종류 (bus.yml), chance 그 손님이 올 때 이 진상일 확률, buttons 버튼 글씨, talk 대사
+troubles:
+  good: 150
+  catch: 300
+  parcel: 300
+  hangover: 400
+  lottery: {big: 0.03, small: 0.2}
+  ghost: 0.003
+  list:
+    banmal:   # 반말 아저씨: "야, 그거." 어떤 건지 말을 안 함. 기분 좋을 때 반말 지적은 통하지만 아니면 나가 버림
+      kind: rude
+      chance: 0.6
+      buttons: {ask: "어떤 걸로 드릴까요?", scold: "반말은 좀…", guess: "(아무거나 집어 준다)"}
+      talk:
+        start: ["야, 그거.", "어이, 그거 하나.", "그거 줘, 그거. 빨리."]
+        ask: ["…아까 그 파란 거.", "(턱으로 가리킨다) 저거.", "…그래, 저거 말이야."]
+        scold-ok: ["…주세요. 됐지?", "(헛기침) 흠, 그거 주시오.", "…알았어, 알았다고."]
+        scold-bad: ["뭐? 장사를 이따위로 해?!", "어린 게 어디서! 안 사!", "(문을 쾅 닫고 나간다)"]
+        guess-ok: ["…어, 그거 맞네.", "그래, 그거.", "(말없이 고개를 끄덕인다)"]
+        guess-bad: ["이거 말고!", "아니 그거 말고 저거!", "눈치가 없어, 눈치가."]
+    refund:   # 환불 손님: 영수증 없이 먹다 남은 걸 환불해 달라 함. 들어주면 그 값은 내 돈
+      kind: complainer
+      chance: 0.5
+      buttons: {refuse: "죄송하지만 안 돼요", refund: "(환불해 준다)"}
+      talk:
+        start: ["이거 먹다 보니 맛이 이상해요. 환불해 줘요", "영수증? 그런 걸 누가 챙겨요. 환불이요", "반 먹었는데 별로라서요. 돈 돌려줘요"]
+        refuse-ok: ["…규정이 그렇다니 할 수 없죠", "흥, 다음부턴 맛있는 걸 갖다 놔요", "알았어요, 알았어"]
+        refuse-bad: ["본사에 전화할 거예요!", "이 가게 리뷰 다 쓸 거야!", "(다른 손님들 들으라고) 이런 데서 사지 마세요!"]
+        refund: ["진작 이렇게 하지. 수고해요", "어머 친절하네~ 단골 할게요", "(돈을 받아 챙긴다) 그래요, 그래야지"]
+    credit:   # 외상 건달: "장부에 달아 놔~". 할머니 · 경찰 · 씨름 선수가 가게에 있으면 알아서 얌전히 계산
+      kind: thug
+      chance: 0.5
+      buttons: {firm: "외상은 안 됩니다", allow: "(이번만 달아 준다)"}
+      talk:
+        start: ["형님은 외상이지? 장부에 달아 놔~", "어이 알바, 이번 달은 장부에 적어 둬~", "(목걸이를 만지작) 다음에 줄게, 응?"]
+        behave: ["(할머니를 힐끔) …카드 여기 있습니다", "(목소리가 작아진다) 계산하겠습니다…", "(목걸이를 셔츠 안으로 쓱 넣는다)"]
+        firm-ok: ["…쳇, 형님이 낸다 내", "알바가 깡이 있네~ 계산해", "(투덜대며 지갑을 꺼낸다)"]
+        firm-bad: ["에이, 안 사! 형님 간다", "다음에 보자고~", "(물건을 두고 휙 나간다)"]
+        allow: ["역시 알바가 뭘 아네~ 형님이 기억할게", "크~ 이 동네 인심 좋다", "(어깨를 툭 치고 나간다)"]
+    steal:    # 슬쩍 손님: 고르는 척 주머니에 넣음. 나가기 전에 바라보고 우클릭하면 "…계산할게요". 남을 의심하면 상처
+      kind: dodger
+      chance: 0.5
+      buttons: {}
+      talk:
+        start: ["(두리번두리번…)", "(주위를 힐끔 살핀다)", "(괜히 휘파람을 분다)"]
+        caught: ["…계산할게요", "아, 이거요? 계, 계산하려고 했어요", "(주머니에서 슬그머니 꺼낸다) …죄송합니다"]
+        wrong: ["네? 제가요?! 뭘 훔쳐요!", "주머니 뒤집어 볼까요?! 기분 나쁘네", "(어이없다는 듯 쳐다본다)"]
+    drunk:    # 취객: 계산하고 시식대에 엎드려 잠듦 (시식대 있는 가게만). 깨우기 / 숙취해소제 건네기 (팁). 오래 두면 들어오는 손님 기분 ↓
+      kind: drunk
+      chance: 0.6
+      buttons: {wake: "손님, 일어나세요~", hangover: "(숙취해소제를 건넨다)"}
+      talk:
+        start: ["(시식대에 엎드린다) 딱 오 분만… 쿨…", "여기가… 우리 집 식탁인가… 쿨…", "(꾸벅) …쿨… 쿨…"]
+        wake-ok: ["어… 미안혀~ 딸꾹, 갈게~", "어이쿠, 내가 잤어? 고마워~", "(벌떡) 집에 가야지~"]
+        wake-bad: ["으응… 오 분만 더…", "왜 깨워~ 꿈에서 장가갔는디~", "(투덜대며 비틀비틀 나간다)"]
+        hangover: ["크~ 이거여 이거! 알바생 최고여~", "살았다~ 딸꾹, 이건 팁이여~", "(한 병을 원샷) 정신이 번쩍 드네~"]
+        self: ["(번쩍) …여기 어디여? 딸꾹", "어이쿠, 집에 가야지~", "(비틀비틀 혼자 나간다)"]
+    kid:      # 100원 모자란 초등학생: 동전을 세어 보다 100원 모자람. 깎아 주면 큰 호감 (100원은 내 돈)
+      kind: kid
+      chance: 0.4
+      buttons: {discount: "100원 깎아 줄게", refuse: "하나 빼고 사자"}
+      talk:
+        start: ["(동전을 하나하나 센다) …100원이 모자라요", "어… 100원이 없어요… (울먹)", "엄마가 준 돈이 이게 다인데…"]
+        discount: ["우와! 감사합니다아!", "다음에 꼭 100원 갖다드릴게요!", "최고예요! 히히"]
+        refuse: ["힝… 이거 뺄게요…", "(젤리를 아쉽게 내려놓는다)", "…네에"]
+    grandma:  # 할머니: 지갑을 한참 찾음. 기다려 드리면 사탕 하나 쥐여 줌
+      kind: grandma
+      chance: 0.5
+      buttons: {wait: "천천히 하세요~", hurry: "할머니, 뒤에 줄이…"}
+      talk:
+        start: ["아이고 지갑이 어디 갔노… 잠깐만", "(보따리를 하나하나 푼다) 여 있는 줄 알았는데", "총각, 쪼매만 기다려 봐라잉"]
+        wait: ["아이고 착하다. 이 사탕 하나 묵어", "기다려 줘서 고맙데이. 이거 받아라", "(사탕을 손에 꼭 쥐여 준다) 복 받을 끼다"]
+        hurry: ["아이고 미안타, 늙은이가 굼떠서…", "(허둥지둥 돈을 꺼낸다) 미안하데이", "알았다 알았다, 퍼뜩 할게"]
+    tourist:  # 외국인 관광객: 손짓으로 물건을 찾음 → 맞는 진열대를 가리키기 (버튼 = 진열대 이름)
+      kind: traveler
+      chance: 0.5
+      buttons: {}
+      talk:
+        start: ["이거… 어디… 있어요? (사진을 보여 준다)", "Excuse me… 이거… where?", "(휴대폰 사진을 가리키며) 이거, 이거요!"]
+        right: ["오! 감사합니다! Thank you!", "찾았어요! 친절해요!", "와, 알바생 최고예요!"]
+        wrong: ["음… 여기 아니에요…", "(한참 헤매다 겨우 찾는다)", "Oh… 다른 데 있었어요"]
+        self: ["(번역기를 보며 혼자 찾아간다)", "괜찮아요, 찾을게요!", "음… 저쪽인가?"]
+    exam:     # 공시생: 삼각김밥 하나를 오래 고르다 폐기 시간에 맞춰 옴. 폐기가 있으면 [몰래 하나 더]
+      kind: univ
+      chance: 0.3
+      buttons: {give: "(폐기 하나 몰래 챙겨 준다)", decline: "규정상 안 돼요"}
+      talk:
+        start: ["혹시… 폐기 남는 거 있어요…?", "(삼각김밥을 들었다 놨다) …시험이 두 달 남았거든요", "오늘도 독서실 갑니다… 혹시 폐기…"]
+        give: ["감사합니다… 합격하면 꼭 다시 올게요", "(눈시울이 붉어진다) …힘이 나네요", "이걸로 오늘 버팁니다!"]
+        none: ["아, 오늘은 없구나… 괜찮아요", "그쵸, 아직 시간이 안 됐죠…", "(삼각김밥 하나만 집는다)"]
+        decline: ["그쵸, 규정이니까요… 죄송해요", "네… 괜히 물어봤네요", "(고개를 꾸벅 숙인다)"]
+    parcel:   # 택배 맡기는 사람: 상자를 맡김 (무게 재고 접수)
+      kind: resident
+      chance: 0.25
+      buttons: {accept: "접수해 드릴게요", refuse: "택배는 안 받아요"}
+      talk:
+        start: ["택배 하나 맡길게요~ 친정에 김치 보내요", "이거 편의점 택배 되죠? 무거워요~", "(상자를 계산대에 쿵 올린다) 접수요~"]
+        accept: ["고마워요~ 김치 국물 안 새게 잘 쌌어요", "아유 다행이다~ 수고해요", "내일 도착하겠죠? 고마워요~"]
+        refuse: ["어머, 여기 택배 안 돼요? 들고 왔는데…", "아유 무거운데… 우체국 가야겠네", "(상자를 도로 안고 낑낑댄다)"]
+    lottery:  # 복권 손님: 즉석복권을 그 자리에서 긁음 → 당첨이면 가게가 들썩
+      kind: uncle
+      chance: 0.5
+      buttons: {cheer: "축하드려요!", cheer-none: "다음엔 될 거예요!", shrug: "(못 본 척)"}
+      talk:
+        start: ["어디 보자… (동전으로 박박 긁는다)", "이번엔 된다, 이번엔… (긁는다)", "(복권을 긁으며) 알바도 봐 봐, 기운 좀 줘"]
+        big: ["…어? 어어?! 이거 당첨이여!!", "됐다!! 됐어!! 오만 원!!", "(손이 덜덜) 이, 이거 1등 맞지?!"]
+        small: ["오, 천 원 됐네! 본전이다", "허허, 한 장 더 사라는 거구먼", "작게나마 됐다~"]
+        none: ["…꽝이네", "에이, 오늘도 꽝이여", "(복권을 구겨 주머니에 넣는다)"]
+        cheer-big: ["알바도 고생했어! 이거 받아!", "오늘은 내가 쏜다! 다들 하나씩 골라!", "허허허, 이 가게가 명당이여!"]
+        cheer-small: ["고마워, 다음엔 큰 거 된다~", "허허, 기분 좋네", "본전이면 됐지 뭐"]
+        cheer-none: ["그려, 다음엔 되겄지", "허허, 말이라도 고맙네", "내일 또 올게, 내일은 된다"]
+        shrug-big: ["…축하 한마디 안 해 주나?", "쳇, 같이 좋아해 줄 줄 알았는데", "(혼자 신나서 나간다)"]
+        shrug-small: ["뭐, 본전이지", "흠", "(말없이 주머니에 넣는다)"]
+        shrug-none: ["…쯧, 무심하긴", "말이라도 좀 해 주지", "(한숨을 쉬며 나간다)"]
+    ghost:    # 새벽 유령 손님: 문 종만 울리고 아무도 없음 (분위기만)
+      kind: ghost
+      chance: 0
+      buttons: {}
+      talk:
+        start: ["(딸랑) …아무도 없다.", "(문 종이 울렸다) …바람인가?", "(딸랑…) 방금 누가 들어온 것 같았는데."]

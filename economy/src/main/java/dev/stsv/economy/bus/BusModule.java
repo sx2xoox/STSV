@@ -2819,7 +2819,8 @@ public final class BusModule extends EcoModule {
         p.sendMessage(Lang.mm("bus.scene-done", "title", esc(pl.scene.title()), "fx", String.join(" <dark_gray>·</dark_gray> ", parts)));
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.6f, 1.8f);
         if (eco.people() != null && eco.people().sawScene(p, pl.scene.id())) {
-            p.sendMessage(Lang.mm("bus.scene-new", "n", eco.people().scenes(p.getUniqueId()).size(), "all", scenes.scenes().size()));
+            p.sendMessage(Lang.mm("bus.scene-new", "n", eco.people().scenes(p.getUniqueId()).stream().filter(scenes.scenes()::containsKey).count(),
+                    "all", scenes.scenes().size()));   // (the 편의점's seen scenes, "store:…", are kept alongside)
         }
     }
 

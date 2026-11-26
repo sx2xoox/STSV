@@ -94,6 +94,7 @@ public final class StoreBuilder {
     private final BlockBudget budget;
     private final IntConsumer progress;
     private final boolean removing;
+    private StoreLayout.Layout layout = StoreLayout.of();
     private Consumer<Placed> built;
     private Consumer<Integer> removed;
     private final List<Op> ops = new ArrayList<>();
@@ -126,7 +127,14 @@ public final class StoreBuilder {
     /** Starts building (main thread); over a store of the same name it builds again in place. */
     public static StoreBuilder build(Plugin plugin, STSVPlugin core, String name, StoreLayout.Site site, Path undo, HallBuilderSettings settings,
                                      IntConsumer progress, Consumer<Placed> done) throws IOException {
+        return build(plugin, core, name, site, StoreLayout.of(), undo, settings, progress, done);
+    }
+
+    /** The same with some furniture left out (a 내 가게 등급: {@link StoreLayout#of(java.util.Set)}). */
+    public static StoreBuilder build(Plugin plugin, STSVPlugin core, String name, StoreLayout.Site site, StoreLayout.Layout layout, Path undo,
+                                     HallBuilderSettings settings, IntConsumer progress, Consumer<Placed> done) throws IOException {
         StoreBuilder b = new StoreBuilder(plugin, core, name, site, undo, settings, progress, false);
+        b.layout = layout;
         b.built = done;
         b.startBuild();
         return b;
@@ -173,7 +181,7 @@ public final class StoreBuilder {
     }
 
     private void startBuild() throws IOException {
-        StoreLayout.Layout l = StoreLayout.of();
+        StoreLayout.Layout l = layout;
         if (undo != null) {
             Files.createDirectories(undo.toAbsolutePath().getParent());
             if (Files.exists(undo)) {
@@ -317,7 +325,7 @@ public final class StoreBuilder {
     // ------------------------------------------------------------------------------------------ props, labels, furniture
 
     private void decorate() {
-        StoreLayout.Layout l = StoreLayout.of();
+        StoreLayout.Layout l = layout;
         for (HallLayout.Prop p : l.props()) {
             ItemStack shown = shown(core, p.item());
             double[] at = site.at(p.x(), p.y(), p.z());

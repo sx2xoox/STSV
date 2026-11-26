@@ -1,0 +1,314 @@
+# 편의점 2차 (README "편의점" · docs/plans/편의점_기획안.md §7 §13): 플레이어가 편의점에서 사는 진짜 음식 · 내 가게 권리증.
+# items/store.yml (가구 · 표시용 상품, 에셋 담당) 은 건드리지 않고 그 모델을 다시 씀 (새 모델이 생기면 model 만 바꿈).
+# 음식: 편의점에서 플레이어 손님이 계산하면 받음 (store.yml players.food). 상점이 사지도 팔지도 않음.
+#   컵라면은 뜨거운 물을 부어야 먹을 수 있음: 편의점 온수기를 들고 우클릭 → *_hot (store.yml players.hot)
+# 권리증: 상점 탈것 칸에서 팜 (shop.yml). 내 땅에서 들고 우클릭하면 그 등급의 가게가 지어짐 (store.yml own.tiers)
+
+# ── 내 가게 권리증 ──────────────────────────────────────────────────────────────────
+store_license_alley:
+  material: paper
+  name: "<#1f9d55><b>GS26 골목점 권리증"
+  lore: ["<gray>내 가게 · 손님 2명까지 · 상품 12종", "<gray>내 땅에서 들고 우클릭 → 그 자리에 가게 (17×17칸)", "<gray>윗 등급으로 바꾸면 지금 등급 값을 돌려받음", "<dark_gray>값 500,000 G · 철거하면 권리증으로 돌아옴"]
+  model: store_card
+  max-stack: 1
+
+store_license_standard:
+  material: paper
+  name: "<#1f9d55><b>GS26 표준점 권리증"
+  lore: ["<gray>내 가게 · 손님 4명까지 · 상품 22종", "<gray>내 땅에서 들고 우클릭 → 그 자리에 가게 (17×17칸)", "<gray>윗 등급으로 바꾸면 지금 등급 값을 돌려받음", "<dark_gray>값 1,500,000 G · 철거하면 권리증으로 돌아옴"]
+  model: store_card
+  max-stack: 1
+
+store_license_large:
+  material: paper
+  name: "<#1f9d55><b>GS26 대형점 권리증"
+  lore: ["<gray>내 가게 · 손님 6명까지 · 상품 33종", "<gray>내 땅에서 들고 우클릭 → 그 자리에 가게 (17×17칸)", "<gray>윗 등급으로 바꾸면 지금 등급 값을 돌려받음", "<dark_gray>값 3,000,000 G · 철거하면 권리증으로 돌아옴"]
+  model: store_card
+  max-stack: 1
+
+# ── 음식 (편의점에서 산 것) ─────────────────────────────────────────────────────────────
+store_food_samgak_tuna:
+  material: paper
+  name: "<white>참치마요 삼각김밥"
+  lore: ["<gray>고소한 참치마요 · 편의점 스테디셀러", "<dark_gray>GS26 편의점"]
+  model: store_item_samgak_tuna
+  food:
+    nutrition: 5
+    saturation: 4.0
+
+store_food_samgak_bibim:
+  material: paper
+  name: "<white>전주비빔 삼각김밥"
+  lore: ["<gray>고추장이 쏙 · 관광객이 좋아함", "<dark_gray>GS26 편의점"]
+  model: store_item_samgak_bibim
+  food:
+    nutrition: 5
+    saturation: 4.0
+
+store_food_samgak_bulgogi:
+  material: paper
+  name: "<white>불고기 삼각김밥"
+  lore: ["<gray>달짝지근한 불고기", "<dark_gray>GS26 편의점"]
+  model: store_item_samgak_bulgogi
+  food:
+    nutrition: 5
+    saturation: 4.4
+
+store_food_dosirak:
+  material: paper
+  name: "<white>도시락"
+  lore: ["<gray>든든한 한 끼 · 반찬이 일곱 가지", "<dark_gray>GS26 편의점"]
+  model: store_item_dosirak
+  food:
+    nutrition: 8
+    saturation: 9.6
+    seconds: 2.4
+
+store_food_hotbar:
+  material: paper
+  name: "<white>핫바"
+  lore: ["<gray>운전하면서 먹기 좋은 어묵 핫바", "<dark_gray>GS26 편의점"]
+  model: store_item_hotbar
+  food:
+    nutrition: 4
+    saturation: 4.8
+
+store_food_egg:
+  material: paper
+  name: "<white>구운 계란"
+  lore: ["<gray>찜질방 맛 구운 계란", "<dark_gray>GS26 편의점"]
+  model: store_item_egg
+  food:
+    nutrition: 3
+    saturation: 3.6
+
+store_food_banana_milk:
+  material: paper
+  name: "<white>바나나우유"
+  lore: ["<gray>단지 모양 바나나우유", "<dark_gray>GS26 편의점"]
+  model: store_item_banana_milk
+  food:
+    nutrition: 3
+    saturation: 2.4
+    animation: drink
+
+store_food_coffee_can:
+  material: paper
+  name: "<white>캔커피"
+  lore: ["<gray>마시면 잠깐 정신이 번쩍", "<dark_gray>GS26 편의점"]
+  model: store_item_coffee_can
+  food:
+    nutrition: 2
+    saturation: 1.2
+    animation: drink
+    always-eat: true
+    effects:
+      - {effect: speed, seconds: 20}
+
+store_food_coffee_cup:
+  material: paper
+  name: "<white>컵커피"
+  lore: ["<gray>빨대 꽂는 컵커피 · 더 오래 번쩍", "<dark_gray>GS26 편의점"]
+  model: store_item_coffee_cup
+  food:
+    nutrition: 2
+    saturation: 1.6
+    animation: drink
+    always-eat: true
+    effects:
+      - {effect: speed, seconds: 40}
+
+store_food_soda:
+  material: paper
+  name: "<white>사이다"
+  lore: ["<gray>톡 쏘는 사이다", "<dark_gray>GS26 편의점"]
+  model: store_item_soda
+  food:
+    nutrition: 2
+    saturation: 0.6
+    animation: drink
+    always-eat: true
+
+store_food_ion_drink:
+  material: paper
+  name: "<white>이온음료"
+  lore: ["<gray>땀 흘린 뒤엔 이온음료 · 체력 조금", "<dark_gray>GS26 편의점"]
+  model: store_item_ion_drink
+  food:
+    nutrition: 2
+    saturation: 1.2
+    animation: drink
+    always-eat: true
+    heal: 2
+
+store_food_water:
+  material: paper
+  name: "<white>생수"
+  lore: ["<gray>시원한 생수", "<dark_gray>GS26 편의점"]
+  model: store_item_water
+  food:
+    nutrition: 1
+    saturation: 0.5
+    animation: drink
+    always-eat: true
+    clear-effects: false
+
+store_food_hangover:
+  material: paper
+  name: "<white>숙취해소제"
+  lore: ["<gray>마시면 나쁜 효과가 싹 가심", "<dark_gray>GS26 편의점"]
+  model: store_item_hangover
+  food:
+    nutrition: 1
+    saturation: 0.5
+    animation: drink
+    always-eat: true
+    clear-effects: true
+
+store_food_chips:
+  material: paper
+  name: "<white>감자칩"
+  lore: ["<gray>바삭바삭 감자칩", "<dark_gray>GS26 편의점"]
+  model: store_item_chips
+  food:
+    nutrition: 3
+    saturation: 1.2
+
+store_food_shrimp:
+  material: paper
+  name: "<white>새우과자"
+  lore: ["<gray>손이 가요 손이 가", "<dark_gray>GS26 편의점"]
+  model: store_item_shrimp
+  food:
+    nutrition: 3
+    saturation: 1.2
+
+store_food_choco_snack:
+  material: paper
+  name: "<white>초코과자"
+  lore: ["<gray>초코가 듬뿍", "<dark_gray>GS26 편의점"]
+  model: store_item_choco_snack
+  food:
+    nutrition: 3
+    saturation: 1.8
+
+store_food_jelly:
+  material: paper
+  name: "<white>젤리"
+  lore: ["<gray>말랑말랑 곰 젤리", "<dark_gray>GS26 편의점"]
+  model: store_item_jelly
+  food:
+    nutrition: 2
+    saturation: 0.6
+    seconds: 1.0
+
+store_food_chocolate:
+  material: paper
+  name: "<white>초콜릿"
+  lore: ["<gray>등산 필수품 초콜릿", "<dark_gray>GS26 편의점"]
+  model: store_item_chocolate
+  food:
+    nutrition: 3
+    saturation: 1.2
+    seconds: 1.0
+
+store_food_candy:
+  material: paper
+  name: "<white>사탕"
+  lore: ["<gray>할머니가 쥐여 주던 그 사탕", "<dark_gray>GS26 편의점"]
+  model: store_item_candy
+  food:
+    nutrition: 1
+    saturation: 0.2
+    always-eat: true
+    seconds: 0.8
+
+store_food_gum:
+  material: paper
+  name: "<white>껌"
+  lore: ["<gray>회의 전에 하나", "<dark_gray>GS26 편의점"]
+  model: store_item_gum
+  food:
+    nutrition: 1
+    saturation: 0.0
+    always-eat: true
+    seconds: 0.8
+
+store_food_ice_bar:
+  material: paper
+  name: "<white>아이스바"
+  lore: ["<gray>여름엔 아이스바", "<dark_gray>GS26 편의점"]
+  model: store_item_ice_bar
+  food:
+    nutrition: 2
+    saturation: 0.6
+    always-eat: true
+    seconds: 1.2
+
+store_food_ice_cone:
+  material: paper
+  name: "<white>콘 아이스크림"
+  lore: ["<gray>바삭한 콘에 담긴 아이스크림", "<dark_gray>GS26 편의점"]
+  model: store_item_ice_cone
+  food:
+    nutrition: 3
+    saturation: 1.2
+    always-eat: true
+    seconds: 1.4
+
+store_food_ramen_red:
+  material: paper
+  name: "<white>매운 컵라면 <gray>(물 붓기 전)"
+  lore: ["<gray>뜨거운 물을 부어야 먹을 수 있다", "<gray>편의점 온수기를 들고 우클릭", "<dark_gray>GS26 편의점"]
+  model: store_item_ramen_red
+
+store_food_ramen_red_hot:
+  material: paper
+  name: "<white>매운 컵라면 <gold>(뜨끈)"
+  lore: ["<gray>후루룩 · 국물까지 싹", "<dark_gray>GS26 편의점"]
+  model: store_item_ramen_red
+  food:
+    nutrition: 6
+    saturation: 6.0
+    seconds: 2.4
+
+store_food_ramen_mild:
+  material: paper
+  name: "<white>순한 컵라면 <gray>(물 붓기 전)"
+  lore: ["<gray>뜨거운 물을 부어야 먹을 수 있다", "<gray>편의점 온수기를 들고 우클릭", "<dark_gray>GS26 편의점"]
+  model: store_item_ramen_mild
+
+store_food_ramen_mild_hot:
+  material: paper
+  name: "<white>순한 컵라면 <gold>(뜨끈)"
+  lore: ["<gray>후루룩 · 국물까지 싹", "<dark_gray>GS26 편의점"]
+  model: store_item_ramen_mild
+  food:
+    nutrition: 5
+    saturation: 6.0
+    seconds: 2.4
+
+store_food_ramen_big:
+  material: paper
+  name: "<white>큰 컵라면 <gray>(물 붓기 전)"
+  lore: ["<gray>뜨거운 물을 부어야 먹을 수 있다", "<gray>편의점 온수기를 들고 우클릭", "<dark_gray>GS26 편의점"]
+  model: store_item_ramen_big
+
+store_food_ramen_big_hot:
+  material: paper
+  name: "<white>큰 컵라면 <gold>(뜨끈)"
+  lore: ["<gray>후루룩 · 국물까지 싹", "<dark_gray>GS26 편의점"]
+  model: store_item_ramen_big
+  food:
+    nutrition: 8
+    saturation: 8.0
+    seconds: 2.4
+
+store_food_waste:
+  material: paper
+  name: "<white>폐기 삼각김밥"
+  lore: ["<gray>유통기한이 막 지난 것 · 알바의 낙", "<dark_gray>GS26 편의점"]
+  model: store_item_samgak_tuna
+  food:
+    nutrition: 5
+    saturation: 3.0

@@ -20,13 +20,13 @@ import java.util.List;
  */
 public final class Shopper {
 
-    public enum State { WALK, BROWSE, QUEUE, COUNTER, LEAVE, GONE }
+    public enum State { WALK, BROWSE, QUEUE, COUNTER, EAT, LEAVE, GONE }
 
     /** Why they leave. */
     public enum Exit { PAID, ANGRY, EMPTY }
 
     /** What happened this tick (the module says a line, plays a sound, updates the counter). */
-    public enum Event { NONE, BROWSING, TOOK, EMPTY, QUEUED, AT_COUNTER, GAVE_UP, NOTHING_FOUND, LEFT }
+    public enum Event { NONE, BROWSING, TOOK, EMPTY, QUEUED, AT_COUNTER, GAVE_UP, NOTHING_FOUND, LEFT, SAT, ATE }
 
     /** The store as a shopper sees it. */
     public interface Env {
@@ -66,6 +66,7 @@ public final class Shopper {
     private double base;
     private double waited;
     private boolean saidWait;
+    private boolean held, seated;
 
     /**
      * @param round       the shelves to visit, in order
@@ -138,8 +139,9 @@ public final class Shopper {
         else walkTo(env, round.getFirst().node());
     }
 
-    /** One tick (1/20 s). */
+    /** One tick (1/20 s). Held (a scene, a question to the worker): nothing moves, nobody waits. */
     public Event tick(Env env) {
+        if (held) return Event.NONE;
         switch (state) {
             case WALK -> {
                 if (!step()) return Event.NONE;
@@ -186,6 +188,16 @@ public final class Shopper {
                 }
                 return Event.NONE;
             }
+            case EAT -> {
+                if (!seated) {
+                    if (!step()) return Event.NONE;
+                    seated = true;
+                    yaw = node(env, goal).yaw();
+                    return Event.SAT;
+                }
+                if (dwell == Integer.MAX_VALUE || --dwell > 0) return Event.NONE;
+                return Event.ATE;
+            }
             case LEAVE -> {
                 if (step()) {
                     state = State.GONE;
@@ -225,6 +237,31 @@ public final class Shopper {
             walkTo(env, "out");
         }
         state = State.LEAVE;
+    }
+
+    /**
+     * Paid, they sit down at the eat bar instead of going (a 컵라면, a 취객 dozing off): to the seat's node, there `ticks`
+     * (Integer.MAX_VALUE: until {@link #leave}), then {@link Event#ATE}.
+     */
+    public void eat(Env env, String seat, int ticks) {
+        path.clear();
+        boolean lined = (state == State.QUEUE || state == State.COUNTER);
+        if (lined) {
+            addPath(env.path(StoreLayout.COUNTER_TO, seat), 0);
+        } else addPath(env.path(goal, seat), 0);
+        goal = seat;
+        dwell = Math.max(1, ticks);
+        seated = false;
+        state = State.EAT;
+    }
+
+    /** Stops (a scene, a question) or goes on. */
+    public void hold(boolean on) {
+        held = on;
+    }
+
+    public boolean held() {
+        return held;
     }
 
     private void toLine(Env env) {
@@ -311,6 +348,16 @@ public final class Shopper {
 
     public List<Stop> round() {
         return round;
+    }
+
+    /** The stop they are browsing now (null: not browsing). */
+    public Stop browsing() {
+        return state == State.BROWSE && next < round.size() ? round.get(next) : null;
+    }
+
+    /** The stop they last browsed (after a TOOK / EMPTY event), or null. */
+    public Stop last() {
+        return next > 0 && next <= round.size() ? round.get(next - 1) : null;
     }
 
     public List<String> flags() {

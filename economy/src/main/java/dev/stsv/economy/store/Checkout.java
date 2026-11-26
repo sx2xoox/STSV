@@ -187,6 +187,15 @@ public final class Checkout {
         return paid;
     }
 
+    /**
+     * Paid with nothing to give back (2차: a child's exact coins, 할머니's purse, 외상 the worker covers, a player's money): the
+     * till is paid as it stands.
+     */
+    public void settle() {
+        inHand = 0;
+        paid = true;
+    }
+
     /** A wrong change at any point (no accuracy bonus). */
     public boolean mistake() {
         return mistake;

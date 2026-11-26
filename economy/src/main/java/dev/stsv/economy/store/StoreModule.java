@@ -91,12 +91,35 @@ public final class StoreModule extends EcoModule {
     static final float BUTTON = 0.6f;
 
     private StoreSpec spec;
+    /** 2차: 내 가게 등급 · 신분증 · 진상 · 폐기 · 청소 · 플레이어 손님 (store.yml) and the store's scenes (store_scenes.yml) */
+    private StoreRules rules;
+    private StoreScenes scenes = StoreScenes.NONE;
+    /** A player customer's things not paid for yet (their store's name) and which product each is. */
+    static final NamespacedKey UNPAID = new NamespacedKey("economy", "store_unpaid");
+    static final NamespacedKey PRODUCT = new NamespacedKey("economy", "store_product");
+    /** Korean time: the ID's year, the scenes' months and weekends. */
+    static final java.time.ZoneId KST = java.time.ZoneId.of("Asia/Seoul");
+    /** How long a 내 가게 confirmation waits for the second click (ms). */
+    static final long CONFIRM_MS = 10_000;
     private final Map<String, Shop> shops = new LinkedHashMap<>();
     private final Map<UUID, Shop> working = new HashMap<>();
     private final ButtonPick.Debounce clicks = new ButtonPick.Debounce();
     private final ButtonPick.Hint hints = new ButtonPick.Hint();
     private StoreBuilder job;
     private long ticks;
+    /** a player browsing a shelf: which store, place and product they have picked (index) */
+    private final Map<UUID, Picking> picking = new HashMap<>();
+    /** players carrying unpaid things (checked every second: out of the store, they are put back) */
+    private final Set<UUID> carrying = new java.util.HashSet<>();
+    /** a 내 가게 click waiting for its second click: what and where, and when */
+    private final Map<UUID, Confirm> confirms = new HashMap<>();
+    /** when a worker last saw a store scene (ms) */
+    private final Map<UUID, Long> sceneAt = new HashMap<>();
+    private int promptIds;
+
+    private record Picking(String store, String place, int index) {}
+
+    private record Confirm(String what, String key, long at) {}
 
     public StoreModule(EcoPlugin eco) {
         super(eco);
@@ -111,17 +134,30 @@ public final class StoreModule extends EcoModule {
     protected void start() {
         load();
         core.db().migrate("eco_store", List.of(List.of(
-                "CREATE TABLE IF NOT EXISTS eco_store (name VARCHAR(64) NOT NULL PRIMARY KEY, site VARCHAR(160) NOT NULL)")));
+                "CREATE TABLE IF NOT EXISTS eco_store (name VARCHAR(64) NOT NULL PRIMARY KEY, site VARCHAR(160) NOT NULL)"),
+                // 2차 내 가게: its owner and 등급 (null: a 직영점 the server built)
+                List.of("ALTER TABLE eco_store ADD COLUMN owner CHAR(36)", "ALTER TABLE eco_store ADD COLUMN tier VARCHAR(16)")));
         shops.clear();
         core.db().sync(c -> {
-            for (String[] r : Db.query(c, "SELECT name, site FROM eco_store", rs -> new String[]{rs.getString(1), rs.getString(2)})) {
+            for (String[] r : Db.query(c, "SELECT name, site, owner, tier FROM eco_store",
+                    rs -> new String[]{rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)})) {
                 StoreLayout.Site s = StoreLayout.Site.parse(r[1]);
-                if (s != null) shops.put(r[0], new Shop(r[0], s, new Chores(spec)));
+                if (s == null) continue;
+                Shop shop = new Shop(r[0], s, new Chores(spec));
+                if (r[2] != null && !r[2].isBlank()) {
+                    try {
+                        shop.owner = UUID.fromString(r[2].trim());
+                    } catch (IllegalArgumentException e) {
+                        eco.getLogger().warning("[편의점] " + r[0] + ": 주인 UUID 가 이상함 " + r[2]);
+                    }
+                    shop.tier = r[3];
+                }
+                shops.put(r[0], shop);
             }
             return null;
         });
-        core.admin().add(EcoPlugin.ADMIN_OWNER, "편의점", "건설 [이름] · 철거 <이름> · 목록 · 시험 · 손님 <종류> · 배송",
-                "편의점(GS26 직영점) 짓기 · 허물기 · 목록 · 혼자 시험 근무 (돈 · 도감 없음) · 근무 중 손님 부르기 · 배송 트럭 부르기",
+        core.admin().add(EcoPlugin.ADMIN_OWNER, "편의점", "건설 · 철거 · 목록 · 시험 · 손님 · 배송 · 진상 · 신분증 · 장면 · 폐기 · 청소 · 권리증 · 내가게 · 회수",
+                "편의점(GS26 직영점) 짓기 · 허물기 · 시험 근무 · 손님 · 배송 · 진상 손님 부르기 · 신분증 손님 · 장면 · 폐기 · 청소 · 내 가게 권리증 지급 · 목록 · 회수",
                 this::admin, this::adminComplete);
         if (core.hud() != null) {
             core.hud().board(HUD, BOARD_SHIFT, p -> working.containsKey(p.getUniqueId()), this::board);
@@ -150,10 +186,19 @@ public final class StoreModule extends EcoModule {
 
     private void load() {
         List<String> problems = new ArrayList<>();
-        spec = StoreSpec.parse(eco.data("store.yml"), problems);
+        org.bukkit.configuration.file.YamlConfiguration y = eco.data("store.yml");
+        spec = StoreSpec.parse(y, problems);
+        rules = StoreRules.parse(y, spec, problems);
         BusModule bus = eco.bus();
         if (bus != null && bus.spec() != null) problems.addAll(spec.check(bus.spec()));
         problems.forEach(p -> eco.getLogger().warning("[store.yml] " + p));
+        List<String> sceneProblems = new ArrayList<>();
+        scenes = StoreScenes.parse(eco.data("store_scenes.yml"), spec, bus == null ? null : bus.spec(), sceneProblems);
+        sceneProblems.forEach(p -> eco.getLogger().warning("[store_scenes.yml] " + p));
+    }
+
+    public StoreRules rules() {
+        return rules;
     }
 
     public StoreSpec spec() {
@@ -169,11 +214,49 @@ public final class StoreModule extends EcoModule {
         final Chores chores;
         Shift shift;
         final Map<String, String> shown = new HashMap<>();   // place -> the shelf state shown
+        /** 내 가게 (2차): its owner and 등급 id (null: a 직영점) */
+        UUID owner;
+        String tier;
 
         Shop(String name, StoreLayout.Site site, Chores chores) {
             this.name = name;
             this.site = site;
             this.chores = chores;
+        }
+
+        StoreRules.Tier tier() {
+            return tier == null ? null : rules.tiers().get(tier);
+        }
+
+        /** Its furniture (a smaller 등급 has less). */
+        StoreLayout.Layout layout() {
+            StoreRules.Tier t = tier();
+            return t == null ? StoreLayout.of() : StoreLayout.of(t.without());
+        }
+
+        boolean has(String role) {
+            return layout().piece(role) != null;
+        }
+
+        /** What it sells (null: everything, a 직영점). */
+        Set<String> sold() {
+            StoreRules.Tier t = tier();
+            return t == null ? null : t.products();
+        }
+
+        boolean sells(String product) {
+            Set<String> s = sold();
+            return spec.products().containsKey(product) && (s == null || s.contains(product));
+        }
+
+        int maxInside() {
+            StoreRules.Tier t = tier();
+            return t == null ? spec.spawn().maxInside() : t.maxInside();
+        }
+
+        /** The worker's share of the pay: the 직영점's 40%, all of it in one's own store. */
+        double share() {
+            return owner == null ? spec.pay().share() : 1;
         }
 
         World world() {
@@ -215,6 +298,15 @@ public final class StoreModule extends EcoModule {
         double lastX, lastZ;
         float lastYaw, lastPitch;
         TextDisplay ovenText;
+        /** 2차: player customers waiting at the counter, the questions over customers, the messes and the 폐기 tags shown */
+        final List<Basket> buyers = new ArrayList<>();
+        final List<Prompt> prompts = new ArrayList<>();
+        final Map<String, Entity> messes = new HashMap<>();
+        TextDisplay wasteTag;
+        int wasteClock;
+        long sceneCheck;
+        Playing playing;
+        String forceScene;
 
         Shift(Shop shop, UUID worker, boolean test) {
             this.shop = shop;
@@ -258,6 +350,13 @@ public final class StoreModule extends EcoModule {
         final Mannequin m;
         Mannequin partner;
         boolean warm;
+        /** 2차: their trouble (진상), what they pocketed, their ID, the eat bar */
+        Trouble.Kind trouble;
+        boolean troubleStarted, troubleDone, caught, tallied, scened, eats, sleeping;
+        String stolen, refundItem, touristPlace;
+        double tipX = 1;
+        IdCheck.Card card;
+        int seat = -1, prize = -1;
 
         Guest(Shopper s, BusSpec.Type type, Mannequin m) {
             this.s = s;
@@ -268,13 +367,18 @@ public final class StoreModule extends EcoModule {
 
     /** The customer at the counter: their checkout and what shows on the counter. */
     static final class Till {
-        final Guest g;
-        final Checkout c;
+        final Guest g;   // null: a player customer's things (buyer)
+        Checkout c;
         final List<ItemDisplay> items = new ArrayList<>();
         final List<Entity> paying = new ArrayList<>();
         final Map<String, ItemDisplay> buttons = new LinkedHashMap<>();
+        final List<Entity> extra = new ArrayList<>();   // a parcel, a thing brought back, an ID card
         TextDisplay screen, face;
         boolean payStarted;
+        /** 2차: a question to answer before anything is scanned; all on credit (외상); the player customer */
+        boolean hold, free;
+        Basket basket;
+        TextDisplay idCard;
 
         Till(Guest g, Checkout c) {
             this.g = g;
@@ -317,23 +421,28 @@ public final class StoreModule extends EcoModule {
             // customers
             sh.nextSpawn -= 1;
             if (sh.nextSpawn <= 0) {
-                if (sh.guests.size() < spec.spawn().maxInside()) spawn(sh, null, hour);
-                sh.nextSpawn = spec.interval(hour, ThreadLocalRandom.current());
+                if (sh.guests.size() < shop.maxInside()) spawn(sh, null, hour);
+                sh.nextSpawn = spec.interval(hour, ThreadLocalRandom.current(), rules.demand().busy(marketDay()));   // 장날: more of them
             }
             // patience
             for (Guest g : new ArrayList<>(sh.guests)) {
                 if (!g.s.inLine()) continue;
                 if (sh.till != null && sh.till.g == g && sh.till.c.paid()) continue;   // paid, waiting for the microwave
+                if (g.s.held()) continue;   // in a scene, asked something: not waiting on the worker
                 if (g.s.fedUp(spec.patience())) {
                     say(g, "angry");
                     lose(sh, g, Shopper.Exit.ANGRY);
                 } else if (g.s.waitLine(spec.patience())) say(g, "wait");
             }
+            if (sh.till == null && !sh.buyers.isEmpty()) openBasket(sh);   // a player customer's things first
             if (sh.till != null) drawScreen(sh);
             else if (!sh.line.isEmpty()) {   // (the head of the line at the counter with no till: open one)
-                for (Guest g : sh.guests) if (g.s == sh.line.getFirst() && g.s.state() == Shopper.State.COUNTER) atCounter(sh, g);
+                for (Guest g : new ArrayList<>(sh.guests)) if (g.s == sh.line.getFirst() && g.s.state() == Shopper.State.COUNTER) atCounter(sh, g);
             }
+            chores(shop, sh, p, hour);
+            sceneTick(sh, p);
         }
+        checkCarrying();
         if (core.hud() != null && !working.isEmpty()) core.hud().refreshBoard();
     }
 
@@ -382,6 +491,14 @@ public final class StoreModule extends EcoModule {
 
     /** A customer walks in (a kind, or one picked for the hour). Null when none could. */
     Guest spawn(Shift sh, String kind, int hour) {
+        return spawn(sh, kind, hour, null, false);
+    }
+
+    /**
+     * The same; `force` makes them bring that trouble (진상, an admin's call), `young` makes them look young enough for the ID
+     * check (with 술 · 담배 among their things).
+     */
+    Guest spawn(Shift sh, String kind, int hour, Trouble.Kind force, boolean young) {
         BusModule bus = eco.bus();
         if (bus == null || bus.spec() == null) return null;
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
@@ -390,15 +507,68 @@ public final class StoreModule extends EcoModule {
         if (type == null) return null;
         StoreSpec.Customer c = spec.customers().getOrDefault(typeId,
                 new StoreSpec.Customer(typeId, 1, 1, 3, Map.of(), 0, -1, -1, Map.of()));
-        List<String> things = spec.pickItems(c, rnd);
-        StoreLayout.Layout l = StoreLayout.of();
-        java.util.function.Function<String, String> placeOf = id -> spec.products().containsKey(id) ? spec.products().get(id).place() : null;
+        Shop shop = sh.shop;
+        StoreRules.Tier tier = shop.tier();
+        List<String> things = new ArrayList<>(spec.pickItems(c, rnd, shop.sold(), tier == null ? 0 : tier.items()));
+        // 날씨 · 달력: an umbrella in the rain, an ice cream in summer
+        World world = shop.world();
+        java.time.ZonedDateTime kst = java.time.ZonedDateTime.now(KST);
+        for (String x : rules.demand().extra(world != null && world.hasStorm(), kst.getMonthValue(), shop.sold(), things, rnd)) {
+            if (things.size() < 5) things.add(x);
+        }
+        // 신분증: a kind that looks young now and then tries 술 · 담배; with them in hand it may be asked for an ID
+        IdCheck.Kind idKind = rules.id().kinds().get(typeId);
+        IdCheck.Card card = null;
+        if (idKind != null) {
+            List<String> restricted = new ArrayList<>();
+            for (String r : rules.id().items()) if (shop.sells(r)) restricted.add(r);
+            if (!restricted.isEmpty() && (young || rnd.nextDouble() < idKind.tries()) && !IdCheck.restricted(things, rules.id().items()) && things.size() < 5) {
+                things.add(restricted.get(rnd.nextInt(restricted.size())));
+            }
+            if (IdCheck.restricted(things, rules.id().items()) && (young || rnd.nextDouble() < idKind.young())) {
+                card = IdCheck.card(idKind, kst.getYear(), rules.id().age(), rules.id().names(), rnd);
+            }
+        }
+        // 진상: the trouble this kind brings, now and then (or as the admin asked)
+        Trouble.Kind trouble = force != null && force.type.equals(typeId) ? force : Trouble.Kind.forType(typeId);
+        String refundItem = null;
+        if (trouble != null) {
+            StoreRules.TroubleText tt = rules.troubles().get(trouble);
+            boolean comes = force == trouble || (tt != null && Trouble.comes(tt.chance(), rnd.nextDouble()));
+            if (comes) switch (trouble) {
+                case DRUNK -> comes = shop.has("eatbar");
+                case LOTTERY -> {
+                    comes = shop.sells("lottery");
+                    if (comes && !things.contains("lottery")) {
+                        if (things.size() >= 5) things.removeLast();
+                        things.add("lottery");
+                    }
+                }
+                case REFUND -> {   // they bring back something half eaten, and buy nothing
+                    List<String> sold = new ArrayList<>();
+                    for (String id : spec.products().keySet()) if (shop.sells(id) && players().food().containsKey(id)) sold.add(id);
+                    comes = !sold.isEmpty();
+                    if (comes) {
+                        refundItem = sold.get(rnd.nextInt(sold.size()));
+                        things.clear();
+                    }
+                }
+                case TOURIST -> comes = !Shopper.plan(shop.layout(), things, this::placeOf, "door").isEmpty();
+                default -> {}
+            }
+            if (!comes) trouble = null;
+        }
+        StoreLayout.Layout l = shop.layout();
+        java.util.function.Function<String, String> placeOf = this::placeOf;
         List<Shopper.Stop> round = Shopper.plan(l, things, placeOf, "door");
         double chance = spec.shinyChance() >= 0 ? spec.shinyChance() : bus.spec().shiny().chance();
         boolean shiny = bus.spec().shiny().eligible(type) && rnd.nextDouble() < chance;
         double speed = spec.spawn().speed() / Math.max(1, Math.sqrt(type.slow()));
         int browse = (int) Math.round(40 * Math.min(3, Math.max(1, Math.sqrt(type.slow()))));
-        Shopper s = new Shopper(typeId, shiny, round, Shopper.counterThings(things, placeOf), spec.mood().start(), speed, type.mood(), browse,
+        // a mess or a 취객 asleep at the bar sours them the moment they walk in
+        double start = spec.mood().start() + rules.mess().mood() * Math.min(rules.mess().most(), shop.chores.messes());
+        for (Guest x : sh.guests) if (x.sleeping) start -= 5;
+        Shopper s = new Shopper(typeId, shiny, round, Shopper.counterThings(things, placeOf), start, speed, type.mood(), browse,
                 l.nodes().get("out"));
         Location at = sh.shop.at(s.x(), 0, s.z(), s.yaw());
         if (!at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
@@ -407,6 +577,9 @@ public final class StoreModule extends EcoModule {
         String firstSkin = skin;
         Mannequin m = bus.spawnGuest(at, type, skin, shiny, x -> tagGuest(x, bus.typeTag(type, shiny)));
         Guest g = new Guest(s, type, m);
+        g.trouble = trouble;
+        g.card = card;
+        g.refundItem = refundItem;
         if (type.pair()) {
             String other = shiny ? bus.shinySkin(type, true, true) : BusModule.partnerSkin(type, firstSkin, rnd);
             g.partner = bus.spawnGuest(at, type, other, shiny, x -> tagGuest(x, null));
@@ -422,7 +595,23 @@ public final class StoreModule extends EcoModule {
         Player worker = Bukkit.getPlayer(sh.worker);
         if (!sh.test && worker != null && knows(worker, typeId)) say(g, "recognize");
         else say(g, "enter");
+        if (shop.chores.messes() > 0 && rnd.nextDouble() < 0.4) Bukkit.getScheduler().runTaskLater(eco, () -> say(g, "messy"), 50L);
         return g;
+    }
+
+    private String placeOf(String id) {
+        StoreSpec.Product p = spec.products().get(id);
+        return p == null ? null : p.place();
+    }
+
+    private StoreRules.Players players() {
+        return rules.players();
+    }
+
+    /** Whether today is a 장날 (the bus calendar's). */
+    private boolean marketDay() {
+        BusModule bus = eco.bus();
+        return bus != null && bus.spec() != null && eco.calendar() != null && bus.spec().marketDay(eco.calendar().day());
     }
 
     private void tagGuest(Mannequin x, String name) {
@@ -458,13 +647,18 @@ public final class StoreModule extends EcoModule {
         }
         switch (e) {
             case BROWSING -> {
+                if (browsing(sh, g)) break;   // a 진상 at the shelf (the 슬쩍 손님, the 관광객)
                 if (ThreadLocalRandom.current().nextDouble() < 0.35) say(g, "browse");
             }
-            case TOOK -> hold(g);
+            case TOOK -> {
+                hold(g);
+                took(sh, g);
+            }
             case EMPTY -> {
                 hold(g);
                 g.s.mood(spec.mood().empty());
                 say(g, "empty");
+                took(sh, g);
             }
             case NOTHING_FOUND -> {
                 say(g, "empty");
@@ -472,7 +666,12 @@ public final class StoreModule extends EcoModule {
                 sh.line.remove(g.s);
             }
             case AT_COUNTER -> atCounter(sh, g);
-            case LEFT -> drop(sh, g);
+            case SAT -> sat(sh, g);
+            case ATE -> ate(sh, g);
+            case LEFT -> {
+                if (g.stolen != null && !g.caught) escaped(sh, g);
+                drop(sh, g);
+            }
             default -> {}
         }
     }
@@ -491,6 +690,8 @@ public final class StoreModule extends EcoModule {
 
     /** They leave without buying (angry, waited too long): ★1, nothing earned. */
     private void lose(Shift sh, Guest g, Shopper.Exit why) {
+        clearPrompts(sh, g);
+        g.s.hold(false);
         if (sh.till != null && sh.till.g == g) clearTill(sh);
         if (sh.warmFor == g) {
             sh.shop.chores.resetOven();
@@ -503,6 +704,8 @@ public final class StoreModule extends EcoModule {
 
     /** A customer gone out the door: their mannequins away. */
     private void drop(Shift sh, Guest g) {
+        clearPrompts(sh, g);
+        if (sh.playing != null && sh.playing.has(g)) endScene(sh, false);
         sh.guests.remove(g);
         sh.line.remove(g.s);
         if (sh.till != null && sh.till.g == g) clearTill(sh);
@@ -544,7 +747,7 @@ public final class StoreModule extends EcoModule {
             if (eq.getItemInMainHand().getPersistentDataContainer().has(GUEST)) eq.setItemInMainHand(null);
             if (eq.getItemInOffHand().getPersistentDataContainer().has(GUEST)) eq.setItemInOffHand(null);
         }
-        say(g, "pay");
+        if (g.refundItem == null) say(g, "pay");
         boolean warmable = false;
         for (String s : things) if (spec.warm().items().contains(s)) warmable = true;
         if (warmable && ThreadLocalRandom.current().nextDouble() < spec.warm().chance()) {
@@ -552,6 +755,10 @@ public final class StoreModule extends EcoModule {
             g.warm = true;
             Bukkit.getScheduler().runTaskLater(eco, () -> say(g, "warm"), 40L);
         }
+        // 2차: what they put down besides (a thing to refund, a parcel), then the ID check and the 진상 at the counter
+        if (g.refundItem != null) t.extra.add(display(sh.shop.at(l.slots().getFirst()), spec.products().get(g.refundItem).item(), 0.75f));
+        if (g.trouble == Trouble.Kind.PARCEL) t.extra.add(display(sh.shop.at(l.slots().get(3)), "economy:store_box_daily", 0.55f));
+        counterQuestions(sh, g);
         drawScreen(sh);
     }
 
@@ -581,6 +788,21 @@ public final class StoreModule extends EcoModule {
         Till t = sh.till;
         if (t == null || t.payStarted) return;
         t.payStarted = true;
+        if (t.g == null) {   // a player customer: their money, no change
+            chargeBasket(sh, t);
+            return;
+        }
+        if (t.free) {   // 외상: nothing is handed over
+            t.c.settle();
+            drawScreen(sh);
+            maybeDone(sh);
+            return;
+        }
+        if (trouble(sh, t.g, Trouble.Stage.PAY)) {   // the 초등학생 counting coins, 할머니 looking for her purse
+            t.c.ask("trouble");
+            drawScreen(sh);
+            return;
+        }
         StoreLayout.Layout l = StoreLayout.of();
         if (t.c.method() == Checkout.Method.CARD) {
             say(t.g, "card");
@@ -614,7 +836,9 @@ public final class StoreModule extends EcoModule {
         Till t = sh.till;
         if (t == null) return;
         String text;
-        if (!t.c.allScanned()) text = Lang.raw("store.screen-scan", "total", won(t.c.total()), "n", count(t.c), "all", t.c.size());
+        if (t.hold) text = Lang.raw("store.screen-ask");
+        else if (t.g != null && t.c.asks().contains("trouble")) text = Lang.raw("store.screen-ask");
+        else if (!t.c.allScanned()) text = Lang.raw("store.screen-scan", "total", won(t.c.total()), "n", count(t.c), "all", t.c.size());
         else if (!t.c.paid() && t.c.method() == Checkout.Method.CARD) text = Lang.raw("store.screen-card", "total", won(t.c.bill()));
         else if (!t.c.paid()) text = Lang.raw("store.screen-cash", "total", won(t.c.bill()), "paid", won(t.c.tendered()), "change", won(t.c.change()),
                 "hand", won(t.c.inHand()));
@@ -676,11 +900,32 @@ public final class StoreModule extends EcoModule {
     /** Paid and nothing asked: the customer thanks and goes, the shift tallies them. */
     private void maybeDone(Shift sh) {
         Till t = sh.till;
-        if (t == null || !t.c.done()) return;
+        if (t == null || t.g == null) return;
+        if (t.c.paid() && t.c.asks().isEmpty() && trouble(sh, t.g, Trouble.Stage.PAID)) {   // the 복권 scratched right here
+            t.c.ask("trouble");
+            drawScreen(sh);
+            return;
+        }
+        if (!t.c.done()) return;
         Guest g = t.g;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        // 컵라면: hot water from the kettle (none left: disappointed); some eat it at the bar
+        boolean ramen = false;
+        for (String x : t.c.items()) if ("noodle".equals(placeOf(x))) ramen = true;
+        if (ramen && sh.shop.has("kettle")) {
+            if (sh.shop.chores.pour(rules.mess().water())) {
+                if (sh.shop.has("eatbar") && rnd.nextDouble() < rules.mess().eat()) g.eats = true;
+            } else {
+                g.s.mood(rules.mess().dry());
+                say(g, "dry");
+            }
+        }
         double mood = g.type.floor(g.s.mood(spec.patience()));
         int stars = spec.stars(mood);
-        long earn = spec.earn(mood, g.type.tip(), !t.c.mistake());
+        StoreRules.Tier tier = sh.shop.tier();
+        long earn = t.free ? 0   // 외상: given away, nothing earned on it
+                : tier == null ? spec.earn(mood, g.type.tip() * g.tipX, !t.c.mistake())
+                : tier.earn(spec, mood, g.type.tip() * g.tipX, !t.c.mistake(), t.c.bill());
         sh.log.served(stars, earn, t.c.bill(), !t.c.mistake());
         Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) {
@@ -700,7 +945,8 @@ public final class StoreModule extends EcoModule {
         }
         clearTill(sh);
         sh.line.remove(g.s);
-        g.s.leave(sh, Shopper.Exit.PAID);
+        g.tallied = true;
+        afterPaid(sh, g);
     }
 
     private void clearTill(Shift sh) {
@@ -709,6 +955,8 @@ public final class StoreModule extends EcoModule {
         for (Entity e : t.items) e.remove();
         for (Entity e : t.paying) e.remove();
         for (Entity e : t.buttons.values()) e.remove();
+        for (Entity e : t.extra) e.remove();
+        if (t.idCard != null) t.idCard.remove();
         if (t.screen != null) t.screen.remove();
         if (t.face != null) t.face.remove();
         sh.till = null;
@@ -717,8 +965,23 @@ public final class StoreModule extends EcoModule {
     // ------------------------------------------------------------------------------------------ the worker's clicks
 
     /** The things the worker can press now (the till's items, its buttons, the boxes), in the world. */
-    private List<ButtonPick.Target> targets(Shift sh) {
+    private List<ButtonPick.Target> targets(Shift sh, Player viewer) {
         List<ButtonPick.Target> out = new ArrayList<>();
+        // 2차: the buttons over customers (each turned to the worker), the spills on the floor, the cups on the eat bar
+        Location me = viewer.getLocation();
+        for (Prompt pr : sh.prompts) for (Map.Entry<String, TextDisplay> b : pr.buttons.entrySet()) {
+            TextDisplay d = b.getValue();
+            if (!d.isValid()) continue;
+            Location at = d.getLocation();
+            double dx = at.getX() - me.getX(), dz = at.getZ() - me.getZ(), len = Math.hypot(dx, dz);
+            if (len < 1e-6) {
+                dx = 1;
+                len = 1;
+            }
+            int chars = Text.plain(pr.labels.getOrDefault(b.getKey(), "")).length();
+            out.add(new ButtonPick.Target(sh.worker, "ask:" + pr.id + ":" + b.getKey(), at.getX(), at.getY() + 0.07, at.getZ(), -dz / len, dx / len,
+                    Math.min(0.7, 0.05 * chars + 0.08), 0.075, 0.08));
+        }
         StoreLayout.Site site = sh.shop.site;
         double[] o = site.at(0, 0, 0), zf = site.at(0, 0, 1);
         double rx = zf[0] - o[0], rz = zf[2] - o[2];   // a row along the counter (local +z)
@@ -748,7 +1011,23 @@ public final class StoreModule extends EcoModule {
             double[] a = site.at(p.x(), p.y() + 0.25, p.z());
             out.add(new ButtonPick.Target(sh.worker, "box:" + box, a[0], a[1], a[2], rx, rz, 0.38, 0.25, 0.32));
         }
+        for (String node : sh.shop.chores.spills()) {
+            StoreLayout.Node n = l.nodes().get(node);
+            if (n == null) continue;
+            double[] a = site.at(n.x(), 0.05, n.z());
+            out.add(new ButtonPick.Target(sh.worker, "spill:" + node, a[0], a[1], a[2], rx, rz, 0.45, 0.12, 0.45));
+        }
+        for (int seat = 0; seat < StoreLayout.EAT.size(); seat++) {
+            if (!sh.shop.chores.cup(seat)) continue;
+            double[] a = site.at(cupSpot(seat)[0], cupSpot(seat)[1] + 0.1, cupSpot(seat)[2]);
+            out.add(new ButtonPick.Target(sh.worker, "cup:" + seat, a[0], a[1], a[2], rx, rz, 0.2, 0.15, 0.2));
+        }
         return out;
+    }
+
+    /** Where a cup left at eat bar seat i stands (local x, y, z: on the bar's top). */
+    static double[] cupSpot(int seat) {
+        return new double[]{-1.5 + seat, 1.0, 4.55};
     }
 
     private static HallLayout.Point point(StoreLayout.Layout l, String key) {
@@ -767,7 +1046,7 @@ public final class StoreModule extends EcoModule {
         Shift sh = shop.shift;
         sh.lastActive = System.currentTimeMillis();
         int now = Bukkit.getCurrentTick();
-        List<ButtonPick.Target> targets = targets(sh);
+        List<ButtonPick.Target> targets = targets(sh, p);
         Location eye = p.getEyeLocation();
         org.bukkit.util.Vector d = eye.getDirection();
         ButtonPick.Target hit = ButtonPick.pick(eye.getX(), eye.getY(), eye.getZ(), d.getX(), d.getY(), d.getZ(), p.getUniqueId(), targets);
@@ -780,9 +1059,47 @@ public final class StoreModule extends EcoModule {
     private void press(Player p, Shift sh, String key) {
         Till t = sh.till;
         Location me = p.getLocation();
+        if (key.startsWith("ask:")) {
+            String[] k = key.split(":", 3);
+            int id = Integer.parseInt(k[1]);
+            for (Prompt pr : new ArrayList<>(sh.prompts)) if (pr.id == id) {
+                p.playSound(me, Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.6f, 1.5f);
+                answer(p, sh, pr, k[2]);
+                break;
+            }
+            return;
+        }
+        if (key.startsWith("spill:")) {
+            String node = key.substring(6);
+            if (!sh.shop.chores.mop()) {
+                HudModule.flash(p, Lang.mm("store.need-mop"), 2000);
+                return;
+            }
+            if (sh.shop.chores.wipe(node)) {
+                Entity d = sh.messes.remove("spill:" + node);
+                if (d != null) d.remove();
+                p.playSound(me, Sound.ITEM_BUCKET_EMPTY, 0.6f, 1.4f);
+                HudModule.flash(p, Lang.mm("store.mopped"), 1500);
+            }
+            return;
+        }
+        if (key.startsWith("cup:")) {
+            int seat = Integer.parseInt(key.substring(4));
+            if (sh.shop.chores.clearCup(seat)) {
+                Entity d = sh.messes.remove("cup:" + seat);
+                if (d != null) d.remove();
+                p.playSound(me, Sound.ITEM_BUNDLE_INSERT, 0.6f, 1.2f);
+                HudModule.flash(p, Lang.mm("store.cleared"), 1500);
+            }
+            return;
+        }
         if (key.startsWith("item:") && t != null) {
             if (!isTool(p.getInventory().getItemInMainHand())) {
                 HudModule.flash(p, Lang.mm("store.need-scanner"), 2000);
+                return;
+            }
+            if (t.hold) {
+                HudModule.flash(p, Lang.mm("store.answer-first"), 2000);
                 return;
             }
             int i = Integer.parseInt(key.substring(5));
@@ -1032,6 +1349,10 @@ public final class StoreModule extends EcoModule {
             p.sendMessage(Lang.msg("store.taken", "player", w == null ? "?" : w.getName()));
             return;
         }
+        if (shop.owner != null && !shop.owner.equals(p.getUniqueId())) {   // 내 가게: only its owner works there (2차)
+            p.sendMessage(Lang.msg("store.own-not-yours", "player", String.valueOf(Bukkit.getOfflinePlayer(shop.owner).getName())));
+            return;
+        }
         clockIn(p, shop, false);
     }
 
@@ -1068,8 +1389,10 @@ public final class StoreModule extends EcoModule {
         World w = shop.world();
         if (w != null) shop.chores.delivery(spec, Chores.slot(w.getFullTime(), spec.deliveries()));   // (the first one only remembers)
         showBoxes(sh);
+        drawMesses(sh);
         p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.1f);
-        p.sendMessage(Lang.msg(test ? "store.in-test" : "store.in", "store", shop.name, "share", Math.round(spec.pay().share() * 100)));
+        p.sendMessage(Lang.msg(test ? "store.in-test" : shop.owner != null ? "store.in-own" : "store.in", "store", shop.name,
+                "share", Math.round(spec.pay().share() * 100), "tier", shop.tier() == null ? "" : shop.tier().name()));
         HudModule.flash(p, Lang.mm("store.in-flash"), 3000);
         if (core.hud() != null) core.hud().refreshBoard();
         return true;
@@ -1091,11 +1414,23 @@ public final class StoreModule extends EcoModule {
         for (ItemDisplay d : sh.boxes.values()) d.remove();
         sh.boxes.clear();
         if (sh.ovenText != null) sh.ovenText.remove();
+        for (Prompt pr : sh.prompts) for (Entity e : pr.buttons.values()) e.remove();
+        sh.prompts.clear();
+        for (Entity e : sh.messes.values()) e.remove();
+        sh.messes.clear();
+        if (sh.wasteTag != null) sh.wasteTag.remove();
+        sh.playing = null;
+        for (Basket b : sh.buyers) {
+            Player buyer = Bukkit.getPlayer(b.buyer);
+            if (buyer != null) buyer.sendMessage(Lang.msg("store.basket-closed"));
+        }
+        sh.buyers.clear();
         shop.chores.putDown();
         shop.chores.resetOven();
+        shop.chores.mop(false);
         Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) stripTools(p);
-        ShiftLog.Payout pay = sh.log.payout(spec);
+        ShiftLog.Payout pay = sh.log.payout(spec, shop.share());
         if (!sh.test && pay.pay() > 0) core.economy().deposit(sh.worker, pay.pay(), "store");
         if (p != null) receipt(p, shop, sh, pay, why);
         clicks.forget(sh.worker);
@@ -1110,8 +1445,10 @@ public final class StoreModule extends EcoModule {
         p.sendMessage(Lang.mm("store.receipt-people", "served", pay.served(), "lost", pay.lost(), "stars", starNumber(pay.stars())));
         p.sendMessage(Lang.mm("store.receipt-sales", "sales", won(pay.sales()), "mistakes", pay.mistakes()));
         p.sendMessage(Lang.mm("store.receipt-earned", "earned", gold(pay.earned()), "bonus", gold(pay.bonus()), "rate", Math.round(pay.bonusRate() * 100)));
-        p.sendMessage(Lang.mm("store.receipt-share", "share", Math.round(spec.pay().share() * 100), "cut", gold(pay.share()),
-                "deduct", pay.deduction() > 0 ? Lang.raw("store.receipt-deduct", "g", gold(pay.deduction())) : ""));
+        if (pay.handled() > 0 || sh.log.coveredWon() > 0 || pay.fines() > 0) p.sendMessage(Lang.mm("store.receipt-trouble", "handled", pay.handled(),
+                "covered", won(sh.log.coveredWon()), "fines", gold(pay.fines())));
+        p.sendMessage(Lang.mm(shop.owner != null ? "store.receipt-share-own" : "store.receipt-share", "share", Math.round(pay.shareRate() * 100),
+                "cut", gold(pay.share()), "deduct", pay.deduction() > 0 ? Lang.raw("store.receipt-deduct", "g", gold(pay.deduction())) : ""));
         p.sendMessage(Lang.mm(sh.test ? "store.receipt-test" : "store.receipt-pay", "pay", gold(pay.pay())));
         String word = pay.served() == 0 ? "store.word-none" : pay.stars() >= 4.5 ? "store.word-5" : pay.stars() >= 3.5 ? "store.word-4"
                 : pay.stars() >= 2.5 ? "store.word-3" : "store.word-low";
@@ -1197,14 +1534,25 @@ public final class StoreModule extends EcoModule {
         if (!clicks.accept(p.getUniqueId(), Bukkit.getCurrentTick())) return;   // one click, however many events
         if (role.equals("hanger")) {
             if (!p.isSneaking()) hanger(p, shop);
+            else ownerHanger(p, shop);   // 내 가게: its owner takes it down (twice)
+            return;
+        }
+        if (mine == null) {   // 플레이어 손님 (2차): a shelf to pick from, the counter to pay at, the kettle for a 컵라면
+            customerClick(p, shop, role);
             return;
         }
         if (mine != shop) return;
         Shift sh = shop.shift;
         sh.lastActive = System.currentTimeMillis();
-        if (role.startsWith("shelf_")) restock(p, sh, role.substring(6));
+        Chores ch = shop.chores;
+        String wastePlace = rules.waste().place();
+        if (role.equals("shelf_" + wastePlace) && ch.carrying() == null && ch.expired(wastePlace) > 0) takeWaste(p, sh);
+        else if (role.startsWith("shelf_")) restock(p, sh, role.substring(6));
         else if (role.startsWith("fridge_")) restock(p, sh, "fridge");
         else if (role.equals("microwave")) ovenClick(p, sh);
+        else if (role.equals("kettle")) kettle(p, sh);
+        else if (role.equals("waste")) dispose(p, sh);
+        else if (role.equals("mop")) mop(p, sh);
         else if (role.equals("counter") && sh.till == null) HudModule.flash(p, Lang.mm("store.counter-empty"), 1500);
     }
 
@@ -1221,7 +1569,12 @@ public final class StoreModule extends EcoModule {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onUse(PlayerInteractEvent e) {
-        if (e.getAction() == org.bukkit.event.block.Action.PHYSICAL || !working.containsKey(e.getPlayer().getUniqueId())) return;
+        if (e.getAction() == org.bukkit.event.block.Action.PHYSICAL) return;
+        if (e.getAction().isRightClick() && e.getHand() == org.bukkit.inventory.EquipmentSlot.HAND && license(e.getPlayer())) {   // 내 가게 권리증 (2차)
+            e.setCancelled(true);
+            return;
+        }
+        if (!working.containsKey(e.getPlayer().getUniqueId())) return;
         if (workerClick(e.getPlayer())) e.setCancelled(true);
     }
 
@@ -1229,18 +1582,23 @@ public final class StoreModule extends EcoModule {
     public void onEntityUse(PlayerInteractEntityEvent e) {
         Entity x = e.getRightClicked();
         if (x.getPersistentDataContainer().has(GUEST)) e.setCancelled(true);
-        if (working.containsKey(e.getPlayer().getUniqueId()) && workerClick(e.getPlayer())) e.setCancelled(true);
+        if (working.containsKey(e.getPlayer().getUniqueId()) && (accuse(e.getPlayer(), x) || workerClick(e.getPlayer()))) e.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onHit(PrePlayerAttackEntityEvent e) {
         if (e.getAttacked().getPersistentDataContainer().has(GUEST)) e.setCancelled(true);
-        if (working.containsKey(e.getPlayer().getUniqueId()) && workerClick(e.getPlayer())) e.setCancelled(true);
+        if (working.containsKey(e.getPlayer().getUniqueId()) && (accuse(e.getPlayer(), e.getAttacked()) || workerClick(e.getPlayer()))) e.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent e) {
-        if (isTool(e.getItemDrop().getItemStack())) e.setCancelled(true);
+        ItemStack it = e.getItemDrop().getItemStack();
+        if (isTool(it)) e.setCancelled(true);
+        else if (unpaid(it) != null) {   // a thing not paid for stays in hand (or goes back on the shelf when they leave)
+            e.setCancelled(true);
+            HudModule.flash(e.getPlayer(), Lang.mm("store.unpaid-keep"), 2000);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -1268,6 +1626,9 @@ public final class StoreModule extends EcoModule {
         Shop s = working.get(e.getPlayer().getUniqueId());
         if (s != null) clockOut(s, null);
         stripTools(e.getPlayer());
+        putBack(e.getPlayer(), null);
+        picking.remove(e.getPlayer().getUniqueId());
+        confirms.remove(e.getPlayer().getUniqueId());
     }
 
     @EventHandler
@@ -1290,7 +1651,7 @@ public final class StoreModule extends EcoModule {
         Shop shop = working.get(viewer.getUniqueId());
         if (shop == null || shop.shift == null) return null;
         Shift sh = shop.shift;
-        ShiftLog.Payout pay = sh.log.payout(spec);
+        ShiftLog.Payout pay = sh.log.payout(spec, shop.share());
         List<HudLayout.Board.Row> rows = new ArrayList<>();
         rows.add(new HudLayout.Board.Row(null, Lang.mm("store.board-people", "served", pay.served(), "lost", pay.lost(),
                 "stars", pay.served() + pay.lost() == 0 ? "-" : starNumber(pay.stars()))));
@@ -1304,12 +1665,18 @@ public final class StoreModule extends EcoModule {
     private List<String> todos(Shift sh) {
         List<String> out = new ArrayList<>();
         Chores ch = sh.shop.chores;
+        if (!sh.prompts.isEmpty()) out.add(Lang.raw("store.todo-ask"));
+        if (!sh.buyers.isEmpty() && (sh.till == null || sh.till.g != null)) out.add(Lang.raw("store.todo-player", "n", sh.buyers.size()));
         if (ch.oven() == Chores.Oven.DONE) out.add(Lang.raw("store.todo-ding"));
         else if (sh.till != null && sh.till.c.asks().contains("warm") && ch.oven() == Chores.Oven.IDLE) out.add(Lang.raw("store.todo-warm"));
         if (ch.carrying() != null) out.add(Lang.raw("store.todo-carry", "box", Lang.raw("store.box." + ch.carrying())));
         for (String place : ch.empty()) out.add(Lang.raw("store.todo-empty", "shelf", Lang.raw("store.place." + place)));
         if (!ch.boxes().isEmpty()) out.add(Lang.raw("store.todo-boxes", "n", ch.boxes().size()));
-        return out.size() > 3 ? out.subList(0, 3) : out;
+        if (ch.carriedWaste() > 0) out.add(Lang.raw("store.todo-waste-carry", "n", ch.carriedWaste()));
+        else if (ch.expired(rules.waste().place()) > 0) out.add(Lang.raw("store.todo-waste", "n", ch.expired(rules.waste().place())));
+        if (sh.shop.has("kettle") && ch.water(rules.mess().water()) <= 0) out.add(Lang.raw("store.todo-water"));
+        if (ch.messes() > 0) out.add(Lang.raw(ch.mop() || ch.spills().isEmpty() ? "store.todo-mess" : "store.todo-mop", "n", ch.messes()));
+        return out.size() > 4 ? out.subList(0, 4) : out;
     }
 
     private Component actionLine(Player viewer) {
@@ -1319,8 +1686,10 @@ public final class StoreModule extends EcoModule {
         List<ActionLine.Part> parts = new ArrayList<>();
         Till t = sh.till;
         if (t != null) {
-            String who = Lang.raw("store.line-who", "type", eco.bus().typeTag(t.g.type, t.g.s.shiny()));
-            parts.add(new ActionLine.Part(who, t.g.type.name(), 2));
+            Player buyer = t.basket == null ? null : Bukkit.getPlayer(t.basket.buyer);
+            String who = t.g == null ? Lang.raw("store.line-player", "player", buyer == null ? "?" : buyer.getName())
+                    : Lang.raw("store.line-who", "type", eco.bus().typeTag(t.g.type, t.g.s.shiny()));
+            parts.add(new ActionLine.Part(who, t.g == null ? Text.plain(who) : t.g.type.name(), 2));
             String what = !t.c.allScanned() ? Lang.raw("store.line-scan", "n", count(t.c), "all", t.c.size(), "total", won(t.c.total()))
                     : t.c.method() == Checkout.Method.CARD ? Lang.raw("store.line-card", "total", won(t.c.bill()))
                     : t.c.paid() ? Lang.raw("store.line-done", "total", won(t.c.bill()))
@@ -1353,6 +1722,14 @@ public final class StoreModule extends EcoModule {
             case "시험" -> adminTest(s);
             case "손님" -> adminGuest(s, a.length >= 2 ? a[1] : null);
             case "배송" -> adminDelivery(s);
+            case "진상" -> adminTrouble(s, a.length >= 2 ? a[1] : null);
+            case "신분증" -> adminId(s);
+            case "장면" -> adminScene(s, a.length >= 2 ? a[1] : null);
+            case "폐기" -> adminWaste(s);
+            case "청소" -> adminMess(s);
+            case "권리증" -> adminLicense(s, a.length >= 2 ? a[1] : null, a.length >= 3 ? a[2] : null);
+            case "내가게" -> adminOwned(s);
+            case "회수" -> adminReclaim(s, a.length >= 2 ? a[1] : null);
             default -> s.sendMessage(Lang.msg("store.admin-usage"));
         }
     }
@@ -1360,8 +1737,12 @@ public final class StoreModule extends EcoModule {
     private List<String> adminComplete(CommandSender s, String[] a) {
         String last = a[a.length - 1];
         List<String> out = new ArrayList<>();
-        if (a.length == 1) out.addAll(List.of("건설", "철거", "목록", "시험", "손님", "배송"));
+        if (a.length == 1) out.addAll(List.of("건설", "철거", "목록", "시험", "손님", "배송", "진상", "신분증", "장면", "폐기", "청소", "권리증", "내가게", "회수"));
         else if (a.length == 2 && a[0].equals("철거")) out.addAll(shops.keySet());
+        else if (a.length == 2 && a[0].equals("진상")) for (Trouble.Kind k : Trouble.Kind.values()) out.add(k.id);
+        else if (a.length == 2 && a[0].equals("장면")) out.addAll(scenes.scenes().keySet());
+        else if (a.length == 2 && (a[0].equals("권리증") || a[0].equals("회수"))) for (Player p : Bukkit.getOnlinePlayers()) out.add(p.getName());
+        else if (a.length == 3 && a[0].equals("권리증")) for (StoreRules.Tier t : rules.tiers().values()) out.add(t.name());
         else if (a.length == 2 && a[0].equals("손님")) {
             out.addAll(spec.customers().keySet());
             BusModule bus = eco.bus();
@@ -1427,6 +1808,10 @@ public final class StoreModule extends EcoModule {
         }
         Shop shop = shops.get(name);
         if (shop.shift != null) clockOut(shop, "store.out-admin");
+        if (shop.owner != null && shop.tier() != null) {   // a 내 가게: its 권리증 back to its owner's mailbox
+            UUID owner = shop.owner;
+            dev.stsv.economy.util.Items.create(shop.tier().license(), 1).ifPresent(it -> eco.mail().deliver(owner, it, "store"));
+        }
         try {
             job = StoreBuilder.remove(eco, core, name, shop.site, undoFile(name), settings(),
                     pct -> { if (s instanceof Player p) p.sendActionBar(Lang.mm("store.build-progress", "pct", pct)); },
@@ -1447,6 +1832,8 @@ public final class StoreModule extends EcoModule {
         s.sendMessage(Lang.msg("store.list-head", "n", shops.size()));
         for (Shop shop : shops.values()) {
             Player w = shop.shift == null ? null : Bukkit.getPlayer(shop.shift.worker);
+            if (shop.owner != null) s.sendMessage(Lang.mm("store.list-own", "store", shop.name, "owner", String.valueOf(Bukkit.getOfflinePlayer(shop.owner).getName()),
+                    "tier", shop.tier() == null ? "?" : shop.tier().name()));
             s.sendMessage(Lang.mm("store.list-line", "store", shop.name, "site", shop.site.toString(),
                     "worker", w == null ? Lang.raw("store.list-closed") : Lang.raw("store.list-worker", "player", w.getName(),
                             "n", shop.shift.guests.size())));
@@ -1492,8 +1879,8 @@ public final class StoreModule extends EcoModule {
             p.sendMessage(Lang.msg("store.guest-usage"));
             return;
         }
-        if (shop.shift.guests.size() >= spec.spawn().maxInside()) {
-            p.sendMessage(Lang.msg("store.guest-full", "n", spec.spawn().maxInside()));
+        if (shop.shift.guests.size() >= shop.maxInside()) {
+            p.sendMessage(Lang.msg("store.guest-full", "n", shop.maxInside()));
             return;
         }
         World w = shop.world();
@@ -1538,6 +1925,1460 @@ public final class StoreModule extends EcoModule {
 
     private StoreBuilder.HallBuilderSettings settings() {
         return StoreBuilder.HallBuilderSettings.of(HallBuilder.Settings.of(eco.getConfig()));
+    }
+
+    // ==========================================================================================
+    // 2차 (README "편의점", 기획안 §5 §6 §7 §13): questions over customers, 진상 · 신분증, 폐기 · 청소 · 온수, scenes,
+    // player customers, 내 가게
+    // ==========================================================================================
+
+    /** The bus kinds whose presence makes the 건달 behave (Trouble.skip). */
+    static final Set<String> GUARDIANS = Set.of("grandma", "police", "wrestler");
+
+    /** Buttons over a customer: a trouble's choices or the ID check's (choice -> its button), and when they appeared. */
+    static final class Prompt {
+        final int id;
+        final Guest g;
+        final String what;
+        final long at = System.currentTimeMillis();
+        final Map<String, TextDisplay> buttons = new LinkedHashMap<>();
+        final Map<String, String> labels = new LinkedHashMap<>();
+
+        Prompt(int id, Guest g, String what) {
+            this.id = id;
+            this.g = g;
+            this.what = what;
+        }
+    }
+
+    /** A player customer's things put on the counter: who, in which store, which products. */
+    static final class Basket {
+        final UUID buyer;
+        final String store;
+        final List<String> items;
+
+        Basket(UUID buyer, String store, List<String> items) {
+            this.buyer = buyer;
+            this.store = store;
+            this.items = List.copyOf(items);
+        }
+    }
+
+    /** A store scene being played: the scene, who plays each role, the next line and when it is due (ms). */
+    final class Playing {
+        final StoreScenes.Scene scene;
+        final Guest[] cast;
+        int next;
+        long at;
+
+        Playing(StoreScenes.Scene scene, Guest[] cast, long at) {
+            this.scene = scene;
+            this.cast = cast;
+            this.at = at;
+        }
+
+        boolean has(Guest g) {
+            for (Guest x : cast) if (x == g) return true;
+            return false;
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ the buttons
+
+    /** Shows buttons over a customer (at the counter: over its end), choice -> words, the first lowest. */
+    private Prompt ask(Shift sh, Guest g, String what, Map<String, String> choices) {
+        clearPrompts(sh, g);
+        Prompt pr = new Prompt(++promptIds, g, what);
+        Location base = sh.till != null && sh.till.g == g ? sh.shop.at(-2.2, 1.75, 8.85, 0) : g.m.getLocation().add(0, 2.05, 0);
+        base.setYaw(0);
+        base.setPitch(0);
+        int i = 0;
+        for (Map.Entry<String, String> c : choices.entrySet()) {
+            if (c.getValue() == null || c.getValue().isBlank()) continue;
+            Location at = base.clone().add(0, 0.3 * i++, 0);
+            pr.labels.put(c.getKey(), c.getValue());
+            Component text = Lang.mm("store.ask-button", "label", c.getValue());
+            pr.buttons.put(c.getKey(), at.getWorld().spawn(at, TextDisplay.class, d -> {
+                d.setPersistent(false);
+                d.text(text);
+                d.setBillboard(Display.Billboard.CENTER);
+                d.setAlignment(TextDisplay.TextAlignment.CENTER);
+                d.setBackgroundColor(Color.fromARGB(225, 31, 157, 85));
+                d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.45f, 0.45f, 0.45f), new Quaternionf()));
+                d.setViewRange(0.35f);
+                d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+            }));
+        }
+        sh.prompts.add(pr);
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p != null) {
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, 1.6f);
+            HudModule.flash(p, Lang.mm("store.ask-flash", "type", eco.bus().typeTag(g.type, g.s.shiny())), 2500);
+        }
+        return pr;
+    }
+
+    private void clearPrompts(Shift sh, Guest g) {
+        for (Prompt pr : new ArrayList<>(sh.prompts)) {
+            if (pr.g != g) continue;
+            sh.prompts.remove(pr);
+            for (Entity e : pr.buttons.values()) e.remove();
+        }
+    }
+
+    /** A line from a list over a customer (a speech bubble), nothing when the list is empty. */
+    private void sayLine(Guest g, List<String> lines) {
+        BusModule bus = eco.bus();
+        if (bus == null || lines == null || lines.isEmpty() || !g.m.isValid()) return;
+        bus.bubble(g.m, lines.get(ThreadLocalRandom.current().nextInt(lines.size())), 70L);
+    }
+
+    private Trouble.Context context(Shift sh, Guest g) {
+        boolean guardian = false;
+        for (Guest x : sh.guests) if (x != g && GUARDIANS.contains(x.type.id()) && x.s.state() != Shopper.State.LEAVE) guardian = true;
+        Till t = sh.till;
+        int bill = t != null && t.g == g ? t.c.bill() : 0;
+        int refund = g.refundItem == null ? 0 : spec.products().get(g.refundItem).price();
+        return new Trouble.Context(g.s.mood(spec.patience()), guardian, sh.shop.chores.expired(rules.waste().place()) > 0, bill, refund, Math.max(0, g.prize));
+    }
+
+    // ------------------------------------------------------------------------------------------ 진상
+
+    /** The guest's trouble starts now if this is its stage: true when it did (they wait for the worker's answer). */
+    private boolean trouble(Shift sh, Guest g, Trouble.Stage stage) {
+        Trouble.Kind k = g.trouble;
+        if (k == null || g.troubleStarted || k.stage != stage) return false;
+        StoreRules.TroubleText tt = rules.troubles().get(k);
+        if (tt == null) return false;
+        g.troubleStarted = true;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        if (Trouble.skip(k, context(sh, g))) {   // the 건달 with a 할머니 in the store: pays like anyone
+            sayLine(g, tt.lines("behave"));
+            g.troubleDone = true;
+            return false;
+        }
+        Map<String, String> choices = new LinkedHashMap<>();
+        switch (k) {
+            case LOTTERY -> {
+                g.prize = Trouble.scratch(rules.numbers(), rnd.nextDouble());
+                sayLine(g, tt.lines("start"));
+                Bukkit.getScheduler().runTaskLater(eco, () -> {   // scratch, scratch… the result, then the buttons
+                    if (sh.shop.shift != sh || !sh.guests.contains(g)) return;
+                    sayLine(g, tt.lines(g.prize >= 2 ? "big" : g.prize == 1 ? "small" : "none"));
+                    if (g.prize >= 2) g.m.getWorld().playSound(g.m.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.2f);
+                    Map<String, String> c = new LinkedHashMap<>();
+                    c.put("cheer", tt.buttons().get(g.prize > 0 ? "cheer" : "cheer-none"));
+                    c.put("shrug", tt.buttons().get("shrug"));
+                    ask(sh, g, "trouble", c);
+                }, 50L);
+                return true;
+            }
+            case TOURIST -> {
+                Shopper.Stop st = g.s.browsing();
+                if (st == null) return false;
+                g.touristPlace = st.place();
+                g.s.hold(true);
+                List<String> places = new ArrayList<>(sh.shop.layout().spots().keySet());
+                List<String> wrong = Trouble.wrong(st.place(), places, rnd);
+                List<String> order = new ArrayList<>(List.of("right"));
+                if (!wrong.isEmpty()) order.add(rnd.nextBoolean() ? 0 : 1, "wrong");
+                for (String o : order) choices.put(o, Lang.raw("store.place." + (o.equals("right") ? st.place() : wrong.getFirst())));
+                // what they look for, held up
+                EntityEquipment eq = g.m.getEquipment();
+                if (eq != null && !st.things().isEmpty()) {
+                    ItemStack it = StoreBuilder.shown(core, spec.products().get(st.things().getFirst()).item());
+                    it.editMeta(m -> m.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1));
+                    eq.setItemInMainHand(it);
+                }
+            }
+            case DRUNK -> {
+                choices.put("wake", tt.buttons().get("wake"));
+                if (sh.shop.sells("hangover")) choices.put("hangover", tt.buttons().get("hangover"));
+            }
+            default -> {
+                for (String c : k.choices) choices.put(c, tt.buttons().get(c));
+            }
+        }
+        sayLine(g, tt.lines("start"));
+        ask(sh, g, "trouble", choices);
+        return true;
+    }
+
+    /** At the counter: first the ID check (술 · 담배 from someone young-looking), then the counter's 진상. */
+    private void counterQuestions(Shift sh, Guest g) {
+        Till t = sh.till;
+        if (t == null || t.g != g) return;
+        if (g.card != null && IdCheck.restricted(t.c.items(), rules.id().items())) {
+            t.hold = true;
+            t.c.ask("id");
+            sayLine(g, rules.id().lines("ask"));
+            Map<String, String> c = new LinkedHashMap<>();
+            c.put("check", Lang.raw("store.id-check"));
+            c.put("sell", Lang.raw("store.id-sell"));
+            c.put("refuse", Lang.raw("store.id-refuse"));
+            ask(sh, g, "id", c);
+            return;
+        }
+        if (trouble(sh, g, Trouble.Stage.COUNTER)) {
+            t.hold = true;
+            t.c.ask("trouble");
+        }
+    }
+
+    /** A button over a customer pressed. */
+    private void answer(Player p, Shift sh, Prompt pr, String choice) {
+        Guest g = pr.g;
+        sh.prompts.remove(pr);
+        for (Entity e : pr.buttons.values()) e.remove();
+        if (!sh.guests.contains(g)) return;
+        if (pr.what.equals("id")) {
+            idAnswer(p, sh, g, choice);
+            return;
+        }
+        Trouble.Kind k = g.trouble;
+        if (k == null) return;
+        Trouble.Outcome o = Trouble.resolve(k, choice, context(sh, g), rules.numbers(), ThreadLocalRandom.current().nextDouble());
+        if (o != null) apply(p, sh, g, k, o);
+    }
+
+    /** What an answer did: the line, the moods, the pay, then the customer and the till go on (or out). */
+    private void apply(Player p, Shift sh, Guest g, Trouble.Kind k, Trouble.Outcome o) {
+        StoreRules.TroubleText tt = rules.troubles().get(k);
+        g.troubleDone = true;
+        if (tt != null) sayLine(g, tt.lines(o.talk()));
+        g.s.mood(o.mood());
+        if (o.others() != 0) for (Guest x : sh.guests) if (x != g) x.s.mood(o.others());
+        g.tipX *= o.tip();
+        if (o.bonus() > 0) sh.log.bonus(o.bonus());
+        if (o.won() > 0) sh.log.covered(o.won());
+        if (o.waste() && sh.shop.chores.giveExpired(rules.waste().place())) {
+            drawWaste(sh);
+            refreshShelf(sh.shop, rules.waste().place());
+        }
+        if (o.gift() != null && p != null) giveFood(p, o.gift());
+        if (o.fanfare()) fanfare(sh, g);
+        if (p != null) HudModule.flash(p, Lang.mm("store.trouble-done", "fx", fx(o)), 2500);
+        if (k == Trouble.Kind.TOURIST) {
+            EntityEquipment eq = g.m.getEquipment();
+            if (eq != null && eq.getItemInMainHand().getPersistentDataContainer().has(GUEST)) eq.setItemInMainHand(null);
+        }
+        Till t = sh.till;
+        boolean mine = t != null && t.g == g;
+        switch (o.result()) {
+            case GO_ON -> {
+                g.s.hold(false);
+                if (mine) {
+                    t.hold = false;
+                    t.c.answer("trouble");
+                    drawScreen(sh);
+                    maybeDone(sh);
+                }
+            }
+            case LEAVE_LOST -> lose(sh, g, Shopper.Exit.ANGRY);
+            case LEAVE_HANDLED -> handledOut(sh, g);
+            case FREE -> {
+                if (mine) {
+                    t.free = true;
+                    t.hold = false;
+                    t.c.answer("trouble");
+                    drawScreen(sh);
+                }
+            }
+            case EXACT -> {
+                if (mine) {
+                    t.c.answer("trouble");
+                    coins(sh, t);
+                }
+            }
+            case PUT_BACK -> {
+                if (!mine) break;
+                List<String> keep = new ArrayList<>(t.c.items());
+                if (!keep.isEmpty()) keep.removeLast();
+                if (keep.isEmpty()) {
+                    handledOut(sh, g);
+                    break;
+                }
+                retill(sh, keep);
+                for (int i = 0; i < t.c.size(); i++) {
+                    t.c.scan(i);
+                    Location to = sh.shop.at(StoreLayout.of().scanned().get(i));
+                    to.setYaw(0);
+                    if (t.items.get(i).isValid()) t.items.get(i).teleport(to);
+                }
+                t.c.answer("trouble");
+                coins(sh, t);
+            }
+        }
+    }
+
+    /** They pay the exact bill in coins: nothing to give back. */
+    private void coins(Shift sh, Till t) {
+        StoreLayout.Layout l = StoreLayout.of();
+        HallLayout.Point at = l.slots().get(1);
+        t.paying.add(display(sh.shop.at(at.x(), at.y() + 0.01, at.z(), at.yaw()), "economy:store_coin_500", 1f));
+        t.paying.add(display(sh.shop.at(at.x() + 0.12, at.y() + 0.02, at.z() + 0.1, at.yaw() + 20), "economy:store_coin_100", 1f));
+        t.c.settle();
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p != null) p.playSound(p.getLocation(), Sound.BLOCK_CHAIN_PLACE, 0.6f, 1.8f);
+        drawScreen(sh);
+        maybeDone(sh);
+    }
+
+    /** "기분 +10 · +150 G · 1,000원 손해": what an answer did, for the worker's flash. */
+    private String fx(Trouble.Outcome o) {
+        List<String> parts = new ArrayList<>();
+        if (o.mood() > 0) parts.add(Lang.raw("store.fx-mood-up", "n", Math.round(o.mood())));
+        if (o.mood() < 0) parts.add(Lang.raw("store.fx-mood-down", "n", Math.round(-o.mood())));
+        if (o.bonus() > 0) parts.add(Lang.raw("store.fx-bonus", "g", gold(o.bonus())));
+        if (o.won() > 0) parts.add(Lang.raw("store.fx-covered", "won", won(o.won()), "g", gold(Math.round(o.won() * spec.pay().overpayRate()))));
+        if (parts.isEmpty()) parts.add(Lang.raw("store.fx-none"));
+        return String.join(" <dark_gray>·</dark_gray> ", parts);
+    }
+
+    /** A customer out without buying, the worker having done their part (★ by mood, not lost). */
+    private void handledOut(Shift sh, Guest g) {
+        clearPrompts(sh, g);
+        g.s.hold(false);
+        if (sh.till != null && sh.till.g == g) clearTill(sh);
+        sh.line.remove(g.s);
+        g.seat = -1;
+        g.sleeping = false;
+        if (!g.tallied) {
+            g.tallied = true;
+            sh.log.handled(spec.stars(g.type.floor(g.s.mood(spec.patience()))), 0);
+            met(sh, g);
+        }
+        g.s.leave(sh, Shopper.Exit.PAID);
+    }
+
+    /** The 인물 도감: met at the store (not on a test shift). */
+    private void met(Shift sh, Guest g) {
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p != null && !sh.test && eco.people() != null) eco.people().met(p, g.type.id(), g.s.shiny(), PeopleSpec.PLACE_STORE);
+    }
+
+    /** The till's things again (a refused 술, a thing put back): the same customer, new displays, nothing scanned. */
+    private void retill(Shift sh, List<String> keep) {
+        Till t = sh.till;
+        if (t == null) return;
+        for (Entity e : t.items) e.remove();
+        t.items.clear();
+        List<Integer> prices = new ArrayList<>();
+        for (String x : keep) prices.add(spec.products().get(x).price());
+        Checkout c = new Checkout(keep, prices, t.c.method());
+        for (String a : t.c.asks()) c.ask(a);
+        t.c = c;
+        StoreLayout.Layout l = StoreLayout.of();
+        for (int i = 0; i < keep.size(); i++) t.items.add(display(sh.shop.at(l.slots().get(i)), spec.products().get(keep.get(i)).item(), 0.75f));
+        drawScreen(sh);
+    }
+
+    // ------------------------------------------------------------------------------------------ 신분증
+
+    private void idAnswer(Player p, Shift sh, Guest g, String choice) {
+        Till t = sh.till;
+        if (t == null || t.g != g || g.card == null) return;
+        Location me = p.getLocation();
+        switch (choice) {
+            case "check" -> {
+                showCard(sh, g);
+                sayLine(g, rules.id().lines("show"));
+                Map<String, String> c = new LinkedHashMap<>();
+                c.put("sell", Lang.raw("store.id-sell"));
+                c.put("refuse", Lang.raw("store.id-refuse"));
+                ask(sh, g, "id", c);
+            }
+            case "sell" -> {
+                IdCheck.Verdict v = IdCheck.judge(g.card, true);
+                if (v == IdCheck.Verdict.SOLD_MINOR) {
+                    sh.log.fine(rules.id().fine());
+                    sayLine(g, rules.id().lines("sold-minor"));
+                    p.playSound(me, Sound.ENTITY_VILLAGER_NO, 0.7f, 0.8f);
+                    HudModule.flash(p, Lang.mm("store.id-fined", "g", gold(rules.id().fine())), 3500);
+                } else {
+                    sayLine(g, rules.id().lines("sold"));
+                    HudModule.flash(p, Lang.mm("store.id-sold"), 2000);
+                }
+                idDone(sh, g);
+            }
+            case "refuse" -> {
+                IdCheck.Verdict v = IdCheck.judge(g.card, false);
+                List<String> keep = new ArrayList<>();
+                for (String x : t.c.items()) if (!rules.id().items().contains(x)) keep.add(x);
+                if (v == IdCheck.Verdict.REFUSED_MINOR) {
+                    sh.log.bonus(rules.id().bonus());
+                    g.s.mood(rules.id().refusedMinor());
+                    sayLine(g, rules.id().lines("refused-minor"));
+                    p.playSound(me, Sound.ENTITY_PLAYER_LEVELUP, 0.4f, 1.8f);
+                    HudModule.flash(p, Lang.mm("store.id-right", "g", gold(rules.id().bonus())), 2500);
+                } else {
+                    g.s.mood(rules.id().refusedAdult());
+                    sayLine(g, rules.id().lines("refused-adult"));
+                    p.playSound(me, Sound.ENTITY_VILLAGER_NO, 0.6f, 1.0f);
+                    HudModule.flash(p, Lang.mm("store.id-wrong"), 2500);
+                }
+                if (keep.isEmpty()) {   // nothing else to buy: out
+                    g.card = null;
+                    if (v == IdCheck.Verdict.REFUSED_MINOR) handledOut(sh, g);
+                    else lose(sh, g, Shopper.Exit.ANGRY);
+                    return;
+                }
+                retill(sh, keep);
+                idDone(sh, g);
+            }
+            default -> {}
+        }
+    }
+
+    /** The ID question answered: the card away, the till goes on (or the counter's 진상 now). */
+    private void idDone(Shift sh, Guest g) {
+        Till t = sh.till;
+        g.card = null;
+        if (t == null || t.g != g) return;
+        if (t.idCard != null) t.idCard.remove();
+        t.idCard = null;
+        t.c.answer("id");
+        t.hold = false;
+        counterQuestions(sh, g);
+        drawScreen(sh);
+    }
+
+    /** The ID on the counter: name, birth year, the photo (a sibling's is someone else's face). */
+    private void showCard(Shift sh, Guest g) {
+        Till t = sh.till;
+        IdCheck.Card c = g.card;
+        int year = java.time.ZonedDateTime.now(KST).getYear();
+        Component text = Lang.mm("store.id-card", "name", c.name(), "year", c.birthYear(), "age", year - c.birthYear(),
+                "photo", Lang.raw(c.sibling() ? "store.id-photo-other" : "store.id-photo-same"));
+        if (t.idCard != null) t.idCard.remove();
+        Location at = sh.shop.at(-2.45, StoreLayout.TOP + 0.3, 6.95, 270);
+        t.idCard = at.getWorld().spawn(at, TextDisplay.class, d -> {
+            d.setPersistent(false);
+            d.text(text);
+            d.setBillboard(Display.Billboard.CENTER);
+            d.setAlignment(TextDisplay.TextAlignment.LEFT);
+            d.setBackgroundColor(Color.fromARGB(240, 228, 236, 246));
+            d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.38f, 0.38f, 0.38f), new Quaternionf()));
+            d.setViewRange(0.25f);
+            d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+        });
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p != null) p.playSound(p.getLocation(), Sound.ITEM_BOOK_PAGE_TURN, 0.8f, 1.3f);
+    }
+
+    // ------------------------------------------------------------------------------------------ at the shelves, after paying
+
+    /** At a shelf: the 슬쩍 손님 pockets something, the 관광객 asks where theirs is. True when that happened. */
+    private boolean browsing(Shift sh, Guest g) {
+        if (g.trouble == Trouble.Kind.STEAL && !g.troubleStarted) {
+            Shopper.Stop st = g.s.browsing();
+            if (st == null) return false;
+            List<String> here = new ArrayList<>();
+            for (StoreSpec.Product pr : spec.products().values()) if (pr.place().equals(st.place()) && sh.shop.sells(pr.id())) here.add(pr.id());
+            if (here.isEmpty() || !sh.shop.chores.take(st.place())) return false;
+            g.troubleStarted = true;
+            g.stolen = here.get(ThreadLocalRandom.current().nextInt(here.size()));
+            refreshShelf(sh.shop, st.place());
+            StoreRules.TroubleText tt = rules.troubles().get(Trouble.Kind.STEAL);
+            if (tt != null) sayLine(g, tt.lines("start"));
+            // in his hand a moment, then into the pocket
+            EntityEquipment eq = g.m.getEquipment();
+            if (eq != null) {
+                ItemStack it = StoreBuilder.shown(core, spec.products().get(g.stolen).item());
+                it.editMeta(m -> m.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1));
+                eq.setItemInOffHand(it);
+                Bukkit.getScheduler().runTaskLater(eco, () -> {
+                    if (!g.m.isValid()) return;
+                    if (eq.getItemInOffHand().getPersistentDataContainer().has(GUEST)) eq.setItemInOffHand(null);
+                    g.m.getWorld().playSound(g.m.getLocation(), Sound.ITEM_BUNDLE_INSERT, 0.5f, 1.4f);
+                }, 30L);
+            }
+            return true;
+        }
+        if (g.trouble == Trouble.Kind.TOURIST && !g.troubleStarted) return trouble(sh, g, Trouble.Stage.BROWSE);
+        return false;
+    }
+
+    /** A thing off a shelf: a 폐기 picked up (they complain), a drink spilt on the way. */
+    private void took(Shift sh, Guest g) {
+        Shopper.Stop st = g.s.last();
+        if (st == null) return;
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        Chores ch = sh.shop.chores;
+        if (st.place().equals(rules.waste().place()) && ch.picksExpired(st.place(), rnd.nextDouble())) {
+            g.s.mood(rules.waste().complain());
+            say(g, "expired");
+        }
+        if (st.place().equals("fridge") && rnd.nextDouble() < rules.mess().spillChance(g.type.id())) {
+            String node = StoreLayout.AISLE.get(rnd.nextInt(StoreLayout.AISLE.size()));
+            if (ch.spill(node, rules.mess().most())) {
+                showSpill(sh, node);
+                g.m.getWorld().playSound(g.m.getLocation(), Sound.ENTITY_GENERIC_SPLASH, 0.6f, 1.5f);
+                Player p = Bukkit.getPlayer(sh.worker);
+                if (p != null) HudModule.flash(p, Lang.mm("store.spilt"), 2500);
+            }
+        }
+    }
+
+    /** Paid: off they go, or to the eat bar first (a 컵라면; a 취객 who nods off there). */
+    private void afterPaid(Shift sh, Guest g) {
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        if (g.trouble == Trouble.Kind.DRUNK && !g.troubleStarted) {
+            int seat = freeSeat(sh);
+            if (seat >= 0) {
+                g.seat = seat;
+                g.sleeping = true;
+                g.s.eat(sh, StoreLayout.EAT.get(seat), Integer.MAX_VALUE);
+                return;
+            }
+            g.trouble = null;
+        }
+        if (g.eats) {
+            int seat = freeSeat(sh);
+            if (seat >= 0) {
+                g.seat = seat;
+                int secs = rules.mess().eatMin() + rnd.nextInt(rules.mess().eatMax() - rules.mess().eatMin() + 1);
+                g.s.eat(sh, StoreLayout.EAT.get(seat), secs * 20);
+                return;
+            }
+        }
+        g.s.leave(sh, Shopper.Exit.PAID);
+    }
+
+    private int freeSeat(Shift sh) {
+        boolean[] used = new boolean[StoreLayout.EAT.size()];
+        for (Guest x : sh.guests) if (x.seat >= 0 && x.seat < used.length) used[x.seat] = true;
+        for (int i = 0; i < used.length; i++) if (!used[i]) return i;
+        return -1;
+    }
+
+    /** At the eat bar: the 취객 nods off (the buttons), a 컵라면 steams. */
+    private void sat(Shift sh, Guest g) {
+        if (g.sleeping) {
+            trouble(sh, g, Trouble.Stage.AFTER);
+            return;
+        }
+        Location at = g.m.getLocation().add(0, 1.2, 0);
+        at.getWorld().spawnParticle(Particle.CAMPFIRE_COSY_SMOKE, at.add(at.getDirection().multiply(0.4)), 2, 0.05, 0.05, 0.05, 0.005);
+        at.getWorld().playSound(at, Sound.ENTITY_GENERIC_DRINK, 0.4f, 0.8f);
+    }
+
+    /** Done eating: maybe the cup stays on the bar (a mess), then out. */
+    private void ate(Shift sh, Guest g) {
+        if (g.seat >= 0 && ThreadLocalRandom.current().nextDouble() < rules.mess().cup() && sh.shop.chores.leaveCup(g.seat, rules.mess().most())) {
+            showCup(sh, g.seat);
+        }
+        g.seat = -1;
+        g.s.leave(sh, Shopper.Exit.PAID);
+    }
+
+    /** The 슬쩍 손님 went out the door with it: the worker covers it. */
+    private void escaped(Shift sh, Guest g) {
+        StoreSpec.Product pr = spec.products().get(g.stolen);
+        if (pr == null) return;
+        long w = Trouble.escaped(pr.price());
+        sh.log.covered(w);
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p != null) HudModule.flash(p, Lang.mm("store.stolen", "item", pr.name(), "g", gold(Math.round(w * spec.pay().overpayRate()))), 3500);
+    }
+
+    /** The worker looked at a customer and clicked them: the 슬쩍 손님 is caught; anyone else is hurt. True when it was a customer. */
+    private boolean accuse(Player p, Entity x) {
+        Shop shop = working.get(p.getUniqueId());
+        if (shop == null || shop.shift == null || !(x instanceof Mannequin)) return false;
+        Shift sh = shop.shift;
+        Guest g = null;
+        for (Guest y : sh.guests) if (y.m.equals(x) || x.equals(y.partner)) g = y;
+        if (g == null) return false;
+        boolean thief = g.stolen != null && !g.caught;
+        if (!thief && sh.till != null && sh.till.g == g) return false;   // (the customer being served: a click on the till, not on them)
+        if (!clicks.accept(p.getUniqueId(), Bukkit.getCurrentTick())) return true;
+        sh.lastActive = System.currentTimeMillis();
+        if (g.caught) return true;
+        Location l = g.m.getLocation();
+        if (thief && g.s.state() == Shopper.State.LEAVE && !shop.site.inside(l.getWorld().getName(), l.getX(), l.getY(), l.getZ())) {
+            HudModule.flash(p, Lang.mm("store.too-late"), 2000);
+            return true;
+        }
+        Trouble.Outcome o = Trouble.accuse(thief, rules.numbers());
+        StoreRules.TroubleText tt = rules.troubles().get(Trouble.Kind.STEAL);
+        if (tt != null) sayLine(g, tt.lines(o.talk()));
+        g.s.mood(o.mood());
+        if (thief) {
+            g.caught = true;
+            sh.log.bonus(o.bonus());
+            p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.7f, 1.2f);
+            HudModule.flash(p, Lang.mm("store.caught", "item", spec.products().get(g.stolen).name(), "g", gold(o.bonus())), 3000);
+        } else {
+            p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.6f, 1.0f);
+            HudModule.flash(p, Lang.mm("store.accused"), 2500);
+        }
+        return true;
+    }
+
+    /** The 복권 won big: the store cheers. */
+    private void fanfare(Shift sh, Guest g) {
+        Location at = g.m.getLocation().add(0, 1.6, 0);
+        at.getWorld().playSound(at, Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.9f, 1.1f);
+        at.getWorld().spawnParticle(Particle.FIREWORK, at, 30, 0.4, 0.4, 0.4, 0.08);
+        at.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, at, 12, 0.5, 0.5, 0.5, 0.1);
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p != null) HudModule.flash(p, Lang.mm("store.lottery-big"), 3500);
+    }
+
+    /** A product's food into the worker's hands (할머니's 사탕, a 폐기). */
+    private void giveFood(Player p, String product) {
+        String id = players().food().get(product);
+        if (id == null) return;
+        dev.stsv.economy.util.Items.create(id, 1).ifPresent(it -> {
+            for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
+        });
+    }
+
+    // ------------------------------------------------------------------------------------------ 폐기 · 청소 · 온수 · 새벽
+
+    /** Once a second on a shift: a 폐기 more, questions nobody answered, the 새벽 door bell. */
+    private void chores(Shop shop, Shift sh, Player p, int hour) {
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        String place = rules.waste().place();
+        if (shop.has("shelf_" + place) && ++sh.wasteClock >= rules.waste().every()) {
+            sh.wasteClock = 0;
+            if (shop.chores.expire(place, rules.waste().most())) {
+                drawWaste(sh);
+                HudModule.flash(p, Lang.mm("store.expired", "n", shop.chores.expired(place)), 2500);
+            }
+        }
+        long now = System.currentTimeMillis();
+        for (Prompt pr : new ArrayList<>(sh.prompts)) {
+            Trouble.Kind k = pr.g.trouble;
+            if (!pr.what.equals("trouble") || k == null) continue;
+            long limit = k == Trouble.Kind.DRUNK ? 150_000 : k == Trouble.Kind.TOURIST ? 30_000 : -1;
+            if (limit < 0 || now - pr.at <= limit) continue;
+            sh.prompts.remove(pr);
+            for (Entity e : pr.buttons.values()) e.remove();
+            apply(p, sh, pr.g, k, Trouble.slept(k));
+        }
+        for (Guest g : sh.guests) if (g.sleeping && g.s.state() == Shopper.State.EAT && rnd.nextDouble() < 0.12) eco.bus().bubble(g.m, "쿨… 쿨…", 50L);
+        if (hour >= 1 && hour < 5 && rnd.nextDouble() < rules.numbers().ghost()) ghostBell(sh, p);
+    }
+
+    /** 새벽: the door bell rings and nobody is there (ambience only). */
+    private void ghostBell(Shift sh, Player p) {
+        Location door = sh.shop.at(StoreLayout.DOOR0 + 0.5, 2, StoreLayout.FRONT + 1.5, 0);
+        World w = door.getWorld();
+        w.playSound(door, Sound.BLOCK_NOTE_BLOCK_BELL, 0.5f, 1.7f);
+        Bukkit.getScheduler().runTaskLater(eco, () -> w.playSound(door, Sound.BLOCK_NOTE_BLOCK_BELL, 0.35f, 2.0f), 4L);
+        w.spawnParticle(Particle.WHITE_ASH, door, 20, 0.5, 0.8, 0.3, 0.01);
+        StoreRules.TroubleText tt = rules.troubles().get(Trouble.Kind.GHOST);
+        List<String> lines = tt == null ? List.of() : tt.lines("start");
+        if (p != null && !lines.isEmpty()) HudModule.flash(p, Lang.mm("store.ghost", "line", lines.get(ThreadLocalRandom.current().nextInt(lines.size()))), 3000);
+    }
+
+    /** The spills, the cups and the 폐기 tags of a store shown (a shift begins). */
+    private void drawMesses(Shift sh) {
+        for (Entity e : sh.messes.values()) e.remove();
+        sh.messes.clear();
+        for (String node : sh.shop.chores.spills()) showSpill(sh, node);
+        for (int i = 0; i < StoreLayout.EAT.size(); i++) if (sh.shop.chores.cup(i)) showCup(sh, i);
+        drawWaste(sh);
+    }
+
+    private void showSpill(Shift sh, String node) {
+        StoreLayout.Node n = StoreLayout.of().nodes().get(node);
+        if (n == null) return;
+        sh.messes.put("spill:" + node, display(sh.shop.at(n.x(), 0.01, n.z(), 0), "economy:store_spill", 1f));
+    }
+
+    private void showCup(Shift sh, int seat) {
+        double[] c = cupSpot(seat);
+        sh.messes.put("cup:" + seat, display(sh.shop.at(c[0], c[1], c[2], 180), "economy:store_trash_cup", 0.8f));
+    }
+
+    /** The red 폐기 tag over the shelf (how many), gone when there are none. */
+    private void drawWaste(Shift sh) {
+        int n = sh.shop.chores.expired(rules.waste().place());
+        if (n <= 0 || !sh.shop.has("shelf_" + rules.waste().place())) {
+            if (sh.wasteTag != null) sh.wasteTag.remove();
+            sh.wasteTag = null;
+            return;
+        }
+        Component c = Lang.mm("store.waste-tag", "n", n);
+        if (sh.wasteTag != null && sh.wasteTag.isValid()) {
+            sh.wasteTag.text(c);
+            return;
+        }
+        StoreLayout.Piece shelf = StoreLayout.of().piece("shelf_" + rules.waste().place());
+        Location at = sh.shop.at(shelf.x0() + 0.5, 2.15, (shelf.z0() + shelf.z1()) / 2.0 + 0.5, 0);
+        sh.wasteTag = at.getWorld().spawn(at, TextDisplay.class, d -> {
+            d.setPersistent(false);
+            d.text(c);
+            d.setBillboard(Display.Billboard.CENTER);
+            d.setBackgroundColor(Color.fromARGB(220, 200, 30, 30));
+            d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.5f, 0.5f, 0.5f), new Quaternionf()));
+            d.setViewRange(0.35f);
+            d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+        });
+    }
+
+    private void takeWaste(Player p, Shift sh) {
+        String place = rules.waste().place();
+        int n = sh.shop.chores.takeExpired(place);
+        if (n <= 0) return;
+        refreshShelf(sh.shop, place);
+        drawWaste(sh);
+        p.playSound(p.getLocation(), Sound.ITEM_BUNDLE_INSERT, 0.7f, 0.9f);
+        HudModule.flash(p, Lang.mm("store.waste-taken", "n", n), 2500);
+    }
+
+    /** Into the 폐기 바구니; one of them is the worker's (알바의 낙). */
+    private void dispose(Player p, Shift sh) {
+        int n = sh.shop.chores.dispose();
+        if (n <= 0) {
+            HudModule.flash(p, Lang.mm("store.waste-nothing"), 2000);
+            return;
+        }
+        p.playSound(p.getLocation(), Sound.BLOCK_COMPOSTER_FILL, 0.8f, 1.0f);
+        String food = rules.waste().food();
+        if (!food.isBlank()) dev.stsv.economy.util.Items.create(food, 1).ifPresent(it -> {
+            for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
+        });
+        HudModule.flash(p, Lang.mm("store.waste-done", "n", n), 3000);
+    }
+
+    /** The worker fills the kettle. */
+    private void kettle(Player p, Shift sh) {
+        int cap = rules.mess().water();
+        if (sh.shop.chores.refill(cap)) {
+            p.playSound(p.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.7f, 1.2f);
+            HudModule.flash(p, Lang.mm("store.water-filled", "n", cap), 2000);
+        } else HudModule.flash(p, Lang.mm("store.water-full", "n", sh.shop.chores.water(cap), "all", cap), 2000);
+    }
+
+    /** The mop from its bucket (or back). */
+    private void mop(Player p, Shift sh) {
+        boolean on = !sh.shop.chores.mop();
+        sh.shop.chores.mop(on);
+        p.playSound(p.getLocation(), on ? Sound.ITEM_ARMOR_EQUIP_GENERIC : Sound.BLOCK_WOOD_PLACE, 0.6f, 1.2f);
+        HudModule.flash(p, Lang.mm(on ? "store.mop-on" : "store.mop-off"), 2500);
+    }
+
+    // ------------------------------------------------------------------------------------------ scenes
+
+    /** Once a second: the scene playing goes on; else every check seconds (2 customers inside) the roll. */
+    private void sceneTick(Shift sh, Player p) {
+        long now = System.currentTimeMillis();
+        if (sh.playing != null) {
+            stepScene(sh, now);
+            return;
+        }
+        String force = sh.forceScene;
+        if (force == null && (now < sh.sceneCheck || sh.guests.size() < 2)) return;
+        if (force == null) sh.sceneCheck = now + scenes.rules().check() * 1000L;
+        sh.forceScene = null;
+        List<StoreScenes.Guest> inside = new ArrayList<>();
+        for (Guest g : sh.guests) inside.add(new StoreScenes.Guest(g.type.id(), g.s.mood(spec.patience()), free(sh, g)));
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+        StoreScenes.Pick pick;
+        if (force != null) {
+            StoreScenes.Scene s = scenes.scenes().get(force);
+            int[] c = s == null ? null : StoreScenes.cast(s, inside);
+            if (c == null) {
+                p.sendMessage(Lang.msg("store.scene-no-cast", "id", force));
+                return;
+            }
+            pick = new StoreScenes.Pick(s, c);
+        } else {
+            Long last = sceneAt.get(p.getUniqueId());
+            if (!scenes.due(last == null ? -1 : (now - last) / 1000.0, rnd.nextDouble())) return;
+            pick = scenes.pick(inside, sceneNow(sh), seenScenes(p), rnd.nextDouble());
+            if (pick == null) return;
+        }
+        Guest[] cast = new Guest[pick.cast().length];
+        for (int i = 0; i < cast.length; i++) {
+            cast[i] = sh.guests.get(pick.cast()[i]);
+            cast[i].scened = true;
+            cast[i].s.hold(true);
+        }
+        sceneAt.put(p.getUniqueId(), now);
+        sh.playing = new Playing(pick.scene(), cast, now);
+        HudModule.flash(p, Lang.mm("store.scene-start", "title", esc(pick.scene().title())), 2500);
+        stepScene(sh, now);
+    }
+
+    /** Whether a customer may play a scene now: not in one yet, not at the till, not asked anything, walking or in line. */
+    private boolean free(Shift sh, Guest g) {
+        if (g.scened || !g.m.isValid() || g.s.held() || g.sleeping) return false;
+        if (sh.till != null && sh.till.g == g) return false;
+        for (Prompt pr : sh.prompts) if (pr.g == g) return false;
+        Shopper.State st = g.s.state();
+        return st == Shopper.State.WALK || st == Shopper.State.BROWSE || st == Shopper.State.QUEUE || st == Shopper.State.EAT;
+    }
+
+    private void stepScene(Shift sh, long now) {
+        Playing pl = sh.playing;
+        for (Guest g : pl.cast) {
+            if (!sh.guests.contains(g) || !g.m.isValid()) {
+                endScene(sh, false);
+                return;
+            }
+        }
+        if (now < pl.at) return;
+        List<StoreScenes.Line> lines = pl.scene.lines();
+        if (pl.next >= lines.size()) {
+            endScene(sh, true);
+            return;
+        }
+        StoreScenes.Line l = lines.get(pl.next++);
+        Guest who = pl.cast[l.who()];
+        Entity e = l.partner() && who.partner != null && who.partner.isValid() ? who.partner : who.m;
+        double secs = scenes.rules().pause(l.text());
+        eco.bus().bubble(e, l.text(), Math.round(secs * 20) + 4);
+        pl.at = now + Math.round(secs * 1000);
+    }
+
+    /** The scene's end (done: its effect, the 도감; else it just stops) and everyone goes on. */
+    private void endScene(Shift sh, boolean done) {
+        Playing pl = sh.playing;
+        sh.playing = null;
+        if (pl == null) return;
+        for (Guest g : pl.cast) g.s.hold(false);
+        if (!done) return;
+        StoreScenes.Effect e = pl.scene.effect();
+        for (Map.Entry<Integer, Double> m : e.mood().entrySet()) {
+            int r = m.getKey();
+            if (r == StoreScenes.ALL) for (Guest g : sh.guests) g.s.mood(m.getValue());
+            else if (r == StoreScenes.OTHERS) for (Guest g : sh.guests) {
+                if (!pl.has(g)) g.s.mood(m.getValue());
+            }
+            else if (r >= 0 && r < pl.cast.length) pl.cast[r].s.mood(m.getValue());
+        }
+        for (Map.Entry<Integer, Double> t : e.tip().entrySet()) if (t.getKey() >= 0 && t.getKey() < pl.cast.length) pl.cast[t.getKey()].tipX *= t.getValue();
+        if (e.calm() > 0) for (Guest g : sh.guests) {
+            double m = g.s.mood(spec.patience());
+            if (m < e.calm()) g.s.mood(e.calm() - m);
+        }
+        for (int r : e.leave()) {   // out without buying (not counted as lost: it was the scene)
+            if (r < 0 || r >= pl.cast.length) continue;
+            Guest g = pl.cast[r];
+            clearPrompts(sh, g);
+            if (sh.till != null && sh.till.g == g) clearTill(sh);
+            sh.line.remove(g.s);
+            g.tallied = true;
+            g.s.leave(sh, Shopper.Exit.PAID);
+        }
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p == null) return;
+        if (e.gift() != null && !sh.test) dev.stsv.economy.util.Items.create(e.gift().item(), e.gift().amount()).ifPresent(it -> {
+            for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
+        });
+        p.sendMessage(Lang.mm("store.scene-done", "title", esc(pl.scene.title())));
+        p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.6f, 1.8f);
+        if (!sh.test && eco.people() != null && eco.people().sawScene(p, StoreScenes.seenId(pl.scene.id()))) {
+            p.sendMessage(Lang.mm("store.scene-new", "n", seenScenes(p).stream().filter(scenes.scenes()::containsKey).count(), "all", scenes.scenes().size()));
+        }
+    }
+
+    private StoreScenes.Now sceneNow(Shift sh) {
+        java.time.ZonedDateTime now = java.time.ZonedDateTime.now(KST);
+        World w = sh.shop.world();
+        return new StoreScenes.Now(w == null ? 12 : Chores.hour(w.getTime()), now.getMonthValue(), w != null && w.hasStorm(), marketDay(),
+                now.getDayOfWeek().getValue() >= 6);
+    }
+
+    private Set<String> seenScenes(Player p) {
+        return eco.people() == null ? Set.of() : StoreScenes.seen(eco.people().scenes(p.getUniqueId()));
+    }
+
+    private static String esc(String s) {
+        return net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(s);
+    }
+
+    // ------------------------------------------------------------------------------------------ 플레이어 손님
+
+    /** A player (not working) clicks a piece of a store: a shelf, the counter, the kettle. */
+    private void customerClick(Player p, Shop shop, String role) {
+        if (role.startsWith("shelf_")) shelfPick(p, shop, role.substring(6));
+        else if (role.startsWith("fridge_")) shelfPick(p, shop, "fridge");
+        else if (role.equals("freezer")) shelfPick(p, shop, "freezer");
+        else if (role.equals("cig")) shelfPick(p, shop, "counter");
+        else if (role.equals("counter")) counterBuy(p, shop);
+        else if (role.equals("kettle")) pourRamen(p, shop);
+    }
+
+    /** A shelf: each click the next product (its price on the action bar), a click while sneaking takes it (unpaid). */
+    private void shelfPick(Player p, Shop shop, String place) {
+        boolean unmanned = shop.shift == null;
+        List<String> list = new ArrayList<>();
+        for (StoreSpec.Product pr : spec.products().values()) {
+            if (pr.place().equals(place) && shop.sells(pr.id()) && players().sells(pr.id(), unmanned)) list.add(pr.id());
+        }
+        if (list.isEmpty()) {
+            HudModule.flash(p, Lang.mm(unmanned ? "store.pick-none-unmanned" : "store.pick-none"), 2000);
+            return;
+        }
+        Picking cur = picking.get(p.getUniqueId());
+        boolean same = cur != null && cur.store().equals(shop.name) && cur.place().equals(place);
+        if (p.isSneaking() && same) {
+            takeProduct(p, shop, list.get(Math.floorMod(cur.index(), list.size())), unmanned);
+            return;
+        }
+        int idx = same ? Math.floorMod(cur.index() + 1, list.size()) : 0;
+        picking.put(p.getUniqueId(), new Picking(shop.name, place, idx));
+        StoreSpec.Product pr = spec.products().get(list.get(idx));
+        p.sendActionBar(Lang.mm(unmanned ? "store.pick-unmanned" : "store.pick", "name", pr.name(), "g", gold(players().price(pr.price(), unmanned)),
+                "n", idx + 1, "all", list.size()));
+        p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.3f, 1.6f);
+    }
+
+    private void takeProduct(Player p, Shop shop, String id, boolean unmanned) {
+        if (unpaidItems(p, shop.name).size() >= players().most()) {
+            HudModule.flash(p, Lang.mm("store.basket-full", "n", players().most()), 2000);
+            return;
+        }
+        StoreSpec.Product pr = spec.products().get(id);
+        if (!unmanned && !shop.chores.take(pr.place())) {   // (the 무인 계산대's few kinds never run out: no truck comes to a closed store)
+            HudModule.flash(p, Lang.mm("store.pick-empty"), 2000);
+            return;
+        }
+        if (!unmanned) refreshShelf(shop, pr.place());
+        ItemStack it = StoreBuilder.shown(core, pr.item());
+        it.editMeta(m -> {
+            m.customName(Lang.item("store.unpaid-name", "name", pr.name()));
+            m.lore(Lang.items("store.unpaid-lore", "g", gold(players().price(pr.price(), unmanned))));
+            m.getPersistentDataContainer().set(UNPAID, PersistentDataType.STRING, shop.name);
+            m.getPersistentDataContainer().set(PRODUCT, PersistentDataType.STRING, id);
+        });
+        if (!p.getInventory().addItem(it).isEmpty()) {
+            if (!unmanned) shop.chores.putBack(spec, pr.place());
+            HudModule.flash(p, Lang.mm("store.basket-no-room"), 2000);
+            return;
+        }
+        carrying.add(p.getUniqueId());
+        p.playSound(p.getLocation(), Sound.ITEM_BUNDLE_INSERT, 0.6f, 1.3f);
+        HudModule.flash(p, Lang.mm(unmanned ? "store.picked-unmanned" : "store.picked", "name", pr.name()), 2500);
+    }
+
+    /** The store an unpaid thing is from (null: not one). */
+    static String unpaid(ItemStack it) {
+        if (it == null || it.isEmpty() || !it.hasItemMeta()) return null;
+        return it.getItemMeta().getPersistentDataContainer().get(UNPAID, PersistentDataType.STRING);
+    }
+
+    private static String productOf(ItemStack it) {
+        return it == null || !it.hasItemMeta() ? null : it.getItemMeta().getPersistentDataContainer().get(PRODUCT, PersistentDataType.STRING);
+    }
+
+    /** The products a player carries unpaid from this store. */
+    private List<String> unpaidItems(Player p, String store) {
+        List<String> out = new ArrayList<>();
+        for (ItemStack it : p.getInventory().getContents()) {
+            if (store.equals(unpaid(it)) && productOf(it) != null) for (int i = 0; i < it.getAmount(); i++) out.add(productOf(it));
+        }
+        return out;
+    }
+
+    /** The counter: with a worker, the things go on it to be scanned; without, the 무인 계산대 takes the money now. */
+    private void counterBuy(Player p, Shop shop) {
+        List<String> items = unpaidItems(p, shop.name);
+        if (items.isEmpty()) {
+            HudModule.flash(p, Lang.mm(shop.shift == null ? "store.unmanned-hint" : "store.basket-empty"), 3000);
+            return;
+        }
+        if (shop.shift == null) {
+            long total = 0;
+            for (String id : items) total += players().price(spec.products().get(id).price(), true);
+            if (!core.economy().withdraw(p.getUniqueId(), total, "store")) {
+                p.sendMessage(Lang.msg("store.no-money", "g", gold(total)));
+                return;
+            }
+            handOver(p, shop.name, items);
+            p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 0.8f, 2.0f);
+            p.sendMessage(Lang.msg("store.unmanned-paid", "n", items.size(), "g", gold(total)));
+            return;
+        }
+        Shift sh = shop.shift;
+        boolean waiting = sh.till != null && sh.till.basket != null && sh.till.basket.buyer.equals(p.getUniqueId());
+        for (Basket b : sh.buyers) if (b.buyer.equals(p.getUniqueId())) waiting = true;
+        if (waiting) {
+            HudModule.flash(p, Lang.mm("store.basket-waiting"), 2000);
+            return;
+        }
+        sh.buyers.add(new Basket(p.getUniqueId(), shop.name, items));
+        HudModule.flash(p, Lang.mm("store.basket-queued"), 3000);
+        Player w = Bukkit.getPlayer(sh.worker);
+        if (w != null) {
+            w.playSound(w.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 1.4f);
+            HudModule.flash(w, Lang.mm("store.basket-arrived", "player", p.getName()), 3000);
+        }
+    }
+
+    /** The next player customer's things onto the counter (up to five), to be scanned. */
+    private void openBasket(Shift sh) {
+        while (!sh.buyers.isEmpty()) {
+            Basket b = sh.buyers.removeFirst();
+            Player buyer = Bukkit.getPlayer(b.buyer);
+            if (buyer == null) continue;
+            List<String> items = unpaidItems(buyer, b.store);
+            if (items.isEmpty()) continue;
+            while (items.size() > 5) items.removeLast();
+            List<Integer> prices = new ArrayList<>();
+            for (String id : items) prices.add(spec.products().get(id).price());
+            Till t = new Till(null, new Checkout(items, prices, Checkout.Method.CARD));
+            t.basket = new Basket(b.buyer, b.store, items);
+            sh.till = t;
+            StoreLayout.Layout l = StoreLayout.of();
+            for (int i = 0; i < items.size(); i++) t.items.add(display(sh.shop.at(l.slots().get(i)), spec.products().get(items.get(i)).item(), 0.75f));
+            drawScreen(sh);
+            Player w = Bukkit.getPlayer(sh.worker);
+            if (w != null) HudModule.flash(w, Lang.mm("store.basket-scan", "player", buyer.getName()), 3000);
+            HudModule.flash(buyer, Lang.mm("store.basket-on-counter"), 3000);
+            return;
+        }
+    }
+
+    /** Everything scanned: the player pays (G, gone from the server), gets the food; the worker a small commission. */
+    private void chargeBasket(Shift sh, Till t) {
+        Basket b = t.basket;
+        Player buyer = b == null ? null : Bukkit.getPlayer(b.buyer);
+        Player w = Bukkit.getPlayer(sh.worker);
+        long total = 0;
+        for (String id : t.c.items()) total += players().price(spec.products().get(id).price(), false);
+        if (buyer == null || !core.economy().withdraw(b.buyer, total, "store")) {
+            if (buyer != null) buyer.sendMessage(Lang.msg("store.no-money", "g", gold(total)));
+            if (w != null) HudModule.flash(w, Lang.mm("store.basket-no-money"), 2500);
+            clearTill(sh);
+            return;
+        }
+        t.c.settle();
+        handOver(buyer, b.store, t.c.items());
+        long cut = sh.test ? 0 : players().commission(total);
+        if (cut > 0) core.economy().deposit(sh.worker, cut, "store");
+        buyer.playSound(buyer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.6f);
+        buyer.sendMessage(Lang.msg("store.basket-paid", "n", t.c.size(), "g", gold(total)));
+        if (w != null) {
+            w.playSound(w.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.6f, 1.8f);
+            HudModule.flash(w, Lang.mm("store.basket-done", "player", buyer.getName(), "g", gold(cut)), 2500);
+        }
+        clearTill(sh);
+    }
+
+    /** Paid: each of these unpaid things becomes its food (a 컵라면 still wants hot water). */
+    private void handOver(Player p, String store, List<String> items) {
+        PlayerInventory inv = p.getInventory();
+        List<String> left = new ArrayList<>(items);
+        for (int i = 0; i < inv.getSize() && !left.isEmpty(); i++) {
+            ItemStack it = inv.getItem(i);
+            if (!store.equals(unpaid(it))) continue;
+            String id = productOf(it);
+            if (id == null || !left.remove(id)) continue;
+            String food = players().food().get(id);
+            inv.setItem(i, food == null ? null : dev.stsv.economy.util.Items.create(food, 1).orElse(null));
+        }
+        if (unpaidItems(p, store).isEmpty()) carrying.remove(p.getUniqueId());
+    }
+
+    /** A 컵라면 under the kettle: hot water (one cup of the kettle's), ready to eat. */
+    private void pourRamen(Player p, Shop shop) {
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        String key = dev.stsv.economy.util.Items.key(hand), product = null;
+        for (Map.Entry<String, String> e : players().food().entrySet()) if (e.getValue().equals(key) && players().hot().containsKey(e.getKey())) product = e.getKey();
+        if (product == null) {
+            HudModule.flash(p, Lang.mm("store.kettle-hint"), 2000);
+            return;
+        }
+        if (!shop.chores.pour(rules.mess().water())) {
+            HudModule.flash(p, Lang.mm("store.kettle-empty"), 2500);
+            return;
+        }
+        hand.setAmount(hand.getAmount() - 1);
+        dev.stsv.economy.util.Items.create(players().hot().get(product), 1).ifPresent(it -> {
+            for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
+        });
+        p.playSound(p.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.6f, 1.6f);
+        HudModule.flash(p, Lang.mm("store.ramen-ready"), 2000);
+    }
+
+    /** Players who walked out of a store with unpaid things: back on the shelf. */
+    private void checkCarrying() {
+        for (UUID u : new ArrayList<>(carrying)) {
+            Player p = Bukkit.getPlayer(u);
+            if (p == null) {
+                carrying.remove(u);
+                continue;
+            }
+            Location l = p.getLocation();
+            boolean any = false;
+            for (ItemStack it : p.getInventory().getContents()) {
+                String store = unpaid(it);
+                if (store == null) continue;
+                any = true;
+                Shop shop = shops.get(store);
+                if (shop == null || !shop.site.inside(l.getWorld().getName(), l.getX(), l.getY(), l.getZ())) {
+                    putBack(p, store);
+                    HudModule.flash(p, Lang.mm("store.unpaid-dropped"), 3000);
+                    break;
+                }
+            }
+            if (!any) carrying.remove(u);
+        }
+    }
+
+    /** The unpaid things of a store (null: of every store) go back on their shelves. */
+    private void putBack(Player p, String store) {
+        PlayerInventory inv = p.getInventory();
+        for (int i = 0; i < inv.getSize(); i++) {
+            ItemStack it = inv.getItem(i);
+            String from = unpaid(it);
+            if (from == null || (store != null && !store.equals(from))) continue;
+            Shop shop = shops.get(from);
+            String id = productOf(it);
+            if (shop != null && id != null && spec.products().containsKey(id)) {
+                for (int k = 0; k < it.getAmount(); k++) shop.chores.putBack(spec, spec.products().get(id).place());
+                refreshShelf(shop, spec.products().get(id).place());
+            }
+            inv.setItem(i, null);
+        }
+        if (unpaid(p.getItemOnCursor()) != null) p.setItemOnCursor(null);
+    }
+
+    // ------------------------------------------------------------------------------------------ 내 가게
+
+    /** The store this player owns (null: none). */
+    private Shop owned(UUID player) {
+        for (Shop s : shops.values()) if (player.equals(s.owner)) return s;
+        return null;
+    }
+
+    /** A 권리증 in hand, used: a new store here, or the one they have made bigger. True when it was a 권리증. */
+    private boolean license(Player p) {
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        if (hand.isEmpty() || rules == null) return false;
+        StoreRules.Tier tier = rules.byLicense(dev.stsv.economy.util.Items.key(hand));
+        if (tier == null) return false;
+        if (!clicks.accept(p.getUniqueId(), Bukkit.getCurrentTick())) return true;
+        if (job != null && job.running()) {
+            p.sendMessage(Lang.msg("store.building"));
+            return true;
+        }
+        Shop own = owned(p.getUniqueId());
+        if (own != null) {
+            StoreRules.Tier cur = own.tier();
+            if (cur != null && tier.rank() <= cur.rank()) {
+                p.sendMessage(Lang.msg("store.own-have", "store", own.name, "tier", cur.name()));
+                return true;
+            }
+            if (!confirmed(p, "up|" + own.name + "|" + tier.id())) {
+                p.sendMessage(Lang.msg("store.own-up-confirm", "store", own.name, "from", cur == null ? "?" : cur.name(), "to", tier.name(),
+                        "g", gold(cur == null ? 0 : cur.price())));
+                return true;
+            }
+            upgrade(p, own, tier);
+            return true;
+        }
+        Location l = p.getLocation();
+        StoreLayout.Site site = new StoreLayout.Site(l.getWorld().getName(), l.getBlockX(), l.getBlockY(), l.getBlockZ(), StoreLayout.Site.facing(l.getYaw()));
+        String problem = landProblem(p, site);
+        if (problem != null) {
+            p.sendMessage(Lang.msg(problem));
+            return true;
+        }
+        if (!confirmed(p, "new|" + tier.id() + "|" + site.text())) {
+            p.sendMessage(Lang.msg("store.own-confirm", "tier", tier.name(), "n", tier.maxInside(), "items", tier.products().size()));
+            return true;
+        }
+        buildOwn(p, tier, site);
+        return true;
+    }
+
+    /** The second click within CONFIRM_MS of the same thing: true (and forgotten); else this one is remembered. */
+    private boolean confirmed(Player p, String key) {
+        long now = System.currentTimeMillis();
+        Confirm c = confirms.get(p.getUniqueId());
+        if (c != null && c.key().equals(key) && now - c.at() <= CONFIRM_MS) {
+            confirms.remove(p.getUniqueId());
+            return true;
+        }
+        confirms.put(p.getUniqueId(), new Confirm(key.substring(0, key.indexOf('|')), key, now));
+        return false;
+    }
+
+    /** Why a store cannot stand here (a message key), or null: the whole lot in land the player owns, clear of other stores. */
+    private String landProblem(Player p, StoreLayout.Site site) {
+        if (eco.land() == null) return "store.own-no-land";
+        HallLayout.Box lot = StoreLayout.of().clear().getFirst();
+        int[] b = site.box(lot);
+        World w = p.getWorld();
+        for (int x = b[0]; x <= b[3]; x++) for (int z = b[2]; z <= b[5]; z++) {
+            dev.stsv.economy.land.Land land = eco.land().at(new Location(w, x, site.y(), z));
+            if (land == null || !land.isOwner(p.getUniqueId())) return "store.own-not-land";
+        }
+        for (Shop s : shops.values()) {
+            if (!s.site.world().equals(site.world())) continue;
+            int[] o = s.site.box(lot);
+            if (b[0] <= o[3] && o[0] <= b[3] && b[2] <= o[5] && o[2] <= b[5]) return "store.own-overlap";
+        }
+        return null;
+    }
+
+    /** One 권리증 of this tier out of the hand (false: it is not there any more). */
+    private boolean takeLicense(Player p, StoreRules.Tier tier) {
+        ItemStack hand = p.getInventory().getItemInMainHand();
+        if (!tier.license().equals(dev.stsv.economy.util.Items.key(hand))) return false;
+        hand.setAmount(hand.getAmount() - 1);
+        return true;
+    }
+
+    private String ownName(Player p) {
+        String base = p.getName() + "네";
+        String name = base;
+        for (int i = 2; shops.containsKey(name); i++) name = base + i;
+        return name;
+    }
+
+    private void saveOwn(Shop shop) {
+        core.db().execute(core.db().upsert("eco_store", List.of("name"), List.of("site", "owner", "tier")), shop.name, shop.site.text(),
+                shop.owner == null ? null : shop.owner.toString(), shop.tier);
+    }
+
+    private void buildOwn(Player p, StoreRules.Tier tier, StoreLayout.Site site) {
+        if (!takeLicense(p, tier)) return;
+        String name = ownName(p);
+        Shop shop = new Shop(name, site, new Chores(spec));
+        shop.owner = p.getUniqueId();
+        shop.tier = tier.id();
+        try {
+            job = StoreBuilder.build(eco, core, name, site, shop.layout(), undoFile(name), settings(),
+                    pct -> p.sendActionBar(Lang.mm("store.build-progress", "pct", pct)), placed -> builtOwn(p, placed));
+        } catch (IOException | IllegalArgumentException e) {
+            dev.stsv.economy.util.Items.create(tier.license(), 1).ifPresent(it -> dev.stsv.economy.util.Items.give(p, it));
+            p.sendMessage(Lang.msg("store.build-failed", "error", String.valueOf(e.getMessage())));
+            return;
+        }
+        shops.put(name, shop);
+        saveOwn(shop);
+        p.sendMessage(Lang.msg("store.own-started", "store", name, "tier", tier.name()));
+    }
+
+    /** A bigger 등급: the old one's price back (so only the difference is paid), the store built again bigger. */
+    private void upgrade(Player p, Shop own, StoreRules.Tier tier) {
+        if (!takeLicense(p, tier)) return;
+        StoreRules.Tier cur = own.tier();
+        if (own.shift != null) clockOut(own, "store.out-admin");
+        long refund = cur == null ? 0 : cur.price();
+        if (refund > 0) core.economy().deposit(p.getUniqueId(), refund, "store");
+        own.tier = tier.id();
+        own.shown.clear();
+        saveOwn(own);
+        try {
+            job = StoreBuilder.build(eco, core, own.name, own.site, own.layout(), undoFile(own.name), settings(),
+                    pct -> p.sendActionBar(Lang.mm("store.build-progress", "pct", pct)), placed -> builtOwn(p, placed));
+        } catch (IOException | IllegalArgumentException e) {
+            p.sendMessage(Lang.msg("store.build-failed", "error", String.valueOf(e.getMessage())));
+            return;
+        }
+        p.sendMessage(Lang.msg("store.own-upgraded", "store", own.name, "from", cur == null ? "?" : cur.name(), "to", tier.name(), "g", gold(refund)));
+    }
+
+    private void builtOwn(Player owner, StoreBuilder.Placed placed) {
+        Shop shop = shops.get(placed.name());
+        if (shop != null) shop.shown.clear();
+        if (!owner.isOnline()) return;
+        owner.sendMessage(Lang.msg("store.own-built", "store", placed.name()));
+        if (owner.hasPermission("stsv.economy.admin")) for (String problem : placed.problems()) owner.sendMessage(Lang.msg("store.build-problem", "problem", problem));
+    }
+
+    /** The owner sneak-clicks the hanger: twice within CONFIRM_MS takes the store down, its 권리증 back. */
+    private void ownerHanger(Player p, Shop shop) {
+        if (shop.owner == null || !shop.owner.equals(p.getUniqueId())) return;
+        if (job != null && job.running()) {
+            p.sendMessage(Lang.msg("store.building"));
+            return;
+        }
+        if (!confirmed(p, "down|" + shop.name)) {
+            p.sendMessage(Lang.msg("store.own-down-confirm", "store", shop.name));
+            return;
+        }
+        demolish(shop, p);
+    }
+
+    /** Takes a 내 가게 down; its 권리증 to `to` (or the owner's mailbox when null or full). */
+    private void demolish(Shop shop, Player to) {
+        if (shop.shift != null) clockOut(shop, "store.out-admin");
+        StoreRules.Tier tier = shop.tier();
+        UUID owner = shop.owner;
+        String name = shop.name;
+        try {
+            job = StoreBuilder.remove(eco, core, name, shop.site, undoFile(name), settings(),
+                    pct -> { if (to != null && to.isOnline()) to.sendActionBar(Lang.mm("store.build-progress", "pct", pct)); },
+                    restored -> { if (to != null && to.isOnline()) to.sendMessage(Lang.msg("store.removed", "store", name, "blocks", restored)); });
+        } catch (IOException | IllegalArgumentException e) {
+            if (to != null) to.sendMessage(Lang.msg("store.build-failed", "error", String.valueOf(e.getMessage())));
+            return;
+        }
+        shops.remove(name);
+        core.db().execute("DELETE FROM eco_store WHERE name = ?", name);
+        if (tier != null && owner != null) dev.stsv.economy.util.Items.create(tier.license(), 1).ifPresent(it -> {
+            if (to != null && to.getUniqueId().equals(owner)) {
+                for (ItemStack left : dev.stsv.economy.util.Items.give(to, it)) eco.mail().deliver(owner, left, "store");
+                to.sendMessage(Lang.msg("store.own-down", "store", name, "tier", tier.name()));
+            } else eco.mail().deliver(owner, it, "store");
+        });
+    }
+
+    // ------------------------------------------------------------------------------------------ admin (2차)
+
+    private Shift adminShift(CommandSender s) {
+        if (!(s instanceof Player p)) {
+            s.sendMessage(Lang.msg("common.players-only"));
+            return null;
+        }
+        Shop shop = working.get(p.getUniqueId());
+        if (shop == null || shop.shift == null) {
+            p.sendMessage(Lang.msg("store.not-working"));
+            return null;
+        }
+        return shop.shift;
+    }
+
+    private int hourOf(Shift sh) {
+        World w = sh.shop.world();
+        return w == null ? 12 : Chores.hour(w.getTime());
+    }
+
+    /** /관리자 편의점 진상 &lt;종류&gt;: that trouble's customer walks in now (유령: the door bell). */
+    private void adminTrouble(CommandSender s, String id) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        Trouble.Kind k = Trouble.Kind.of(id);
+        if (k == null) {
+            List<String> ids = new ArrayList<>();
+            for (Trouble.Kind x : Trouble.Kind.values()) ids.add(x.id);
+            s.sendMessage(Lang.msg("store.trouble-usage", "ids", String.join(", ", ids)));
+            return;
+        }
+        if (k == Trouble.Kind.GHOST) {
+            ghostBell(sh, Bukkit.getPlayer(sh.worker));
+            return;
+        }
+        if (sh.guests.size() >= sh.shop.maxInside()) {
+            s.sendMessage(Lang.msg("store.guest-full", "n", sh.shop.maxInside()));
+            return;
+        }
+        Guest g = spawn(sh, k.type, hourOf(sh), k, false);
+        if (g == null) s.sendMessage(Lang.msg("store.guest-failed"));
+        else s.sendMessage(Lang.msg(g.trouble == k ? "store.trouble-spawned" : "store.trouble-cannot", "id", k.id,
+                "type", eco.bus().typeTag(g.type, false)));
+    }
+
+    /** /관리자 편의점 신분증: a young-looking customer with 술 · 담배 (a student, maybe with a sibling's card). */
+    private void adminId(CommandSender s) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        boolean any = false;
+        for (String r : rules.id().items()) if (sh.shop.sells(r)) any = true;
+        if (!any) {
+            s.sendMessage(Lang.msg("store.id-none-sold"));
+            return;
+        }
+        String kind = ThreadLocalRandom.current().nextBoolean() ? "student" : "univ";
+        Guest g = spawn(sh, kind, hourOf(sh), null, true);
+        s.sendMessage(Lang.msg(g == null ? "store.guest-failed" : "store.guest-done", "type", g == null ? kind : eco.bus().typeTag(g.type, false)));
+    }
+
+    /** /관리자 편의점 장면 [id]: the list, or that scene now (its cast must be inside). */
+    private void adminScene(CommandSender s, String id) {
+        if (id == null) {
+            s.sendMessage(Lang.mm("store.scene-list", "n", scenes.scenes().size(), "chance", Math.round(scenes.rules().chance() * 100),
+                    "cooldown", scenes.rules().cooldown()));
+            for (StoreScenes.Scene x : scenes.scenes().values()) s.sendMessage(Lang.mm("store.scene-row", "id", x.id(), "title", esc(x.title()),
+                    "cast", String.join(" · ", x.cast())));
+            return;
+        }
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        if (!scenes.scenes().containsKey(id)) {
+            s.sendMessage(Lang.msg("store.scene-no-such", "id", id));
+            return;
+        }
+        if (sh.playing != null) endScene(sh, false);
+        sh.forceScene = id;
+        s.sendMessage(Lang.msg("store.scene-forced", "id", id, "cast", String.join(" · ", scenes.scenes().get(id).cast())));
+    }
+
+    /** /관리자 편의점 폐기: the 폐기 shelf's things expire now (as many as may). */
+    private void adminWaste(CommandSender s) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        int n = 0;
+        while (sh.shop.chores.expire(rules.waste().place(), rules.waste().most())) n++;
+        drawWaste(sh);
+        s.sendMessage(Lang.msg("store.admin-waste", "n", sh.shop.chores.expired(rules.waste().place()), "added", n));
+    }
+
+    /** /관리자 편의점 청소: a spill on the floor and a cup on the eat bar. */
+    private void adminMess(CommandSender s) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        for (String node : StoreLayout.AISLE) if (sh.shop.chores.spill(node, rules.mess().most())) {
+            showSpill(sh, node);
+            break;
+        }
+        if (sh.shop.has("eatbar")) for (int i = 0; i < StoreLayout.EAT.size(); i++) if (sh.shop.chores.leaveCup(i, rules.mess().most())) {
+            showCup(sh, i);
+            break;
+        }
+        s.sendMessage(Lang.msg("store.admin-mess", "n", sh.shop.chores.messes()));
+    }
+
+    /** /관리자 편의점 권리증 &lt;플레이어&gt; &lt;등급&gt;: a 권리증 in their hands. */
+    private void adminLicense(CommandSender s, String who, String tierWord) {
+        Player p = who == null ? null : Bukkit.getPlayerExact(who);
+        StoreRules.Tier tier = rules.tier(tierWord);
+        if (p == null || tier == null) {
+            List<String> names = new ArrayList<>();
+            for (StoreRules.Tier t : rules.tiers().values()) names.add(t.name());
+            s.sendMessage(Lang.msg("store.license-usage", "tiers", String.join(", ", names)));
+            return;
+        }
+        var it = dev.stsv.economy.util.Items.create(tier.license(), 1);
+        if (it.isEmpty()) {
+            s.sendMessage(Lang.msg("store.license-missing", "item", tier.license()));
+            return;
+        }
+        for (ItemStack left : dev.stsv.economy.util.Items.give(p, it.get())) eco.mail().deliver(p.getUniqueId(), left, "store");
+        s.sendMessage(Lang.msg("store.license-given", "player", p.getName(), "tier", tier.name()));
+    }
+
+    /** /관리자 편의점 내가게: the players' own stores. */
+    private void adminOwned(CommandSender s) {
+        int n = 0;
+        for (Shop shop : shops.values()) {
+            if (shop.owner == null) continue;
+            n++;
+            s.sendMessage(Lang.mm("store.owned-line", "store", shop.name, "owner", String.valueOf(Bukkit.getOfflinePlayer(shop.owner).getName()),
+                    "tier", shop.tier() == null ? "?" : shop.tier().name(), "site", shop.site.toString(),
+                    "state", shop.shift == null ? Lang.raw("store.list-closed") : Lang.raw("store.list-worker", "player",
+                            String.valueOf(Bukkit.getOfflinePlayer(shop.shift.worker).getName()), "n", shop.shift.guests.size())));
+        }
+        if (n == 0) s.sendMessage(Lang.msg("store.owned-none"));
+    }
+
+    /** /관리자 편의점 회수 &lt;플레이어&gt;: their store taken down, its 권리증 to their mailbox. */
+    private void adminReclaim(CommandSender s, String who) {
+        if (job != null && job.running()) {
+            s.sendMessage(Lang.msg("store.building"));
+            return;
+        }
+        Shop found = null;
+        if (who != null) for (Shop shop : shops.values()) {
+            if (shop.owner != null && who.equalsIgnoreCase(Bukkit.getOfflinePlayer(shop.owner).getName())) found = shop;
+        }
+        if (found == null) {
+            s.sendMessage(Lang.msg("store.owned-no-such", "player", String.valueOf(who)));
+            return;
+        }
+        demolish(found, null);
+        s.sendMessage(Lang.msg("store.owned-reclaimed", "store", found.name));
     }
 
     // ------------------------------------------------------------------------------------------ words

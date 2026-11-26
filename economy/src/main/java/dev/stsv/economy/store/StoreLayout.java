@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.PriorityQueue;
+import java.util.Set;
 
 /**
  * The GS26 편의점 (docs/plans/편의점_기획안.md §2, §15) that /관리자 편의점 건설 puts where the admin stands, looking the way
@@ -120,6 +121,41 @@ public final class StoreLayout {
     public static Layout of() {
         return Holder.LAYOUT;
     }
+
+    /** Which piece a browse spot stands at (a spot whose piece a smaller store does not have is not walked to). */
+    static final Map<String, String> SPOT_PIECE = Map.ofEntries(Map.entry("snack_a", "shelf_snack"), Map.entry("snack_b", "shelf_snack"),
+            Map.entry("noodle_a", "shelf_noodle"), Map.entry("noodle_b", "shelf_noodle"), Map.entry("daily_a", "shelf_daily"),
+            Map.entry("daily_b", "shelf_daily"), Map.entry("meal_a", "shelf_meal"), Map.entry("meal_b", "shelf_meal"),
+            Map.entry("fridge_a", "fridge_0"), Map.entry("fridge_b", "fridge_1"), Map.entry("fridge_c", "fridge_2"), Map.entry("freezer_a", "freezer"));
+
+    private static final Map<Set<String>, Layout> SMALLER = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The store without some of its furniture (a 내 가게 등급, 기획안 §13: the 골목점 has two shelves and one fridge): the same
+     * building and walk, those pieces left out, nobody browsing where they would stand.
+     */
+    public static Layout of(Set<String> without) {
+        if (without == null || without.isEmpty()) return of();
+        return SMALLER.computeIfAbsent(Set.copyOf(without), w -> {
+            Layout l = of();
+            List<Piece> pieces = new ArrayList<>();
+            for (Piece p : l.pieces()) if (!w.contains(p.role())) pieces.add(p);
+            Map<String, List<String>> spots = new LinkedHashMap<>();
+            l.spots().forEach((place, ids) -> {
+                List<String> kept = new ArrayList<>();
+                for (String id : ids) if (!w.contains(SPOT_PIECE.getOrDefault(id, ""))) kept.add(id);
+                if (!kept.isEmpty()) spots.put(place, List.copyOf(kept));
+            });
+            return new Layout(l.clear(), l.columns(), l.blocks(), l.props(), l.labels(), List.copyOf(pieces), l.nodes(), l.edges(), Map.copyOf(spots),
+                    l.queue(), l.slots(), l.scanned(), l.screen(), l.customerScreen(), l.card(), l.terminal(), l.cardKey(), l.changeButtons(), l.give(),
+                    l.clear2(), l.oven(), l.boxes(), l.worker(), l.inside(), l.bounds());
+        });
+    }
+
+    /** Where the eat bar's customers stand (facing the window), seat 0 .. 2. */
+    public static final List<String> EAT = List.of("eat_0", "eat_1", "eat_2");
+    /** The aisle spots a drink can be spilt on. */
+    public static final List<String> AISLE = List.of("fm", "mm", "ml", "mr", "bm");
 
     private static long key(int x, int y, int z) {
         return ((long) (x + 512) << 40) | ((long) (y + 512) << 20) | (z + 512);
@@ -327,6 +363,11 @@ public final class StoreLayout {
         spot("fridge", "fridge_b", 2.0, 13.5, 0, "bm");
         spot("fridge", "fridge_c", 4.0, 13.5, 0, "bm", "br");
         spot("freezer", "freezer_a", 2.0, 5.5, 180, "fm", "fr");
+        // the eat bar (x -2..0 at the window): a 컵라면 customer or a dozing 취객 stands at a seat, facing the glass
+        for (int i = 0; i < 3; i++) {
+            node("eat_" + i, -1.5 + i, 5.2, 180);
+            edge("eat_" + i, "fl");
+        }
     }
 
     // ------------------------------------------------------------------------------------------ paths

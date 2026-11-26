@@ -47,7 +47,15 @@ public final class Chores {
         if (n == null) return true;
         if (n <= 0) return false;
         stock.put(place, n - 1);
+        if (expired.getOrDefault(place, 0) > n - 1) expired.put(place, n - 1);   // (the tagged ones never outnumber the stock)
         return true;
+    }
+
+    /** A thing back onto its shelf (a player walked off without paying): one more, at most full. */
+    public void putBack(StoreSpec spec, String place) {
+        StoreSpec.Shelf s = spec.shelves().get(place);
+        Integer n = stock.get(place);
+        if (s != null && n != null) stock.put(place, Math.min(s.capacity(), n + 1));
     }
 
     /** The model state of a shelf (full / half / empty). */
@@ -126,8 +134,7 @@ public final class Chores {
     public boolean restock(StoreSpec spec, String place) {
         StoreSpec.Shelf s = spec.shelves().get(place);
         if (s == null || carrying == null || !carrying.equals(s.box())) return false;
-        stock.put(place, s.capacity());
-        carrying = null;
+        stock.put(place, s.capacity());        carrying = null;
         return true;
     }
 
@@ -192,5 +199,142 @@ public final class Chores {
     public void resetOven() {
         oven = Oven.IDLE;
         ovenTicks = 0;
+    }
+
+    // ------------------------------------------------------------------------------------------ 폐기 (2차)
+
+    private final Map<String, Integer> expired = new LinkedHashMap<>();
+    private int carriedWaste;
+
+    /** How many things on this shelf are past their date (red tags). */
+    public int expired(String place) {
+        return expired.getOrDefault(place, 0);
+    }
+
+    /** One more thing on this shelf goes past its date (at most `most`, never more than the shelf holds): true if one did. */
+    public boolean expire(String place, int most) {
+        int n = expired(place);
+        if (n >= most || n >= Math.max(0, stock(place))) return false;
+        expired.put(place, n + 1);
+        return true;
+    }
+
+    /**
+     * A customer takes a thing off this shelf: whether it is one of the expired (`roll` 0..1 against expired / stock; they
+     * notice and complain, it goes back with its tag).
+     */
+    public boolean picksExpired(String place, double roll) {
+        int n = expired(place), s = stock(place);
+        return n > 0 && s > 0 && roll < (double) n / (s + 1);
+    }
+
+    /** The worker takes the expired things off the shelf (they leave its stock): how many. */
+    public int takeExpired(String place) {
+        int n = expired(place);
+        if (n <= 0) return 0;
+        expired.put(place, 0);
+        Integer s = stock.get(place);
+        if (s != null) stock.put(place, Math.max(0, s - n));
+        carriedWaste += n;
+        return n;
+    }
+
+    /** One expired thing handed out (to the 공시생): off the shelf, its tag gone. False when there is none. */
+    public boolean giveExpired(String place) {
+        int n = expired(place);
+        if (n <= 0) return false;
+        expired.put(place, n - 1);
+        Integer s = stock.get(place);
+        if (s != null) stock.put(place, Math.max(0, s - 1));
+        return true;
+    }
+
+    public int carriedWaste() {
+        return carriedWaste;
+    }
+
+    /** Into the 폐기 바구니: how many went. */
+    public int dispose() {
+        int n = carriedWaste;
+        carriedWaste = 0;
+        return n;
+    }
+
+    // ------------------------------------------------------------------------------------------ 청소 · 온수 (2차)
+
+    private final List<String> spills = new ArrayList<>();
+    private final boolean[] cups = new boolean[3];
+    private boolean mop;
+    private int water = -1;
+
+    /** Spilt drinks on the floor (aisle node ids). */
+    public List<String> spills() {
+        return spills;
+    }
+
+    /** A drink spills at this aisle spot (one a spot; at most `most` messes in all): true if it did. */
+    public boolean spill(String node, int most) {
+        if (spills.contains(node) || messes() >= most) return false;
+        spills.add(node);
+        return true;
+    }
+
+    /** The worker picks up the mop (from its bucket) / puts it back. */
+    public void mop(boolean holding) {
+        mop = holding;
+    }
+
+    public boolean mop() {
+        return mop;
+    }
+
+    /** Mops a spill (only with the mop in hand): true when it was there. */
+    public boolean wipe(String node) {
+        return mop && spills.remove(node);
+    }
+
+    /** A 컵라면 cup left at seat i of the eat bar (at most `most` messes): true if it was put there. */
+    public boolean leaveCup(int seat, int most) {
+        if (seat < 0 || seat >= cups.length || cups[seat] || messes() >= most) return false;
+        cups[seat] = true;
+        return true;
+    }
+
+    public boolean cup(int seat) {
+        return seat >= 0 && seat < cups.length && cups[seat];
+    }
+
+    /** Clears the cup at seat i: true when there was one. */
+    public boolean clearCup(int seat) {
+        if (!cup(seat)) return false;
+        cups[seat] = false;
+        return true;
+    }
+
+    /** How many messes there are (spills and cups): each sours entering customers. */
+    public int messes() {
+        int n = spills.size();
+        for (boolean c : cups) if (c) n++;
+        return n;
+    }
+
+    /** Cups of hot water left in the kettle (full: `capacity` the first time asked). */
+    public int water(int capacity) {
+        if (water < 0) water = capacity;
+        return water;
+    }
+
+    /** Pours a cup (a 컵라면): false when it is empty. */
+    public boolean pour(int capacity) {
+        if (water(capacity) <= 0) return false;
+        water--;
+        return true;
+    }
+
+    /** The worker fills the kettle: true when it was not full. */
+    public boolean refill(int capacity) {
+        if (water(capacity) >= capacity) return false;
+        water = capacity;
+        return true;
     }
 }
