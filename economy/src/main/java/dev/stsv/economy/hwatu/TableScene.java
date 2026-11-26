@@ -50,6 +50,11 @@ final class TableScene {
     /** A button's click box: "viewer;button". */
     static final NamespacedKey BUTTON = new NamespacedKey("economy", "hwatu_button");
 
+    /** The pile's scale on this table (the poker oval is narrower than the round table: a smaller pile). */
+    private float pileScale() {
+        return kind == TableKind.POKER ? CHIPS_SCALE * 0.7f : CHIPS_SCALE;
+    }
+
     /** Sizes of the models on the table (scale of a display; the models are drawn at their own size, 16 px a block). */
     static final float CARD_SCALE = 0.75f, BUTTON_SCALE = 0.4f, DIE_SCALE = 0.6f, CHIPS_SCALE = 0.45f, BOWL_SCALE = 0.8f, CUP_SCALE = 0.9f;
     /** How long a cup or the bowl is shaken before it is lifted off the roll (ticks). */
@@ -688,22 +693,22 @@ final class TableScene {
             if (level == 0) kill(pile);
             if (level == 0) pile = null;
             else if (pile == null || !pile.isValid()) {
-                pile = item(middle(0.001), "economy:gamble_chips_" + level, CHIPS_SCALE, new Quaternionf(), new Vector3f(0, 0.25f, 0), true);
+                pile = item(middle(0.001), "economy:gamble_chips_" + level, pileScale(), new Quaternionf(), new Vector3f(0, 0.25f, 0), true);
                 ItemDisplay p = pile;
-                float sc = CHIPS_SCALE * TableArt.chipScale(pot, t.ante());
+                float sc = pileScale() * TableArt.chipScale(pot, t.ante());
                 later(2, () -> animate(p, pose(sc, new Quaternionf(), null), 5));
                 sound(middle(0), Sound.BLOCK_CHAIN_PLACE, 0.6f, 1.6f);
             } else {
                 pile.setItemStack(model("economy:gamble_chips_" + level));
                 ItemDisplay p = pile;
-                float sc = CHIPS_SCALE * TableArt.chipScale(pot, t.ante());
+                float sc = pileScale() * TableArt.chipScale(pot, t.ante());
                 p.setTransformation(pose(sc * 1.12f, new Quaternionf(), null));
                 later(1, () -> animate(p, pose(sc, new Quaternionf(), null), 4));
                 sound(middle(0), Sound.BLOCK_CHAIN_PLACE, 0.6f, 1.2f + level * 0.1f);
             }
             pileLevel = level;
         } else if (pile != null && level > 0) {
-            animate(pile, pose(CHIPS_SCALE * TableArt.chipScale(pot, t.ante()), new Quaternionf(), null), 4);
+            animate(pile, pose(pileScale() * TableArt.chipScale(pot, t.ante()), new Quaternionf(), null), 4);
         }
         Component label = pot > 0 ? Lang.mm("hwatu.pot-label", "pot", HallTable.fmt(pot)) : null;
         if (label == null) {
@@ -1420,7 +1425,8 @@ final class TableScene {
                 half = BUTTON_HALF * TableArt.POKER_HIDDEN_GAP / TableArt.BUTTON_GAP;
             }
             TableArt.Spot s = TableArt.along(center, at, chip ? TableArt.CHIP_REACH : reach.button(), side, true);
-            Location l = at(s, chip ? 0.002 : half + 0.03);
+            double lift = kind == TableKind.POKER ? TableArt.POKER_BUTTON_LIFT : 0;   // over the hidden row's sight line
+            Location l = at(s, chip ? 0.002 : half + 0.03 + lift);
             Quaternionf rot = chip ? new Quaternionf() : TableArt.facing(s.yaw()).rotateX((float) Math.toRadians(BUTTON_TILT));
             if (chip) {
                 scale = (b.chip() == host.chipOf(p.getUniqueId()) ? 0.36f : 0.27f) * (float) slot.scale();
@@ -1432,7 +1438,7 @@ final class TableScene {
             float sc = scale;
             double hf = half;
             later(delay, () -> animate(d, pose(sc, rot, null), 4));
-            Interaction hit = world.spawn(at(s, 0.0), Interaction.class, x -> {
+            Interaction hit = world.spawn(at(s, lift), Interaction.class, x -> {
                 x.setInteractionWidth((float) (TableArt.BUTTON_GAP * (b.open() >= 0 ? TableArt.POKER_HIDDEN_GAP / TableArt.BUTTON_GAP : slot.scale())) - 0.03f);
                 x.setInteractionHeight((float) (2 * hf + 0.12));
                 x.setResponsive(true);
@@ -1441,7 +1447,7 @@ final class TableScene {
                 tag(x);
             });
             p.showEntity(plugin, hit);
-            TextDisplay label = text(at(s, 2 * half + (chip ? 0.1 : 0.16)), label(t, p.getUniqueId(), b), (float) Math.max(0.16, 0.2 * slot.scale()), false);
+            TextDisplay label = text(at(s, lift + 2 * half + (chip ? 0.1 : 0.16)), label(t, p.getUniqueId(), b), (float) Math.max(0.16, 0.2 * slot.scale()), false);
             p.showEntity(plugin, label);
             pad.entities.add(d);
             pad.entities.add(hit);
@@ -1533,8 +1539,8 @@ final class TableScene {
                 if (seat == null) continue;
                 TableArt.Spot s = TableArt.along(center, seat(seat), 0.78, 0, true);
                 ItemDisplay chips = item(at(s, 0.002), "economy:gamble_chips_" + Math.max(1, level - (winners.size() > 1 ? 1 : 0)),
-                        CHIPS_SCALE, new Quaternionf(), offsetTo(center, s.x(), s.z(), 0.06), true);
-                later(1, () -> animate(chips, pose(CHIPS_SCALE, new Quaternionf(), null), 8));
+                        pileScale(), new Quaternionf(), offsetTo(center, s.x(), s.z(), 0.06), true);
+                later(1, () -> animate(chips, pose(pileScale(), new Quaternionf(), null), 8));
                 later(36, () -> kill(chips));
                 long won = r.payout().getOrDefault(w, 0L) - r.put().getOrDefault(w, 0L);
                 TextDisplay gain = text(at(s, 0.75), Lang.mm("hwatu.gain", "n", HallTable.fmt(Math.max(0, won)), "player", host.mini(w)), 0.4f, true);
