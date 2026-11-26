@@ -183,7 +183,7 @@ public final class TableArt {
 
     /** buttonWidth: the most a row of buttons spans side to side (blocks), so it stays on the table and off the neighbours. */
     public static final Reach ROUND_REACH = new Reach(0.42, 0.62, 0.32, 0.5, 1.45), DUEL_REACH = new Reach(0.25, 0.42, 0.22, 0.3, 0.96),
-            POKER_REACH = new Reach(0.5, 0.6, 0.32, 0.42, 1.2), BACCARAT_REACH = new Reach(0.5, 0.58, 0.32, 0.45, 1.0);
+            POKER_REACH = new Reach(0.52, 0.6, 0.32, 0.42, 1.2), BACCARAT_REACH = new Reach(0.5, 0.58, 0.32, 0.45, 1.0);
 
     public static Reach reach(TableKind k) {
         return switch (k) {
@@ -254,12 +254,20 @@ public final class TableArt {
 
     /**
      * 세븐 포커's cards before a seat lie in two rows: the hidden ones (the two of the first three not opened, the 7th)
-     * nearer the player at {@link Reach#card()}, the open ones (the opened one, the 4th ~ 6th) further in at POKER_OPEN, a
-     * little overlapped (the corner with the rank shows) so six seats' rows stay apart and on the poker table's oval
-     * (5 × 5 cells, the oval 3 × 2.5 blocks: CasinoHallTest). Cards (pcard: 7 × 10 px, lying flat, bottom on the
-     * position, read from the north) at {@link #PCARD_SCALE}.
+     * nearer the player at {@link Reach#card()}, flat at {@link #PCARD_SCALE}; the open ones (the opened one, the 4th ~
+     * 6th) further in at POKER_OPEN, a little bigger ({@link #POKER_OPEN_SCALE}) and tilted up toward the middle
+     * ({@link #POKER_OPEN_TILT}: the players across and beside read them), overlapped so each one's rank index and pip
+     * corner shows. As big as six seats' rows can be and still stay apart on the poker table's oval (5 × 5 cells, the oval
+     * 3 × 2.5 blocks: CasinoHallTest); the label over the row (TableScene) says the cards in words. Cards (pcard: 7 × 10
+     * px, lying flat, bottom on the position, read from the north).
      */
-    public static final double POKER_OPEN = 0.34, POKER_HIDDEN_GAP = 0.23, POKER_OPEN_GAP = 0.12;
+    public static final double POKER_OPEN = 0.36, POKER_HIDDEN_GAP = 0.23, POKER_OPEN_GAP = 0.13;
+    public static final float POKER_OPEN_SCALE = 0.55f, POKER_OPEN_TILT = 22f;
+    /** An open card's half width and half depth on the felt (its footprint, tilted) at {@link #POKER_OPEN_SCALE}. */
+    public static final double POKER_OPEN_HALF_W = 3.5 / 16.0 * POKER_OPEN_SCALE,
+            POKER_OPEN_HALF_D = 5 / 16.0 * POKER_OPEN_SCALE * Math.cos(Math.toRadians(POKER_OPEN_TILT));
+    /** How high an open card's middle stands so its low edge (toward the middle) stays on the felt. */
+    public static final double POKER_OPEN_LIFT = 5 / 16.0 * POKER_OPEN_SCALE * Math.sin(Math.toRadians(POKER_OPEN_TILT));
 
     /**
      * 세븐 포커's buttons float this high over the rail (blocks, under them): the oval has no room for the hidden row far

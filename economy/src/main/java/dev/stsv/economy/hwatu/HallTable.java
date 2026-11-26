@@ -314,6 +314,20 @@ final class HallTable implements Table.Listener, Table.Bank {
         return s.isPresent() && s.get().furniture().display().getUniqueId().equals(f.display().getUniqueId()) && s.get().seat() == seats.get(u);
     }
 
+    /** The buttons a seated player is shown now, as boxes to aim at (ButtonPick). */
+    List<ButtonPick.Target> targets(UUID u) {
+        return scene == null ? List.of() : scene.targets(u);
+    }
+
+    /** 바카라: a hotbar number key (0 = key 1) picks that chip, as clicking it would; false: not here (not 바카라, no such chip). */
+    boolean chipKey(Player p, int slot) {
+        if (game != Table.Game.BACCARAT || !seats.containsKey(p.getUniqueId())) return false;
+        int n = Math.min(Controls.CHIPS, mod.spec().baccarat().chips().size());
+        if (slot < 0 || slot >= n) return false;
+        press(p, Controls.Button.of("chip" + (slot + 1)));
+        return true;
+    }
+
     /** A button on the table was clicked by the one it is for. */
     void press(Player p, Controls.Button b) {
         UUID u = p.getUniqueId();
@@ -709,7 +723,14 @@ final class HallTable implements Table.Listener, Table.Bank {
                     String mm = String.join(" ", on);
                     parts.add(new ActionLine.Part(mm, plain(mm), 0));
                 }
-                if (t.step() == Table.Step.BETS) parts.add(part("hwatu.bac.line-chip", 2, "n", fmt(chipValue(me))));
+                if (t.step() == Table.Step.BETS) {   // the chips and their number keys (1 ~ 4), the picked one lit
+                    List<Long> chips = b.chips();
+                    List<String> keys = new ArrayList<>();
+                    for (int i = 0; i < Math.min(Controls.CHIPS, chips.size()); i++)
+                        keys.add(Lang.raw(i == chipOf(me) ? "hwatu.bac.line-chip-key-on" : "hwatu.bac.line-chip-key", "k", i + 1, "n", fmt(chips.get(i))));
+                    String mm = String.join(" ", keys);
+                    parts.add(new ActionLine.Part(mm, plain(mm), 4));
+                }
             }
             case RESULT -> {
                 Table.Result r = t.last();

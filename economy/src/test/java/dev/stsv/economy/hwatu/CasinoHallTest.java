@@ -145,8 +145,13 @@ class CasinoHallTest {
 
     /** A card's corners lying at a spot (its width across the line to its seat, its depth along it). */
     static double[][] card(TableArt.Spot s, double[] seat, double[] mid) {
+        return card(s, seat, mid, TableArt.PCARD_HALF_W, TableArt.PCARD_HALF_D);
+    }
+
+    /** As above, a card of these half sizes on the felt (an open-row card: bigger, its footprint tilted). */
+    static double[][] card(TableArt.Spot s, double[] seat, double[] mid, double hw, double hd) {
         double dx = seat[0] - mid[0], dz = seat[1] - mid[1], l = Math.hypot(dx, dz);
-        double ux = dx / l, uz = dz / l, rx = uz, rz = -ux, hw = TableArt.PCARD_HALF_W, hd = TableArt.PCARD_HALF_D;
+        double ux = dx / l, uz = dz / l, rx = uz, rz = -ux;
         double[][] out = new double[4][];
         int k = 0;
         for (int[] c : new int[][]{{-1, -1}, {1, -1}, {1, 1}, {-1, 1}})
@@ -196,7 +201,8 @@ class CasinoHallTest {
                 for (int k = 0; k < 7; k++) {
                     double[] slot = TableArt.pokerSlot(k, opened);
                     TableArt.Spot p = TableArt.pokerSpot(mid, POKER_SEATS.get(s), TableArt.POKER_REACH, (int) slot[0], (int) slot[1]);
-                    double[][] c = card(p, POKER_SEATS.get(s), mid);
+                    double[][] c = slot[0] > 0 ? card(p, POKER_SEATS.get(s), mid, TableArt.POKER_OPEN_HALF_W, TableArt.POKER_OPEN_HALF_D)
+                            : card(p, POKER_SEATS.get(s), mid);
                     for (double[] corner : c) assertTrue(onOval(corner[0], corner[1]), "seat " + s + " card " + k + " on the table");
                     all.add(c);
                     who.add(new int[]{s, (int) slot[0]});
@@ -208,8 +214,12 @@ class CasinoHallTest {
                 else if (a[1] != b[1]) assertFalse(overlap(all.get(i), all.get(j)), "seat " + a[0] + ": the two rows apart");
             }
         }
-        // the open row's cards overlap a little (their corners show), each one's rank corner clear of the next
-        assertTrue(TableArt.POKER_OPEN_GAP < 2 * TableArt.PCARD_HALF_W && TableArt.POKER_OPEN_GAP > TableArt.PCARD_HALF_W);
+        // the open row's cards overlap a little (their corners show), each one's rank corner clear of the next: over half
+        // of each card shows (the index and pip take its left quarter), and they are bigger than the hidden ones, tilted
+        assertTrue(TableArt.POKER_OPEN_GAP < 2 * TableArt.POKER_OPEN_HALF_W && TableArt.POKER_OPEN_GAP > TableArt.POKER_OPEN_HALF_W);
+        assertTrue(TableArt.POKER_OPEN_SCALE > TableArt.PCARD_SCALE);
+        assertTrue(TableArt.POKER_OPEN_TILT >= 20 && TableArt.POKER_OPEN_TILT <= 25);
+        assertTrue(TableArt.POKER_OPEN_LIFT > 0 && TableArt.POKER_OPEN_HALF_D < 5 / 16.0 * TableArt.POKER_OPEN_SCALE);
         // the buttons stand past the hidden row, still over the table
         for (double[] seat : POKER_SEATS) {
             TableArt.Spot b = TableArt.along(mid, seat, TableArt.POKER_REACH.button(), 0, true);

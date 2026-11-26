@@ -138,6 +138,9 @@ final class TableScene {
         int opened = -1;
         boolean folded, revealed;
         long ready;
+        /** over the open row, for everyone: the open cards in words and what they make ("K♥ 7♦ 7♣ · 원페어 7") */
+        TextDisplay label;
+        String labelText = "";
     }
 
     /** A viewer's buttons: what they are (to see a change) and their entities. */
@@ -145,6 +148,10 @@ final class TableScene {
         String key = "";
         final List<Entity> entities = new ArrayList<>();
         final Map<Controls.Button, ItemDisplay> displays = new HashMap<>();
+        /** each display's full pose (a press pulses it from there) */
+        final Map<Controls.Button, Transformation> poses = new HashMap<>();
+        /** where a click finds each button (ButtonPick) */
+        final List<ButtonPick.Target> targets = new ArrayList<>();
     }
 
     /**
@@ -552,7 +559,38 @@ final class TableScene {
             if (opened >= 0 && h.opened < 0) openPoker(t, u, h, opened);
             if (t.folded(u) && !h.folded) foldPoker(h);
             if (TableArt.revealed(t, u) && !h.revealed) revealPoker(t, u, h);
+            pokerLabel(t, u, h);
         }
+    }
+
+    /**
+     * The open row's label, for everyone but its owner: its cards (all seven once shown down) in red / black and the hand
+     * they make; none folded.
+     */
+    private void pokerLabel(Table t, UUID u, PHand h) {
+        boolean all = h.revealed;
+        List<PCard> cards = h.folded ? List.of() : all ? t.pcards(u) : t.openCards(u);
+        if (cards.isEmpty()) {
+            kill(h.label);
+            h.label = null;
+            h.labelText = "";
+            return;
+        }
+        List<String> words = new ArrayList<>();
+        for (PCard c : cards) words.add(HallTable.cardText(c));
+        Poker.Hand made = all ? t.pokerHand(u) : t.showing(u);
+        String mm = Lang.raw("hwatu.poker-open-label", "cards", String.join(" ", words),
+                "hand", made == null || made.category() == Poker.Category.HIGH ? "" : Lang.raw("hwatu.poker-open-hand", "hand", HallTable.pokerName(made)));
+        if (mm.equals(h.labelText) && h.label != null && h.label.isValid()) return;
+        h.labelText = mm;
+        TableArt.Spot s = TableArt.along(center, seat(h.seat), TableArt.POKER_OPEN, 0, true);
+        Location l = at(s, 0.22);
+        if (h.label == null || !h.label.isValid()) {
+            h.label = text(l, Text.mm(mm), 0.35f, true);
+            // not to its owner: they know their cards (the action bar), and over their own row it would stand in the way
+            Player owner = Bukkit.getPlayer(u);
+            if (owner != null) owner.hideEntity(plugin, h.label);
+        } else h.label.text(Text.mm(mm));
     }
 
     private TableArt.Spot pokerSpot(int seat, int k, int opened) {
@@ -564,16 +602,20 @@ final class TableScene {
     private void dealPoker(Table t, UUID owner, PHand h, int k, PCard card, int order) {
         TableArt.Spot s = pokerSpot(h.seat, k, t.openedIndex(owner));
         h.spot[k] = s;
-        h.moved[k] = new Vector3f();
+        boolean inOpenRow = TableArt.pokerSlot(k, t.openedIndex(owner))[0] > 0;
+        // the open row: bigger, tilted toward the middle, lifted so its low edge stays on the felt
+        h.moved[k] = inOpenRow ? new Vector3f(0, (float) TableArt.POKER_OPEN_LIFT, 0) : new Vector3f();
         // open rows a little over the hidden ones and each card over the one before (overlapped in a row)
-        Location l = at(s, 0.002 + (TableArt.pokerSlot(k, t.openedIndex(owner))[0] > 0 ? 0.006 : 0) + k * 0.0015);
-        Quaternionf rot = TableArt.facing(s.yaw());
+        Location l = at(s, 0.002 + (inOpenRow ? 0.006 : 0) + k * 0.0015);
+        Quaternionf rot = inOpenRow ? openRot(s.yaw()) : TableArt.facing(s.yaw());
+        float scale = inOpenRow ? TableArt.POKER_OPEN_SCALE : TableArt.PCARD_SCALE;
+        Vector3f rest = new Vector3f(h.moved[k]);
         Vector3f from = offsetTo(center, s.x(), s.z(), 0.05);
         boolean open = t.isOpen(owner, k);
-        h.face[k] = item(l, card.item(), TableArt.PCARD_SCALE, rot, from, open);
+        h.face[k] = item(l, card.item(), scale, rot, from, open);
         h.shown[k] = open;
         if (!open) {
-            h.back[k] = item(l, PCard.BACK, TableArt.PCARD_SCALE, rot, from, true);
+            h.back[k] = item(l, PCard.BACK, scale, rot, from, true);
             Player p = Bukkit.getPlayer(owner);
             if (p != null) {
                 p.showEntity(plugin, h.face[k]);
@@ -584,10 +626,16 @@ final class TableScene {
         int delay = 2 + order * 4;
         h.ready = Math.max(h.ready, tick + delay + 5);
         later(delay, () -> {
-            animate(f, pose(TableArt.PCARD_SCALE, rot, null), 5);
-            animate(b, pose(TableArt.PCARD_SCALE, rot, null), 5);
+            animate(f, pose(scale, rot, rest), 5);
+            animate(b, pose(scale, rot, rest), 5);
             sound(l, Sound.ITEM_BOOK_PAGE_TURN, 0.45f, 1.4f + rng.nextFloat() * 0.3f);
         });
+    }
+
+    /** An open-row card's turn: facing its seat, tilted up toward the middle (its face toward the players across). */
+    private static Quaternionf openRot(float yaw) {
+        // the model's north (toward the seat) is drawn at the display's +Z: a negative turn round X leans the face to -Z
+        return TableArt.facing(yaw).rotateX((float) Math.toRadians(-TableArt.POKER_OPEN_TILT));
     }
 
     /** The opened card slides from the hidden row to the open row and turns face up for everyone. */
@@ -595,17 +643,17 @@ final class TableScene {
         h.opened = k;
         if (h.face[k] == null || h.spot[k] == null) return;
         TableArt.Spot from = h.spot[k], to = pokerSpot(h.seat, k, k);
-        Vector3f slide = new Vector3f((float) (to.x() - from.x()), 0.006f, (float) (to.z() - from.z()));
+        Vector3f slide = new Vector3f((float) (to.x() - from.x()), (float) (0.006 + TableArt.POKER_OPEN_LIFT), (float) (to.z() - from.z()));
         h.moved[k] = slide;
         int wait = (int) Math.max(0, h.ready - tick);
-        Quaternionf rot = TableArt.facing(from.yaw());
+        Quaternionf rot = openRot(from.yaw());
         ItemDisplay f = h.face[k], b = h.back[k];
         later(wait + 1, () -> {
-            animate(f, pose(TableArt.PCARD_SCALE, rot, slide), 6);
-            animate(b, pose(TableArt.PCARD_SCALE, rot, slide), 6);
+            animate(f, pose(TableArt.POKER_OPEN_SCALE, rot, slide), 6);
+            animate(b, pose(TableArt.POKER_OPEN_SCALE, rot, slide), 6);
             sound(at(to, 0), Sound.ITEM_BOOK_PAGE_TURN, 0.6f, 1.2f);
         });
-        if (b != null) flip(b, f, f.getItemStack(), from, slide, wait + 8, TableArt.PCARD_SCALE, 1.1f);
+        if (b != null) flip(b, f, f.getItemStack(), from, slide, wait + 8, TableArt.POKER_OPEN_SCALE, 1.1f, rot);
         h.shown[k] = true;
     }
 
@@ -615,7 +663,9 @@ final class TableScene {
         for (int k = 0; k < 7; k++) {
             if (h.face[k] == null || h.spot[k] == null) continue;
             TableArt.Spot s = h.spot[k];
-            Vector3f in = offsetTo(center, s.x(), s.z(), 0).mul(0.2f).add(h.moved[k]);
+            Vector3f lying = new Vector3f(h.moved[k]);
+            lying.y = Math.min(lying.y, 0.006f);   // laid flat again (an open card was lifted to tilt)
+            Vector3f in = offsetTo(center, s.x(), s.z(), 0).mul(0.2f).add(lying);
             Quaternionf rot = TableArt.facing(s.yaw()).rotateY((float) Math.toRadians((k % 2 == 0 ? 8 : -6)));
             animate(h.face[k], pose(TableArt.PCARD_SCALE, rot, in), 6);
             animate(h.back[k], pose(TableArt.PCARD_SCALE, rot, in), 6);
@@ -627,6 +677,9 @@ final class TableScene {
             }
         }
         sound(middle(0), Sound.ITEM_BOOK_PUT, 0.5f, 0.8f);
+        kill(h.label);
+        h.label = null;
+        h.labelText = "";
     }
 
     /** The showdown: the hidden cards flip over for everyone, seat by seat, after the last deal. */
@@ -647,6 +700,12 @@ final class TableScene {
      * swapped for the face, down again.
      */
     private void flip(ItemDisplay back, ItemDisplay face, ItemStack faceItem, TableArt.Spot s, Vector3f base, int delay, float scale, float pitch) {
+        flip(back, face, faceItem, s, base, delay, scale, pitch, TableArt.facing(s.yaw()));
+    }
+
+    /** As above, coming to rest turned `restRot` (an open-row card: tilted). */
+    private void flip(ItemDisplay back, ItemDisplay face, ItemStack faceItem, TableArt.Spot s, Vector3f base, int delay, float scale, float pitch,
+                      Quaternionf restRot) {
         Quaternionf flat = TableArt.facing(s.yaw());
         Vector3f axis = new Vector3f((float) (center[0] - s.x()), 0, (float) (center[1] - s.z())).normalize();
         Quaternionf edge = new Quaternionf().rotateAxis((float) Math.toRadians(90), axis.x, axis.y, axis.z).mul(flat);
@@ -662,13 +721,15 @@ final class TableScene {
             if (face.isValid()) face.setTransformation(pose(scale, edgeBack, up));
         });
         later(delay + 4, () -> {
-            animate(back, pose(scale, flat, rest), 3);
-            animate(face, pose(scale, flat, rest), 3);
+            animate(back, pose(scale, restRot, rest), 3);
+            animate(face, pose(scale, restRot, rest), 3);
             sound(middle(0), Sound.ITEM_BOOK_PAGE_TURN, 0.7f, pitch);
         });
     }
 
     private void sweepPoker(PHand h) {
+        kill(h.label);
+        h.label = null;
         for (int k = 0; k < 7; k++) {
             if (h.face[k] == null || h.spot[k] == null) continue;
             TableArt.Spot s = h.spot[k];
@@ -1407,6 +1468,9 @@ final class TableScene {
         return Lang.mm("hwatu.btn-label", "name", name, "amount", chips);
     }
 
+    /** A TextDisplay line's height at scale 1 (blocks), a little generous: how far over its position a label reaches. */
+    private static final double LINE = 0.28;
+
     private Pad pad(Player p, int seat, Table t, List<Controls.Button> buttons) {
         Pad pad = new Pad();
         pad.key = key(t, p.getUniqueId(), buttons);
@@ -1416,19 +1480,26 @@ final class TableScene {
         List<TableArt.Slot> slots = TableArt.pad(row.size(), reach);
         List<TableArt.Slot> chipSlots = TableArt.pad(chips.size(), reach);
         double[] at = seat(seat);
-        for (int i = 0; i < buttons.size(); i++) {
+        double sl = Math.max(1e-6, Math.hypot(at[0] - center[0], at[1] - center[1]));
+        // the row's right as the sitter looks at the middle (TableArt.along)
+        double rx = (at[1] - center[1]) / sl, rz = -(at[0] - center[0]) / sl;
+        int n = buttons.size();
+        double[] bx = new double[n], bz = new double[n], bottom = new double[n], height = new double[n], width = new double[n];
+        for (int i = 0; i < n; i++) {
             Controls.Button b = buttons.get(i);
             boolean chip = b.chip() >= 0;
             TableArt.Slot slot = chip ? chipSlots.get(chips.indexOf(b)) : slots.get(row.indexOf(b));
             float scale = (float) (BUTTON_SCALE * slot.scale());
             double half = BUTTON_HALF * slot.scale();
             double side = slot.side();
+            double gap = TableArt.BUTTON_GAP * slot.scale();
             if (b.open() >= 0) {   // 공개: right before the card it opens (the hidden row's slots)
                 side = TableArt.row(3, TableArt.POKER_HIDDEN_GAP).get(b.open());
                 scale = (float) (BUTTON_SCALE * TableArt.POKER_HIDDEN_GAP / TableArt.BUTTON_GAP);
                 half = BUTTON_HALF * TableArt.POKER_HIDDEN_GAP / TableArt.BUTTON_GAP;
+                gap = TableArt.POKER_HIDDEN_GAP;
             }
-            double out = chip ? TableArt.CHIP_RADIUS / Math.max(1e-6, Math.hypot(at[0] - center[0], at[1] - center[1])) : reach.button();
+            double out = chip ? TableArt.CHIP_RADIUS / sl : reach.button();
             TableArt.Spot s = TableArt.along(center, at, out, side, true);
             double lift = kind == TableKind.POKER ? TableArt.POKER_BUTTON_LIFT : 0;   // over the hidden row's sight line
             Location l = at(s, chip ? 0.002 : half + 0.03 + lift);
@@ -1440,27 +1511,51 @@ final class TableScene {
             ItemDisplay d = item(l, b.model(), scale * 0.2f, rot, null, false);
             p.showEntity(plugin, d);
             int delay = 1 + i;
-            float sc = scale;
-            double hf = half;
-            later(delay, () -> animate(d, pose(sc, rot, null), 4));
-            Interaction hit = world.spawn(at(s, lift), Interaction.class, x -> {
-                x.setInteractionWidth((float) (TableArt.BUTTON_GAP * (b.open() >= 0 ? TableArt.POKER_HIDDEN_GAP / TableArt.BUTTON_GAP : slot.scale())) - 0.03f);
-                x.setInteractionHeight((float) (2 * hf + 0.12));
+            Transformation full = pose(scale, rot, null);
+            later(delay, () -> animate(d, full, 4));
+            double labelUp = lift + 2 * half + (chip ? 0.07 : 0.16);
+            float labelScale = (float) Math.max(0.16, 0.2 * slot.scale());
+            TextDisplay label = text(at(s, labelUp), label(t, p.getUniqueId(), b), labelScale, false);
+            p.showEntity(plugin, label);
+            pad.entities.add(d);
+            pad.entities.add(label);
+            pad.displays.put(b, d);
+            pad.poses.put(b, full);
+            // what a click takes for this button: the whole plate (or pile) and its label, from just under the felt
+            double lo = top + (chip ? 0 : lift) - 0.02, hi = top + labelUp + LINE * labelScale;
+            bx[i] = s.x();
+            bz[i] = s.z();
+            bottom[i] = lo;
+            height[i] = hi - lo;
+            width[i] = gap;
+            pad.targets.add(new ButtonPick.Target(p.getUniqueId(), b.key(), s.x(), (lo + hi) / 2, s.z(), rx, rz,
+                    gap / 2, (hi - lo) / 2, chip ? 0.12 : Math.max(0.08, half)));
+        }
+        // click boxes over the plates, standing out of the table's own (their tops over its click boxes, their bottoms
+        // under the felt), never into each other (Interaction boxes are square on the ground: neighbours split the gap)
+        double[] w = ButtonPick.fitBoxes(bx, bz, bottom, height, width);
+        for (int i = 0; i < n; i++) {
+            String key = p.getUniqueId() + ";" + buttons.get(i).key();
+            float iw = (float) w[i], ih = (float) height[i];
+            Interaction hit = world.spawn(at(bx[i], bottom[i], bz[i]), Interaction.class, x -> {
+                x.setInteractionWidth(iw);
+                x.setInteractionHeight(ih);
                 x.setResponsive(true);
                 x.setVisibleByDefault(false);
-                x.getPersistentDataContainer().set(BUTTON, PersistentDataType.STRING, p.getUniqueId() + ";" + b.key());
+                x.getPersistentDataContainer().set(BUTTON, PersistentDataType.STRING, key);
                 tag(x);
             });
             p.showEntity(plugin, hit);
-            TextDisplay label = text(at(s, lift + 2 * half + (chip ? 0.07 : 0.16)), label(t, p.getUniqueId(), b), (float) Math.max(0.16, 0.2 * slot.scale()), false);
-            p.showEntity(plugin, label);
-            pad.entities.add(d);
             pad.entities.add(hit);
-            pad.entities.add(label);
-            pad.displays.put(b, d);
         }
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 1.6f);
         return pad;
+    }
+
+    /** The buttons shown to a viewer now, as boxes to aim at (empty: none). */
+    List<ButtonPick.Target> targets(UUID viewer) {
+        Pad pad = pads.get(viewer);
+        return pad == null ? List.of() : pad.targets;
     }
 
     // ------------------------------------------------------------------------------------------ a bet
@@ -1497,15 +1592,14 @@ final class TableScene {
         }
     }
 
-    /** A button pressed: it dips and springs back. */
+    /** A button pressed: it swells a little (1.1) for 3 ticks and settles back. */
     void pressed(UUID viewer, Controls.Button b) {
         Pad pad = pads.get(viewer);
         ItemDisplay d = pad == null ? null : pad.displays.get(b);
-        if (d == null || !d.isValid()) return;
-        Transformation now = d.getTransformation();
-        animate(d, new Transformation(new Vector3f(now.getTranslation()).add(0, -0.03f, 0), now.getLeftRotation(),
-                new Vector3f(now.getScale()).mul(0.85f), now.getRightRotation()), 2);
-        later(2, () -> animate(d, now, 3));
+        Transformation base = pad == null ? null : pad.poses.get(b);
+        if (d == null || !d.isValid() || base == null) return;
+        animate(d, new Transformation(base.getTranslation(), base.getLeftRotation(), new Vector3f(base.getScale()).mul(1.1f), base.getRightRotation()), 1);
+        later(3, () -> animate(d, base, 2));
     }
 
     // ------------------------------------------------------------------------------------------ the result
@@ -1581,6 +1675,7 @@ final class TableScene {
             }
         }
         PHand ph = phands.get(u);
+        if (ph != null && ph.label != null && ph.label.isValid()) p.hideEntity(plugin, ph.label);
         if (ph != null) {
             for (int k = 0; k < 7; k++) {
                 if (ph.back[k] == null) continue;   // open: one display everyone sees

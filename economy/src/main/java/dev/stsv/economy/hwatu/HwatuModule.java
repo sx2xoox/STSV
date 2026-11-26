@@ -626,6 +626,9 @@ public final class HwatuModule extends EcoModule {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
+        clicks.forget(e.getPlayer().getUniqueId());
+        hints.forget(e.getPlayer().getUniqueId());
+        pressedAt.remove(e.getPlayer().getUniqueId());
         HallTable t = seated.get(e.getPlayer().getUniqueId());
         if (t != null) t.stood(e.getPlayer().getUniqueId());
     }
@@ -639,7 +642,7 @@ public final class HwatuModule extends EcoModule {
         }, 2L);
     }
 
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onButton(PlayerInteractEntityEvent e) {
         Entity clicked = e.getRightClicked();
         if (boss != null && clicked.equals(boss)) {
@@ -647,14 +650,16 @@ public final class HwatuModule extends EcoModule {
             if (e.getHand() == EquipmentSlot.HAND) openChips(e.getPlayer());
             return;
         }
-        if (!(clicked instanceof Interaction)) return;
-        String tag = clicked.getPersistentDataContainer().get(TableScene.BUTTON, PersistentDataType.STRING);
-        if (tag == null) return;
-        e.setCancelled(true);
-        if (e.getHand() == EquipmentSlot.HAND) press(e.getPlayer(), tag);
+        if (seatedClick(e.getPlayer(), buttonTag(clicked))) e.setCancelled(true);
     }
 
-    @EventHandler(priority = EventPriority.LOW)
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onButtonAt(org.bukkit.event.player.PlayerInteractAtEntityEvent e) {
+        // a right click on an entity comes as this and then a PlayerInteractEntityEvent (one press: ButtonPick.Debounce)
+        if (seatedClick(e.getPlayer(), buttonTag(e.getRightClicked()))) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onButtonHit(PrePlayerAttackEntityEvent e) {
         Entity hit = e.getAttacked();
         if (boss != null && hit.equals(boss)) {
@@ -662,19 +667,83 @@ public final class HwatuModule extends EcoModule {
             openChips(e.getPlayer());
             return;
         }
-        String tag = hit instanceof Interaction ? hit.getPersistentDataContainer().get(TableScene.BUTTON, PersistentDataType.STRING) : null;
-        if (tag == null) return;
-        e.setCancelled(true);
-        press(e.getPlayer(), tag);
+        if (seatedClick(e.getPlayer(), buttonTag(hit))) e.setCancelled(true);
     }
 
-    /** A button's click box was clicked: "viewer;button". Only its viewer can (nobody else is shown it). */
-    private void press(Player p, String tag) {
-        String[] v = tag.split(";", 2);
-        if (v.length != 2 || !v[0].equals(p.getUniqueId().toString())) return;
-        Controls.Button b = Controls.Button.of(v[1]);
-        HallTable t = seated.get(p.getUniqueId());
-        if (b != null && t != null) t.press(p, b);
+    /**
+     * A seated player's click on a block (the table's barrier, the floor) or in the air, either button: a left click in
+     * the air comes as LEFT_CLICK_AIR from its arm swing (Paper fires it then, but not for the swing of dropping an item).
+     */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onSeatedUse(org.bukkit.event.player.PlayerInteractEvent e) {
+        Player p = e.getPlayer();
+        if (e.getAction() == org.bukkit.event.block.Action.PHYSICAL || !seated.containsKey(p.getUniqueId())) return;
+        seatedClick(p, null);
+        // a seated player never breaks or uses a block by accident; eating or an item's own use in the air goes on
+        // unless the click pressed a button
+        if (e.getAction() != org.bukkit.event.block.Action.RIGHT_CLICK_AIR || lastPressed(p)) e.setCancelled(true);
+    }
+
+    /** Nobody seated at a 도박장 table breaks or uses furniture by a missed click (the table, the chair, a lamp). */
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onSeatedFurnitureBreak(FurnitureBreakEvent e) {
+        if (e.getPlayer() != null && seated.containsKey(e.getPlayer().getUniqueId())) e.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onSeatedFurnitureUse(FurnitureInteractEvent e) {
+        if (seated.containsKey(e.getPlayer().getUniqueId())) e.setCancelled(true);
+    }
+
+    /** 바카라: hotbar number keys 1 ~ 4 pick the chip (10 · 50 · 100 · 500), the held slot stays. */
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onChipKey(org.bukkit.event.player.PlayerItemHeldEvent e) {
+        HallTable t = seated.get(e.getPlayer().getUniqueId());
+        if (t != null && t.chipKey(e.getPlayer(), e.getNewSlot())) e.setCancelled(true);
+    }
+
+    private static String buttonTag(Entity e) {
+        return e instanceof Interaction ? e.getPersistentDataContainer().get(TableScene.BUTTON, PersistentDataType.STRING) : null;
+    }
+
+    private final ButtonPick.Debounce clicks = new ButtonPick.Debounce();
+    private final ButtonPick.Hint hints = new ButtonPick.Hint();
+    /** the tick of each player's last press (to tell an air click that pressed from one that did not) */
+    private final Map<UUID, Long> pressedAt = new HashMap<>();
+
+    private boolean lastPressed(Player p) {
+        Long at = pressedAt.get(p.getUniqueId());
+        return at != null && Bukkit.getCurrentTick() - at < ButtonPick.Debounce.QUIET;
+    }
+
+    /**
+     * Any click of a player (right or left, on anything or nothing): seated at a table, the button they look at is pressed
+     * (ButtonPick: their eye ray, not the click box the client happened to hit; else the button box clicked, `tag`), once a
+     * click however many events it arrives as. Returns whether they are seated (the event is theirs: cancel it).
+     */
+    private boolean seatedClick(Player p, String tag) {
+        UUID u = p.getUniqueId();
+        HallTable t = seated.get(u);
+        if (t == null) return false;
+        int now = Bukkit.getCurrentTick();
+        if (!clicks.accept(u, now)) return true;
+        List<ButtonPick.Target> targets = t.targets(u);
+        Location eye = p.getEyeLocation();
+        org.bukkit.util.Vector d = eye.getDirection();
+        ButtonPick.Target hit = ButtonPick.pick(eye.getX(), eye.getY(), eye.getZ(), d.getX(), d.getY(), d.getZ(), u, targets);
+        String key = hit != null ? hit.key() : null;
+        if (key == null && tag != null) {
+            String[] v = tag.split(";", 2);
+            if (v.length == 2 && v[0].equals(u.toString())) key = v[1];
+        }
+        Controls.Button b = key == null ? null : Controls.Button.of(key);
+        if (b != null) {
+            pressedAt.put(u, (long) now);
+            t.press(p, b);
+        } else if (!targets.isEmpty() && hints.due(u, System.currentTimeMillis())) {
+            HudModule.flash(p, Lang.mm("hwatu.aim-hint"), 1500);
+        }
+        return true;
     }
 
     private void deny(Player p, String why, HallTable t) {

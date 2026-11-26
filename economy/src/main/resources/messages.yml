@@ -2040,6 +2040,7 @@ hwatu:
   table-test: "<light_purple>관리자가 시험 판을 하는 중이에요.</light_purple> <gray>잠시 뒤에 앉아 주세요."
   table-locked: "<red>도박장 테이블은 치울 수 없어요."
   table-break-sneak: "<gray>묶인 테이블은 웅크린 채(일어선 상태에서) 부숴야 해요"
+  aim-hint: "<gray>버튼을 바라보고 클릭하세요"
   table-removed: "<yellow>테이블이 치워져서 이번 판은 없던 일이 됐어요. <gray>(칩은 그대로)"
   table-rebound: "<yellow>테이블의 종목이 바뀌어서 이번 판은 없던 일이 됐어요. <gray>(칩은 그대로)"
   sitting-out: "<gray>차례를 놓쳐 쉬는 중이라 이번 판은 빠졌어요. <yellow>자리 앞 [준비] 버튼</yellow>을 누르면 다음 판부터 껴요."
@@ -2228,6 +2229,9 @@ hwatu:
   # 플레잉 카드 (세븐 포커 · 바카라): ♥ ♦ 빨강, ♠ ♣ 하양
   pcard-red: "<#ff6b6b>{card}</#ff6b6b>"
   pcard-black: "<white>{card}</white>"
+  # 세븐 포커: 각 자리의 오픈 패 위에 뜨는 글 (모두에게): "K♥ 7♦ 7♣ · 원페어 7" (족보가 되면 그 이름)
+  poker-open-label: "<bold>{cards}</bold>{hand}"
+  poker-open-hand: " <gray>·</gray> {hand}"
   # 테이블 위: 세븐 포커 · 바카라
   sign-opening: "<yellow>오픈할 패 고르는 중 <white>{seconds}초"
   sign-dealing: "<gray>패 돌리는 중 · {n}번째 장"
@@ -2323,7 +2327,9 @@ hwatu:
     line-done: "<green>✔베팅 끝 <gray>{seconds}초"
     line-dealing: "<gray>카드 보는 중"
     line-bet: "{spot}<white>{n}"
-    line-chip: "<gray>[<#ffd84a>{n}</#ffd84a>]"
+    # 숫자키 1~4 = 칩 고르기: [1]10 [2]50 [3]100 [4]500 (고른 칩만 밝게)
+    line-chip-key: "<dark_gray>[{k}]<gray>{n}"
+    line-chip-key-on: "<#ffd84a>[{k}]<bold>{n}</bold></#ffd84a>"
     line-left: "<gray>오늘<white>{n}"
     line-push: "<gray>±0칩"
     line-result: "{won}"

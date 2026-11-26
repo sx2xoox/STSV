@@ -90,7 +90,8 @@ def source_numbers():
     N["timer_scale"] = _num(s, r"timer = text\(l, c, ([\d.]+)f")
     N["pop_up"], N["pop_allin"], N["pop_scale"] = _num(s, r"TextDisplay pop = text\(at\(s, ([\d.]+)\), what, b.allIn\(\) \? ([\d.]+)f : ([\d.]+)f", 3)
     N["pop_rise"] = _num(s, r"new Transformation\(new Vector3f\(0, ([\d.]+)f, 0\), base.getLeftRotation\(\), base.getScale\(\), base.getRightRotation\(\)\), 30\)")
-    N["chip_label_up"], N["label_up"], N["label_min"], N["label_scale"] = _num(s, r"text\(at\(s, lift \+ 2 \* half \+ \(chip \? ([\d.]+) : ([\d.]+)\)\), label\(.*?Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 4)
+    N["chip_label_up"], N["label_up"], N["label_min"], N["label_scale"] = _num(
+        s, r"labelUp = lift \+ 2 \* half \+ \(chip \? ([\d.]+) : ([\d.]+)\);\s*float labelScale = \(float\) Math.max\(([\d.]+), ([\d.]+) \* slot.scale\(\)\)", 4)
     N["btn_lift"] = _num(s, r"Location l = at\(s, chip \? [\d.]+ : half \+ ([\d.]+) \+ lift\);")
     r = _num(a, r"ROUND_REACH = new Reach\(([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+), ([\d.]+)\)", 5)
     N["reach"] = dict(card=r[0], button=r[1], dice=r[2], timer=r[3], width=r[4])
@@ -105,6 +106,8 @@ def source_numbers():
     N["bac_reach"] = dict(card=r[0], button=r[1], dice=r[2], timer=r[3], width=r[4])
     N["poker_open"], N["poker_hidden_gap"], N["poker_open_gap"] = _num(a, r"POKER_OPEN = ([\d.]+), POKER_HIDDEN_GAP = ([\d.]+), POKER_OPEN_GAP = ([\d.]+);", 3)
     N["pcard"] = _num(a, r"PCARD_SCALE = ([\d.]+)f")
+    N["poker_open_scale"], N["poker_open_tilt"] = _num(a, r"POKER_OPEN_SCALE = ([\d.]+)f, POKER_OPEN_TILT = ([\d.]+)f", 2)
+    N["poker_label_up"], N["poker_label_scale"] = _num(s, r"Location l = at\(s, ([\d.]+)\);\s*if \(h.label == null \|\| !h.label.isValid\(\)\) \{\s*h.label = text\(l, Text.mm\(mm\), ([\d.]+)f", 2)
     (N["dealer_out"], N["hand_in"], N["hand_side"], N["hand_gap"], N["shoe_in"], N["shoe_side"]) = _num(
         a, r"DEALER_OUT = ([\d.]+), HAND_IN = ([\d.]+), HAND_SIDE = ([\d.]+), HAND_GAP = ([\d.]+), SHOE_IN = ([\d.]+), SHOE_SIDE = (-?[\d.]+)", 6)
     N["bac_card"] = _num(a, r"BAC_CARD_SCALE = ([\d.]+)f")
@@ -849,6 +852,31 @@ POKER_HAND = {
 }
 
 
+RANK = {"a": 14, "k": 13, "q": 12, "j": 11}
+SUIT = {"s": "♠", "h": "♥", "d": "♦", "c": "♣"}
+
+
+def open_label(msgs, cards):
+    """TableScene.pokerLabel: "K♥ 7♦ 7♣ · 원페어 7" (Poker.of for up to four cards: pairs, trips, four; no 탑)."""
+    words, ranks = [], []
+    for cid in cards:
+        r, su = cid[:-1], cid[-1]
+        name = r.upper()
+        words.append(raw(msgs, "hwatu.pcard-red" if su in "hd" else "hwatu.pcard-black", card=name + SUIT[su]))
+        ranks.append(RANK.get(r) or int(r))
+    count = {r: ranks.count(r) for r in ranks}
+    groups = sorted(count, key=lambda r: (-count[r], -r))
+    rn = lambda r: {14: "A", 13: "K", 12: "Q", 11: "J"}.get(r, str(r))
+    top, second = count[groups[0]], (count[groups[1]] if len(groups) > 1 else 0)
+    code = ("four-card" if top == 4 else "triple" if top == 3 else "two-pair" if top == 2 and second == 2
+            else "one-pair" if top == 2 else None)
+    hand = ""
+    if code:
+        ranks_text = rn(groups[0]) + "·" + rn(groups[1]) if code == "two-pair" else rn(groups[0])
+        hand = raw(msgs, "hwatu.poker-open-hand", hand=raw(msgs, "hwatu.poker-hand." + code, ranks=ranks_text))
+    return raw(msgs, "hwatu.poker-open-label", cards=" ".join(words), hand=hand)
+
+
 def poker_extra(view):
     def draw(N, msgs, tables, text, els, textures):
         i = table_index(view["hall"], "seven_poker")
@@ -856,20 +884,32 @@ def poker_extra(view):
         H = POKER_HAND
         c, top, seats = T["centre"], T["top"], T["seats"]
         xz = lambda k: (seats[k][0], seats[k][2])
+        eye = view.get("eye", H["me"])   # whose eyes (their hidden cards face up, their buttons only)
         for k, (name, skin, _cards, _o) in H["seats"].items():
-            if k == H["me"] and not view["body"]:
+            if k == eye and not view["body"]:
                 continue
             s = seats[k]
             seated_player(skin, s, yaw_toward(c[0] - s[0], c[1] - s[2]), textures, els, head_pitch=10 if k != H["me"] else 30)
-        marks = {"centre": c, "top": top, "seats": seats, "cards": {}}
+        marks = {"centre": c, "top": top, "seats": seats, "cards": {}, "labels": {}}
         for k, (name, skin, cards, opened) in H["seats"].items():
             for j, cid in enumerate(cards):
                 r, sl = poker_slot(j, opened)
                 x, z, yaw = poker_spot(N, c, xz(k), r, sl)
-                shown = k == H["me"] or r == 1           # mine all face up, everyone's open row face up
+                shown = k == eye or r == 1           # mine all face up, everyone's open row face up
                 y = top + 0.002 + (0.006 if r == 1 else 0) + j * 0.0015
-                place("pcard_" + cid if shown else "pcard_back", display_matrix((x, y, z), facing(yaw), N["pcard"]), textures, els)
+                if r == 1:   # the open row: bigger, tilted up toward the middle, lifted so its low edge stays on the felt
+                    S, tilt = N["poker_open_scale"], N["poker_open_tilt"]
+                    y += 5 / 16 * S * math.sin(math.radians(tilt))
+                    place("pcard_" + cid, display_matrix((x, y, z), facing(yaw) @ rot_x(-tilt), S), textures, els)
+                else:
+                    place("pcard_" + cid if shown else "pcard_back", display_matrix((x, y, z), facing(yaw), N["pcard"]), textures, els)
                 marks["cards"][(k, j)] = (x, top, z)
+            # the open row's label (everyone but its owner): its cards in words and the hand they make
+            if k == eye:
+                continue
+            open_cards = [cid for j, cid in enumerate(cards) if poker_slot(j, opened)[0] == 1]
+            x, z, _ = along(c, xz(k), N["poker_open"], 0)
+            marks["labels"][k] = text(f"p_open_{k}", open_label(msgs, open_cards), (x, top + N["poker_label_up"], z), N["poker_label_scale"])
         lvl, sc = chip_level(H["pot"], H["ante"])
         place(f"gamble_chips_{lvl}", display_matrix((c[0], top + 0.001, c[1]), np.eye(4), N["chips"] * N["poker_pile"] * sc), textures, els)
         marks["pot"] = text("p_pot", raw(msgs, "hwatu.pot-label", pot=H["pot"]), (c[0], top + N["pot_up"], c[1]), N["pot_scale"])
@@ -878,7 +918,7 @@ def poker_extra(view):
         gap = min(N["button_gap"], R["width"] / nb)
         bscale = gap / N["button_gap"]
         btns = []
-        for (key, amount), side in zip(H["buttons"], row(nb, gap)):
+        for (key, amount), side in zip(H["buttons"] if eye == H["me"] else [], row(nb, gap)):
             x, z, yaw = along(c, xz(H["me"]), R["button"], side)
             half = N["button_half_k"] * N["button"] * bscale
             lift = N["poker_lift"]
@@ -1035,6 +1075,8 @@ def casino_sheet(N, msgs, hall):
     views = (
         ("poker_eye", seat_camera(hall, "seven_poker", 0), poker_extra, dict(body=False), None),
         ("poker_over", above_camera(hall, "seven_poker"), poker_extra, dict(body=True), GHP.ROOF),
+        ("poker_across", seat_camera(hall, "seven_poker", 3), poker_extra, dict(body=False, eye=3), None),
+        ("poker_beside", seat_camera(hall, "seven_poker", 1), poker_extra, dict(body=False, eye=1), None),
         ("bac_eye", seat_camera(hall, "baccarat", 2, pitch=-20), baccarat_extra, dict(body=False, dealt=False), None),
         ("bac_over", above_camera(hall, "baccarat", off=(2.4, 3.0, -3.2)), baccarat_extra, dict(body=True, dealt=True), GHP.ROOF),
     )
@@ -1059,6 +1101,16 @@ def casino_sheet(N, msgs, hall):
             callout(im, "차례 시간 (0번)", pj(top_of_text(m["timer"])), (1300, 300))
             panels.append(titled(im, "(바) 같은 순간, 위에서 (0번 사람에게 보이는 대로: 내 숨긴 패만 앞면)",
                                  "도박장 별관 세븐 포커 초보방 (지붕 · 2층 걷어 냄) · 0 도토리(나) · 1 새벽낚시 · 2 곰돌이(하프) · 3 치킨왕"))
+        elif name == "poker_across":
+            callout(im, "건너편 0번 도토리의 오픈 패: 7♦ 7♣ 2♠ (가운데로 기울어 이쪽을 봄)", pj(m["cards"][(0, 3)]), (40, 700))
+            callout(im, "자리마다 오픈 줄 위 글: 카드 · 족보 (모두에게)", pj(top_of_text(m["labels"][0])), (1150, 200))
+            panels.append(titled(im, "(마-2) 세븐 포커 · 3번 자리(건너편)의 눈 · 같은 순간",
+                                 "오픈 패는 조금 크게 (0.55) · 가운데 쪽으로 22° 세움 · 줄 위에 '7♦ 7♣ 2♠ · 원페어 7' (빨강 ♥♦ · 하양 ♠♣)"))
+        elif name == "poker_beside":
+            callout(im, "옆자리 0번 도토리의 오픈 줄과 글", pj(top_of_text(m["labels"][0])), (1150, 200))
+            callout(im, "건너편 2번 곰돌이: A♦ A♥ 5♥ · 원페어 A", pj(top_of_text(m["labels"][2])), (40, 200))
+            panels.append(titled(im, "(마-3) 세븐 포커 · 1번 자리(옆)의 눈 · 같은 순간",
+                                 "옆에서도 오픈 줄 글이 읽힘 (글은 늘 나를 봄, 내 줄의 글은 나에게는 안 보임) · 숨긴 패(뒷면)는 그대로"))
         elif name == "bac_eye":
             callout(im, "딜러 (마네킹, 스킨 economy:entity/bus/dealer): '베팅해 주세요.'", pj(m["dealer"]), (40, 80))
             callout(im, "내 칩 고르기 (10 · 50 · 100 · 500, 고른 칩은 크게 · ▶)", pj(m["buttons"][1][0]), (40, 1010))
