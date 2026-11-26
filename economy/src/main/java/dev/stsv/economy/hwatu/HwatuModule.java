@@ -606,6 +606,13 @@ public final class HwatuModule extends EcoModule {
             if (p != null) p.sendMessage(Lang.msg("hwatu.table-locked"));
             return;
         }
+        // an admin breaks a bound table only on purpose: sneaking and not seated at a table (a missed button click
+        // on the felt must never knock the table down)
+        if (!p.isSneaking() || seated.containsKey(p.getUniqueId())) {
+            e.setCancelled(true);
+            HudModule.flash(p, Lang.mm("hwatu.table-break-sneak"), 2500);
+            return;
+        }
         unbind(t.furniture(), "hwatu.table-removed");
         p.sendMessage(Lang.msg("hwatu.table-unbound", "game", t.gameName(), "room", t.room().name()));
     }

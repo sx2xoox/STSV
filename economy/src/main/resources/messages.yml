@@ -2039,6 +2039,7 @@ hwatu:
   table-full: "<red>이 테이블에 빈자리가 없어요."
   table-test: "<light_purple>관리자가 시험 판을 하는 중이에요.</light_purple> <gray>잠시 뒤에 앉아 주세요."
   table-locked: "<red>도박장 테이블은 치울 수 없어요."
+  table-break-sneak: "<gray>묶인 테이블은 웅크린 채(일어선 상태에서) 부숴야 해요"
   table-removed: "<yellow>테이블이 치워져서 이번 판은 없던 일이 됐어요. <gray>(칩은 그대로)"
   table-rebound: "<yellow>테이블의 종목이 바뀌어서 이번 판은 없던 일이 됐어요. <gray>(칩은 그대로)"
   sitting-out: "<gray>차례를 놓쳐 쉬는 중이라 이번 판은 빠졌어요. <yellow>자리 앞 [준비] 버튼</yellow>을 누르면 다음 판부터 껴요."
