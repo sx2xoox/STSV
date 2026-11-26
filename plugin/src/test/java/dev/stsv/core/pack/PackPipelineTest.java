@@ -83,7 +83,8 @@ class PackPipelineTest {
             "agent_sedan",
             // 미완의 질주 (숨은 비밀 '폐차고의 주인' 의 차): headlamps, tail lamps
             "racer_coupe");
-    private static final Set<String> ROTATED = Set.of("scarecrow", "test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
+    private static final Set<String> ROTATED = Set.of("scarecrow", "easel", "easel_canvas",   // 이젤: the splayed tripod legs
+            "test_sword", "test_sword_skin", "test_greatsword", "test_slash", "test_rod", "test_rod_cast",
             "angel_wings", "demon_wings", "butterfly_wings",   // wings swept back 22.5 degrees
             "gumiho",                                           // nine tails fanned out
             "combine", "combine_reel", "combine_reel_arms", "combine_seeder",   // 소형 콤바인: the inclined feeder, crop dividers, reel bats, slanted arms

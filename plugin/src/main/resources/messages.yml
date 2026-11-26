@@ -1107,3 +1107,80 @@ circuit:
   watch-race-here: "<#c9a2ff>✔ 관전 중인 레이스"
   hub-live: "<#c9a2ff>레이스 {count}개 진행 중"
   hub-live-none: "<gray>지금 진행 중인 레이스 없음"
+
+# 그림 그리기 (이젤): README "그림 그리기 (이젤)". {swatch} = 색 견본 (■■), {painter} = 화가, {title} = 그림 제목
+painting:
+  need-canvas: "<gray>빈 캔버스(또는 그리던 캔버스)를 들고 이젤을 우클릭하면 캔버스가 올라가요"
+  canvas-up: "<#f2c46d>캔버스를 올렸어요! <gray>붓을 들고 캔버스를 보며 우클릭을 꾹 누르면 그려져요 · 웅크리고 우클릭: 팔레트"
+  how: "<gray>붓을 들고 우클릭(꾹): 그리기 · 웅크리고 우클릭: 팔레트 · 빈손으로 웅크리고 우클릭: 캔버스 내리기"
+  not-yours: "<gray>{painter}님이 그리는 그림이에요 · 구경만 할 수 있어요"
+  no-build: "<red>여기서는 캔버스를 올릴 수 없어요 (이 땅에서 지을 권한이 필요해요)."
+  finished-canvas: "<red>완성된 그림은 다시 그릴 수 없어요."
+  already-up: "<red>이 캔버스는 이미 다른 이젤에 올라가 있어요."
+  lost: "<red>이 캔버스의 그림을 찾을 수 없어요."
+  occupied: "<gray>이 이젤에는 이미 캔버스가 있어요."
+  taken-off: "<#f2c46d>캔버스를 내렸어요. <gray>이젤에 다시 올리면 이어서 그릴 수 있어요."
+  only-painter-break: "<red>캔버스가 올려진 이젤은 그리는 사람만 치울 수 있어요"
+  picked: "<gray>색을 찍었어요 {swatch}"
+  undo: "<gray>한 획 되돌렸어요 <dark_gray>(되돌릴 수 있는 획 {left}개)"
+  undo-none: "<gray>되돌릴 획이 없어요"
+  title-ask: "<#f2c46d>그림의 제목을 채팅으로 적어 주세요 <gray>(최대 {max}자)"
+  title-empty: "<red>제목이 비었어요. 팔레트에서 다시 [완성] 을 눌러 주세요."
+  done: "<#f2c46d>「{title}」 완성! <gray>그림을 받았어요. 액자에 걸거나 거래소에서 팔 수 있어요."
+  no-copy: "<red>그림은 복사할 수 없어요"
+  bar: "{swatch} <white>{tool}</white> <dark_gray>·</dark_gray> <gray>굵기 {size}</gray> <dark_gray>· 웅크리고 우클릭: 팔레트"
+  tool:
+    pen: "붓"
+    eraser: "지우개"
+    fill: "채우기"
+    pick: "스포이트"
+  item:
+    name: "<#f2c46d>「{title}」"
+    lore:
+      - "<gray>화가 <white>{painter}"
+      - "<gray>{date} 완성"
+      - "<dark_gray>액자에 걸 수 있는 단 한 점 · 복사할 수 없음"
+    unfinished-lore:
+      - "<gray>그리던 그림 · 화가 <white>{painter}"
+      - "<gray>{date} 시작"
+      - "<yellow>이젤에 우클릭: 다시 올려 이어 그리기"
+  menu:
+    title: "<dark_gray>팔레트"
+    colour: "{swatch} <white>색 {id}"
+    colour-lore:
+      - "<yellow>클릭: 이 색으로 그리기"
+    pen: "<white>붓"
+    pen-lore:
+      - "<gray>캔버스를 보며 우클릭(꾹): 그리기"
+    eraser: "<white>지우개"
+    eraser-lore:
+      - "<gray>캔버스의 흰색으로 지움"
+    fill: "<white>채우기"
+    fill-lore:
+      - "<gray>우클릭한 곳과 이어진 같은 색을 모두 칠함"
+    pick: "<white>스포이트"
+    pick-lore:
+      - "<gray>우클릭한 곳의 색을 집음 (그다음은 붓)"
+    size: "<white>굵기 {size}"
+    size-lore:
+      - "<gray>붓과 지우개의 굵기 (픽셀)"
+    undo: "<white>되돌리기"
+    undo-lore:
+      - "<gray>마지막 한 획을 되돌림 (최근 20획까지)"
+    take-off: "<white>캔버스 내리기"
+    take-off-lore:
+      - "<gray>그리던 캔버스를 아이템으로 받음"
+      - "<gray>이젤에 다시 올리면 이어서 그림"
+    finish: "<#f2c46d>완성"
+    finish-lore:
+      - "<gray>제목을 적으면 그림 아이템이 됨"
+      - "<red>완성한 그림은 더 고칠 수 없음"
+    prev: "<white>이전 색 쪽"
+    next: "<white>다음 색 쪽"
+    page: "<white>색 {page}/{pages}쪽"
+    page-lore:
+      - "<gray>클릭: 다음 쪽"
+    current: "{swatch} <white>지금 쓰는 색"
+    current-lore:
+      - "<gray>{tool} · 굵기 {size}"
+    close: "<white>닫기"

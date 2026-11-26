@@ -53,6 +53,7 @@ def main():
     from models import furniture_japanese as furniture
     from models import furniture_retro           # 레트로 한국 가구 (three groups); preview: furniture_preview.py --set retro
     from models import furniture_farm            # 농장 가구 (허수아비)
+    from models import furniture_easel           # 그림 그리기 이젤 (easel, easel_canvas); icons and sheet: easel_assets.py
     from models import vehicles
     from models import vehicles_road
     from models import vehicles_farm
@@ -87,14 +88,14 @@ def main():
     import vehicle_icons_farm
     import vehicle_icons_misc
     import vehicle_icons_fun
-    ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **furniture_farm.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
+    ALL = {**ITEMS, **cosmetic_models, **furniture.ALL, **furniture_retro.ALL, **furniture_farm.ALL, **furniture_easel.ALL, **vehicles.ALL, **vehicles_road.ALL, **vehicles_farm.ALL, **vehicles_misc.ALL,
            **vehicles_boats.ALL, **vehicles_fun.ALL,
            **vehicle_lights.ALL, **vehicle_tools.ALL, **vehicle_paints.ALL, **toys.ALL, **karts.ALL, **kart_ghosts.ALL,
            **{k: v for m in skinsets for k, v in m.ALL.items()}, **{k: v for m in donation_cars for k, v in m.ALL.items()}}
     import special
 
     def home(name):
-        return CONTENT if name in SHIPPED_MODELS or name in cosmetic_models or name in furniture.ALL or name in furniture_retro.ALL or name in furniture_farm.ALL or name in vehicles.ALL \
+        return CONTENT if name in SHIPPED_MODELS or name in cosmetic_models or name in furniture.ALL or name in furniture_retro.ALL or name in furniture_farm.ALL or name in furniture_easel.ALL or name in vehicles.ALL \
             or name in vehicles_road.ALL or name in vehicles_farm.ALL or name in vehicles_misc.ALL or name in vehicles_boats.ALL \
             or name in vehicles_fun.ALL \
             or name in vehicle_lights.ALL or name in vehicle_tools.ALL or name in vehicle_paints.ALL or name in toys.ALL \
@@ -147,6 +148,11 @@ def main():
     for name, fn in furniture_icons_farm.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")
     print(f"icons   {len(furniture_icons_farm.ICONS)} farm furniture")
+    # 그림 그리기: the easel's icon, the canvas, brush and painting items (easel_assets.py writes the same files)
+    import easel_assets
+    for name, fn in easel_assets.ICONS.items():
+        fn().save(CONTENT / "textures" / f"{name}.png")
+    print(f"icons   {len(easel_assets.ICONS)} painting (easel, canvas, brush)")
     # vehicles: 2D inventory icons (placed: body, wheels and parts as 3D models); preview sheet: vehicle_preview.py
     for name, fn in vehicle_icons.ICONS.items():
         fn().save(CONTENT / "textures" / f"{name}_icon.png")

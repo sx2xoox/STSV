@@ -1,0 +1,18 @@
+# 그림 그리기 (이젤): 코어 README "그림 그리기 (이젤)". 모델: tools/assetgen/models/furniture_easel.py,
+# 아이콘·미리보기: python3 tools/assetgen/easel_assets.py (docs/previews/easel.png)
+# 얻는 곳: 관리자 상점 /상점 → 구매 → 가구 (셋째 쪽, economy/content/economy/shop.yml)
+#
+# cells: 이젤 두 칸 [0,0,0] [0,1,0] 과 그 위 칸의 앞 칸 [0,1,-1]: 캔버스(지도를 넣은 보이지 않는 액자)가 걸리는 자리.
+# 그 칸은 비워 둔 채 이젤의 것이라 아무것도 놓을 수 없음. 캔버스가 올라가면 모델이 easel_canvas (캔버스 뒷면·틀) 로 바뀜.
+# behavior: stsv:easel = dev.stsv.core.painting.PaintingModule (캔버스 올리기·그리기·완성)
+
+easel:
+  material: paper
+  name: "<#e2c48f>이젤"
+  lore: ["<gray>그림 도구 · 1×1칸, 높이 2", "<gray>빈 캔버스를 들고 우클릭: 캔버스 올리기", "<yellow>붓을 들고 캔버스를 보며 우클릭(꾹): 그리기"]
+  model: easel
+  icon: easel_icon
+  max-stack: 16
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0], [0, 1, -1]]
+    behavior: stsv:easel

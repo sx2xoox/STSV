@@ -1,0 +1,32 @@
+# 그림 그리기 (이젤): 코어 README "그림 그리기 (이젤)". 그림 = 지도 한 장 (128×128). 아이콘: tools/assetgen/easel_assets.py
+# 얻는 곳: 빈 캔버스·붓은 관리자 상점 /상점 → 구매 → 생활 용품. 그리던 캔버스·완성한 그림은 이젤에서만 생김
+# (아이템에 그림 번호가 붙음: 관리자 아이템 목록에서 꺼낸 것은 빈 껍데기)
+
+blank_canvas:
+  material: paper
+  name: "<#f4efe2>빈 캔버스"
+  lore: ["<gray>그림 도구 · 지도 한 장 크기 (128×128)", "<yellow>이젤에 우클릭: 캔버스 올리기"]
+  texture: blank_canvas
+  max-stack: 16
+
+paint_brush:
+  material: paper
+  name: "<#e06a4a>붓"
+  lore: ["<gray>그림 도구", "<yellow>캔버스를 보며 우클릭(꾹): 그리기", "<yellow>웅크리고 우클릭 · 이젤 좌클릭: 팔레트 (색 · 도구 · 굵기 · 완성)"]
+  texture: paint_brush
+  handheld: true
+  max-stack: 1
+
+unfinished_canvas:
+  material: paper
+  name: "<#f4efe2>그리던 캔버스"
+  lore: ["<gray>이젤에서 내린 캔버스", "<yellow>이젤에 우클릭: 다시 올려 이어 그리기"]
+  texture: unfinished_canvas
+  max-stack: 1
+
+painting:
+  material: filled_map
+  name: "<#f2c46d>그림"
+  lore: ["<gray>이젤에서 완성한 그림", "<gray>액자에 걸 수 있음 · 복사할 수 없음"]
+  texture: painting_framed
+  max-stack: 1

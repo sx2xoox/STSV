@@ -160,18 +160,27 @@ class ContentTest {
         assertEquals(30, retro.size());
         List<String> pieces = new ArrayList<>(japanese);
         pieces.addAll(retro);
+        // then the 그림 그리기 easel on a third page (the canvas and the brush are 생활 용품, many at a time)
+        List<String> easel = ids.apply("furniture_easel.yml");
+        assertEquals(List.of("stsv:easel"), easel);
+        pieces.addAll(easel);
         assertEquals(pieces, furniture.goods().stream().map(ShopCatalog.Good::id).toList());
         assertTrue(furniture.goods().stream().allMatch(g -> g.kind().equals("item") && g.amount() == 1), "one piece a purchase");
         assertTrue(furniture.single(), "no shift-click 8 at once: a 20,000 G piece by mistake");
         assertTrue(shop.buyCategories().stream().filter(c -> !c.id().equals("furniture") && !c.id().equals("vehicles"))
                 .noneMatch(ShopCatalog.BuyCategory::single), "only the furniture and the vehicles");
         // each set on a page of its own (36 list cells a page): the retro set starts the second page
-        assertEquals(List.of(30), furniture.pages());
+        assertEquals(List.of(30, 60), furniture.pages());
         List<Integer> cells = furniture.cells(36);
-        assertEquals(66, cells.size(), "30 + 6 empty cells on the first page, then 30");
+        assertEquals(36 + 36 + 1, cells.size(), "30 + 6 empty cells on the first page, 30 + 6 on the second, then the easel");
         assertEquals(0, (int) cells.get(0));
         for (int i = 30; i < 36; i++) assertEquals(-1, (int) cells.get(i), "the rest of the first page is empty");
         assertEquals(30, (int) cells.get(36), "the retro set from the second page's first cell");
+        for (int i = 66; i < 72; i++) assertEquals(-1, (int) cells.get(i), "the rest of the second page is empty");
+        assertEquals(60, (int) cells.get(72), "the easel on the third page");
+        ShopCatalog.BuyCategory supplies = shop.buyCategories().stream().filter(c -> c.id().equals("supplies")).findFirst().orElseThrow();
+        assertTrue(supplies.goods().stream().anyMatch(g -> g.id().equals("stsv:blank_canvas") && g.price() <= 500), "a canvas is cheap");
+        assertTrue(supplies.goods().stream().anyMatch(g -> g.id().equals("stsv:paint_brush")));
         // vehicles: generations 1-4 and the boats 1-4 are sold (5세대 admin-only), one at a time
         ShopCatalog.BuyCategory vehicles = shop.buyCategories().stream().filter(c -> c.id().equals("vehicles")).findFirst().orElseThrow();
         assertTrue(vehicles.single(), "one vehicle a purchase");

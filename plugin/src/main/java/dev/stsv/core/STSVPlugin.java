@@ -82,6 +82,7 @@ public final class STSVPlugin extends JavaPlugin {
         modules.register(hud = new dev.stsv.core.hud.HudModule());
         modules.register(recipes = new RecipeModule());
         modules.register(furniture = new FurnitureModule());
+        modules.register(new dev.stsv.core.painting.PaintingModule());   // 그림 그리기 (이젤): after the furniture (its behavior)
         modules.register(skins = new SkinModule());
         modules.register(crops = new dev.stsv.core.crop.CropModule());
         modules.register(vehicles = new dev.stsv.core.vehicle.VehicleModule());
