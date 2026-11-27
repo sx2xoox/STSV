@@ -179,3 +179,8 @@ ALL.update(BUS_HOLD.ALL)
 # boxes, money, POS keys, scanner, vest); python3 tools/assetgen/store_assets.py writes only these
 from models import store as STORE   # noqa: E402
 ALL.update(STORE.ALL)
+
+# 숨은 비밀 (관리자 문서) 의 물건 (models/newcomer_assets.py, items/newcomer.yml): four damaged records a player holds and a
+# lit lantern that stands by a monument stone; python3 tools/assetgen/newcomer_assets.py writes only these
+from models import newcomer_assets as NEWCOMER   # noqa: E402
+ALL.update(NEWCOMER.ALL)

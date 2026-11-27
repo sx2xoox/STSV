@@ -37,6 +37,16 @@ Props (display models: bottom on the display's position, centred, front north):
   store_box_<kind>_open           the delivery box with its flaps folded out and the goods packed inside (store.py).
   store_trash_cup                 다 먹은 컵라면, again: the red cup ramen of store_item_ramen_red emptied: broth and a
                                   few noodles left, the lid peeled back and standing up at the back, chopsticks across.
+
+The receipt coming out of the counter's printer (display models, NOT bottom-centred: see store_receipt):
+  store_receipt · store_receipt_glitch
+                                  a strip of thermal paper 3.5 px wide (the width of the paper the counter's printer
+                                  already shows) and 7 px long standing straight up from the display's position: the
+                                  model's (8, 8, 8) is the middle of the end that leaves the slot, the strip runs +y to
+                                  y 15, flat in the x-y plane, its print on the south (+z, the worker's) face, the bare
+                                  back (the print showing through faintly) on the north. So a display scaled (1, s, 1)
+                                  with s from 0 to 1 feeds it out of the slot. _glitch: the same strip, its print come
+                                  out as blocks (what a 숨은 비밀 (관리자 문서) receipt looks like while it prints).
 """
 
 import math
@@ -464,6 +474,119 @@ def _foil(w):
 # ================================================================================================
 
 BOX_KINDS = tuple(S.BOX_KIND)
+# ================================================================================================
+# 영수증: the strip that feeds out of the counter's printer
+# ================================================================================================
+
+RECEIPT_W, RECEIPT_L = 3.5, 7.0          # px: the strip's width (the printer's paper) and its full length
+# the printer's slot on store_counter (models/store.counter: the printer box x 25..30, top y 17.5, the slot z 10.5..11),
+# where the display goes: the slot's middle, in the counter's model px (its base cell x 0..16, z 0..16, floor y 0)
+RECEIPT_SLOT = (27.5, 17.5, 10.75)
+RECEIPT_TILT = -22.5                     # degrees about x: the paper leans to the customer's side (-z), like the stub
+
+_TINY = {"G": [".###", "#...", "#.##", "#..#", "#..#", ".###"], "S": [".###", "#...", ".##.", "...#", "...#", "###."],
+         "2": ["###.", "...#", "..#.", ".#..", "#...", "####"], "6": [".##.", "#...", "###.", "#..#", "#..#", ".##."]}
+
+
+def receipt_strip(glitch=False):
+    """28 x 56 (3.5 x 7 px at 8 texels a px), the top row the end that came out first: the cutter's zig-zag, the GS26
+    mark (the sign's disc and leaf, the letters) in thermal grey, the shop's lines, the goods and their prices, the
+    total, a barcode at the bottom (the slot's end). glitch: the goods' lines come out as blocks, two rows pushed
+    sideways, a white line where the print head dropped out, the few blocks out of line of the damaged records."""
+    from store_art import Pic
+    W, H = 28, 56
+    P = Pic(W, H)
+    ink, grey = ("iron", 0), ("iron", 2)
+    for y in range(H):
+        for x in range(W):
+            P.p(x, y, ("snow", 2) if (x * 5 + y * 3) % 13 else ("paper", 2))
+    # the mark: a disc with the leaf cut out of it, GS26 under it
+    for y in range(3, 10):
+        for x in range(10, 18):
+            dx, dy = x + 0.5 - 14, y + 0.5 - 6.5
+            if math.hypot(dx, dy) < 3.6:
+                u, v = dx * 0.75 - dy * 0.66, dx * 0.66 + dy * 0.75
+                P.p(x, y, ("snow", 2) if (abs(u) / 2.6) ** 1.6 + (abs(v) / 1.3) ** 1.6 < 1 else ink)
+    x = 5
+    for ch in "GS26":
+        for j, row in enumerate(_TINY[ch]):
+            for i, c in enumerate(row):
+                if c == "#":
+                    P.p(x + i, 11 + j, ink)
+        x += 5
+    P.text(6, 19, 22, grey, seed=3)
+    for x in range(2, W - 2, 2):
+        P.p(x, 22, ink)
+    # the goods: a name left, a price right
+    for k in range(6):
+        y = 25 + k * 3
+        P.text(2, y, 12 + (k * 5) % 6, ink, seed=10 + k)
+        n = 3 + (k * 3) % 3
+        P.rect(W - 2 - n, y, W - 2, y + 1, ink)
+    for x in range(2, W - 2, 2):
+        P.p(x, 43, ink)
+    P.rect(2, 45, 9, 47, ink)                     # the total, heavy
+    P.rect(17, 45, W - 2, 47, ink)
+    for x in range(4, W - 4):                      # the barcode
+        if (x * 7 + x // 3) % 3:
+            P.rect(x, 49, x + 1, 54, ink)
+    for x in range(W):                             # the cutter's teeth
+        for y in range((0, 1, 2, 1)[x % 4]):
+            P.px[x, y] = (0, 0, 0, 0)
+    if glitch:
+        from models import newcomer_assets as NC
+        for cy in range(6):
+            for cx in range(6):
+                x0, y0 = 2 + cx * 4 + (cy % 2), 24 + cy * 3
+                r = h3(cx, cy, 0, 71)
+                if r < 0.2:
+                    continue
+                for y in range(y0, y0 + 3):
+                    for x in range(x0, min(x0 + 4, W - 1)):
+                        if r < 0.5:
+                            P.p(x, y, ink if (x + y) % 2 else ("snow", 2))
+                        elif r < 0.8:
+                            P.p(x, y, ink)
+                        else:
+                            P.p(x, y, grey if y % 2 else ("snow", 2))
+        for y in range(3, 48):
+            P.p(18, y, ("snow", 2))
+        NC.slip(P, 28, 30, 3)
+        NC.slip(P, 36, 37, -2)
+        NC.slip(P, 13, 14, 2)
+        NC.mark(P, 14, 19)
+    return P.im
+
+
+def receipt_back(glitch=False):
+    """The strip's back: bare thermal paper, the print showing through faintly (mirrored: it is the same sheet)."""
+    from PIL import Image
+    from stsv_assets.palette import ramp
+    front = receipt_strip(glitch)
+    out = Image.new("RGBA", front.size)
+    bare, ghost = ramp("paper", 2), ramp("paper", 1)
+    snow = (ramp("snow", 2), ramp("paper", 2))
+    for y in range(front.height):
+        for x in range(front.width):
+            c = front.getpixel((front.width - 1 - x, y))
+            if c[3]:
+                out.putpixel((x, y), bare if c in snow or (x + y) % 2 else ghost)
+    return out
+
+
+def receipt(glitch=False):
+    """영수증 (see the module doc): one plane without thickness from the slot's end at the model's middle straight up."""
+    name = "store_receipt_glitch" if glitch else "store_receipt"
+    m = S.HModel(name, floor=None)
+    m.group("receipt")
+    front = S._surface(name + "_front", lambda: receipt_strip(glitch))
+    back = S._surface(name + "_back", lambda: receipt_back(glitch))
+    m.plate("receipt", (8 - RECEIPT_W / 2, 8, 8), (8 + RECEIPT_W / 2, 8 + RECEIPT_L, 8),
+            {"south": (front, [0, 0, 28, 56]), "north": (back, [0, 0, 28, 56])})
+    m.bake()                                 # the plate becomes an element (gui fits the model's bounds)
+    return S.gui(m, fill=0.8)
+
+
 HELD = {"store_held_mop": held_mop, "store_held_jug": held_jug, "store_held_waste_bag": held_waste_bag,
         "store_held_tray": held_tray, "store_held_pda": held_pda, "store_held_id": held_id}
 for _k in BOX_KINDS:
@@ -476,7 +599,7 @@ FURNITURE4.update({f"store_order_tablet_{_g}": (lambda g=_g: S.order_tablet(g)) 
 FURNITURE4["store_hanger_empty"] = lambda: S.hanger(empty=True)
 
 PROPS4 = {"store_spill_2": lambda: spill(2), "store_spill_3": lambda: spill(3), "store_wet_sign": wet_sign,
-          "store_trash_cup": trash_cup}
+          "store_trash_cup": trash_cup, "store_receipt": receipt, "store_receipt_glitch": lambda: receipt(True)}
 for _k in BOX_KINDS:
     PROPS4[f"store_box_{_k}_open"] = (lambda k=_k: S.delivery_box(k, opened=True))
 

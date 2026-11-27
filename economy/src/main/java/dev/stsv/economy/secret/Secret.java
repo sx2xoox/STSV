@@ -37,6 +37,22 @@ public abstract class Secret implements Listener {
         return name();
     }
 
+    /**
+     * What its stone says, when the secret writes that itself (MiniMessage; "" = nothing at all): solved or not, this is
+     * shown instead of the usual "???" / title, solver and day. Null: the usual.
+     */
+    public String stoneText() {
+        return null;
+    }
+
+    /** The line everyone is told when it is first solved (MiniMessage), or null when the secret says it itself. */
+    public String solvedLine() {
+        return cfg.getString("solved-line", "<dark_gray>누군가 " + name() + "의 비밀을 풀었다…");
+    }
+
+    /** An admin's 서버초기화: whatever it keeps for the whole server besides who solved it is forgotten too. */
+    public void serverReset() {}
+
     /** A secret whose stone stays empty (no "???") until it is solved: nobody is told it exists. */
     public boolean hiddenStone() {
         return false;

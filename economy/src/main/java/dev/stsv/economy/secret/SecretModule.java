@@ -174,6 +174,11 @@ public final class SecretModule extends EcoModule {
     // state
     // ------------------------------------------------------------------------------------------
 
+    /** Draws the monument's stones anew now (a stone's text changed), instead of at the next minute. */
+    public void redraw() {
+        if (monument != null) monument.build();
+    }
+
     public Memory memory() {
         return memory;
     }
@@ -354,8 +359,8 @@ public final class SecretModule extends EcoModule {
         eco.kv().set("secret." + s.id() + ".first", u.toString());
         eco.kv().set("secret." + s.id() + ".first-at", System.currentTimeMillis());
         Bukkit.getScheduler().runTaskLater(eco, () -> monument.build(), 80L);
-        String line = s.cfg.getString("solved-line", "<dark_gray>누군가 " + s.name() + "의 비밀을 풀었다…");
-        Bukkit.getScheduler().runTaskLater(eco, () -> Bukkit.broadcast(Text.msg(line)), 60L);
+        String line = s.solvedLine();
+        if (line != null && !line.isBlank()) Bukkit.getScheduler().runTaskLater(eco, () -> Bukkit.broadcast(Text.msg(line)), 60L);
         eco.getLogger().info("[비밀] " + s.name() + " 을(를) " + p.getName() + " 이(가) 처음 풀었습니다");
     }
 
@@ -522,6 +527,11 @@ public final class SecretModule extends EcoModule {
                 if (x.sequel() != null) solver(x).ifPresent(old -> x.sequel().stop(old));
                 eco.kv().remove("secret." + x.id() + ".first");
                 eco.kv().remove("secret." + x.id() + ".first-at");
+                try {
+                    x.serverReset();
+                } catch (RuntimeException e) {
+                    eco.getLogger().log(java.util.logging.Level.WARNING, "[비밀] " + x.id() + " 서버초기화 정리 오류", e);
+                }
                 monument.build();
                 s.sendMessage(Text.msg("<green>" + x.name() + ": 다시 열었어요 (푼 사람 기록만 지움, 각자의 진행은 그대로)"));
             });

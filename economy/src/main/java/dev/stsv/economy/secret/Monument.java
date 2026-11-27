@@ -264,6 +264,8 @@ final class Monument {
     }
 
     private String text(Stone s) {
+        String own = m.find(s.id()).map(Secret::stoneText).orElse(null);
+        if (own != null) return own;   // a stone that writes itself (새로 온 사람: its broken lines, coming back)
         String who = s.solver().map(u -> Optional.ofNullable(Bukkit.getOfflinePlayer(u).getName()).orElse("—")).orElse(null);
         return text(s, who, s.at() > 0 ? DAY.format(Instant.ofEpochMilli(s.at())) : "");
     }

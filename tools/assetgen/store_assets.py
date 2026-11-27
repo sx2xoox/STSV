@@ -664,7 +664,76 @@ def sheet4(path=SHEET4):
     return path
 
 
+SHEET5 = REPO / "docs" / "previews" / "store_receipt.png"
+
+
+def sheet5(path=SHEET5):
+    """The receipt feeding out of the counter's printer (store_receipt, store_receipt_glitch): the strip on the printer's
+    slot as the store shows it (an item display at the slot, turned RECEIPT_TILT about x, scaled along its length) a third
+    out, fully out, and the glitch one fully out, each from the worker's eye and from the customer's; and both strips'
+    faces flat, enlarged."""
+    from models import store as S
+    from models import store_action as A
+    BUILD.mkdir(exist_ok=True)
+    keys = ["store_counter", "store_receipt", "store_receipt_glitch"]
+    models = {k: S.ALL[k]() for k in keys}
+    pv = {k: m.to_preview() for k, m in models.items()}
+    tex = _floor_tex()
+    for p_ in pv.values():
+        tex.update(p_["textures"])
+    els, views, labels = [], [], []
+    W, VH = 1600, 420
+    cases = [("store_receipt", 0.35, "store_receipt · 나오는 중 (길이 0.35)"), ("store_receipt", 1.0, "store_receipt · 다 나옴"),
+             ("store_receipt_glitch", 1.0, "store_receipt_glitch · 다 나옴")]
+    t = math.radians(A.RECEIPT_TILT)
+    normal = (0.0, -math.sin(t), math.cos(t))            # the printed (south) face's way once tilted
+    for i, (k, grow, label) in enumerate(cases):
+        cx = i * 400.0
+        els.extend(_placed(pv["store_counter"], (cx, 8, 0), 1))
+        els.append(_plane("tile", cx - 80, -80, cx + 80, 80))
+        slot = [cx + A.RECEIPT_SLOT[0] - 8 + normal[0] * 0.05, A.RECEIPT_SLOT[1] + normal[1] * 0.05, A.RECEIPT_SLOT[2] - 8 + normal[2] * 0.05]
+        for e in pv[k]["elements"]:
+            e = json.loads(json.dumps(e))
+            e["from"] = [slot[0] + e["from"][0] - 8, slot[1] + (e["from"][1] - 8) * grow, slot[2] + e["from"][2] - 8]
+            e["to"] = [slot[0] + e["to"][0] - 8, slot[1] + (e["to"][1] - 8) * grow, slot[2] + e["to"][2] - 8]
+            e["post"] = [["x", A.RECEIPT_TILT, slot]]
+            els.append(e)
+        at = [slot[0], slot[1] + 3, slot[2] - 1]
+        w = W // len(cases)
+        for r, (eye, who) in enumerate((([slot[0] - 3, EYE_PX, 8 + 12], "근무자 눈"), ([slot[0] - 5, EYE_PX, -8 - 22], "손님 눈"))):
+            v = _eye(i * w, r * VH, w, VH, eye, at, fov=28)
+            views.append(v)
+            labels.append((v["x"], v["y"], f"{who}: {label}"))
+    H = 2 * VH
+    src = BUILD / "store_receipt.preview.json"
+    src.write_text(json.dumps({"textures": tex, "elements": els, "grid": False, "size": [W, H], "views": views}))
+    shot = BUILD / "store_receipt.render.png"
+    subprocess.run(["node", str(RENDER), str(src), str(shot)], check=True, stdout=subprocess.DEVNULL)
+    FH = 56 * 7 + 80
+    out = Image.new("RGBA", (W, H + FH), (27, 29, 34, 255))
+    out.alpha_composite(Image.open(shot).convert("RGBA"), (0, 0))
+    d = ImageDraw.Draw(out)
+    f = _font(17)
+    for (x, y, label) in labels:
+        tw = d.textlength(label, font=f)
+        d.rectangle((x + 6, y + 6, x + 16 + tw, y + 32), fill=(20, 22, 26, 210))
+        d.text((x + 11, y + 8), label, font=f, fill=(240, 236, 220))
+    x = 40
+    for name, im in (("store_receipt 앞 (근무자 쪽 +z)", A.receipt_strip()), ("뒤", A.receipt_back()),
+                     ("store_receipt_glitch 앞", A.receipt_strip(True)), ("뒤", A.receipt_back(True))):
+        big = im.resize((im.width * 7, im.height * 7), Image.NEAREST)
+        out.alpha_composite(big, (x, H + 40))
+        d.text((x, H + 12), name, font=f, fill=(240, 236, 220))
+        x += big.width + 190
+    d.text((40, H + FH - 24), "위 = 먼저 나온 끝 (톱니) · 아래 = 프린터 슬롯 (모델 원점 8, 8, 8)", font=f, fill=(185, 190, 200))
+    out.convert("RGB").save(path, optimize=True)
+    return path
+
+
 if __name__ == "__main__":
+    if "--sheet5-only" in sys.argv:
+        print(sheet5())
+        sys.exit()
     if "--sheet3-only" in sys.argv:
         print(sheet3())
         sys.exit()
@@ -676,3 +745,4 @@ if __name__ == "__main__":
         print(sheet())
         print(sheet3())
         print(sheet4())
+        print(sheet5())
