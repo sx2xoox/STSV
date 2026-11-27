@@ -88,6 +88,62 @@ final class Bubbles {
         return out;
     }
 
+    // ------------------------------------------------------------------------------------------ the worker's choices
+
+    /**
+     * What the worker could say to a customer: speech bubbles of the same look as the customers', a little smaller and half
+     * see-through until aimed at, each with a small tail. They stand on the worker's side: in a short column just in front of
+     * the customer (from the chest to the head) in the aisle, and over the counter's worker edge at the till — never on the
+     * customer's name tag or face, the POS, the change keys.
+     */
+    static final double CHOICE_SCALE = 0.6, CHOICE_STEP = 0.27;
+    /** The column in front of a customer in the aisle: this far towards the worker, its lowest bubble this high over the feet. */
+    static final double CHOICE_OUT = 0.6, CHOICE_CHEST = 1.0, CHOICE_HEAD = 1.95;
+    /** Over the counter's worker edge (the store's frame): clear of the POS (z up to 7.41) and of the customer (x -1.5). */
+    static final double CHOICE_TILL_X = -2.8, CHOICE_TILL_Y = 1.42, CHOICE_TILL_Z = 7.98;
+    /** Aimed at, a choice is whole and a little larger; spoken, it flies over the worker's head in this many ticks and stays so long. */
+    static final double CHOICE_AIMED = 1.12;
+    static final int CHOICE_FLY = 6, CHOICE_SAID = 50;
+    /** How see-through a choice is (the background's alpha of 255): waiting, aimed at. */
+    static final int CHOICE_ALPHA = 150, CHOICE_ALPHA_AIMED = 235;
+
+    /** A choice that is something done, not said ("(이번만 달아 준다)"): shown small, grey and slanted, never spoken. */
+    static boolean action(String label) {
+        String t = label == null ? "" : label.strip();
+        return t.startsWith("(") && t.endsWith(")");
+    }
+
+    /** How tall one choice stands (blocks). */
+    static double choiceTall() {
+        return CHOICE_SCALE * (LINE + 0.05);
+    }
+
+    /** Half a choice's width (blocks) for clicking: its text in the font at the choice's scale, and the bubble's edge. */
+    static double choiceHalfWidth(String label) {
+        return Math.clamp(width(label == null ? "" : label) / 40.0 * CHOICE_SCALE / 2 + 0.05, 0.22, 1.3);
+    }
+
+    /**
+     * The bottoms of n choices over the feet, the first lowest: from the chest up, {@link #CHOICE_STEP} apart, closer when
+     * that many would pass the head (never overlapping while they fit at all).
+     */
+    static double[] choiceColumn(int n) {
+        double[] out = new double[Math.max(0, n)];
+        if (n <= 0) return out;
+        double room = CHOICE_HEAD - choiceTall() - CHOICE_CHEST;
+        double step = n == 1 ? 0 : Math.min(CHOICE_STEP, room / (n - 1));
+        for (int i = 0; i < n; i++) out[i] = CHOICE_CHEST + step * i;
+        return out;
+    }
+
+    /** Where the column stands: {@link #CHOICE_OUT} from the customer (cx, cz) towards the worker (wx, wz): {x, z}. */
+    static double[] choiceSpot(double cx, double cz, double wx, double wz) {
+        double dx = wx - cx, dz = wz - cz, len = Math.hypot(dx, dz);
+        if (len < 1e-6) return new double[]{cx, cz};
+        double out = Math.min(CHOICE_OUT, len * 0.5);   // (never behind a worker who stands right at them)
+        return new double[]{cx + dx / len * out, cz + dz / len * out};
+    }
+
     /** Whether a line said at `said` (ms) that found no room is still worth showing at `now`. */
     static boolean stillWaits(Kind kind, long said, long now) {
         return kind == Kind.LINE && now - said <= WAIT;

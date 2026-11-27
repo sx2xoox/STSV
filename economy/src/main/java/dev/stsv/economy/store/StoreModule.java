@@ -288,9 +288,64 @@ public final class StoreModule extends EcoModule {
         receiptGlitch = f;
     }
 
-    /** An admin's look: this worker's printer prints a broken receipt now (false: they are not on a shift). */
+    /** An admin's look: this worker's printer prints a broken receipt now (false: they are on no shift, or it cannot print). */
     public boolean printGlitch(Player worker, ItemStack prize) {
+        for (Shop shop : shops.values()) {
+            Shift sh = shop.shift;
+            if (sh == null || !(worker.getUniqueId().equals(sh.worker) || worker.getUniqueId().equals(sh.helper))) continue;
+            return show.receipt(sh, null, Receipt.Fate.KEPT, RECEIPT_GLITCH, prize) != null;
+        }
         return false;
+    }
+
+    static final String RECEIPT = "economy:store_receipt", RECEIPT_GLITCH = "economy:store_receipt_glitch";
+
+    /** The shift's tick count (short-lived shows time themselves by it). */
+    long tick() {
+        return ticks;
+    }
+
+    /**
+     * A sale is rung up: its receipt prints. Now and then (another module says so) it comes out broken and stays in the slot
+     * for the worker to pick up; rarely the customer does not want theirs.
+     */
+    private void printReceipt(Shift sh, Guest g, Player worker) {
+        if (sh.receipt != null && !sh.receipt.done) return;   // a strip still in the slot: the printer is busy
+        ItemStack prize = null;
+        if (worker != null && receiptGlitch != null && !sh.test && has(RECEIPT_GLITCH)) {
+            try {
+                prize = receiptGlitch.apply(worker);
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[편의점] 영수증 연동 오류", e);
+            }
+        }
+        if (prize != null) {
+            if (show.receipt(sh, g, Receipt.Fate.KEPT, RECEIPT_GLITCH, prize) == null) giveStrip(worker.getUniqueId(), prize);   // (no room to show it: not lost)
+            return;
+        }
+        Receipt.Fate fate = Receipt.fate(false, ThreadLocalRandom.current().nextDouble(), eco.data("store.yml").getDouble("receipt.decline", 0.05));
+        if (fate == Receipt.Fate.DECLINED && g.visit != null) fate = Receipt.Fate.BAG;
+        if (show.receipt(sh, g, fate, RECEIPT, null) != null && fate == Receipt.Fate.DECLINED) {
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (g.m.isValid()) sayLine(g, spec.lines(g.type.id(), "no-receipt"), Bubbles.Kind.CHATTER);
+            }, Receipt.TEAR);
+        }
+    }
+
+    private void giveStrip(UUID worker, ItemStack prize) {
+        if (prize == null) return;
+        if (eco.mail() != null) eco.mail().deliver(worker, prize, "store");
+        else {
+            Player p = Bukkit.getPlayer(worker);
+            if (p != null) for (ItemStack left : p.getInventory().addItem(prize).values()) p.getWorld().dropItem(p.getLocation(), left);
+        }
+    }
+
+    /** A strip kept for the worker that nobody took (the shift ends): it is theirs all the same. */
+    private void unclaimedStrip(Shift sh) {
+        StoreShow.Strip s = sh.receipt;
+        sh.receipt = null;
+        if (s != null && !s.done && s.prize != null) giveStrip(sh.worker, s.prize);
     }
 
     public void visitor(String id, StoreVisit.Visitor v) {
@@ -441,6 +496,8 @@ public final class StoreModule extends EcoModule {
         /** §17: the shift's short-lived displays, the red 폐기 on the shelf, the shelves filling now, the food in the oven,
          *  the kettle being filled */
         final List<Entity> fx = new ArrayList<>();
+        /** a receipt that waits in the printer's slot (declined, or kept for the worker), or null */
+        StoreShow.Strip receipt;
         final List<ItemDisplay> wasteItems = new ArrayList<>();
         final Set<String> filling = new java.util.HashSet<>();
         ItemDisplay ovenFood;
@@ -516,6 +573,14 @@ public final class StoreModule extends EcoModule {
         /** the stool they sit on (the eat bar); the last time their impatience showed (ms) */
         ItemDisplay chair;
         long nagged;
+        /** something went wrong for them that was the worker's doing, and when they last said so (ms): they do not thank anyone (Parting) */
+        boolean badly;
+        long souredAt;
+
+        void soured() {
+            badly = true;
+            souredAt = System.currentTimeMillis();
+        }
 
         Guest(Shopper s, BusSpec.Type type, Mannequin m) {
             this.s = s;
@@ -598,8 +663,12 @@ public final class StoreModule extends EcoModule {
                 if (hit != null) now = shownFor(sh, hit.key());
             }
             Entity before = now == null ? aimed.remove(w.getKey()) : aimed.put(w.getKey(), now);
-            if (before != null && before != now && before.isValid() && !aimed.containsValue(before)) before.setGlowing(false);
-            if (now != null && !now.isGlowing()) now.setGlowing(true);
+            if (before != null && before != now && before.isValid() && !aimed.containsValue(before)) {
+                before.setGlowing(false);
+                choiceLook(before, false);
+            }
+            if (now != null && before != now) choiceLook(now, true);   // (a choice of words: whole and a little larger)
+            if (now != null && !now.isGlowing() && !(now instanceof TextDisplay)) now.setGlowing(true);
         }
         aimed.keySet().removeIf(u -> !working.containsKey(u));
     }
@@ -608,6 +677,11 @@ public final class StoreModule extends EcoModule {
     private Entity shownFor(Shift sh, String key) {
         Till t = sh.till;
         if (key.startsWith("box:")) return sh.boxes.get(key.substring(4));
+        if (key.startsWith("ask:")) {
+            String[] k = key.split(":", 3);
+            for (Prompt pr : sh.prompts) if (String.valueOf(pr.id).equals(k[1])) return pr.buttons.get(k[2]);
+            return null;
+        }
         if (t == null) return null;
         if (key.startsWith("item:")) {
             int i = Integer.parseInt(key.substring(5));
@@ -724,6 +798,7 @@ public final class StoreModule extends EcoModule {
     private void unwarmed(Guest g) {
         g.warm = false;
         g.s.mood(spec.warm().sour());
+        g.soured();
         say(g, "unwarmed");
         fume(g, 1);
     }
@@ -1563,6 +1638,7 @@ public final class StoreModule extends EcoModule {
                 if (sh.shop.has("eatbar") && rnd.nextDouble() < rules.mess().eat()) g.eats = true;
             } else {
                 g.s.mood(rules.mess().dry());
+                g.soured();
                 say(g, "dry");
             }
         }
@@ -1590,9 +1666,25 @@ public final class StoreModule extends EcoModule {
         if (helper != null) career(helper, sh, g.type.id(), hour);   // 2인 근무: both served them
         day.served(sh, p);
         g.bought = List.copyOf(c.items());
-        say(g, "thanks");
-        cheer(g, mood, stars);
-        if (g.s.shiny()) BusModule.sparkle(g.m, false);
+        // how they go follows how it went (Parting): the thanks only after a good visit, the same ★ steps as the pay
+        Parting.Kind parting = Parting.kind(g.badly, stars, g.souredAt == 0 ? -1 : System.currentTimeMillis() - g.souredAt);
+        switch (parting) {
+            case THANKS -> say(g, "thanks");
+            case PLAIN -> {
+                if (g.visit == null) sayLine(g, spec.lines(g.type.id(), Parting.PLAIN_LINES));
+            }
+            case SOUR -> {
+                if (g.visit == null) {
+                    List<String> sour = spec.lines(g.type.id(), Parting.SOUR_LINES);
+                    sayLine(g, sour != null ? sour : spec.lines(g.type.id(), "angry"));
+                }
+            }
+            case SILENT -> {
+                // they have just said what they think
+            }
+        }
+        cheer(g, mood, stars, parting);
+        if (g.s.shiny() && parting == Parting.Kind.THANKS) BusModule.sparkle(g.m, false);
         boolean leaves = false;
         if (g.visit != null) {   // another module's customer paid: it hears so; maybe something stays on the counter
             g.visitDone = true;
@@ -1604,8 +1696,9 @@ public final class StoreModule extends EcoModule {
             }
         }
         if (t0 != null) {
-            // what they bought slides into a GS26 bag on the counter (§17), then goes with them
+            // what they bought slides into a GS26 bag on the counter (§17), then goes with them; the receipt after it
             if (!leaves) bagUp(sh, t0, g);
+            if (!free) printReceipt(sh, g, p);
             if (sh.till == t0) clearTill(sh);
         }
         sh.line.remove(g.s);
@@ -1614,11 +1707,12 @@ public final class StoreModule extends EcoModule {
     }
 
     /** How it went shows over them as they go: their ★ a moment, hearts when they are delighted (the bus's way). */
-    private void cheer(Guest g, double mood, int stars) {
+    private void cheer(Guest g, double mood, int stars, Parting.Kind parting) {
         if (!g.m.isValid()) return;
         Location at = g.m.getLocation();
-        floatText(at.clone().add(0, 1.92, 0), Text.mm("<yellow>" + starText(stars)), 0.42f, 14, 0.12f);
-        if (mood >= 90) at.getWorld().spawnParticle(Particle.HEART, at.clone().add(0, 2.1, 0), 2, 0.3, 0.2, 0.3);
+        if (Parting.stars(parting)) floatText(at.clone().add(0, 1.92, 0), Text.mm("<yellow>" + starText(stars)), 0.42f, 14, 0.12f);
+        if (Parting.hearts(parting, mood)) at.getWorld().spawnParticle(Particle.HEART, at.clone().add(0, 2.1, 0), 2, 0.3, 0.2, 0.3);
+        if (Parting.puff(parting)) at.getWorld().spawnParticle(Particle.ANGRY_VILLAGER, at.clone().add(0, 2.05, 0), 1, 0.15, 0.05, 0.15);
     }
 
     private void clearTill(Shift sh) {
@@ -1653,9 +1747,8 @@ public final class StoreModule extends EcoModule {
                 dx = 1;
                 len = 1;
             }
-            int chars = Text.plain(pr.labels.getOrDefault(b.getKey(), "")).length();
-            out.add(new ButtonPick.Target(viewer.getUniqueId(), "ask:" + pr.id + ":" + b.getKey(), at.getX(), at.getY() + 0.07, at.getZ(), -dz / len, dx / len,
-                    StoreRules.askHalfWidth(chars), 0.075, 0.08));
+            out.add(new ButtonPick.Target(viewer.getUniqueId(), "ask:" + pr.id + ":" + b.getKey(), at.getX(), at.getY() + Bubbles.choiceTall() / 2, at.getZ(), -dz / len, dx / len,
+                    Bubbles.choiceHalfWidth(Text.plain(pr.labels.getOrDefault(b.getKey(), ""))), Bubbles.choiceTall() / 2 + 0.01, 0.08));
         }
         StoreLayout.Site site = sh.shop.site;
         double[] o = site.at(0, 0, 0), zf = site.at(0, 0, 1);
@@ -1680,6 +1773,11 @@ public final class StoreModule extends EcoModule {
                 double[] a = site.at(l.terminal().x(), l.terminal().y(), l.terminal().z());
                 out.add(new ButtonPick.Target(viewer.getUniqueId(), "card", a[0], a[1], a[2], rx, rz, 0.25, 0.08, 0.2));
             }
+        }
+        StoreShow.Strip strip = sh.receipt;
+        if (strip != null && !strip.done && strip.d.isValid() && Receipt.clickable(strip.fate, (int) Math.min(Integer.MAX_VALUE, ticks - strip.began))) {
+            double[] a = site.at(Receipt.X + 0.06, Receipt.Y + 0.1, Receipt.Z);
+            out.add(new ButtonPick.Target(viewer.getUniqueId(), "receipt", a[0], a[1], a[2], rx, rz, 0.16, 0.14, 0.14));
         }
         int i = 0;
         if (sh.shop.chores.carrying() == null) for (String box : sh.shop.chores.boxes()) {   // (a box in the arms: the fridge beside the pile is what is meant)
@@ -1743,6 +1841,15 @@ public final class StoreModule extends EcoModule {
                 answer(p, sh, pr, k[2]);
                 break;
             }
+            return;
+        }
+        if (key.equals("receipt")) {
+            StoreShow.Strip strip = sh.receipt;
+            if (strip == null || strip.done) return;
+            ItemStack prize = strip.prize;
+            show.takeReceipt(sh, p);
+            p.swingMainHand();
+            if (prize != null) giveStrip(p.getUniqueId(), prize);
             return;
         }
         if (key.startsWith("spill:")) {
@@ -1894,6 +2001,7 @@ public final class StoreModule extends EcoModule {
                 }
                 case SHORT -> {
                     t.g.s.mood(spec.mood().shortChange());
+                    t.g.soured();
                     say(t.g, "short");
                     p.playSound(me, Sound.ENTITY_VILLAGER_NO, 0.6f, 1.0f);
                     HudModule.flash(p, Lang.mm("store.short", "left", won(t.c.change())), 2500);
@@ -2135,6 +2243,7 @@ public final class StoreModule extends EcoModule {
             show.burnt(sh);
             Guest g = sh.warmFor;
             sh.warmFor = null;
+            if (g != null) g.soured();
             warmed(sh, g, spec.mood().burnt(), "burnt");
         }
         drawOven(sh);
@@ -2382,6 +2491,7 @@ public final class StoreModule extends EcoModule {
         for (Entity e : sh.messes.values()) e.remove();
         sh.messes.clear();
         if (sh.wasteTag != null) sh.wasteTag.remove();
+        unclaimedStrip(sh);
         show.clear(sh);
         sh.playing = null;
         shop.chores.putDown();
@@ -3210,6 +3320,8 @@ public final class StoreModule extends EcoModule {
         final long at = System.currentTimeMillis();
         final Map<String, TextDisplay> buttons = new LinkedHashMap<>();
         final Map<String, String> labels = new LinkedHashMap<>();
+        /** each choice's small tail */
+        final List<TextDisplay> tails = new ArrayList<>();
 
         Prompt(int id, Guest g, String what) {
             this.id = id;
@@ -3239,42 +3351,130 @@ public final class StoreModule extends EcoModule {
 
     // ------------------------------------------------------------------------------------------ the buttons
 
-    /** Shows buttons over a customer (at the counter: over its end), choice -> words, the first lowest. */
+    /**
+     * What the worker could say to a customer, as the worker's own speech bubbles (choice -> words, the first lowest): in the
+     * aisle a short column just in front of the customer, at the till over the counter's worker edge ({@link Bubbles}). Only
+     * the workers see them. A choice in brackets is something done, not said: small, grey, slanted.
+     */
     private Prompt ask(Shift sh, Guest g, String what, Map<String, String> choices) {
         clearPrompts(sh, g);
         Prompt pr = new Prompt(++promptIds, g, what);
         boolean till = sh.till != null && sh.till.g == g;
-        Location base = till ? sh.shop.at(StoreLayout.ASK_X, StoreLayout.ASK_Y, StoreLayout.ASK_Z, 0) : g.m.getLocation().add(0, StoreLayout.ASK_HEAD, 0);
+        Player p = Bukkit.getPlayer(sh.worker), helper = sh.helper == null ? null : Bukkit.getPlayer(sh.helper);
+        List<Map.Entry<String, String>> shown = new ArrayList<>();
+        for (Map.Entry<String, String> c : choices.entrySet()) if (c.getValue() != null && !c.getValue().isBlank()) shown.add(c);
+        Location base;
+        double[] ys;
+        if (till) {
+            base = sh.shop.at(Bubbles.CHOICE_TILL_X, Bubbles.CHOICE_TILL_Y, Bubbles.CHOICE_TILL_Z, 0);
+            ys = new double[shown.size()];
+            for (int i = 0; i < ys.length; i++) ys[i] = Bubbles.CHOICE_STEP * i;
+        } else {
+            Location c = g.m.getLocation(), w = p != null && p.getWorld().equals(c.getWorld()) ? p.getLocation() : c;
+            double[] xz = Bubbles.choiceSpot(c.getX(), c.getZ(), w.getX(), w.getZ());
+            base = new Location(c.getWorld(), xz[0], c.getY(), xz[1]);
+            ys = Bubbles.choiceColumn(shown.size());
+        }
         base.setYaw(0);
         base.setPitch(0);
-        if (!till) g.m.setCustomNameVisible(false);   // (their name tag is where the buttons go)
-        int i = 0;
-        for (Map.Entry<String, String> c : choices.entrySet()) {
-            if (c.getValue() == null || c.getValue().isBlank()) continue;
-            Location at = base.clone().add(0, StoreLayout.ASK_STEP * i++, 0);
-            pr.labels.put(c.getKey(), c.getValue());
-            Component text = Lang.mm("store.ask-button", "label", c.getValue());
-            pr.buttons.put(c.getKey(), at.getWorld().spawn(at, TextDisplay.class, d -> {
+        for (int i = 0; i < shown.size(); i++) {
+            String key = shown.get(i).getKey(), label = shown.get(i).getValue();
+            boolean action = Bubbles.action(label);
+            Location at = base.clone().add(0, ys[i], 0);
+            pr.labels.put(key, label);
+            String safe = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().escapeTags(Text.plain(label));
+            Component text = Text.mm(action ? "<#555555><i>" + safe : "<black>" + safe);
+            float scale = (float) (action ? Bubbles.CHOICE_SCALE * 0.85 : Bubbles.CHOICE_SCALE);
+            TextDisplay bubble = at.getWorld().spawn(at, TextDisplay.class, d -> {
                 d.setPersistent(false);
+                d.setVisibleByDefault(false);   // the worker's own thoughts: only the workers see them
                 d.text(text);
                 d.setBillboard(Display.Billboard.CENTER);
                 d.setAlignment(TextDisplay.TextAlignment.CENTER);
-                d.setBackgroundColor(Color.fromARGB(225, 31, 157, 85));
-                d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.45f, 0.45f, 0.45f), new Quaternionf()));
+                d.setBackgroundColor(Color.fromARGB(Bubbles.CHOICE_ALPHA, 255, 255, 255));
+                d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(scale, scale, scale), new Quaternionf()));
                 d.setViewRange(0.35f);
                 d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
-            }));
+            });
+            TextDisplay tail = at.getWorld().spawn(at, TextDisplay.class, d -> {
+                d.setPersistent(false);
+                d.setVisibleByDefault(false);
+                d.text(Text.mm("<white>▼"));
+                d.setBillboard(Display.Billboard.CENTER);
+                d.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+                d.setTextOpacity((byte) Bubbles.CHOICE_ALPHA);
+                d.setTransformation(new Transformation(new Vector3f(0, -0.052f, 0), new Quaternionf(), new Vector3f(0.3f, 0.3f, 0.3f), new Quaternionf()));
+                d.setViewRange(0.35f);
+                d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+            });
+            for (Player viewer : new Player[]{p, helper}) {
+                if (viewer == null) continue;
+                viewer.showEntity(eco, bubble);
+                viewer.showEntity(eco, tail);
+            }
+            pr.buttons.put(key, bubble);
+            pr.tails.add(tail);
         }
         sh.prompts.add(pr);
-        for (Guest x : sh.guests) {   // the bubbles near the buttons out of their way (or gone when there is no room)
+        for (Guest x : sh.guests) {   // the bubbles near the choices out of their way (or gone when there is no room)
             bubbles.refit(x.m);
             bubbles.refit(x.partner);
         }
-        Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, 1.6f);
         }
         return pr;
+    }
+
+    /** A choice the worker aims at is whole and a little larger; the others go back to half see-through. */
+    private void choiceLook(Entity e, boolean aimed) {
+        if (!(e instanceof TextDisplay d) || !d.isValid()) return;
+        for (Shop shop : shops.values()) {
+            Shift sh = shop.shift;
+            if (sh == null) continue;
+            for (Prompt pr : sh.prompts) for (Map.Entry<String, TextDisplay> b : pr.buttons.entrySet()) {
+                if (b.getValue() != d) continue;
+                float base = (float) (Bubbles.action(pr.labels.get(b.getKey())) ? Bubbles.CHOICE_SCALE * 0.85 : Bubbles.CHOICE_SCALE);
+                float scale = aimed ? (float) (base * Bubbles.CHOICE_AIMED) : base;
+                Transformation t = d.getTransformation();
+                d.setInterpolationDelay(0);
+                d.setInterpolationDuration(2);
+                d.setTransformation(new Transformation(t.getTranslation(), t.getLeftRotation(), new Vector3f(scale, scale, scale), t.getRightRotation()));
+                d.setBackgroundColor(Color.fromARGB(aimed ? Bubbles.CHOICE_ALPHA_AIMED : Bubbles.CHOICE_ALPHA, 255, 255, 255));
+                return;
+            }
+        }
+    }
+
+    /**
+     * The worker said it: the other choices are gone, the chosen bubble flies over the worker's head and is their spoken line
+     * for everyone to read (an arm swing with it). A choice that is something done is only done: no bubble.
+     */
+    private void spoken(Player p, Prompt pr, String choice) {
+        TextDisplay said = pr.buttons.get(choice);
+        String label = pr.labels.get(choice);
+        for (TextDisplay d : pr.buttons.values()) if (d != said) d.remove();
+        for (TextDisplay d : pr.tails) d.remove();
+        pr.tails.clear();
+        aimed.values().removeIf(e -> pr.buttons.containsValue(e));
+        p.swingMainHand();
+        if (said == null || !said.isValid() || label == null || Bubbles.action(label)) {
+            if (said != null) said.remove();
+            return;
+        }
+        Location from = said.getLocation(), over = p.getLocation().add(0, Bubbles.OVER_FEET, 0);
+        said.setVisibleByDefault(true);
+        said.setBackgroundColor(Color.fromARGB(230, 255, 255, 255));
+        Transformation t = said.getTransformation();
+        said.setInterpolationDelay(0);
+        said.setInterpolationDuration(Bubbles.CHOICE_FLY);
+        said.setTransformation(new Transformation(new Vector3f((float) (over.getX() - from.getX()), (float) (over.getY() - from.getY()), (float) (over.getZ() - from.getZ())),
+                t.getLeftRotation(), new Vector3f((float) Bubbles.SCALE, (float) Bubbles.SCALE, (float) Bubbles.SCALE), t.getRightRotation()));
+        String words = Text.plain(label);
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            said.remove();
+            if (p.isOnline()) bubbles.say(p, words, Bubbles.CHOICE_SAID, Bubbles.Kind.SCENE);   // rides them, out of the others' way
+        }, Bubbles.CHOICE_FLY);
     }
 
     private void clearPrompts(Shift sh, Guest g) {
@@ -3282,13 +3482,8 @@ public final class StoreModule extends EcoModule {
             if (pr.g != g) continue;
             sh.prompts.remove(pr);
             for (Entity e : pr.buttons.values()) e.remove();
+            for (Entity e : pr.tails) e.remove();
         }
-        nameBack(g);
-    }
-
-    /** The name tag hidden under a customer's buttons shows again. */
-    private static void nameBack(Guest g) {
-        if (g.m.isValid() && g.m.customName() != null) g.m.setCustomNameVisible(true);
     }
 
     /** A line from a list over a customer (a speech bubble), nothing when the list is empty. */
@@ -3311,7 +3506,7 @@ public final class StoreModule extends EcoModule {
         for (Shop shop : shops.values()) {
             Shift sh = shop.shift;
             if (sh == null || !shop.site.inside(at.getWorld().getName(), at.getX(), at.getY(), at.getZ())) continue;
-            for (Prompt pr : sh.prompts) for (TextDisplay d : pr.buttons.values()) band(out, d, 1);
+            for (Prompt pr : sh.prompts) for (TextDisplay d : pr.buttons.values()) band(out, d, 1);   // (the worker's choices)
             band(out, sh.wasteTag, 1);
             band(out, sh.ovenText, 2);
             break;
@@ -3428,8 +3623,7 @@ public final class StoreModule extends EcoModule {
     private void answer(Player p, Shift sh, Prompt pr, String choice) {
         Guest g = pr.g;
         sh.prompts.remove(pr);
-        for (Entity e : pr.buttons.values()) e.remove();
-        nameBack(g);
+        spoken(p, pr, choice);
         if (!sh.guests.contains(g)) return;
         if (pr.what.equals("id")) {
             idAnswer(p, sh, g, choice);
@@ -3456,6 +3650,7 @@ public final class StoreModule extends EcoModule {
     private void apply(Player p, Shift sh, Guest g, Trouble.Kind k, Trouble.Outcome o) {
         StoreRules.TroubleText tt = rules.troubles().get(k);
         g.troubleDone = true;
+        if (Parting.bad(o.talk(), o.mood())) g.soured();
         if (tt != null) sayLine(g, tt.lines(o.talk()));
         g.s.mood(o.mood());
         if (o.others() != 0) for (Guest x : sh.guests) if (x != g) x.s.mood(o.others());
@@ -3653,6 +3848,7 @@ public final class StoreModule extends EcoModule {
         if (!place.equals(placeOf(g.usualItem))) {
             if (!g.wrongUsual) {   // once: it stings, then they just say what it is
                 g.wrongUsual = true;
+                g.soured();
                 g.s.mood(life.regulars().wrong());
                 p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 1.2f);
             }
@@ -3735,11 +3931,13 @@ public final class StoreModule extends EcoModule {
                     sh.log.bonus(rules.id().bonus());
                     payNow(sh);
                     g.s.mood(rules.id().refusedMinor());
+                    g.soured();
                     sayLine(g, rules.id().lines("refused-minor"));
                     p.playSound(me, Sound.ENTITY_PLAYER_LEVELUP, 0.4f, 1.8f);
                     HudModule.flash(p, Lang.mm("store.id-right", "g", gold(rules.id().bonus())), 2500);
                 } else {
                     g.s.mood(rules.id().refusedAdult());
+                    g.soured();
                     sayLine(g, rules.id().lines("refused-adult"));
                     p.playSound(me, Sound.ENTITY_VILLAGER_NO, 0.6f, 1.0f);
                     HudModule.flash(p, Lang.mm("store.id-wrong"), 2500);
@@ -3851,6 +4049,7 @@ public final class StoreModule extends EcoModule {
                 payNow(sh);
             } else {
                 g.s.mood(rules.waste().complain());
+                g.soured();
                 say(g, "expired");
             }
         }
@@ -3962,6 +4161,7 @@ public final class StoreModule extends EcoModule {
         g.accused = true;
         Trouble.Outcome o = Trouble.accuse(thief, rules.numbers());
         StoreRules.TroubleText tt = rules.troubles().get(Trouble.Kind.STEAL);
+        if (!thief) g.soured();   // accused of nothing they did
         if (tt != null) sayLine(g, tt.lines(o.talk()));
         g.s.mood(o.mood());
         if (thief) {
@@ -4014,7 +4214,7 @@ public final class StoreModule extends EcoModule {
             if (limit < 0 || now - pr.at <= limit) continue;
             sh.prompts.remove(pr);
             for (Entity e : pr.buttons.values()) e.remove();
-            nameBack(pr.g);
+            for (Entity e : pr.tails) e.remove();
             Trouble.Outcome o = k == Trouble.Kind.LOTTERY   // nobody looked: as if they had shrugged, the counter free again
                     ? Trouble.resolve(k, "shrug", context(sh, pr.g), rules.numbers(), rnd.nextDouble()) : Trouble.slept(k);
             if (o != null) apply(p, sh, pr.g, k, o);
@@ -4284,7 +4484,10 @@ public final class StoreModule extends EcoModule {
             else if (r == StoreScenes.OTHERS) for (Guest g : sh.guests) {
                 if (!pl.has(g)) g.s.mood(m.getValue());
             }
-            else if (r >= 0 && r < pl.cast.length) pl.cast[r].s.mood(m.getValue());
+            else if (r >= 0 && r < pl.cast.length) {
+                pl.cast[r].s.mood(m.getValue());
+                if (m.getValue() <= -15) pl.cast[r].badly = true;   // told off in a scene: no cheerful thanks after it
+            }
         }
         for (Map.Entry<Integer, Double> t : e.tip().entrySet()) if (t.getKey() >= 0 && t.getKey() < pl.cast.length) pl.cast[t.getKey()].tipX *= t.getValue();
         if (e.calm() > 0) for (Guest g : sh.guests) {

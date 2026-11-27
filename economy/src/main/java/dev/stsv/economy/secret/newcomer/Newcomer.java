@@ -291,6 +291,19 @@ public final class Newcomer extends Secret {
             eco.getLogger().warning("[비밀] newcomer.yml: name \"" + who + "\" 은(는) 마인크래프트 이름 꼴(영문 · 숫자 · _ 3~16자)이 아니에요. 진짜 접속자처럼 보이지 않습니다.");
         }
         try {
+            // nobody may take his names as a nickname (the core's nicknames.banned-words)
+            List<String> banned = m.core().getConfig().getStringList("nicknames.banned-words").stream().map(x -> x.toLowerCase(Locale.ROOT)).toList();
+            List<String> open = new ArrayList<>();
+            for (String w : List.of(Talk.base(who), truth.name().toLowerCase(Locale.ROOT))) if (banned.stream().noneMatch(w::contains)) open.add(w);
+            for (String w : truth.alias()) if (!banned.contains(w.toLowerCase(Locale.ROOT))) open.add(w);
+            if (!open.isEmpty()) {
+                eco.getLogger().warning("[비밀] 새로 온 사람: 코어 config.yml 의 nicknames.banned-words 에 " + String.join(" · ", open)
+                        + " 을(를) 넣어 두세요 (누가 그 이름을 닉네임으로 가져가지 못하게).");
+            }
+        } catch (RuntimeException ignored) {
+            // no server yet
+        }
+        try {
             if (Names.byNickname(who).isPresent()) {
                 eco.getLogger().warning("[비밀] newcomer.yml: name \"" + who + "\" 은(는) 누군가의 닉네임이에요. 그 사람이 접속한 밤에는 이 비밀이 쉽니다. "
                         + "닉네임을 풀거나 (/관리자 닉네임 해제) 다른 이름으로 바꾸세요.");
@@ -423,6 +436,14 @@ public final class Newcomer extends Secret {
 
     private long seconds(String path, int def) {
         return 1000L * Math.max(0, cfg.getInt(path, def));
+    }
+
+    /** The least time a line takes him to type (what a call for his words can count on). */
+    private long typingAtLeast(String line) {
+        double[] think = drange("typing.think-seconds", 1.5, 4), cps = drange("typing.chars-per-second", 4, 7);
+        double chars = 0;
+        for (int i = 0; i < line.length(); i++) chars += line.charAt(i) == ' ' ? 0.5 : 1;
+        return Math.round((think[0] + chars / Math.max(0.5, cps[1])) * 900);
     }
 
     /** How long he takes to type a line (typing.think-seconds, typing.chars-per-second). */
@@ -914,14 +935,14 @@ public final class Newcomer extends Secret {
         else m.redraw();
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         String player = nameOf(by);
-        if (line == null) sayLater(by, cfg.getString("react.name", WHOLE_NAME).replace("{player}", player));
-        else if (r.whole(line)) sayLater(by, line == Shards.Line.DATE ? cfg.getString("react.date", WHOLE_DATE) : cfg.getString("react.what", WHOLE_WHAT));
-        else sayLater(by, line == Shards.Line.DATE && rnd.nextInt(3) == 0 ? BACK_DATE : Talk.pick(small("react.back", BACK, new ArrayList<>()), recent, rnd));
+        if (line == null) sayLater(by, cfg.getString("restored.name", WHOLE_NAME).replace("{player}", player));
+        else if (r.whole(line)) sayLater(by, line == Shards.Line.DATE ? cfg.getString("restored.date", WHOLE_DATE) : cfg.getString("restored.what", WHOLE_WHAT));
+        else sayLater(by, line == Shards.Line.DATE && rnd.nextInt(3) == 0 ? BACK_DATE : Talk.pick(small("restored.back", BACK, new ArrayList<>()), recent, rnd));
         String twoKey = test ? null : TWO;
         if (r.lines() == 2 && (twoKey == null ? m.get(this, by.getUniqueId(), "two") == null : !eco.kv().has(twoKey))) {
             if (twoKey == null) m.set(this, by.getUniqueId(), "two", 1);
             else eco.kv().set(twoKey, 1);
-            sayLater(by, cfg.getString("react.two", TWO_LINES));
+            sayLater(by, cfg.getString("restored.two", TWO_LINES));
         }
         if (r.restored() && r.wholeNight() == null) {
             LocalDateTime t = nowKst();
@@ -1126,11 +1147,11 @@ public final class Newcomer extends Secret {
         boolean real = v.viewer == null && v.night != null;
         if (voice.active() && real && voice.mood(LocalDate.parse(v.night), v.qs.size() - v.next) == Awakening.Mood.SLEEPY
                 && ThreadLocalRandom.current().nextBoolean()) line = Talk.pick(sleepy, recent, ThreadLocalRandom.current());
-        long at = now + typing(line);
+        long type = typing(line), at = now + type;
         Voice.Thought thought = voice.none();
         if (voice.active()) {
             long think = between("ai.think-seconds", 2, 5);
-            thought = chatWords(by, line, typing(line) + think, v.viewer != null || m.test(by));
+            thought = chatWords(by, line, type + think, v.viewer != null || m.test(by));
             if (thought.asked()) at += think;
         }
         v.pending.addLast(new Pending(line, Math.max(at, v.lastPending(at)), thought.asked() ? thought : null));
@@ -1256,7 +1277,7 @@ public final class Newcomer extends Secret {
         remember(recentWhispers, line, 4);
         // about the stone he never says more than his script (he never says yes); the rest the model may put in his words
         boolean scriptOnly = at == Stones.Where.OTHER || why.toString().startsWith("stone");
-        Voice.Thought thought = scriptOnly ? null : whisperWords(p, NewcomerMind.Kind.WHISPER, line, w.get().message(), List.of(), typing(line) + 3000L);
+        Voice.Thought thought = scriptOnly ? null : whisperWords(p, NewcomerMind.Kind.WHISPER, line, w.get().message(), List.of(), typingAtLeast(line) + 3000L);
         whisperLater(p, line, thought, thought != null && thought.asked() ? 3000L : 0);
     }
 
@@ -1343,7 +1364,7 @@ public final class Newcomer extends Secret {
         facts.add("그 조각에는 " + lacks + "이 없다");
         if (!place.isEmpty()) facts.add("겉모습으로 보아: " + place);
         facts.add(useful ? "비석에는 아직 이 조각이 채울 빈 자리가 있다" : "이 조각이 채울 자리는 비석에 이미 돌아와 있다");
-        Voice.Thought thought = whisperWords(p, NewcomerMind.Kind.SHARD, line, "", facts, typing(line) + 3000L);
+        Voice.Thought thought = whisperWords(p, NewcomerMind.Kind.SHARD, line, "", facts, typingAtLeast(line) + 3000L);
         whisperLater(p, line, thought, thought.asked() ? 3000L : 0);
         return true;
     }
@@ -1567,6 +1588,10 @@ public final class Newcomer extends Secret {
         counted.remove(u);
         vigil.cleanup(u);
         restore.slack(u);
+        if (!on()) {   // switched off: he does not stand at the stone, nothing of his can be clicked
+            vigil.stop();
+            restore.unhook();
+        }
     }
 
     /** A player's 초기화: their own test record goes with the rest (it shares their prefix); what he remembers of them too. */

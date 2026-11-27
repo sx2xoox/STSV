@@ -92,4 +92,72 @@ class BubblesTest {
         assertFalse(Bubbles.stillWaits(Bubbles.Kind.CHATTER, 0, 0), "chatter never waits");
         assertFalse(Bubbles.stillWaits(Bubbles.Kind.SCENE, 0, 0), "a scene's line never waits (it takes its place)");
     }
+
+    // ---- the worker's choices: speech bubbles on the worker's side
+
+    @Test
+    void theWorkersChoicesStandInFrontOfTheCustomerFromChestToHead() {
+        for (int n = 1; n <= 5; n++) {
+            double[] ys = Bubbles.choiceColumn(n);
+            assertEquals(n, ys.length);
+            assertEquals(Bubbles.CHOICE_CHEST, ys[0], 1e-9, "the first is the lowest, at the chest");
+            assertTrue(ys[n - 1] + Bubbles.choiceTall() <= Bubbles.CHOICE_HEAD + 1e-9, n + ": not over the head (the name tag stays free)");
+            for (int i = 1; i < n; i++) {
+                assertTrue(ys[i] > ys[i - 1]);
+                if (n <= 4) assertTrue(ys[i] - ys[i - 1] >= Bubbles.choiceTall() + 0.01, n + " choices do not overlap");
+            }
+        }
+        assertEquals(0, Bubbles.choiceColumn(0).length);
+        assertTrue(Bubbles.CHOICE_HEAD < Bubbles.OVER_FEET, "under where the customer's own bubble (and their name) is");
+        // towards the worker, never past them
+        double[] at = Bubbles.choiceSpot(0, 0, 3, 4);
+        assertEquals(Bubbles.CHOICE_OUT, Math.hypot(at[0], at[1]), 1e-9);
+        assertEquals(0.36, at[0], 1e-9);
+        assertEquals(0.48, at[1], 1e-9);
+        double[] close = Bubbles.choiceSpot(0, 0, 0.4, 0);
+        assertEquals(0.2, close[0], 1e-9, "a worker right at them: halfway");
+        assertEquals(0, Bubbles.choiceSpot(1, 1, 1, 1)[0] - 1, 1e-9);
+    }
+
+    @Test
+    void atTheTillTheChoicesAreOverTheWorkersEdge() {
+        // over the counter's worker half: beside the POS (its screen ends at z 7.41), off the customer's face (they stand at x -1.5)
+        assertTrue(Bubbles.CHOICE_TILL_X <= -2.7 && Bubbles.CHOICE_TILL_X > -3.0, "the worker's edge of the counter (x -3 .. -2)");
+        assertTrue(Bubbles.CHOICE_TILL_Z - 0.5 > StoreLayout.POS_Z + StoreLayout.POS_WIDE / 2 - 0.3, "not on the POS");
+        assertTrue(Bubbles.CHOICE_TILL_Y > StoreLayout.TOP + 0.3, "over the change keys and the mat");
+        assertTrue(Math.abs(Bubbles.CHOICE_TILL_X - (-1.5)) > 1.0, "not in the customer's face");
+        // four choices there are bands like any other: the counter customer's bubble goes over them, under the ceiling
+        List<Bubbles.Band> fixed = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            double lo = FEET + Bubbles.CHOICE_TILL_Y + Bubbles.CHOICE_STEP * i;
+            fixed.add(new Bubbles.Band(Bubbles.CHOICE_TILL_X, Bubbles.CHOICE_TILL_Z, lo, lo + Bubbles.choiceTall()));
+        }
+        for (int i = 1; i < 4; i++) assertFalse(fixed.get(i).overlaps(fixed.get(i - 1).lo(), fixed.get(i - 1).hi() - Bubbles.GAP - 1e-6) && Bubbles.CHOICE_STEP < Bubbles.choiceTall());
+        double y = Bubbles.place(-1.5, 7.5, WANT, ONE, CEIL, fixed);
+        assertFalse(Double.isNaN(y), "the customer still has room to speak");
+        for (Bubbles.Band f : fixed) assertFalse(f.overlaps(y, y + ONE), "clear of " + f);
+        assertTrue(y + ONE <= CEIL);
+        // in the aisle the column is under the customer's own bubble: it need not move at all
+        List<Bubbles.Band> aisle = new ArrayList<>();
+        for (double lo : Bubbles.choiceColumn(3)) aisle.add(new Bubbles.Band(1.5 - Bubbles.CHOICE_OUT, 9.5, FEET + lo, FEET + lo + Bubbles.choiceTall()));
+        assertEquals(WANT, Bubbles.place(1.5, 9.5, WANT, ONE, CEIL, aisle), 1e-9);
+    }
+
+    @Test
+    void wordsAreSpokenThingsDoneAreNot() {
+        assertTrue(Bubbles.action("(이번만 달아 준다)"));
+        assertTrue(Bubbles.action(" (그냥 둔다) "));
+        assertFalse(Bubbles.action("죄송합니다, 안 됩니다"));
+        assertFalse(Bubbles.action("(웃으며) 안 됩니다"));
+        assertFalse(Bubbles.action(null));
+        // a choice is clicked where its text is: wider for longer words, never tiny
+        assertTrue(Bubbles.choiceHalfWidth("판매") >= 0.22);
+        assertTrue(Bubbles.choiceHalfWidth("죄송하지만 그건 어렵습니다") > Bubbles.choiceHalfWidth("판매"));
+        assertEquals(9 * 6 / 40.0 * Bubbles.CHOICE_SCALE / 2 + 0.05, Bubbles.choiceHalfWidth("여섯글자말풍"), 1e-9);
+        // aimed at: whole and a little larger; said: over the head in a few ticks, for about 2.5 s
+        assertTrue(Bubbles.CHOICE_ALPHA < Bubbles.CHOICE_ALPHA_AIMED && Bubbles.CHOICE_AIMED > 1 && Bubbles.CHOICE_AIMED <= 1.2);
+        assertEquals(6, Bubbles.CHOICE_FLY);
+        assertEquals(50, Bubbles.CHOICE_SAID);
+        assertTrue(Bubbles.CHOICE_SCALE <= Bubbles.SCALE);
+    }
 }

@@ -61,26 +61,44 @@ class NewcomerTest {
         assertFalse(y.contains("react"), "the old two-line reaction is gone");
         assertFalse(y.contains("whisper.evasive"), "the old four-line cycle is gone");
         assertEquals(Newcomer.DEFAULT_ACROSTIC, y.getString("acrostic"));
-        assertEquals(Newcomer.ENDING, y.getStringList("ending.lines"));
         assertEquals(Newcomer.FIXES, y.getStringList("typo.fix"));
         assertEquals(Newcomer.TIME_WORDS, y.getStringList("visit.time-words"));
         assertEquals(Talk.STRANGE, y.getStringList("whisper.strange.lines"));
         assertEquals(Newcomer.DEFAULT_NAME, y.getString("name"));
         assertTrue(Whispers.account(y.getString("name")), "his name looks like an account");
-        assertTrue(y.getString("stone-name").endsWith(y.getString("name")), "the solved stone keeps his name");
-        assertEquals("economy:thirteenth", y.getString("rewards.title"));
+        assertEquals("economy:witness", y.getString("rewards.title"));
         assertEquals(0, y.getLong("rewards.money"));
-        // the keys the code reads for an ending that stops and for the perk are in the file
-        assertEquals("…아, 가시네요.", y.getString("ending.left"));
-        assertTrue(y.getDouble("ending.leave-range") > y.getDouble("stone.range"), "standing at the stone is not leaving it");
-        assertTrue(y.getBoolean("perk.no-leave-line"));
-        assertTrue(y.getBoolean("perk.show-kick"), "a kick or a ban is not hidden");
+        // the old ending (the stone handed on) and its perk are gone
+        assertFalse(y.contains("ending"), "the old ending is gone");
+        assertFalse(y.contains("stone-name"));
+        assertFalse(y.contains("solved-line"), "the announcement is his own, dated");
+        assertFalse(y.contains("too-late"));
+        // what the restoring and the end say is in the file as the code has it
+        assertEquals(Newcomer.FOUND, y.getStringList("stone.found-lines"));
+        assertEquals(Newcomer.AGAIN, y.getStringList("stone.again-lines"));
+        assertEquals(Newcomer.BACK, y.getStringList("restored.back"));
+        assertEquals(Newcomer.WHOLE_DATE, y.getString("restored.date"));
+        assertEquals(Newcomer.WHOLE_WHAT, y.getString("restored.what"));
+        assertEquals(Newcomer.WHOLE_NAME, y.getString("restored.name"));
+        assertEquals(Newcomer.TWO_LINES, y.getString("restored.two"));
+        assertEquals(Newcomer.ALL_BACK, y.getString("vigil.arrive"));
+        assertEquals(Vigil.LAST, y.getStringList("vigil.lines"));
+        assertEquals(Vigil.ANNOUNCE, y.getString("announce"));
+        assertEquals(Hanyoung.LINES, y.getStringList("hanyoung.lines"));
+        assertEquals(Hanyoung.FIXES, y.getStringList("hanyoung.fix"));
+        assertEquals(Newcomer.SLEEPY, y.getStringList("ai.sleepy"));
+        assertEquals(Newcomer.GOODNIGHT, y.getStringList("ai.goodnight"));
+        assertEquals(Record.Truth.NAME, y.getString("truth.name"));
+        assertEquals(Record.Truth.ALIAS, y.getStringList("truth.alias"));
+        assertEquals(Record.Truth.WHAT, y.getString("truth.what"));
+        assertEquals("", y.getString("truth.date"), "the day is worked out from the server's first join unless the owner sets one");
     }
 
     @Test
     void hisWordsAreSpokenNotWritten() {
         // nobody says "당신" to a stranger in chat; the one he speaks to is called by name
-        List<String> all = new java.util.ArrayList<>(Newcomer.ENDING);
+        List<String> all = new java.util.ArrayList<>(Newcomer.FOUND);
+        all.addAll(Vigil.LAST);
         for (List<Questions.Entry> pool : Questions.DEFAULTS.values()) {
             for (Questions.Entry e : pool) {
                 all.add(e.text());
@@ -99,8 +117,9 @@ class NewcomerTest {
             assertFalse(line.contains("!"), line);
             assertEquals(line.strip(), line);
         }
-        assertTrue(Newcomer.ENDING.stream().anyMatch(x -> x.contains("{player}님")));
-        for (String line : Newcomer.ENDING) assertTrue(line.startsWith("…"), line);
+        assertTrue(Vigil.LAST.stream().anyMatch(x -> x.contains("{player}님")));
+        for (String line : Vigil.LAST) assertTrue(line.startsWith("…"), line);
+        for (String line : Newcomer.FOUND) assertTrue(line.startsWith("…"), line);
         for (String line : Talk.STRANGE) assertTrue(line.startsWith("…"), line);
         for (List<Questions.Entry> pool : Questions.DEFAULTS.values()) {
             for (Questions.Entry e : pool) assertFalse(e.text().startsWith("…"), "in public he is only a new player: " + e.text());

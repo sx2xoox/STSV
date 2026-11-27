@@ -115,6 +115,7 @@ final class Vigil {
         boolean want = waitingNow() || (signing != null && !signing.preview);
         if (!want) {
             if (figure != null && signing == null) gone();
+            if (figure == null && ticks % 30 == 0) strays();
         } else if (figure == null || !figure.isValid()) {
             Optional<Location> at = standing();
             if (at.isPresent() && at.get().getWorld().isChunkLoaded(at.get().getBlockX() >> 4, at.get().getBlockZ() >> 4)) {
@@ -140,6 +141,15 @@ final class Vigil {
         asked.values().removeIf(t -> System.currentTimeMillis() - t > 10_000L);
         if (ticks % 60 == 0) lantern();
         if (ticks % 2 == 0) letters();
+    }
+
+    /** A figure left standing by a reload (it is not saved, but its chunk may never have unloaded) goes. */
+    private void strays() {
+        Optional<Location> st = n.stone();
+        if (st.isEmpty() || !st.get().getWorld().isChunkLoaded(st.get().getBlockX() >> 4, st.get().getBlockZ() >> 4)) return;
+        for (Entity e : st.get().getWorld().getNearbyEntities(st.get(), 12, 6, 12)) {
+            if (e instanceof Mannequin && e.getPersistentDataContainer().has(FIGURE, PersistentDataType.BYTE)) e.remove();
+        }
     }
 
     private void gone() {

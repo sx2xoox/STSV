@@ -433,6 +433,13 @@ class ContentTest {
             if (shop.sell().containsKey(id)) problems.add("the shop buys a secret item: " + id);
             makeable.add(id);
         }
+        // 글자가 번진 종이 (items/newcomer.yml): only that secret's code gives them; they may be traded on, the shop never buys them
+        for (String key : yaml("items/newcomer.yml").getKeys(false)) {
+            String id = "economy:" + key;
+            if (!secretCode.contains(key)) problems.add("no secret gives " + id);
+            if (shop.sell().containsKey(id)) problems.add("the shop buys a secret item: " + id);
+            makeable.add(id);
+        }
         for (String id : ours) if (!makeable.contains(id) && !oldGoods.contains(id)) problems.add("nobody can make " + id);
         for (String id : oldGoods) if (makeable.contains(id)) problems.add("an old good is made again: " + id + " (move it out of sell.legacy)");
         assertTrue(problems.isEmpty(), String.join("\n", problems));

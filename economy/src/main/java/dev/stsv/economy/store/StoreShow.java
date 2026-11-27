@@ -476,6 +476,99 @@ final class StoreShow {
         later(bag == null ? 1 : 11, handOver);
     }
 
+    // ------------------------------------------------------------------------------------------ the receipt
+
+    /** A strip standing in the printer's slot: what becomes of it, when it began to print, what it is when taken (or null). */
+    static final class Strip {
+        final ItemDisplay d;
+        final Receipt.Fate fate;
+        final long began;
+        final ItemStack prize;
+        boolean done;
+
+        Strip(ItemDisplay d, Receipt.Fate fate, long began, ItemStack prize) {
+            this.d = d;
+            this.fate = fate;
+            this.began = began;
+            this.prize = prize;
+        }
+    }
+
+    private void lengthen(ItemDisplay d, int ticks, float length, Vector3f translation) {
+        if (d == null || !d.isValid()) return;
+        Transformation t = d.getTransformation();
+        d.setInterpolationDelay(0);
+        d.setInterpolationDuration(Math.max(0, ticks));
+        d.setTransformation(new Transformation(translation, t.getLeftRotation(), new Vector3f(1, length, 1), t.getRightRotation()));
+    }
+
+    /**
+     * A sale's receipt ({@link Receipt}): the printer buzzes and the strip feeds out of its slot, is torn, and slides after
+     * the customer; a strip that stays (declined, or kept for the worker: `item` its model) is the shift's {@code receipt}
+     * until it is clicked or draws back. Nothing when the pack has no such model, the cap is reached, or a strip still waits.
+     */
+    Strip receipt(StoreModule.Shift sh, StoreModule.Guest g, Receipt.Fate fate, String item, ItemStack prize) {
+        if (!Receipt.prints(m.has(item), sh.receipt != null && !sh.receipt.done)) return null;
+        Location at = sh.shop.at(Receipt.X, Receipt.Y, Receipt.Z, Receipt.YAW);
+        all.removeIf(e -> !e.isValid());
+        if (all.size() >= CAP || at.getWorld() == null || !at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
+        ItemDisplay d = m.tipped(at, item, 1f, Receipt.TILT);
+        sh.fx.add(d);
+        all.add(d);
+        Transformation t0 = d.getTransformation();
+        d.setTransformation(new Transformation(new Vector3f(), t0.getLeftRotation(), new Vector3f(1, Receipt.SLIVER, 1), t0.getRightRotation()));
+        Strip strip = new Strip(d, fate, m.tick(), prize);
+        later(1, () -> lengthen(d, Receipt.FEED, 1f, new Vector3f()));   // one interpolation feeds it out
+        for (int b : Receipt.buzz()) later(1 + b, () -> {
+            if (d.isValid()) at.getWorld().playSound(at, Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.12f, 2.0f);
+        });
+        later(Receipt.TEAR, () -> {
+            if (d.isValid()) at.getWorld().playSound(at, Sound.ITEM_BOOK_PAGE_TURN, 0.45f, 1.7f);
+        });
+        if (fate == Receipt.Fate.BAG) {
+            later(Receipt.AWAY, () -> {
+                if (!d.isValid()) return;
+                // after the customer (their bag is in their hand by now); nobody there: to where the bag stood
+                Location to = g != null && g.m.isValid() ? g.m.getLocation().add(0, 0.9, 0) : sh.shop.at(-2.72, StoreLayout.TOP + 0.2, 8.95, 90);
+                Vector3f by = new Vector3f((float) (to.getX() - at.getX()), (float) (to.getY() - at.getY()), (float) (to.getZ() - at.getZ()));
+                if (by.length() > 4f) by.normalize(4f);
+                lengthen(d, Receipt.GONE - Receipt.AWAY, 0.25f, by);
+            });
+            later(Receipt.GONE, () -> {
+                strip.done = true;
+                d.remove();
+            });
+            return strip;
+        }
+        sh.receipt = strip;
+        if (fate == Receipt.Fate.DECLINED) {
+            later(Receipt.LEFT, () -> {
+                if (strip.done || !d.isValid()) return;
+                strip.done = true;
+                lengthen(d, Receipt.RETRACT, Receipt.SLIVER, new Vector3f());   // back into the slot
+                later(Receipt.RETRACT, d::remove);
+            });
+        }
+        return strip;
+    }
+
+    /** The worker's click on a strip that waits: into the bin under the counter (or, a kept one, into their hand). */
+    void takeReceipt(StoreModule.Shift sh, Player p) {
+        Strip s = sh.receipt;
+        if (s == null || s.done) return;
+        s.done = true;
+        sh.receipt = null;
+        Location at = s.d.getLocation();
+        if (s.prize != null) {
+            p.playSound(at, Sound.ITEM_BOOK_PAGE_TURN, 0.5f, 1.3f);
+            if (s.d.isValid()) s.d.remove();
+            return;
+        }
+        at.getWorld().playSound(at, Sound.ITEM_BUNDLE_DROP_CONTENTS, 0.4f, 1.4f);
+        lengthen(s.d, 5, 0.3f, new Vector3f(0, -0.7f, 0));
+        later(5, s.d::remove);
+    }
+
     // ------------------------------------------------------------------------------------------ 신분증
 
     /** The customer holds out their ID card (in their hand). */

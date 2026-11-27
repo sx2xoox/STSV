@@ -25,7 +25,7 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
     public static final List<String> SITUATIONS = List.of("enter", "browse", "pay", "wait", "thanks", "angry");
     /** The extra situations (default lines only, a kind may have its own). */
     public static final List<String> EXTRA = List.of("empty", "warm", "short", "over", "recognize", "card", "cash", "burnt", "warmed",
-            "dry", "expired", "messy", "unwarmed");
+            "dry", "expired", "messy", "unwarmed", Parting.SOUR_LINES, Parting.PLAIN_LINES, "no-receipt");
 
     /** A product: its id (economy:store_item_&lt;id&gt; is its model), name, price (원, the till's number) and place. */
     public record Product(String id, String name, int price, String place, double weight) {
