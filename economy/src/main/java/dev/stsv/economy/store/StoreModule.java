@@ -281,6 +281,18 @@ public final class StoreModule extends EcoModule {
      * Registers (null: removes) a module's customers under an id: asked every 30 seconds of a real shift for a visit
      * ({@link StoreVisit}). A hidden secret's way into the store.
      */
+    /** 숨은 비밀 (새로 온 사람): asked at each sale whether its receipt prints broken; what it gives is what the strip is when picked up. */
+    private java.util.function.Function<Player, ItemStack> receiptGlitch;
+
+    public void receiptGlitch(java.util.function.Function<Player, ItemStack> f) {
+        receiptGlitch = f;
+    }
+
+    /** An admin's look: this worker's printer prints a broken receipt now (false: they are not on a shift). */
+    public boolean printGlitch(Player worker, ItemStack prize) {
+        return false;
+    }
+
     public void visitor(String id, StoreVisit.Visitor v) {
         if (v == null) visitors.remove(id);
         else visitors.put(id, v);

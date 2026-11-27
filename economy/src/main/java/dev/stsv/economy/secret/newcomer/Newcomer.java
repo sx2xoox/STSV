@@ -16,7 +16,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.player.PlayerCommandPreprocessEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,6 +34,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
 /**
@@ -1623,14 +1624,215 @@ public final class Newcomer extends Secret {
         }
         b.append(" · 귓속말 <white>").append(m.getLong(this, u, "whispers", 0)).append("</white>회 (")
                 .append(m.getLong(this, u, "wnights", 0)).append("밤)");
-        if (farewells.containsKey(u)) b.append(" · 엔딩 중");
-        if (neverLeaves(u)) b.append(" · 퇴장 줄 숨김");
+        Record r = record(u);
+        b.append(" · 비석 진행").append(m.test(u) ? " (이 사람만: 테스트)" : "").append(" <white>").append(stoneState(r)).append("</white>");
+        if (m.get(this, u, "atstone") != null) b.append(" · 비석 앞 귓속말 함 (흔적이 보임)");
+        if (vigil.waitingNow()) b.append(" · <yellow>비석 앞에 서 있음 (증인을 기다림)</yellow>");
+        if (vigil.signingNow()) b.append(" · 서명 중");
+        b.append(" · ").append(aiState());
+        if (m.closed(this)) b.append(" · 편지 ").append(vigil.lettersState());
         return b.toString();
+    }
+
+    /** "이름 ✔ · 그날 2▒2▒-▒1-1▒ · 푼 것 꺼▒지 ▒는 ▒불" and who brought what. */
+    private String stoneState(Record r) {
+        if (!r.found()) return "아직 아무도 찾지 않음 (맨돌)";
+        StringBuilder b = new StringBuilder();
+        b.append("이름 ").append(r.named() ? "✔ (" + who(r.namer().orElse(null)) + ")" : "✘");
+        for (Shards.Line l : Shards.Line.values()) {
+            b.append(" · ").append(l.word).append(' ').append(esc(r.shown(l)));
+            List<UUID> by = r.givers(l);
+            if (!by.isEmpty()) b.append(" (").append(String.join(", ", by.stream().map(this::who).toList())).append(')');
+        }
+        if (truth.date().isEmpty()) b.append(" · <red>그날을 아직 모름 (첫 접속 기록 없음: truth.date 를 적으세요)</red>");
+        if (r.restored()) b.append(" · 모두 돌아옴 (").append(r.wholeNight()).append(" 밤)");
+        r.witness().ifPresent(w -> b.append(" · 증인 ").append(who(w)));
+        return b.toString();
+    }
+
+    private String who(UUID u) {
+        if (u == null) return "관리자";
+        String n = Bukkit.getOfflinePlayer(u).getName();
+        return n == null ? u.toString().substring(0, 8) : esc(n);
+    }
+
+    /** "AI 켜짐 · 비율 75% · 오늘 밤 대꾸 12/34 · 오늘 호출 40/400 · 쓴 줄 30 · 버린 줄 4 · 마지막 문제 …". */
+    private String aiState() {
+        Voice.Settings st = voice.settings();
+        if (!st.enabled()) return "AI <white>꺼짐</white> (ai.enabled)";
+        if (!voice.active()) return "AI <yellow>대본만</yellow> (서버 환경 변수 ANTHROPIC_API_KEY 없음)";
+        LocalDate today = LocalDate.now(SecretModule.KST), night = thisNight();
+        Double fixed = voice.fixed();
+        return "AI <green>켜짐</green> (" + esc(cfg.getString("ai.model", ClaudeMind.DEFAULT_MODEL)) + ") · 비율 <white>" + Math.round(voice.ratio(today) * 100) + "%</white>"
+                + (fixed != null ? " (막: 고정)" : " (" + voice.since(today) + " 부터 " + st.ratioStart() + " → 1.0, " + st.ratioDays() + "일)")
+                + " · " + night + " 밤 대꾸 <white>" + voice.answers(night.toString()) + "/" + voice.cap(night) + "</white>"
+                + (voice.asleep(night.toString()) ? " (자러 감)" : "")
+                + " · 오늘 호출 <white>" + voice.callsToday(today.toString()) + "/" + st.callsPerDay() + "</white>"
+                + " · AI 줄 " + voice.used() + " · 대본으로 떨어짐 " + voice.fell()
+                + (voice.lastError() == null ? "" : " · 마지막 문제 <yellow>" + esc(voice.lastError()) + "</yellow>");
     }
 
     @Override
     public List<String> scenes() {
-        return List.of("입장", "질문", "잡담:ㅎㅇ", "귓속말:누구세요", "삐짐", "삐짐풀기", "피곤", "엔딩", "퇴장", "비석");
+        return List.of("입장", "질문", "잡담:ㅎㅇ", "귓속말:누구세요", "ai:안녕하세요", "삐짐", "삐짐풀기", "피곤", "졸림", "한영키", "기억", "조각",
+                "조각주기:그날", "조각주기:푼것", "줄:이름:채우기", "줄:그날:채우기", "줄:푼것:채우기", "줄:이름:비우기", "줄:그날:비우기", "줄:푼것:비우기",
+                "흔적:버스", "흔적:편의점", "흔적:우편", "흔적:낚시", "되돌리기", "편지", "편지목록", "막:0.5", "막:해제", "퇴장", "비석");
+    }
+
+    /** One admin scene of the restoring and the end (연출 …); false when the word is not one of these. */
+    private boolean restoreScene(CommandSender admin, Player p, String word, String head) {
+        UUID u = p.getUniqueId();
+        String[] arg = word.split(":");
+        Record r = record(u);
+        switch (head) {
+            case "ai" -> {
+                String text = said(word, head);
+                if (text.isEmpty()) text = "안녕하세요";
+                if (!voice.active()) {
+                    admin.sendMessage(Text.msg("<gray>" + aiState() + " <gray>— 지금은 대본으로만 말해요"));
+                    return true;
+                }
+                Reaction re = react(text, true, true);
+                String scripted = re == null || re.line() == null ? "아 네네" : re.line();
+                overheard.addLast(new NewcomerMind.Heard(nameOf(p), text));
+                while (overheard.size() > 6) overheard.removeFirst();
+                Voice.Thought t = chatWords(u, scripted, voice.settings().timeoutMs(), true);
+                String heard = text;
+                admin.sendMessage(Text.msg("<gray>ai \"<white>" + esc(heard) + "</white>\" → 대본: <white>" + esc(scripted) + "</white> · AI 에게 물어보는 중 (최대 "
+                        + voice.settings().timeoutMs() / 1000 + "초)…"));
+                Bukkit.getScheduler().runTaskLater(eco, () -> {
+                    String line = t.or(scripted);
+                    admin.sendMessage(Text.msg("<gray>→ <white>" + esc(line) + "</white>" + (line.equals(scripted) ? " <yellow>(대본"
+                            + (voice.lastError() == null ? "" : ": " + esc(voice.lastError())) + ")" : " <green>(AI)")));
+                    if (p.isOnline()) p.sendMessage(look.chat(line));
+                }, Math.max(20L, voice.settings().timeoutMs() / 50));
+            }
+            case "졸림" -> {
+                CommandSender to = admin instanceof Player ? admin : p;
+                to.sendMessage(look.chat(Talk.pick(sleepy, List.of(), ThreadLocalRandom.current())));
+                to.sendMessage(look.chat(Talk.pick(goodnight, List.of(), ThreadLocalRandom.current())));
+                admin.sendMessage(Text.msg("<gray>졸림 (" + to.getName() + " 에게만): AI 가 켜진 밤, 그 밤의 대꾸 상한 5번 전부터 졸린 줄이 섞이고, 상한에서 (다섯 질문이 끝났으면) 자러 간다고 한 뒤 공개 채팅이 끝나요. 퇴장 줄은 없어요"));
+            }
+            case "한영키" -> {
+                long nth = eco.kv().getLong(TYPO_N, 0);
+                char c = Hanyoung.letter(truth.name(), nth);
+                String line = Hanyoung.slip(Talk.pick(Hanyoung.LINES, List.of(), ThreadLocalRandom.current()), c, ThreadLocalRandom.current());
+                CommandSender to = admin instanceof Player ? admin : p;
+                to.sendMessage(look.chat(line));
+                to.sendMessage(look.chat(Hanyoung.FIXES.getFirst()));
+                admin.sendMessage(Text.msg("<gray>한영키 (" + to.getName() + " 에게만, 아무것도 적지 않음): 다음 오타 글자 <white>" + c + "</white> (" + (nth % Math.max(1, truth.name().length()) + 1)
+                        + "번째 글자, 지금까지 " + nth + "밤) · " + (Clues.forAll(record(null).found()) ? "밤마다 두 번째 질문 뒤 한 번" : "<yellow>아직 아무도 비석을 찾지 않아서 시작 전")));
+            }
+            case "기억" -> admin.sendMessage(Text.msg("<gray>기억 " + p.getName() + ": <white>" + esc(Memories.brief(memories.of(u))) + "</white> · 편지 종류 <white>"
+                    + Memories.kind(memories.of(u)) + "</white> · 그가 기억하는 사람 " + memories.all().size() + "명"));
+            case "조각" -> admin.sendMessage(Text.msg("<gray>비석" + (m.test(u) ? " (" + p.getName() + " 의 테스트 기록)" : "") + ": <white>" + stoneState(r)
+                    + "</white> <gray>· 줄마다 조각 " + Shards.KINDS + "종 (0~2: 세 글자마다 하나, 3~5: 앞 · 가운데 · 뒤) · 그날 \"" + esc(truth.date()) + "\" · 푼 것 \"" + esc(truth.what()) + "\""));
+            case "조각주기" -> {
+                Optional<Shards.Line> line = arg.length > 1 ? Shards.Line.of(arg[1]) : Optional.empty();
+                if (line.isEmpty()) {
+                    admin.sendMessage(Text.msg("<gray>/관리자 비밀 연출 새로온사람 조각주기:<그날|푼것>[:종 0~5] [플레이어]"));
+                    return true;
+                }
+                int kind = -1;
+                try {
+                    if (arg.length > 2) kind = Math.floorMod(Integer.parseInt(arg[2]), Shards.KINDS);
+                } catch (NumberFormatException e) {
+                    kind = -1;
+                }
+                Shards.Look lk = line.get() == Shards.Line.DATE ? Shards.Look.TICKET : Shards.Look.LETTER;
+                Optional<ItemStack> it = restore.make(lk, r, line.get(), kind);
+                if (it.isEmpty()) {
+                    admin.sendMessage(Text.msg("<red>그 줄의 조각을 만들 수 없어요 (그날을 아직 모름: truth.date)"));
+                    return true;
+                }
+                for (ItemStack left : p.getInventory().addItem(it.get()).values()) p.getWorld().dropItem(p.getLocation(), left);
+                admin.sendMessage(Text.msg("<gray>" + p.getName() + " 에게 조각 (" + line.get().word + ", " + Restore.read(it.get()).map(Shards.Shard::tag).orElse("?")
+                        + "). 들고 그의 비석을 우클릭하면 들어가요"));
+            }
+            case "줄" -> {
+                boolean fill = arg.length > 2 && arg[2].equals("채우기"), clear = arg.length > 2 && arg[2].equals("비우기");
+                String which = arg.length > 1 ? arg[1] : "";
+                Optional<Shards.Line> line = Shards.Line.of(which);
+                if ((!fill && !clear) || (line.isEmpty() && !which.equals("이름"))) {
+                    admin.sendMessage(Text.msg("<gray>/관리자 비밀 연출 새로온사람 줄:<이름|그날|푼것>:<채우기|비우기> [플레이어] — 테스트 모드인 사람이면 그 사람의 기록만"));
+                    return true;
+                }
+                r.find(null, System.currentTimeMillis());
+                if (line.isPresent()) r.force(line.get(), fill);
+                else if (fill) r.name(null);
+                else r.unname();
+                if (clear) r.wholeNight(null);
+                if (fill && r.restored() && r.wholeNight() == null) {
+                    LocalDateTime t = nowKst();
+                    r.wholeNight(Schedule.night(t, from, to).orElse(Schedule.next(t, from, to).minusDays(1)).toString());
+                }
+                if (m.test(u)) p.sendMessage(Text.msg("<yellow>[테스트] 비석 (나에게만):<newline>" + r.text()));
+                else m.redraw();
+                admin.sendMessage(Text.msg("<gray>" + which + " 줄을 " + (fill ? "채웠어요" : "비웠어요") + " (그의 대사는 없음: 판정만) · <white>" + stoneState(r)
+                        + (r.restored() ? "</white> <gray>· 세 줄이 다 돌아왔어요: " + (m.test(u) ? "테스트 모드에서는 바로 비석을 맨손으로 두 번 우클릭" : "다음 밤부터 그가 비석 앞에 서 있음 (지금 보려면 되돌리기)") : "")));
+            }
+            case "흔적" -> {
+                Optional<Shards.Look> lk = arg.length > 1 ? Shards.Look.ofPlace(arg[1]) : Optional.empty();
+                if (lk.isEmpty()) {
+                    admin.sendMessage(Text.msg("<gray>/관리자 비밀 연출 새로온사람 흔적:<버스|편의점|우편|낚시> [플레이어] — 지금 그 흔적을 (확률 · 하루 상한 무시)"));
+                    return true;
+                }
+                boolean done = switch (lk.get()) {
+                    case TICKET -> restore.bus(p, null, true);
+                    case LETTER -> restore.mail(p, true);
+                    case BOTTLE -> {
+                        restore.bite(p, p.getEyeLocation().add(p.getLocation().getDirection().multiply(3)), true);
+                        restore.caught(p);
+                        yield true;
+                    }
+                    case RECEIPT -> {
+                        Optional<ItemStack> it = restore.trace(p, Shards.Look.RECEIPT, true);
+                        boolean printed = it.isPresent() && eco.store() != null && eco.store().printGlitch(p, it.get());
+                        if (it.isPresent() && !printed) for (ItemStack left : p.getInventory().addItem(it.get()).values()) p.getWorld().dropItem(p.getLocation(), left);
+                        if (it.isPresent()) admin.sendMessage(Text.msg(printed ? "<gray>(근무 중: 계산대 프린터에서 깨진 영수증이 나와요. 우클릭해 집어요)" : "<gray>(근무 중이 아니라 조각을 바로 줬어요)"));
+                        yield it.isPresent();
+                    }
+                };
+                admin.sendMessage(Text.msg(done ? "<gray>흔적 (" + arg[1] + ") 을 " + p.getName() + " 에게 보였어요" : "<red>지금은 그 흔적을 만들 수 없어요 (그날을 모르거나, 우편함이 없음)"));
+            }
+            case "되돌리기" -> {
+                vigil.preview(p);
+                admin.sendMessage(Text.msg("<gray>되돌리기 미리 보기 (" + p.getName() + " 에게만, 아무것도 적지 않음, 약 23초): 그가 돌아봄 → 그날 날짜의 공지 → 귓속말 → 이름표가 바뀜 → 퇴장 줄"));
+            }
+            case "편지" -> {
+                admin.sendMessage(Text.msg("<gray>편지 → " + p.getName() + " (" + Memories.kind(memories.of(u)) + (eco.kv().has(K + "letter." + u) ? ", 써 둔 것" : ", 지금 쓴다면 · 대본") + "):"));
+                for (String l : vigil.letter(u)) admin.sendMessage(Text.mm(" <white>" + esc(l)));
+            }
+            case "편지목록" -> {
+                admin.sendMessage(Text.msg("<gray>편지 " + vigil.lettersState() + " · 받을 사람 " + memories.all().size() + "명 (그에게 말을 건 적 있는 계정):"));
+                int shown = 0;
+                for (Map.Entry<UUID, Memories.Note> e : memories.all().entrySet()) {
+                    if (shown++ >= 40) {
+                        admin.sendMessage(Text.mm(" <dark_gray>… 외 " + (memories.all().size() - 40) + "명"));
+                        break;
+                    }
+                    admin.sendMessage(Text.mm(" <white>" + esc(e.getValue().name()) + " <gray>" + Memories.kind(e.getValue()) + " · " + esc(Memories.brief(e.getValue()))));
+                }
+            }
+            case "막" -> {
+                String v = arg.length > 1 ? arg[1] : "";
+                if (v.equals("해제")) {
+                    voice.fix(null);
+                } else {
+                    try {
+                        voice.fix(Double.parseDouble(v));
+                    } catch (NumberFormatException e) {
+                        admin.sendMessage(Text.msg("<gray>/관리자 비밀 연출 새로온사람 막:<0~1|해제> — AI 가 쓰는 대꾸의 비율을 고정 (해제: 켠 날부터 ai.ratio-start → 1.0, ai.ratio-days 일)"));
+                        return true;
+                    }
+                }
+                admin.sendMessage(Text.msg("<gray>" + aiState()));
+            }
+            default -> {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** "잡담:말_몇_마디" → "말 몇 마디" (the admin command takes one word: "_" for spaces). */
@@ -1642,6 +1844,7 @@ public final class Newcomer extends Secret {
     @Override
     public boolean scene(CommandSender admin, Player p, String word) {
         String head = word.contains(":") ? word.substring(0, word.indexOf(':')) : word;
+        if (restoreScene(admin, p, word, head)) return true;
         switch (head) {
             case "입장" -> p.sendMessage(joinLine(true));
             case "질문" -> {
@@ -1685,7 +1888,7 @@ public final class Newcomer extends Secret {
                 StringBuilder why = new StringBuilder();
                 String line = whisperReply(text, m.getLong(this, p.getUniqueId(), "wnights", 0), why);
                 admin.sendMessage(Text.msg("<gray>귓속말 \"<white>" + esc(text) + "</white>\" → <white>" + why + "</white>"
-                        + " (비석 앞이 아닐 때. 그의 비석 앞이면 엔딩, 다른 비석 앞이면 wrong-stone)"));
+                        + " (비석 앞이 아닐 때. 그의 비석 앞이면 stone.found-lines, 다른 비석 앞이면 wrong-stone)"));
                 p.sendMessage(look.outgoing(text));
                 if (line != null) p.sendMessage(incoming(line));
             }
@@ -1710,12 +1913,11 @@ public final class Newcomer extends Secret {
                 admin.sendMessage(Text.msg(was || own ? "<gray>삐짐을 풀었어요. 그 밤의 방문은 끝난 것으로 적혀 있으니, 다시 보려면 /관리자 비밀 시작 새로온사람 (입장 줄은 그 밤에 이미 떴다면 없이)"
                         : "<gray>지금 삐져 있지 않아요 (기록만 지움: 다음 밤의 \"어제는 죄송했어요\" 도 없음)"));
             }
-            case "엔딩" -> farewell(p, true);
             case "퇴장" -> p.sendMessage(joinLine(false));
             case "비석" -> {
                 Optional<Location> st = stone();
                 if (st.isEmpty()) {
-                    admin.sendMessage(Text.msg("<red>기념비가 없어요 (또는 그 월드가 없음). 먼저 /관리자 비밀 비석 세우기 — 그 전에는 이 비밀을 끝낼 수 없어요"));
+                    admin.sendMessage(Text.msg("<red>기념비가 없어요 (또는 그 월드가 없음). 먼저 /관리자 비밀 비석 세우기 — 그 전에는 이 비밀을 풀 수 없어요"));
                 } else {
                     Location l = st.get();
                     boolean real = stones.find(id(), m.all()).map(Stones.Found::real).orElse(false);
