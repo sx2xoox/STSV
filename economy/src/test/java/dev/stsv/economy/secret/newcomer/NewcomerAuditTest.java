@@ -479,4 +479,15 @@ class NewcomerAuditTest {
             assertEquals(e.getValue(), y.getInt(e.getKey()), e.getKey());
         }
     }
+
+    /** 키 파일 (호스팅 패널처럼 환경 변수를 못 넣는 서버): 첫 줄 (빈 줄 · # 주석 건너뜀), 없거나 비면 null. */
+    @Test
+    void theKeyFileIsReadFromTheServersFolderOnly(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
+        assertNull(ClaudeMind.keyFile(dir));
+        assertNull(ClaudeMind.keyFile(null));
+        java.nio.file.Files.writeString(dir.resolve(ClaudeMind.KEY_FILE), "# 여기에 키 한 줄\n\n   \n");
+        assertNull(ClaudeMind.keyFile(dir));
+        java.nio.file.Files.writeString(dir.resolve(ClaudeMind.KEY_FILE), "\uFEFF# 주석\n\n  sk-test-not-a-real-key  \n다른 줄\n");
+        assertEquals("sk-test-not-a-real-key", ClaudeMind.keyFile(dir));
+    }
 }

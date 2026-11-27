@@ -35,12 +35,20 @@ public final class ClaudeCall implements BiFunction<String, String, String>, Aut
     private final long maxTokens;
     private final Consumer<String> problem;
 
-    /** The credential comes from the environment only (ANTHROPIC_API_KEY, read by the SDK itself; never logged). */
+    /** The credential from the environment (ANTHROPIC_API_KEY, read by the SDK itself; never logged). */
     public ClaudeCall(String model, long maxTokens, Duration timeout, Consumer<String> problem) {
+        this(model, maxTokens, timeout, problem, null);
+    }
+
+    /** key: the credential read from the server's key file (ClaudeMind.keyFile), or null = the environment. Never logged. */
+    public ClaudeCall(String model, long maxTokens, Duration timeout, Consumer<String> problem, String key) {
         this.model = model;
         this.maxTokens = maxTokens;
         this.problem = problem;
-        this.client = AnthropicOkHttpClient.builder().fromEnv().maxRetries(0).timeout(timeout).build();
+        AnthropicOkHttpClient.Builder b = AnthropicOkHttpClient.builder();
+        if (key != null && !key.isBlank()) b.apiKey(key.strip());
+        else b.fromEnv();
+        this.client = b.maxRetries(0).timeout(timeout).build();
     }
 
     /** system: the persona (stable, cached); user: everything that changes. The reply's text, or null. */

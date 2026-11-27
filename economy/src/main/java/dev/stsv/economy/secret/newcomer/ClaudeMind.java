@@ -40,6 +40,30 @@ final class ClaudeMind implements NewcomerMind {
         return present(System.getenv("ANTHROPIC_API_KEY")) || present(System.getenv("ANTHROPIC_AUTH_TOKEN"));
     }
 
+    /** The key file's name in the plugin's data folder (plugins/<경제 플러그인>/anthropic.key): for hosts where no environment variable can be set. */
+    static final String KEY_FILE = "anthropic.key";
+
+    /**
+     * The key in the server's key file, or null: the first line that is not blank and not a # comment, stripped.
+     * The file lives only on the server (never in the repository, never in the content pack); its value is never logged.
+     */
+    static String keyFile(java.nio.file.Path dataFolder) {
+        if (dataFolder == null) return null;
+        try {
+            java.nio.file.Path f = dataFolder.resolve(KEY_FILE);
+            if (!java.nio.file.Files.isRegularFile(f)) return null;
+            for (String line : java.nio.file.Files.readAllLines(f, java.nio.charset.StandardCharsets.UTF_8)) {
+                String t = line.strip();
+                if (t.startsWith("\uFEFF")) t = t.substring(1).strip();
+                if (t.isEmpty() || t.startsWith("#")) continue;
+                return t;
+            }
+        } catch (Exception e) {
+            return null;   // unreadable = no key (the reason is not worth a secret's worth of logging)
+        }
+        return null;
+    }
+
     private static boolean present(String s) {
         return s != null && !s.isBlank();
     }

@@ -121,9 +121,15 @@ final class Sdk {
      */
     @SuppressWarnings("unchecked")
     static Optional<NewcomerMind> mind(ClassLoader bridge, String model, long maxTokens, Duration timeout, Consumer<String> problem) {
+        return mind(bridge, model, maxTokens, timeout, problem, null);
+    }
+
+    /** key: the server's key file's key, or null = the environment's. */
+    @SuppressWarnings("unchecked")
+    static Optional<NewcomerMind> mind(ClassLoader bridge, String model, long maxTokens, Duration timeout, Consumer<String> problem, String key) {
         try {
-            Object o = Class.forName(BRIDGE, true, bridge).getConstructor(String.class, long.class, Duration.class, Consumer.class)
-                    .newInstance(model, maxTokens, timeout, problem);
+            Object o = Class.forName(BRIDGE, true, bridge).getConstructor(String.class, long.class, Duration.class, Consumer.class, String.class)
+                    .newInstance(model, maxTokens, timeout, problem, key);
             return Optional.of(new ClaudeMind((BiFunction<String, String, String>) o, (AutoCloseable) o, problem));
         } catch (Throwable e) {
             if (e instanceof VirtualMachineError v) throw v;
@@ -135,7 +141,11 @@ final class Sdk {
 
     /** The mind when the SDK is ready, else empty (then {@link #fetch} it). */
     static Optional<NewcomerMind> mind(String model, long maxTokens, Duration timeout, Consumer<String> problem) {
+        return mind(model, maxTokens, timeout, problem, null);
+    }
+
+    static Optional<NewcomerMind> mind(String model, long maxTokens, Duration timeout, Consumer<String> problem, String key) {
         ClassLoader b = bridge;
-        return state == State.READY && b != null ? mind(b, model, maxTokens, timeout, problem) : Optional.empty();
+        return state == State.READY && b != null ? mind(b, model, maxTokens, timeout, problem, key) : Optional.empty();
     }
 }

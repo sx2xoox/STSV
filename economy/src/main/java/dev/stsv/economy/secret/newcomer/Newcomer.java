@@ -408,10 +408,12 @@ public final class Newcomer extends Secret {
             if (model == null || model.isBlank()) model = ClaudeMind.DEFAULT_MODEL;
             long maxTokens = Math.max(1024, cfg.getLong("ai.max-tokens", 16000));
             try {
-                if (!ClaudeMind.credential()) {
-                    eco.getLogger().info("[비밀] 새로 온 사람: ai.enabled 이지만 서버 환경 변수 ANTHROPIC_API_KEY 가 없어서 대본으로만 말합니다");
+                String key = ClaudeMind.keyFile(eco.getDataFolder().toPath());   // the server's own file first, then the environment
+                if (key == null && !ClaudeMind.credential()) {
+                    eco.getLogger().info("[비밀] 새로 온 사람: ai.enabled 이지만 키가 없어서 대본으로만 말합니다 (plugins/" + eco.getDataFolder().getName()
+                            + "/" + ClaudeMind.KEY_FILE + " 또는 환경 변수 ANTHROPIC_API_KEY)");
                 } else {
-                    Optional<NewcomerMind> made = Sdk.mind(model.strip(), maxTokens, java.time.Duration.ofMillis(st.timeoutMs()), voice::error);
+                    Optional<NewcomerMind> made = Sdk.mind(model.strip(), maxTokens, java.time.Duration.ofMillis(st.timeoutMs()), voice::error, key);
                     if (made.isPresent()) {
                         mind = made.get();
                         eco.getLogger().info("[비밀] 새로 온 사람: AI 켜짐 (모델 " + model + ")");
@@ -1802,7 +1804,7 @@ public final class Newcomer extends Secret {
     private String aiState() {
         Voice.Settings st = voice.settings();
         if (!st.enabled()) return "AI <white>꺼짐</white> (ai.enabled)";
-        if (!voice.active()) return "AI <yellow>대본만</yellow> (서버 환경 변수 ANTHROPIC_API_KEY 없음)";
+        if (!voice.active()) return "AI <yellow>대본만</yellow> (키 없음: plugins/" + eco.getDataFolder().getName() + "/" + ClaudeMind.KEY_FILE + ")";
         LocalDate today = LocalDate.now(SecretModule.KST), night = thisNight();
         Double fixed = voice.fixed();
         return "AI <green>켜짐</green> (" + esc(cfg.getString("ai.model", ClaudeMind.DEFAULT_MODEL)) + ") · 비율 <white>" + Math.round(voice.ratio(today) * 100) + "%</white>"
