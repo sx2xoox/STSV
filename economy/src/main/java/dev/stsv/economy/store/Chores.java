@@ -82,18 +82,38 @@ public final class Chores {
      * Returns the boxes that came now.
      */
     public List<String> delivery(StoreSpec spec, long slot) {
+        return delivery(spec, slot, null);
+    }
+
+    /** {@link #delivery(StoreSpec, long)} with the 발주's box kind (`ordered`, null: none) on the truck too (§17). */
+    public List<String> delivery(StoreSpec spec, long slot, String ordered) {
         if (lastSlot == Long.MIN_VALUE) {
             lastSlot = slot;
             return List.of();
         }
         if (slot == lastSlot) return List.of();
         lastSlot = slot;
-        return deliver(spec);
+        return deliver(spec, ordered);
     }
 
     /** A box now for every shelf that is not full (and has none waiting): those boxes. */
     public List<String> deliver(StoreSpec spec) {
+        return deliver(spec, null);
+    }
+
+    /**
+     * A box now for every shelf that is not full (and has none waiting), and the ordered kind's box (발주: `ordered`, a box
+     * kind or null) even when its shelf is full: those boxes, the ordered one first.
+     */
+    public List<String> deliver(StoreSpec spec, String ordered) {
         List<String> came = new ArrayList<>();
+        if (ordered != null && !boxes.contains(ordered) && !ordered.equals(carrying)) {
+            for (StoreSpec.Shelf s : spec.shelves().values()) if (s.box().equals(ordered)) {
+                boxes.add(ordered);
+                came.add(ordered);
+                break;
+            }
+        }
         for (StoreSpec.Shelf s : spec.shelves().values()) {
             if (stock(s.place()) >= s.capacity() || boxes.contains(s.box()) || s.box().equals(carrying)) continue;
             boxes.add(s.box());
@@ -127,7 +147,8 @@ public final class Chores {
     public boolean restock(StoreSpec spec, String place) {
         StoreSpec.Shelf s = spec.shelves().get(place);
         if (s == null || carrying == null || !carrying.equals(s.box())) return false;
-        stock.put(place, s.capacity());        carrying = null;
+        stock.put(place, s.capacity());
+        carrying = null;
         return true;
     }
 
@@ -256,7 +277,9 @@ public final class Chores {
     // ------------------------------------------------------------------------------------------ 청소 · 온수 (2차)
 
     private final List<String> spills = new ArrayList<>();
+    private final Map<String, Integer> stages = new LinkedHashMap<>();
     private final boolean[] cups = new boolean[3];
+    private int carriedCups;
     private boolean mop;
     private int water = -1;
 
@@ -283,7 +306,28 @@ public final class Chores {
 
     /** Mops a spill (only with the mop in hand): true when it was there. */
     public boolean wipe(String node) {
-        return mop && spills.remove(node);
+        if (!mop || !spills.remove(node)) return false;
+        stages.remove(node);
+        return true;
+    }
+
+    /** A spill's stage (1 = as spilt, up to {@link StoreMotion#WIPES}); 0 when there is none. */
+    public int stage(String node) {
+        return spills.contains(node) ? stages.getOrDefault(node, 1) : 0;
+    }
+
+    /**
+     * One stroke of the mop on a spill (only with the mop in hand, §17): its stage after (0 = gone, it is off the floor);
+     * -1 when there was none or no mop.
+     */
+    public int wipeOnce(String node) {
+        if (!mop || !spills.contains(node)) return -1;
+        int next = StoreMotion.wiped(stage(node));
+        if (next == 0) {
+            spills.remove(node);
+            stages.remove(node);
+        } else stages.put(node, next);
+        return next;
     }
 
     /** A 컵라면 cup left at seat i of the eat bar (at most `most` messes): true if it was put there. */
@@ -302,6 +346,24 @@ public final class Chores {
         if (!cup(seat)) return false;
         cups[seat] = false;
         return true;
+    }
+
+    /** A cup off the bar onto the worker's tray (§17): true when there was one. */
+    public boolean trayCup(int seat) {
+        if (!clearCup(seat)) return false;
+        carriedCups++;
+        return true;
+    }
+
+    public int carriedCups() {
+        return carriedCups;
+    }
+
+    /** The tray emptied into the 폐기 바구니: how many cups. */
+    public int dumpCups() {
+        int n = carriedCups;
+        carriedCups = 0;
+        return n;
     }
 
     /** How many messes there are (spills and cups): each sours entering customers. */
