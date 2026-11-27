@@ -33,6 +33,8 @@ final class Clues {
 
     /** Whether one more shard may be found: under the player's count for the day and the server's. */
     static boolean room(String day, String playerDay, long playerCount, int perPlayer, String serverDay, long serverCount, int perServer) {
-        return Awakening.under(day, playerDay, playerCount, perPlayer) && Awakening.under(day, serverDay, serverCount, perServer);
+        // 0 or less = no daily limit (주인 결정: 하루 제한 없음)
+        return (perPlayer <= 0 || Awakening.under(day, playerDay, playerCount, perPlayer))
+                && (perServer <= 0 || Awakening.under(day, serverDay, serverCount, perServer));
     }
 }

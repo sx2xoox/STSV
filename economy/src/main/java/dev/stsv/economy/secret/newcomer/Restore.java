@@ -125,8 +125,8 @@ final class Restore implements BusModule.Watcher {
         if (test(u)) return true;
         String day = LocalDate.now(dev.stsv.economy.secret.SecretModule.KST).toString();
         var kv = n.kv();
-        return Clues.room(day, n.module().get(n, u, "clue.day"), n.module().getLong(n, u, "clue.n", 0), n.cfg().getInt("clues.per-player-day", 1),
-                kv.get(Newcomer.K + "clue.day"), kv.getLong(Newcomer.K + "clue.n", 0), n.cfg().getInt("clues.per-server-day", 4));
+        return Clues.room(day, n.module().get(n, u, "clue.day"), n.module().getLong(n, u, "clue.n", 0), n.cfg().getInt("clues.per-player-day", 0),
+                kv.get(Newcomer.K + "clue.day"), kv.getLong(Newcomer.K + "clue.n", 0), n.cfg().getInt("clues.per-server-day", 0));
     }
 
     private void counted(UUID u) {

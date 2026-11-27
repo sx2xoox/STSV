@@ -206,8 +206,9 @@ class NewcomerRestoreTest {
         assertTrue(Clues.room("d2", "d1", 1, 1, "d1", 4, 4), "a new day");
         assertFalse(Clues.room("d1", null, 0, 1, "d1", 4, 4), "the server's for today are found");
         assertEquals("player", NewcomerTest.yml().getString("clues.gate"));
-        assertEquals(1, NewcomerTest.yml().getInt("clues.per-player-day"));
-        assertEquals(4, NewcomerTest.yml().getInt("clues.per-server-day"));
+        assertEquals(0, NewcomerTest.yml().getInt("clues.per-player-day"));   // 주인 결정: 하루 제한 없음
+        assertEquals(0, NewcomerTest.yml().getInt("clues.per-server-day"));
+        assertTrue(Clues.room("d1", "d1", 99, 0, "d1", 999, 0), "0 = no limit");
         for (String k : List.of("clues.bus.chance", "clues.store.chance", "clues.fishing.chance", "clues.mail.chance-per-hour")) {
             double c = NewcomerTest.yml().getDouble(k, -1);
             assertTrue(c > 0 && c <= 0.25, k + " is low: " + c);
