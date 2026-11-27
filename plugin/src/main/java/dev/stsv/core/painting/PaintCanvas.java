@@ -5,15 +5,18 @@ import java.util.BitSet;
 
 /**
  * A painting's 128 x 128 pixels (map colour bytes, row by row: index = v * 128 + u, u to the right, v down) and the
- * drawing on them: a brush stamp, a line of stamps, a flood fill. Every change goes into a {@link Stroke} (the pixel's
+ * drawing on them. Drawing works on a 32 x 32 grid of 4 x 4-pixel cells (a brush stamp, a line of stamps, a flood
+ * fill, all in cells); the pixels stay 128 x 128 so a map shows them as they are and older paintings load unchanged. Every change goes into a {@link Stroke} (the pixel's
  * colour before the stroke first touched it), so a stroke can be undone. No Bukkit: pure, tested logic.
  */
 public final class PaintCanvas {
 
     public static final int SIZE = 128;
     public static final int PIXELS = SIZE * SIZE;
-    /** Brush sizes a painter can pick (pixels across). */
-    public static final int[] BRUSH_SIZES = {1, 2, 4};
+    /** a drawing cell is CELL x CELL pixels; the grid is GRID x GRID cells */
+    public static final int CELL = 4, GRID = SIZE / CELL, CELLS = GRID * GRID;
+    /** Brush sizes a painter can pick (cells across). */
+    public static final int[] BRUSH_SIZES = {1, 2, 3};
 
     private final byte[] px;
 
@@ -58,30 +61,60 @@ public final class PaintCanvas {
         return true;
     }
 
+    /** The colour of a cell: its top-left pixel (a cell of an older, pixel-drawn painting may hold more than one). */
+    public byte cell(int cu, int cv) {
+        return get(cu * CELL, cv * CELL);
+    }
+
+    public static boolean insideGrid(int cu, int cv) {
+        return cu >= 0 && cv >= 0 && cu < GRID && cv < GRID;
+    }
+
+    /** The cell a canvas pixel (u or v) lies in. */
+    public static int cellOf(int pixel) {
+        return Math.floorDiv(pixel, CELL);
+    }
+
+    /** Paints a whole cell (all its 16 pixels; outside the grid: nothing). True when any pixel changed. */
+    public boolean setCell(int cu, int cv, byte color, Stroke stroke) {
+        if (!insideGrid(cu, cv)) return false;
+        boolean any = false;
+        for (int dv = 0; dv < CELL; dv++) {
+            for (int du = 0; du < CELL; du++) any |= set(cu * CELL + du, cv * CELL + dv, color, stroke);
+        }
+        return any;
+    }
+
     /**
-     * The brush's footprint at (u, v): a size x size square from (u - size/2, v - size/2), the 4 x 4 brush with its
-     * corners cut (round). Returns how many pixels changed.
+     * The cells a brush of this size covers at (cu, cv), clipped to the grid: {u0, v0, u1, v1}, both ends included, or
+     * null when none is on the grid. A size x size square from (cu - size/2, cv - size/2).
      */
-    public int stamp(int u, int v, int size, byte color, Stroke stroke) {
-        int changed = 0;
+    public static int[] stampBounds(int cu, int cv, int size) {
         int o = size / 2;
-        for (int dv = 0; dv < size; dv++) {
-            for (int du = 0; du < size; du++) {
-                if (size >= 4 && (du == 0 || du == size - 1) && (dv == 0 || dv == size - 1)) continue;
-                if (set(u - o + du, v - o + dv, color, stroke)) changed++;
-            }
+        int u0 = Math.max(0, cu - o), v0 = Math.max(0, cv - o);
+        int u1 = Math.min(GRID - 1, cu - o + size - 1), v1 = Math.min(GRID - 1, cv - o + size - 1);
+        return u0 > u1 || v0 > v1 ? null : new int[]{u0, v0, u1, v1};
+    }
+
+    /** The brush's footprint at cell (cu, cv) ({@link #stampBounds}). Returns how many cells changed. */
+    public int stamp(int cu, int cv, int size, byte color, Stroke stroke) {
+        int[] b = stampBounds(cu, cv, size);
+        if (b == null) return 0;
+        int changed = 0;
+        for (int v = b[1]; v <= b[3]; v++) {
+            for (int u = b[0]; u <= b[2]; u++) if (setCell(u, v, color, stroke)) changed++;
         }
         return changed;
     }
 
-    /** Stamps along the line from (u0, v0) to (u1, v1) (Bresenham, both ends included). */
+    /** Stamps cell by cell along the line from cell (u0, v0) to (u1, v1) (Bresenham, both ends included). */
     public int line(int u0, int v0, int u1, int v1, int size, byte color, Stroke stroke) {
         int changed = 0;
         int du = Math.abs(u1 - u0), dv = -Math.abs(v1 - v0);
         int su = u0 < u1 ? 1 : -1, sv = v0 < v1 ? 1 : -1;
         int err = du + dv;
         int u = u0, v = v0;
-        for (int guard = 0; guard < 4 * SIZE; guard++) {
+        for (int guard = 0; guard < 4 * GRID; guard++) {
             changed += stamp(u, v, size, color, stroke);
             if (u == u1 && v == v1) break;
             int e2 = 2 * err;
@@ -98,28 +131,28 @@ public final class PaintCanvas {
     }
 
     /**
-     * Flood fill from (u, v): every pixel of the same colour connected to it (up, down, left, right; never outside the
-     * canvas) becomes color. Returns how many pixels changed (0 when it already is that colour).
+     * Flood fill from cell (cu, cv): every cell of the same colour ({@link #cell}) connected to it (up, down, left,
+     * right; never outside the grid) becomes color, all 16 pixels of it, so an older pixel-drawn painting is left with
+     * no half cells where it was filled. Returns how many cells changed (0 when it already is that colour).
      */
-    public int fill(int u, int v, byte color, Stroke stroke) {
-        if (!inside(u, v)) return 0;
-        byte target = get(u, v);
+    public int fill(int cu, int cv, byte color, Stroke stroke) {
+        if (!insideGrid(cu, cv)) return 0;
+        byte target = cell(cu, cv);
         if (target == color) return 0;
-        int[] stack = new int[PIXELS];
+        int[] stack = new int[CELLS];
         int top = 0, changed = 0;
-        stack[top++] = v * SIZE + u;
-        BitSet seen = new BitSet(PIXELS);
-        seen.set(v * SIZE + u);
+        stack[top++] = cv * GRID + cu;
+        BitSet seen = new BitSet(CELLS);
+        seen.set(cv * GRID + cu);
         while (top > 0) {
             int i = stack[--top];
-            int x = i % SIZE, y = i / SIZE;
-            if (px[i] != target) continue;
-            if (set(x, y, color, stroke)) changed++;
+            int x = i % GRID, y = i / GRID;
+            if (setCell(x, y, color, stroke)) changed++;
             int[][] next = {{x + 1, y}, {x - 1, y}, {x, y + 1}, {x, y - 1}};
             for (int[] n : next) {
-                if (!inside(n[0], n[1])) continue;
-                int j = n[1] * SIZE + n[0];
-                if (seen.get(j) || px[j] != target) continue;
+                if (!insideGrid(n[0], n[1])) continue;
+                int j = n[1] * GRID + n[0];
+                if (seen.get(j) || cell(n[0], n[1]) != target) continue;
                 seen.set(j);
                 stack[top++] = j;
             }

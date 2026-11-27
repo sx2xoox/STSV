@@ -24,7 +24,7 @@ import java.util.List;
 final class PaletteMenu implements InventoryHolder {
 
     static final int TOOL_PEN = 36, TOOL_ERASER = 37, TOOL_FILL = 38, TOOL_PICK = 39;
-    static final int SIZE_1 = 40, SIZE_2 = 41, SIZE_4 = 42, UNDO = 43, TAKE_OFF = 44;
+    static final int SIZE_1 = 40, SIZE_2 = 41, SIZE_3 = 42, UNDO = 43, TAKE_OFF = 44;
     static final int PREV = 45, CURRENT = 46, PAGE = 49, NEXT = 50, FINISH = 52, CLOSE = 53;
 
     final Player player;
@@ -72,7 +72,7 @@ final class PaletteMenu implements InventoryHolder {
         inventory.setItem(TOOL_FILL, button(new ItemStack(Material.WATER_BUCKET), "painting.menu.fill", brush.tool == PaintingModule.Tool.FILL));
         inventory.setItem(TOOL_PICK, button(new ItemStack(Material.GLASS_BOTTLE), "painting.menu.pick", brush.tool == PaintingModule.Tool.PICK));
         int[] sizes = PaintCanvas.BRUSH_SIZES;
-        int[] sizeSlots = {SIZE_1, SIZE_2, SIZE_4};
+        int[] sizeSlots = {SIZE_1, SIZE_2, SIZE_3};
         for (int i = 0; i < sizes.length; i++) {
             ItemStack s = button(new ItemStack(Material.BLACK_DYE, sizes[i]), "painting.menu.size", brush.size == sizes[i], "size", sizes[i]);
             inventory.setItem(sizeSlots[i], s);

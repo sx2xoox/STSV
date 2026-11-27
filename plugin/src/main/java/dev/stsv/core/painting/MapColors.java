@@ -104,6 +104,13 @@ public final class MapColors {
     }
 
     /** "#RRGGBB" of a map colour, for MiniMessage. */
+    /** An outline colour that shows on this colour: dark on light colours, white on dark ones (RGB). */
+    public static int outline(byte id) {
+        int c = rgb(id);
+        int lum = (299 * (c >> 16 & 0xFF) + 587 * (c >> 8 & 0xFF) + 114 * (c & 0xFF)) / 1000;
+        return lum > 140 ? 0x202020 : 0xFFFFFF;
+    }
+
     public static String hex(byte id) {
         return String.format("#%06x", rgb(id));
     }

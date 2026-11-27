@@ -12,6 +12,7 @@ import io.papermc.paper.event.player.CartographyItemEvent;
 import io.papermc.paper.event.player.PrePlayerAttackEntityEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -22,6 +23,8 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Crafter;
+import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.GlowItemFrame;
 import org.bukkit.entity.ItemDisplay;
@@ -51,6 +54,8 @@ import org.bukkit.map.MapView;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Transformation;
+import org.joml.AxisAngle4f;
 import org.joml.Vector3f;
 
 import java.io.IOException;
@@ -94,6 +99,10 @@ public final class PaintingModule implements StsvModule, Listener {
     static final double VIEW_RANGE = 48;
     static final int FLUSH_TICKS = 2;
     static final double REACH = 6;
+    /** a look this far past the canvas edge (blocks, two cells) still paints the edge cell */
+    static final double EDGE_SLACK = 2.0 / PaintCanvas.GRID;
+    /** the hover outline: how far in front of the picture it floats and how thick it is (blocks) */
+    static final double PREVIEW_FRONT = 0.004, PREVIEW_THICK = 0.002;
     private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("yyyy.MM.dd").withZone(ZoneId.systemDefault());
 
     public enum Tool {
@@ -112,7 +121,7 @@ public final class PaintingModule implements StsvModule, Listener {
         Tool tool = Tool.PEN;
     }
 
-    /** A player painting now: which canvas, the last pixel and the stroke so far. */
+    /** A player painting now: which canvas, the last cell and the stroke so far. */
     private static final class Session {
         final UUID player;
         final int mapId;
@@ -130,11 +139,22 @@ public final class PaintingModule implements StsvModule, Listener {
 
     private record Aim(GlowItemFrame frame, int mapId, CanvasRay.Hit hit) {}
 
+    /** The outline a painter sees over the cells the brush would paint (a display only they can see). */
+    private static final class Preview {
+        final UUID entity;
+        String key = "";
+
+        Preview(UUID entity) {
+            this.entity = entity;
+        }
+    }
+
     private STSVPlugin plugin;
     private PaintingStore store;
     private NamespacedKey keyCanvas, keyFrame, keyEasel, keyItemMap, keyItemId;
     private final Map<UUID, Brush> brushes = new HashMap<>();
     private final Map<UUID, Session> sessions = new HashMap<>();
+    private final Map<UUID, Preview> previews = new HashMap<>();
     private final Map<Integer, UndoStack> undo = new HashMap<>();
     private final Set<Integer> dirtyView = new HashSet<>(), dirtyDisk = new HashSet<>();
     /** the frame showing each mounted painting (loaded ones), for sending updates to the players near it */
@@ -167,6 +187,7 @@ public final class PaintingModule implements StsvModule, Listener {
             for (GlowItemFrame f : w.getEntitiesByClass(GlowItemFrame.class)) checkFrame(f);
         }
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::tickSessions, 1L, 1L));
+        tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::tickPreviews, 1L, 1L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::flush, 1L, FLUSH_TICKS));
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, this::tickBar, 5L, 10L));
         tasks.add(Bukkit.getScheduler().runTaskTimer(plugin, () -> saveDirty(true), 600L, 600L));
@@ -178,6 +199,7 @@ public final class PaintingModule implements StsvModule, Listener {
         tasks.clear();
         for (Session s : sessions.values()) endStroke(s);
         sessions.clear();
+        for (UUID id : new ArrayList<>(previews.keySet())) hidePreview(id);
         saveDirty(false);
         for (Player p : Bukkit.getOnlinePlayers()) {
             if (p.getOpenInventory().getTopInventory().getHolder(false) instanceof PaletteMenu) p.closeInventory();
@@ -545,17 +567,19 @@ public final class PaintingModule implements StsvModule, Listener {
     private CanvasRay.Hit hit(Player p, GlowItemFrame f) {
         Location eye = p.getEyeLocation();
         org.bukkit.util.Vector d = eye.getDirection();
-        return CanvasRay.hit(new double[]{eye.getX(), eye.getY(), eye.getZ()}, new double[]{d.getX(), d.getY(), d.getZ()}, face(f), reach(p));
+        return CanvasRay.hit(new double[]{eye.getX(), eye.getY(), eye.getZ()}, new double[]{d.getX(), d.getY(), d.getZ()}, face(f), reach(p), EDGE_SLACK);
     }
 
-    /** The canvas the player looks at (the nearest hit), or null. */
+    /** The canvas the player looks at (a look on a canvas before one just past an edge, then the nearest), or null. */
     private Aim aim(Player p) {
         Aim best = null;
         for (GlowItemFrame f : p.getWorld().getNearbyEntitiesByType(GlowItemFrame.class, p.getEyeLocation(), REACH + 1)) {
             Integer id = f.getPersistentDataContainer().get(keyCanvas, PersistentDataType.INTEGER);
             if (id == null || f.getFacing().getModY() != 0) continue;
             CanvasRay.Hit h = hit(p, f);
-            if (h != null && (best == null || h.distance() < best.hit().distance())) best = new Aim(f, id, h);
+            if (h == null) continue;
+            if (best == null || (h.exact() && !best.hit().exact())
+                    || (h.exact() == best.hit().exact() && h.distance() < best.hit().distance())) best = new Aim(f, id, h);
         }
         return best;
     }
@@ -605,7 +629,7 @@ public final class PaintingModule implements StsvModule, Listener {
             }
             case PICK -> {
                 if (!cooled(player, now)) return;
-                b.color = painting.canvas().get(a.hit().u(), a.hit().v());
+                b.color = painting.canvas().cell(a.hit().u(), a.hit().v());
                 b.tool = Tool.PEN;
                 player.playSound(player.getLocation(), Sound.ITEM_BOTTLE_FILL, 0.6f, 1.6f);
                 player.sendActionBar(Lang.mm("painting.picked", "swatch", swatch(b.color)));
@@ -633,7 +657,7 @@ public final class PaintingModule implements StsvModule, Listener {
         s.lastU = -1;
     }
 
-    /** One tick of a held brush: a line from the last pixel to the one looked at now. */
+    /** One tick of a held brush: a line from the last cell to the one looked at now (no gaps however fast the look moves). */
     private void paintStep(Player player, Session s, GlowItemFrame frame, Painting painting) {
         CanvasRay.Hit h = hit(player, frame);
         if (h == null) {
@@ -682,6 +706,69 @@ public final class PaintingModule implements StsvModule, Listener {
         }
     }
 
+    /**
+     * The hover outline: while a painter holds the brush and looks at their canvas, the cells the next dab would paint
+     * (the brush's square for the pen and eraser, one cell for fill and pick) show a thin glowing box only they see. It
+     * moves only when the cells under the crosshair change; the map itself is not redrawn for it.
+     */
+    private void tickPreviews() {
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            UUID id = p.getUniqueId();
+            Aim a = holdsBrush(p) ? aim(p) : null;
+            Painting painting = a == null ? null : store.get(a.mapId()).orElse(null);
+            if (painting == null || painting.finished() || !id.equals(painting.painter())) {
+                if (previews.containsKey(id)) hidePreview(id);
+                continue;
+            }
+            Brush b = brush(p);
+            int size = b.tool == Tool.PEN || b.tool == Tool.ERASER ? b.size : 1;
+            int[] cells = PaintCanvas.stampBounds(a.hit().u(), a.hit().v(), size);
+            if (cells == null) continue;
+            byte under = painting.canvas().cell(a.hit().u(), a.hit().v());
+            int glow = MapColors.outline(under);
+            String key = a.frame().getUniqueId() + ":" + cells[0] + "," + cells[1] + "," + cells[2] + "," + cells[3] + ":" + glow;
+            Preview pv = previews.get(id);
+            Entity e = pv == null ? null : Bukkit.getEntity(pv.entity);
+            if (e instanceof BlockDisplay d && d.getWorld().equals(a.frame().getWorld())) {
+                if (pv.key.equals(key)) continue;
+                double[][] box = CanvasRay.box(face(a.frame()), cells[0], cells[1], cells[2], cells[3], PREVIEW_FRONT, PREVIEW_THICK);
+                d.teleport(new Location(d.getWorld(), box[0][0], box[0][1], box[0][2], 0f, 0f));
+                d.setTransformation(transform(box));
+                d.setGlowColorOverride(Color.fromRGB(glow));
+                pv.key = key;
+            } else {
+                if (pv != null) hidePreview(id);
+                double[][] box = CanvasRay.box(face(a.frame()), cells[0], cells[1], cells[2], cells[3], PREVIEW_FRONT, PREVIEW_THICK);
+                Location at = new Location(a.frame().getWorld(), box[0][0], box[0][1], box[0][2], 0f, 0f);
+                BlockDisplay d = at.getWorld().spawn(at, BlockDisplay.class, n -> {
+                    n.setVisibleByDefault(false);
+                    n.setPersistent(false);
+                    n.setBlock(Material.WHITE_STAINED_GLASS.createBlockData());
+                    n.setBrightness(new Display.Brightness(15, 15));
+                    n.setGlowing(true);
+                    n.setGlowColorOverride(Color.fromRGB(glow));
+                    n.setTransformation(transform(box));
+                });
+                p.showEntity(plugin, d);
+                Preview fresh = new Preview(d.getUniqueId());
+                fresh.key = key;
+                previews.put(id, fresh);
+            }
+        }
+    }
+
+    private static Transformation transform(double[][] box) {
+        Vector3f scale = new Vector3f((float) (box[1][0] - box[0][0]), (float) (box[1][1] - box[0][1]), (float) (box[1][2] - box[0][2]));
+        return new Transformation(new Vector3f(), new AxisAngle4f(), scale, new AxisAngle4f());
+    }
+
+    private void hidePreview(UUID player) {
+        Preview pv = previews.remove(player);
+        if (pv == null) return;
+        Entity e = Bukkit.getEntity(pv.entity);
+        if (e != null) e.remove();
+    }
+
     // ------------------------------------------------------------------------------------------
     // The palette
     // ------------------------------------------------------------------------------------------
@@ -712,7 +799,7 @@ public final class PaintingModule implements StsvModule, Listener {
                 case PaletteMenu.TOOL_PICK -> b.tool = Tool.PICK;
                 case PaletteMenu.SIZE_1 -> b.size = 1;
                 case PaletteMenu.SIZE_2 -> b.size = 2;
-                case PaletteMenu.SIZE_4 -> b.size = 4;
+                case PaletteMenu.SIZE_3 -> b.size = 3;
                 case PaletteMenu.PREV -> menu.page = Math.floorMod(menu.page - 1, MapColors.PAGES.size());
                 case PaletteMenu.NEXT, PaletteMenu.PAGE -> menu.page = Math.floorMod(menu.page + 1, MapColors.PAGES.size());
                 case PaletteMenu.UNDO -> undoLast(p, menu.mapId);
@@ -936,6 +1023,7 @@ public final class PaintingModule implements StsvModule, Listener {
         UUID id = e.getPlayer().getUniqueId();
         Session s = sessions.remove(id);
         if (s != null) endStroke(s);
+        hidePreview(id);
         brushes.remove(id);
         lastTool.remove(id);
         lastHint.remove(id);
