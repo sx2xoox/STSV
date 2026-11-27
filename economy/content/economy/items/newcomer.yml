@@ -1,29 +1,29 @@
 # 글자가 번진 종이들 (운영자 문서: docs/admin/숨은_비밀/새로_온_사람.md). 설명 줄 (남아 있는 글자) 은 생길 때 코드가 적는다.
-# 상점이 사지도 팔지도 않음. 거래 · 우편 · 경매는 된다 (secrets.yml 의 물건과 달리). 모델: tools/assetgen (record_shard_*)
-record_shard_ticket:
+# 상점이 사지도 팔지도 않음. 거래 · 우편 · 경매는 된다 (secrets.yml 의 물건과 달리). 모델: tools/assetgen (worn_*)
+worn_ticket:
   material: paper
   name: "<#cfc8b8>글자가 번진 승차권"
   lore: ["<dark_gray>누가 두고 내렸다"]
-  model: record_shard_ticket
+  model: worn_ticket
   max-stack: 1
 
-record_shard_receipt:
+worn_receipt:
   material: paper
   name: "<#cfc8b8>깨져 인쇄된 영수증"
   lore: ["<dark_gray>금액이 있어야 할 자리가 이상하다"]
-  model: record_shard_receipt
+  model: worn_receipt
   max-stack: 1
 
-record_shard_letter:
+worn_letter:
   material: paper
   name: "<#cfc8b8>일부가 지워진 편지"
   lore: ["<dark_gray>수취인 없음 · 반송"]
-  model: record_shard_letter
+  model: worn_letter
   max-stack: 1
 
-record_shard_bottle:
+worn_bottle:
   material: paper
   name: "<#cfc8b8>글씨가 번진 병"
   lore: ["<dark_gray>안에 쪽지가 들어 있다"]
-  model: record_shard_bottle
+  model: worn_bottle
   max-stack: 1

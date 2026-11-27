@@ -42,7 +42,7 @@ import java.util.concurrent.ThreadLocalRandom;
  */
 final class Restore implements BusModule.Watcher {
 
-    static final NamespacedKey SHARD = new NamespacedKey("economy", "record_shard"), TOUCH = new NamespacedKey("economy", "newcomer_touch");
+    static final NamespacedKey SHARD = new NamespacedKey("economy", "worn_piece"), TOUCH = new NamespacedKey("economy", "newcomer_touch");
     private static final String MAIL = "newcomer";
 
     private final Newcomer n;

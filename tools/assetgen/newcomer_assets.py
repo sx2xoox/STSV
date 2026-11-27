@@ -4,8 +4,8 @@
     python3 tools/assetgen/newcomer_assets.py            # the five .bbmodel files and docs/previews/newcomer_assets.png
     python3 tools/assetgen/newcomer_assets.py --sheet    # only the sheet (needs: cd render && npm install)
 
-  models  economy/content/economy/models/{record_shard_ticket, record_shard_receipt, record_shard_letter,
-          record_shard_bottle, everlasting_lantern}.bbmodel (economy_models.ALL has them too, so a full
+  models  economy/content/economy/models/{worn_ticket, worn_receipt, worn_letter,
+          worn_bottle, lantern_iron}.bbmodel (economy_models.ALL has them too, so a full
           economy_build.py writes the same files)
 
 The sheet: each shard in an inventory slot, alone, in a standing player's hand and through the player's own eyes
@@ -29,9 +29,9 @@ RENDER = HERE / "render" / "render.mjs"
 SHEET = REPO / "docs" / "previews" / "newcomer_assets.png"
 FONT = "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc"
 
-SHARDS = [("record_shard_ticket", "번진 승차권"), ("record_shard_receipt", "깨져 인쇄된 영수증"),
-          ("record_shard_letter", "반송된 편지"), ("record_shard_bottle", "쪽지가 든 병")]
-LANTERN = "everlasting_lantern"
+SHARDS = [("worn_ticket", "번진 승차권"), ("worn_receipt", "깨져 인쇄된 영수증"),
+          ("worn_letter", "반송된 편지"), ("worn_bottle", "쪽지가 든 병")]
+LANTERN = "lantern_iron"
 
 
 def write():

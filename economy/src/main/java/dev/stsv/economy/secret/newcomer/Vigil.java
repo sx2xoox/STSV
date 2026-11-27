@@ -51,7 +51,7 @@ final class Vigil {
      * once, or on the next start. So the announcement is never said twice and never said for nothing.
      */
     static final String SIGNING = Newcomer.K + "signing", LANTERN_AT = Newcomer.K + "lantern.at";
-    static final NamespacedKey LANTERN_MODEL = new NamespacedKey("economy", "model/everlasting_lantern");
+    static final NamespacedKey LANTERN_MODEL = new NamespacedKey("economy", "model/lantern_iron");
     static final List<String> LAST = List.of("…그 공지, 그날 보고 싶었어요.", "…고마워요, {player}님.", "…저는 이제 나가 볼게요. 처음으로.");
     static final String ANNOUNCE = "<dark_gray>〔{date}〕 {name}님이 숨은 비밀을 풀었습니다.";
     private static final String MAIL = "newcomer";
@@ -491,7 +491,7 @@ final class Vigil {
             else e.remove();
         }
         if (there) return;
-        boolean model = java.nio.file.Files.exists(n.eco().pack().dir().resolve("models/everlasting_lantern.bbmodel"));
+        boolean model = java.nio.file.Files.exists(n.eco().pack().dir().resolve("models/lantern_iron.bbmodel"));
         ItemStack shown = new ItemStack(model ? Material.PAPER : Material.LANTERN);
         if (model) shown.editMeta(meta -> meta.setItemModel(LANTERN_MODEL));
         s.getWorld().spawn(at, ItemDisplay.class, d -> {

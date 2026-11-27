@@ -32,7 +32,7 @@ class PackTest {
     /** the 편의점 models that give light (models/store.py): the sign, the fridges, the cigarette wall's header, the keys, the scanner, the order tablet's screens, §17's microwave states (its lamp, its display), the empty kettle's lamp, the handheld PDA's screen */
     static final String STORE_LIT = "store_(sign|fridge_[a-z]+|cig_shelf|btn_[a-z0-9_]+|scanner|order_tablet(_[a-z]+)?|microwave_(open|run|done)|kettle_empty|held_pda)";
     /** 숨은 비밀 (관리자 문서): the one model of models/newcomer_assets.py that gives light (its flame and panes) */
-    static final String NEWCOMER_LIT = "everlasting_lantern";
+    static final String NEWCOMER_LIT = "lantern_iron";
     // crop stages are crossed planes with cut-out textures
 
     @Test

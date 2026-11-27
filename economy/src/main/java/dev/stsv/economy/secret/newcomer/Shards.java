@@ -41,10 +41,10 @@ final class Shards {
 
     /** What a shard looks like (where it turned up), and the lines it can be of. */
     enum Look {
-        TICKET("economy:record_shard_ticket", "버스", Line.DATE),
-        RECEIPT("economy:record_shard_receipt", "편의점", Line.DATE, Line.WHAT),
-        LETTER("economy:record_shard_letter", "우편", Line.WHAT),
-        BOTTLE("economy:record_shard_bottle", "낚시", Line.WHAT);
+        TICKET("economy:worn_ticket", "버스", Line.DATE),
+        RECEIPT("economy:worn_receipt", "편의점", Line.DATE, Line.WHAT),
+        LETTER("economy:worn_letter", "우편", Line.WHAT),
+        BOTTLE("economy:worn_bottle", "낚시", Line.WHAT);
 
         final String item, place;
         final List<Line> lines;

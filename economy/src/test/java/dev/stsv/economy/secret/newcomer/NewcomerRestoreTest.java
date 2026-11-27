@@ -718,7 +718,7 @@ class NewcomerRestoreTest {
         assertTrue(files.stream().anyMatch(f -> f.endsWith("README.md")), "the economy README is read");
         for (java.nio.file.Path f : files) {
             String text = java.nio.file.Files.readString(f);
-            for (String word : List.of("rmama", "그믐", "꺼지지 않는 등불", "record_shard", "sipsam", "everlasting_lantern", "newcomer.yml", "economy:witness")) {
+            for (String word : List.of("rmama", "그믐", "꺼지지 않는 등불", "worn_ticket", "worn_receipt", "worn_letter", "worn_bottle", "sipsam", "lantern_iron", "newcomer.yml", "economy:witness")) {
                 assertFalse(text.contains(word), f + " names " + word + ": the secret stays in docs/admin/숨은_비밀");
             }
         }

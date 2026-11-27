@@ -2,18 +2,18 @@
 숨은 비밀 (관리자 문서) 의 물건 다섯: four damaged records a player holds, and a lantern that stands by a monument stone
 (items/newcomer.yml names these models; python3 tools/assetgen/newcomer_assets.py writes only these).
 
-  record_shard_ticket    an old bus ticket gone soft in water: a perforated stub bent forward, a faded green title band,
+  worn_ticket    an old bus ticket gone soft in water: a perforated stub bent forward, a faded green title band,
                          a conductor's punch hole, a torn corner; the lower right is a tide-marked stain where the ink
                          has run down and most of the print is gone.
-  record_shard_receipt   a thermal receipt, its torn top serrated, its end rolled up towards the reader: a header
+  worn_receipt   a thermal receipt, its torn top serrated, its end rolled up towards the reader: a header
                          block, item lines, a total, a barcode; the middle of the print came out as blocks, a white
                          line runs down it where the print head dropped out, the roll's pink end stripe on its edge.
-  record_shard_letter    a returned envelope: grubby, its corners worn round, one dog-eared; an address nobody can
+  worn_letter    a returned envelope: grubby, its corners worn round, one dog-eared; an address nobody can
                          read, a cancelled postage stamp, a red return stamp impression pressed askew over it, half
                          worn off; the flap open, a sheet with run ink showing over the edge.
-  record_shard_bottle    a small sea-worn glass bottle, corked and waxed, twine round its neck; inside, a rolled note
+  worn_bottle    a small sea-worn glass bottle, corked and waxed, twine round its neck; inside, a rolled note
                          tied with thread, leaning, its ink run in drips.
-  everlasting_lantern    a small standing lantern: an old iron frame on four feet (rust, soot round the vent, moss at
+  lantern_iron    a small standing lantern: an old iron frame on four feet (rust, soot round the vent, moss at
                          a foot), four panes with a guard bar, a stepped cap with a carrying ring; a warm steady
                          flame on a brass burner (lit: the flame, the panes' glow and the lit floor give light).
 
@@ -384,8 +384,8 @@ def ticket_front():
     return P
 
 
-def record_shard_ticket():
-    m = BModel("record_shard_ticket", floor=None, scale=4)
+def worn_ticket():
+    m = BModel("worn_ticket", floor=None, scale=4)
     front = ticket_front()
     back = backing(front, lambda x, y: ("nc_paper", 3 if vnoise(x, y, 1, 5.0, 8) > 0.45 else 2)
                    if (x * 5 + y * 3) % 11 else ("nc_band", 3))
@@ -476,8 +476,8 @@ def receipt_front():
     return P
 
 
-def record_shard_receipt():
-    m = BModel("record_shard_receipt", floor=None, scale=4)
+def worn_receipt():
+    m = BModel("worn_receipt", floor=None, scale=4)
     front = receipt_front()
     back = backing(front, lambda x, y: ("nc_thermal", 3 if (x + y * 2) % 9 else 2))
     m.group("receipt")
@@ -613,8 +613,8 @@ def letter_sheet():
     return P
 
 
-def record_shard_letter():
-    m = BModel("record_shard_letter", floor=None, scale=4)
+def worn_letter():
+    m = BModel("worn_letter", floor=None, scale=4)
     front = letter_front()
     m.group("envelope")
     xstrip(m, "envelope", front, letter_back(front), -30, 0, 16, 1, [(60, 0)])
@@ -705,8 +705,8 @@ def shell(m, name, r, y0, y1, fn):
     return s
 
 
-def record_shard_bottle():
-    m = BModel("record_shard_bottle", floor=None, scale=4)
+def worn_bottle():
+    m = BModel("worn_bottle", floor=None, scale=4)
     Y0 = -26                    # the bottle's foot
     R = 13.0
     G = "nc_seaglass"
@@ -840,8 +840,8 @@ def _flame_pic():
     return P
 
 
-def everlasting_lantern():
-    m = BModel("everlasting_lantern", floor=G0, scale=2)
+def lantern_iron():
+    m = BModel("lantern_iron", floor=G0, scale=2)
 
     def L(x, y, z):
         return (8 + x, G0 + y, 8 + z)
@@ -955,9 +955,9 @@ def everlasting_lantern():
 
 
 ALL = {
-    "record_shard_ticket": record_shard_ticket,
-    "record_shard_receipt": record_shard_receipt,
-    "record_shard_letter": record_shard_letter,
-    "record_shard_bottle": record_shard_bottle,
-    "everlasting_lantern": everlasting_lantern,
+    "worn_ticket": worn_ticket,
+    "worn_receipt": worn_receipt,
+    "worn_letter": worn_letter,
+    "worn_bottle": worn_bottle,
+    "lantern_iron": lantern_iron,
 }

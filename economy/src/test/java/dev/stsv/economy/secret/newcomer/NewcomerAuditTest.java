@@ -428,6 +428,24 @@ class NewcomerAuditTest {
         assertEquals(Record.Truth.ALIAS, NewcomerTest.yml().getStringList("truth.alias"));
     }
 
+    @Test
+    void nothingOfItInTheContentPlayersRead() throws Exception {
+        // the content pack (menus, guide, messages, item and title texts players see): only his own files name him
+        List<Path> roots = List.of(Path.of("content"), Path.of("src/main/resources"));
+        for (Path root : roots) {
+            try (var walk = Files.walk(root)) {
+                for (Path f : walk.filter(Files::isRegularFile).filter(p -> p.toString().endsWith(".yml") || p.toString().endsWith(".md")).toList()) {
+                    String rel = root.relativize(f).toString().replace('\\', '/');
+                    if (rel.endsWith("secrets/newcomer.yml") || rel.endsWith("items/newcomer.yml")) continue;
+                    String text = Files.readString(f, StandardCharsets.UTF_8);
+                    for (String word : List.of("rmama", "그믐", "꺼지지 않는 등불", "sipsam")) {
+                        assertFalse(text.contains(word), f + " names " + word);
+                    }
+                }
+            }
+        }
+    }
+
     // ---- 13. every line he may say aloud passes his own rules
 
     @Test
