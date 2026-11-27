@@ -117,7 +117,22 @@ public final class Newcomer extends Secret {
     private final Vigil vigil = new Vigil(this);
     private volatile Record.Truth truth = new Record.Truth(Record.Truth.NAME, Record.Truth.ALIAS, "", Record.Truth.WHAT);
     /** what real players said lately in public (for the model: read in one go, answered in one line) */
-    private final Deque<NewcomerMind.Heard> overheard = new ArrayDeque<>();
+    /** What he overheard lately, each with when (so an answer reads only what was said after the question it answers). */
+    record Ear(long at, NewcomerMind.Heard heard) {}
+
+    private final Deque<Ear> overheard = new ArrayDeque<>();
+
+    /** The lines he heard at or after since (at most the last six). */
+    static List<NewcomerMind.Heard> heardSince(java.util.Collection<Ear> ears, long since) {
+        List<NewcomerMind.Heard> out = new ArrayList<>();
+        for (Ear e : ears) if (e.at() >= since) out.add(e.heard());
+        return out.size() > 6 ? out.subList(out.size() - 6, out.size()) : out;
+    }
+
+    private void overhear(Player p, String text) {
+        overheard.addLast(new Ear(System.currentTimeMillis(), new NewcomerMind.Heard(nameOf(p), text)));
+        while (overheard.size() > 12) overheard.removeFirst();
+    }
     private List<String> sleepy = SLEEPY, goodnight = GOODNIGHT;
     /** when a player last got an answer / last had a whisper counted (ms) */
     private final Map<UUID, Long> answered = new ConcurrentHashMap<>(), counted = new ConcurrentHashMap<>();
@@ -772,6 +787,8 @@ public final class Newcomer extends Secret {
         int next;
         /** next question at; last question at; last line of his at; quiet from (0 while questions are left) */
         long nextAt, askedAt, saidAt, endAt;
+        /** his last question as said (what an answer in chat answers) */
+        String asked;
         /** lines he is typing */
         final Deque<Pending> pending = new ArrayDeque<>();
         /** small talk: how much, when last and to whom, which question was thanked for, quiet until */
@@ -898,6 +915,7 @@ public final class Newcomer extends Secret {
         }
         v.next++;
         v.askedAt = now;
+        v.asked = q;
     }
 
     /**
@@ -1121,7 +1139,7 @@ public final class Newcomer extends Secret {
         lastJoin = System.currentTimeMillis();
         Visit v = visit;
         if (v == null || !on() || !v.around(lastJoin) || sulking(null)) return;
-        if (ThreadLocalRandom.current().nextDouble() >= cfg.getDouble("chat.join-chance", 0.3)) return;
+        if (ThreadLocalRandom.current().nextDouble() >= cfg.getDouble("chat.join-chance", 0.5)) return;
         Optional<Talk.Intent> greet = chat.stream().filter(i -> i.id.equals("greet")).findFirst();
         if (greet.isEmpty() || greet.get().lines.isEmpty()) return;
         UUID u = e.getPlayer().getUniqueId();
@@ -1155,9 +1173,9 @@ public final class Newcomer extends Secret {
             Awakening.Mood mood = voice.mood(LocalDate.parse(v.night), v.qs.size() - v.next);
             if (mood != Awakening.Mood.AWAKE && mood != Awakening.Mood.SLEEPY) return false;
         } else if (!v.quick && v.reactions >= cfg.getInt("chat.max-per-night", 6)) return false;
-        long gap = v.quick ? seconds("chat.test-min-gap-seconds", 5) : seconds("chat.min-gap-seconds", 45);
+        long gap = v.quick ? seconds("chat.test-min-gap-seconds", 5) : seconds("chat.min-gap-seconds", 15);
         if (v.lastReactAt != 0 && now - v.lastReactAt < gap) return false;
-        return named || !by.equals(v.lastBy) || now - v.lastReactAt >= seconds("chat.same-player-seconds", 120);
+        return named || !by.equals(v.lastBy) || now - v.lastReactAt >= seconds("chat.same-player-seconds", 40);
     }
 
     private void reacted(Visit v, UUID by, long now) {
@@ -1196,8 +1214,7 @@ public final class Newcomer extends Secret {
         Player p = Bukkit.getPlayer(by);
         if (p == null || inGuide(p) || impostor()) return;
         if (v.tired || sulking(v.viewer)) return;   // his last line of the night was said (or is being typed), or gone for the night
-        overheard.addLast(new NewcomerMind.Heard(nameOf(p), text));
-        while (overheard.size() > 6) overheard.removeFirst();
+        overhear(p, text);
         if (insult(text) && (Sulk.aimed(text, who, aim) || v.saidAt > 0 && now - v.saidAt <= seconds("sulk.window-seconds", 40))) {
             sulk(p, v, false);
             return;
@@ -1227,7 +1244,10 @@ public final class Newcomer extends Secret {
         Voice.Thought thought = voice.none();
         if (voice.active()) {
             long think = between("ai.think-seconds", 2, 5);
-            thought = chatWords(by, v.viewer, line, type + think, v.viewer != null);
+            // an answer to his question: only what was said since that question, and which question it is (not the one before)
+            boolean answering = re.intent().answer;
+            long since = answering ? v.askedAt : Math.max(v.askedAt, now - 120_000L);
+            thought = chatWords(by, v.viewer, line, type + think, v.viewer != null, answering ? v.asked : null, since);
             if (thought.asked()) at += think;
         }
         v.pending.addLast(new Pending(line, Math.max(at, v.lastPending(at)), thought.asked() ? thought : null));
@@ -1477,9 +1497,21 @@ public final class Newcomer extends Secret {
      * lamp line must not let the lamp out in public). sure: always asked, whatever the day's share (one viewer only).
      */
     private Voice.Thought chatWords(UUID to, UUID viewer, String scripted, long budget, boolean sure) {
+        return chatWords(to, viewer, scripted, budget, sure, null, 0);
+    }
+
+    /**
+     * question: the question of his this line answers (null: not an answer); since: only what was heard from then on.
+     * So an answer never mixes in the answers to his earlier questions.
+     */
+    private Voice.Thought chatWords(UUID to, UUID viewer, String scripted, long budget, boolean sure, String question, long since) {
         Record r = record(viewer);
-        NewcomerMind.Ask ask = new NewcomerMind.Ask(NewcomerMind.Kind.CHAT, scripted, List.copyOf(overheard), Memories.brief(memories.of(to)),
-                forModel(recent), facts(viewer), memories.of(to).name());
+        List<String> f = new ArrayList<>(facts(viewer));
+        if (question != null && !question.isBlank()) {
+            f.add("방금 그가 한 질문: \"" + question + "\". 지금 하는 말은 이 질문에 대한 대답을 들은 반응이다. 그 전에 했던 질문들과 그 대답은 이미 끝난 이야기라 다시 꺼내지 않는다");
+        }
+        NewcomerMind.Ask ask = new NewcomerMind.Ask(NewcomerMind.Kind.CHAT, scripted, heardSince(overheard, since), Memories.brief(memories.of(to)),
+                forModel(question != null ? List.of(question) : recent), f, memories.of(to).name());
         return voice.think(ask, Filter.Rules.chat(truth, r.whole(Shards.Line.WHAT), r.found(), swearing()), budget,
                 LocalDate.now(SecretModule.KST), () -> sure ? 0 : ThreadLocalRandom.current().nextDouble(), to);
     }
@@ -1839,8 +1871,7 @@ public final class Newcomer extends Secret {
                 }
                 Reaction re = react(text, true, true);
                 String scripted = re == null || re.line() == null ? "아 네네" : re.line();
-                overheard.addLast(new NewcomerMind.Heard(nameOf(p), text));
-                while (overheard.size() > 6) overheard.removeFirst();
+                overhear(p, text);
                 Voice.Thought t = chatWords(u, u, scripted, voice.settings().timeoutMs(), true);
                 String heard = text;
                 admin.sendMessage(Text.msg("<gray>ai \"<white>" + esc(heard) + "</white>\" → 대본: <white>" + esc(scripted) + "</white> · AI 에게 물어보는 중 (최대 "

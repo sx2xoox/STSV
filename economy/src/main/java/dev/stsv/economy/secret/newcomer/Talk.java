@@ -189,25 +189,25 @@ final class Talk {
     static final List<Intent> CHAT = List.of(
             // swearing at him: not small talk but a sulk (Sulk; Newcomer leaves it out of the small talk). lines: his hurt line
             def("rude", Sulk.SWEARS, true, false, 1, Sulk.HURT),
-            with(def("bot", List.of("봇|bot|가짜|npc|엔피씨|귀신|유령|매크로|인공지능|\\bai\\b|사람 맞|사람이야|사람임"), true, false, 0.7,
+            with(def("bot", List.of("봇|bot|가짜|npc|엔피씨|귀신|유령|매크로|인공지능|\\bai\\b|사람 맞|사람이야|사람임"), true, false, 0.9,
                     List.of("ㅋㅋㅋ 아니에요", "사람이에요 ㅠ", "ㅋㅋㅋㅋ 봇 아님", "저 사람인데요 ㅠㅠ", "아닌데 ㅋㅋ", "ㅋㅋㅋ 왜요")),
                     List.of(), 0, List.of("ㅋㅋ 그 말 예전에도 들었어요", "그런 말 진짜 오랜만에 듣네요", "ㅋㅋ 저 여기 꽤 오래 있었는데", "저 예전엔 좀 이상했죠 ㅋㅋ"), 0.1, 0),
             def("meet", List.of("좌표|어디야|어디세요|어디 ?계세요|어디 ?계신|어디심|어디임|어디에 ?있어|tpa|티피|텔포|같이 ?하|같이 ?놀|같이 ?갈|놀러|찾아 ?갈|만나요|만날래|데리러"),
-                    true, false, 0.8,
+                    true, false, 0.9,
                     List.of("아 저 지금 좀 멀리 있어요", "나중에 같이해요 ㅎㅎ", "저 길 잃어서 ㅋㅋ 여기가 어딘지 모르겠어요",
                             "좀 이따가요 ㅠ 지금 뭐 하는중이라", "아 괜찮아요 혼자 해볼게요 ㅎㅎ", "저 아직 많이 헤매는 중이라 ㅠ")),
             def("name", List.of("{name}", "십삼", "뉴비", "누구세요|누구야|누구지|누구임|누구심|누군데", "새로 ?오신|새로 ?온|처음 ?보는|처음 ?오셨"),
-                    false, false, 0.6,
+                    false, false, 0.85,
                     List.of("저 들어온지 얼마 안됐어요", "그냥 뉴비에요 ㅎㅎ", "아 저요 ㅋㅋ 그냥 구경중이에요", "아직 아무것도 몰라요 ㅠ",
                             "새로 왔어요 잘 부탁드려요", "저 그냥 지나가다 들어왔어요 ㅎㅎ")),
-            def("greet", List.of("^(ㅎㅇ|ㅎㅇㅎㅇ|하이|하잉|안녕|안냐|ㅂㄱ|반가|hi\\b|hello)", "안녕하세요|반가워|반갑습니다|하이요"), false, false, 0.35,
+            def("greet", List.of("^(ㅎㅇ|ㅎㅇㅎㅇ|하이|하잉|안녕|안냐|ㅂㄱ|반가|hi\\b|hello)", "안녕하세요|반가워|반갑습니다|하이요"), false, false, 0.6,
                     List.of("안녕하세요 ㅎㅎ", "ㅎㅇ", "ㅎㅇㅎㅇ", "하이요", "안녕하세요", "반가워요 ㅎㅎ")),
-            with(def("answer", List.of("[가-힣a-z0-9]"), false, true, 0.6,
+            with(def("answer", List.of("[가-힣a-z0-9]"), false, true, 0.85,
                     List.of("아 감사합니다 ㅎㅎ", "오 그렇구나", "헐 몰랐어요", "ㅇㅋ 해볼게요", "아하", "오오 감사요", "아 그렇군요 ㅎㅎ",
                             "넵 감사합니당", "아 그거였구나", "ㄳㄳ", "오 ㄱㅅㄱㅅ")),
                     List.of("지금 해봐야겠다", "아까부터 그거 찾고 있었어요 ㅋㅋ", "물어보길 잘했다", "메모해둠", "와 하나도 몰랐네"), 0.3,
                     List.of(), 0, 0),
-            def("laugh", List.of("ㅋㅋㅋ|ㅎㅎㅎ|ㅋㅌㅋ|zzz|ㄱㅋㄱㅋ"), false, false, 0.15,
+            def("laugh", List.of("ㅋㅋㅋ|ㅎㅎㅎ|ㅋㅌㅋ|zzz|ㄱㅋㄱㅋ"), false, false, 0.3,
                     List.of("ㅋㅋㅋ", "ㅋㅋㅋㅋ", "ㅋㅋ", "ㅎㅎ")));
 
     static final List<Intent> WHISPER = List.of(

@@ -558,9 +558,9 @@ public final class NextSequel extends Sequel {
     private boolean free(Guest g, UUID by, boolean named, long now, boolean quick) {
         if (now < g.hushUntil || !g.pending.isEmpty()) return false;
         if (!quick && g.reactions >= main().getInt("chat.max-per-night", 6)) return false;
-        long gap = 1000L * (quick ? main().getInt("chat.test-min-gap-seconds", 5) : main().getInt("chat.min-gap-seconds", 45));
+        long gap = 1000L * (quick ? main().getInt("chat.test-min-gap-seconds", 5) : main().getInt("chat.min-gap-seconds", 15));
         if (g.lastReactAt != 0 && now - g.lastReactAt < gap) return false;
-        return named || !by.equals(g.lastBy) || now - g.lastReactAt >= 1000L * main().getInt("chat.same-player-seconds", 120);
+        return named || !by.equals(g.lastBy) || now - g.lastReactAt >= 1000L * main().getInt("chat.same-player-seconds", 40);
     }
 
     private void heard(Guest g, UUID by, String text) {

@@ -493,4 +493,16 @@ class NewcomerAuditTest {
         java.nio.file.Files.writeString(dir.resolve(ClaudeMind.KEY_FILE), "\uFEFF# 주석\n\n  sk-test-not-a-real-key  \n다른 줄\n");
         assertEquals("sk-test-not-a-real-key", ClaudeMind.keyFile(dir));
     }
+
+    /** 질문에 대한 대꾸는 그 질문 뒤에 들은 말만 읽는다 (전 질문의 답과 섞이지 않게). */
+    @Test
+    void anAnswerReadsOnlyWhatWasSaidAfterItsQuestion() {
+        List<Newcomer.Ear> ears = List.of(
+                new Newcomer.Ear(1000, new NewcomerMind.Heard("가", "전 질문 답: 상점은 /상점")),
+                new Newcomer.Ear(5000, new NewcomerMind.Heard("나", "이번 질문 답: 낚시는 바다에서")));
+        List<NewcomerMind.Heard> h = Newcomer.heardSince(ears, 3000);
+        assertEquals(1, h.size());
+        assertEquals("이번 질문 답: 낚시는 바다에서", h.get(0).text());
+        assertEquals(2, Newcomer.heardSince(ears, 0).size());
+    }
 }
