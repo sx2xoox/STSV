@@ -19,8 +19,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * store.yml's 2차 (README "편의점" 내 가게 · 플레이어 손님 · 폐기 · 청소 · 날씨): the three 등급 and what they scale, their hourly
- * pay against the same-priced bus, the player customers' prices, the weather's demand, the chores.
+ * store.yml's 2차 (README "편의점" 내 가게 · 폐기 · 청소 · 날씨): the three 등급 and what they scale, their hourly pay against the
+ * same-priced bus, that players do not shop (only the worker is given food), the weather's demand, the chores.
  */
 class StoreRulesTest {
 
@@ -133,31 +133,45 @@ class StoreRulesTest {
     }
 
     @Test
-    void playersPayRealMoneyForRealFood() {
+    void playersDoNotShopOnlyTheWorkerGetsFood() {
         StoreRules r = rules();
-        StoreRules.Players p = r.players();
-        StoreSpec spec = StoreSpecTest.spec();
-        int tuna = spec.products().get("samgak_tuna").price();
-        assertEquals(12, p.price(tuna, false), "1,200원 = 12 G");
-        assertEquals(14, p.price(tuna, true), "the 무인 계산대 about 20% more");
-        assertEquals(1, p.price(100, false), "never free");
-        assertTrue(p.commission(12) < 12 && p.commission(100) == 25, "the worker's commission is a small part of it");
-        assertTrue(p.sells("samgak_tuna", true));
-        assertTrue(p.sells("dosirak", false));
-        assertFalse(p.sells("dosirak", true), "the 무인 계산대 sells fewer kinds");
-        assertFalse(p.sells("cigarette", false), "no cigarettes for players");
-        assertFalse(p.sells("umbrella", false), "only food");
-        assertTrue(p.unmannedItems().size() < p.food().size());
-        // every food is an item with hunger; a 컵라면 needs hot water first
+        // no 플레이어 손님 any more: no players section, only the food a worker is given (할머니's 사탕) and the 폐기
+        YamlConfiguration store = yaml("store.yml");
+        assertFalse(store.contains("players"), "the player customers' section is gone");
+        assertFalse(store.contains("bus-link.coffee-minutes"), "the drivers' 캔커피 went with them");
+        assertEquals(Map.of("candy", "economy:store_food_candy"), r.gifts());
+        assertEquals("economy:store_food_candy", r.gifts().get(Trouble.resolve(Trouble.Kind.GRANDMA, "wait",
+                new Trouble.Context(80, false, false, 0, 0, 0), r.numbers(), 0.5).gift()), "할머니's 사탕 is an item");
         YamlConfiguration items = yaml("items/store_extra.yml");
-        for (Map.Entry<String, String> e : p.food().entrySet()) {
-            String key = e.getValue().substring("economy:".length());
-            assertTrue(items.isConfigurationSection(key), key);
-            if (p.hot().containsKey(e.getKey())) assertFalse(items.contains(key + ".food"), key + " is dry");
-            else assertTrue(items.getInt(key + ".food.nutrition") > 0, key + " fills");
-        }
-        for (String hot : p.hot().values()) assertTrue(items.getInt(hot.substring(8) + ".food.nutrition") > 0, hot);
+        for (String key : r.gifts().values()) assertTrue(items.getInt(key.substring(8) + ".food.nutrition") > 0, key);
         assertTrue(items.getInt(r.waste().food().substring(8) + ".food.nutrition") > 0, "the 폐기 is food");
+        // what is left of the food: the gifts, the 폐기, and a 바나나우유 (another thing's reward); nothing for players to buy
+        Set<String> food = new java.util.TreeSet<>();
+        for (String k : items.getKeys(false)) if (k.startsWith("store_food_")) food.add(k);
+        assertEquals(Set.of("store_food_candy", "store_food_waste", "store_food_banana_milk"), food);
+        for (String k : food) assertFalse(items.contains(k + "_hot"), "no 컵라면 to pour water on");
+        // the 환불 손님 brings back something eaten or drunk (not 술, not an umbrella)
+        StoreSpec spec = StoreSpecTest.spec();
+        assertTrue(r.refundable(spec, "samgak_tuna"));
+        assertTrue(r.refundable(spec, "banana_milk"));
+        assertTrue(r.refundable(spec, "ice_bar"));
+        assertFalse(r.refundable(spec, "beer"), "술 is not brought back half drunk");
+        assertFalse(r.refundable(spec, "umbrella"));
+        assertFalse(r.refundable(spec, "cigarette"));
+        assertFalse(r.refundable(spec, "nothing"));
+    }
+
+    @Test
+    void anOldPlayersSectionIsTold() {
+        YamlConfiguration y = yaml("store.yml");
+        y.set("players.rate", 0.01);
+        y.set("gifts.candy", "not an item");
+        y.set("gifts.nothing", "economy:store_food_candy");
+        List<String> problems = new ArrayList<>();
+        StoreRules.parse(y, StoreSpecTest.spec(), problems);
+        assertTrue(problems.stream().anyMatch(p -> p.startsWith("players")), problems.toString());
+        assertTrue(problems.stream().anyMatch(p -> p.contains("gifts.candy")), problems.toString());
+        assertTrue(problems.stream().anyMatch(p -> p.contains("없는 상품 nothing")), problems.toString());
     }
 
     @Test
@@ -223,16 +237,10 @@ class StoreRulesTest {
         assertFalse(c.pour(cap), "empty");
         assertTrue(c.refill(cap));
         assertFalse(c.refill(cap), "full");
-        // a thing back on the shelf
-        Chores d = new Chores(spec);
-        d.take("snack");
-        d.putBack(spec, "snack");
-        d.putBack(spec, "snack");
-        assertEquals(spec.shelves().get("snack").capacity(), d.stock("snack"), "never over full");
     }
 
     @Test
-    void troubleAndPlayerPaySettleTheTill() {
+    void troubleAndCreditSettleTheTill() {
         Checkout c = new Checkout(List.of("jelly", "candy"), List.of(1200, 800), Checkout.Method.CASH);
         c.ask("trouble");
         c.settle();

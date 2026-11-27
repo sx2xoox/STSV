@@ -125,29 +125,49 @@ class HModel(BModel):
         super().__init__(*a, **k)
         self._plates = []
 
-    def plate(self, name, frm, to, faces, glow=False, rotation=None):
+    def plate(self, name, frm, to, faces, glow=False, rotation=None, one_sided=False):
         """faces: {face: (texture, [u0, v0, u1, v1] in its pixels)}. A flat plate (no thickness) given one side gets
-        the other side too, the picture's corner texel (it is seen only edge on or from behind a wall)."""
+        the other side too, the picture's corner texel (it is seen only edge on or from behind a wall), unless
+        one_sided (a picture laid on a box's open face, see skin)."""
         faces = dict(faces)
         for a, b in (("north", "south"), ("east", "west"), ("up", "down")):
             ax = {"north": 2, "east": 0, "up": 1}[a]
-            if frm[ax] == to[ax]:
+            if frm[ax] == to[ax] and not one_sided:
                 for f, o in ((a, b), (b, a)):
                     if f in faces and o not in faces:
                         faces[o] = (faces[f][0], [0, 0, 1, 1])
-        self._plates.append((self._group, name, frm, to, faces, glow, rotation))
+        self._plates.append((self._group, name, frm, to, faces, glow, rotation, one_sided))
+
+    def skin(self, name, frm, to, paint, face, tex, uv=None, glow=False, rotation=None):
+        """A box whose `face` wears a picture at more than 16 px a block instead of its baked paint: the box is drawn
+        without that face (left open on purpose) and a one-sided plate in the face's plane carries the picture, so
+        the detail costs no face more than the plain box. uv: the picture's pixels (default all of it)."""
+        self.box(name, frm, to, paint, faces={face: None}, rotation=rotation)
+        self.elements[-1]["open"] = (face,)
+        ax, hi = {"north": (2, False), "south": (2, True), "west": (0, False), "east": (0, True),
+                  "down": (1, False), "up": (1, True)}[face]
+        a, b = list(frm), list(to)
+        a[ax] = b[ax] = (to if hi else frm)[ax]
+        if uv is None:
+            w, h = T.size_of(tex)
+            uv = [0, 0, w, h]
+        self.plate(name + "_face", tuple(a), tuple(b), {face: (tex, uv)}, glow=glow, rotation=rotation, one_sided=True)
 
     def bake(self):
         if self._baked:
             return
         super().bake()
         keep = self._group
-        for group, name, frm, to, faces, lit, rot in self._plates:
+        back = {"north": "south", "south": "north", "east": "west", "west": "east", "up": "down", "down": "up"}
+        for group, name, frm, to, faces, lit, rot, one in self._plates:
             self._group = group
             if rot:
                 rot = (rot[0], rot[1], self.to_model(rot[2]))
             Model.box(self, name, self.to_model(frm), self.to_model(to), None, glow=lit, rotation=rot,
                       faces={f: (faces[f][0] if f in faces else None) for f in FACES6}, uv={f: faces[f][1] for f in faces})
+            if one:
+                # a picture laid on (or just off) a surface: its back is never seen, left out on purpose
+                self.elements[-1]["open"] = tuple(back[f] for f in faces)
         self._group = keep
 
 
@@ -307,6 +327,11 @@ def cutout_decal(kind, a0, y0, along, flip):
 SHELF_FLOORS = (3, 10, 17, 24)       # the deck, then the three shelves' tops
 CATEGORY = {"snack": ("과자 간식", ("fox", 3)), "noodle": ("라면", ("pepper", 2)),
             "daily": ("생활용품", ("sapphire", 2)), "meal": ("도시락 김밥", (GREEN, 2))}
+# the end panels' posters (north end, south end): (title, burst, goods drawn on it)
+POSTERS = {"snack": (("과자 행사", "1+1", (("chips", 4, 6), ("choco", 4, 4))), ("신상 과자", "2+1", (("shrimp", 4, 6), ("jelly", 3, 4)))),
+           "noodle": (("라면 행사", "1+1", (("ramen_red", 4, 5), ("ramen_mild", 4, 5))), ("큰사발", "2+1", (("ramen_big", 5, 4), ("bagramen", 6, 3)))),
+           "daily": (("생활 필수품", "1+1", (("tissue", 4, 3), ("battery", 3, 5))), ("우산 있어요", "2+1", (("umbrella", 2, 6), ("bandage", 4, 2)))),
+           "meal": (("도시락 행사", "1+1", (("dosirak", 6, 2), ("hotbar", 3, 4))), ("든든한 한끼", "2+1", (("egg", 4, 3), ("dosirak", 6, 2))))}
 # per level (deck first): [(kind, facings)], one side; the other side takes them in turn
 LAYOUT = {
     "snack": [[("chips", 3), ("shrimp", 3), ("candy", 3), ("chips", 2)],
@@ -405,6 +430,11 @@ def shelf(cat, state):
     m.plate("end_sign", (1, 20, -15.77), (15, 26, -15.77), {"north": (endp, [0, 0, 112, 48])})
     m.plate("end_sign", (1, 20, 31.77), (15, 26, 31.77), {"south": (endp, [0, 0, 112, 48])})
 
+    # the end panels' lower half: a promo poster each (the aisle's ends)
+    for z, f, (title, sub, kinds) in ((-15.77, "north", POSTERS[cat][0]), (31.77, "south", POSTERS[cat][1])):
+        pz = _surface(f"store_poster_{cat}_{f}", lambda t=title, s=sub, k=kinds, c=colour: ART.promo_poster(t, s, bg=c, kinds=k))
+        m.plate("end_poster", (2, 4, z), (14, 18, z), {f: (pz, [0, 0, 96, 112])}, one_sided=True)
+
     for side in ("w", "e"):
         flip = side == "e"
         fx = 1.25 if side == "w" else 14.75                # the goods' front
@@ -414,29 +444,36 @@ def shelf(cat, state):
             gs = groups if side == "w" else list(reversed(groups))
             row = _row_layout(gs, top=(level == 3))
             y0 = SHELF_FLOORS[level]
-            tags = [(z0, z1) for (_, _, z0, z1, _) in row]
+            # the price rail along the shelf's front: an electronic price tag where each kind starts (read along the
+            # rail from the viewer's left: +z from the west side, -z from the east)
+            tags = [((z0 - Z0) if not flip else (Z1 - z1), (z1 - Z0) if not flip else (Z1 - z0)) for (_, _, z0, z1, _) in row]
+            tags.sort()
+            promo = {(level + (side == "e")) % len(tags)} if level else set()
+            rail = _surface(f"store_rail_{cat}_{side}_{level}",
+                            lambda t=tuple(tags), pr=tuple(promo), sd=level * 3 + (side == "e") + len(cat):
+                            ART.price_rail(Z1 - Z0, list(t), h_px=1.5, promo=pr, seed=sd))
             if level:
-                # the shelf: its front edge a white price rail with a yellow tag (a red price) under each kind
-                def rail(c, tags=tags, front=front):
-                    if c.face != front:
-                        return None
-                    z = c.p[2]
-                    for (a, b) in tags:
-                        if a + 0.5 <= z < a + 3.5:
-                            return ("pepper", 2) if (math.floor(z) - math.floor(a)) == 2 else ("corn", 3)
-                    return ("car_white", 3)
                 bx = (0.5, 7.25) if side == "w" else (8.75, 15.5)
-                m.box("shelf", (bx[0], y0 - 1, Z0), (bx[1], y0, Z1), white(decal=rail))
+                m.box("shelf", (bx[0], y0 - 1, Z0), (bx[1], y0, Z1), white, faces={front: None})
+                m.elements[-1]["open"] = (front,)
+                rx = bx[0] if side == "w" else bx[1]
+                m.plate("rail", (rx, y0 - 1.5, Z0), (rx, y0, Z1), {front: (rail, [0, 0, (Z1 - Z0) * 8, 12])}, one_sided=True)
+                # a shelf talker sticking out of the rail at the promo kind (1+1 / 2+1), both sides printed
+                if promo and state != "empty":
+                    a, b = tags[min(promo)]
+                    zt = (Z0 + a + 4) if not flip else (Z1 - a - 4)
+                    word = "1+1" if (level + len(cat)) % 2 else "2+1"
+                    tk = _surface(f"store_talker_{word}", lambda w=word: ART.talker_big(w, w=32, h=40))
+                    tx = (bx[0] - 1.75, bx[0]) if side == "w" else (bx[1], bx[1] + 1.75)
+                    m.plate("talker", (tx[0], y0 - 3, zt), (tx[1], y0 - 0.5, zt),
+                            {"north": (tk, [0, 0, 32, 40]), "south": (tk, [0, 0, 32, 40])})
             else:
-                def deck_tags(c, tags=tags, front=front):
-                    if c.face == front and 1.5 <= c.p[1] < 2.5:
-                        for (a, b) in tags:
-                            if a + 0.5 <= c.p[2] < a + 3.5:
-                                return ("corn", 3)
-                    return None
-                # the deck's tags: a thin rail on the plinth's front
+                # the deck's rail: a thin strip on the plinth's front
                 bx = (0.25, 0.5) if side == "w" else (15.5, 15.75)
-                m.box("deck_rail", (bx[0], 1.5, Z0), (bx[1], 2.5, Z1), white(decal=deck_tags))
+                rx = bx[0] if side == "w" else bx[1]
+                m.box("deck_rail", (bx[0], 1, Z0), (bx[1], 2.5, Z1), white, faces={front: None})
+                m.elements[-1]["open"] = (front,)
+                m.plate("deck_rail_face", (rx, 1, Z0), (rx, 2.5, Z1), {front: (rail, [0, 0, (Z1 - Z0) * 8, 12])}, one_sided=True)
             for i, (kind, n, z0, z1, st) in enumerate(row):
                 keep, depth, st2 = _shelf_state(level, i, kind, n, state, side)
                 if not keep:
@@ -454,8 +491,12 @@ def shelf(cat, state):
                           Paint("rice", 2, noise=0.04, decal=lambda c, y0=y0: PAL["N"] if c.p[1] < y0 + 1 or c.face == "up" and
                                 (math.floor(c.p[2]) % 5 == 2) else None))
                     continue
-                m.box(kind, (xa, y0, za), (xb, y0 + h, zb),
-                      Paint("car_white", 2, noise=0, decal=facing_decal(kind, za, y0, 2, flip, front, ("iron", 2), stack)))
+                fw, fh = facing_size(kind, 1)
+                st_n = h // fh
+                pic = _surface(f"store_fhd_{kind}_{keep}x{st_n}",
+                               lambda k=kind, a=fw, b=fh, n=keep, s=st_n: ART.facings_hd(k, a, b, n, s))
+                m.skin(kind, (xa, y0, za), (xb, y0 + h, zb),
+                       Paint("car_white", 2, noise=0, decal=facing_decal(kind, za, y0, 2, flip, front, ("iron", 2), stack)), front, pic)
     return gui(m)
 
 
@@ -522,9 +563,18 @@ def fridge(state):
                 keep, depth = (1, 2) if (level, i) in ((1, 1), (3, 2)) else (0, 0)
             if keep:
                 xa, xb = x, x + w * keep
-                m.box(kind, (xa, y0, 3), (xb, y0 + h, 3 + depth),
-                      Paint("ice", 3, noise=0, decal=facing_decal(kind, xb, y0, 0, False, "north", ("ice", 3))))
+                pic = _surface(f"store_fhd_{kind}_{keep}x1", lambda k=kind, a=w, b=h, n=keep: ART.facings_hd(k, a, b, n, 1))
+                m.skin(kind, (xa, y0, 3), (xb, y0 + h, 3 + depth),
+                       Paint("ice", 3, noise=0, decal=facing_decal(kind, xb, y0, 0, False, "north", ("ice", 3))), "north", pic)
             x += w * n + 1
+        # the shelf's price strip under the drinks (the deck has none): a tag under each kind
+        if level:
+            tags = sorted((32 - 1.5 - sum(facing_size(k)[0] * n + 1 for k, n in groups[:i + 1]) + 1,
+                           32 - 1.5 - sum(facing_size(k)[0] * n + 1 for k, n in groups[:i]))
+                          for i in range(len(groups)))
+            tags = [(a - 1, b - 1) for a, b in tags]
+            strip = _surface(f"store_fridge_rail_{level}", lambda t=tuple(tags), lv=level: ART.price_rail(30, list(t), h_px=1.25, promo=(lv % 3,), seed=lv + 4))
+            m.plate("price_strip", (1, y0 - 1.75, 2.45), (31, y0 - 0.5, 2.45), {"north": (strip, [0, 0, 240, 10])}, one_sided=True)
     m.group("doors")
     frame = Paint("steel", 4, "metal", noise=0.02, rim=1.2)
     for (a, b) in ((1, 16), (16, 31)):
@@ -534,7 +584,18 @@ def fridge(state):
         m.box("door_frame", (b - 1, 4, 0), (b, 27, 1.5), frame)
         m.box("glass", (a + 1, 4, 0.75), (b - 1, 27, 0.75), Paint("ice", 3, noise=0, decal=glass(a + 1, b - 1, 4, 27)))
     for hx in (13.5, 17.5):
-        m.box("handle", (hx, 9, -1), (hx + 1, 22, 0), flat("steel", 5, rim=1.4))
+        m.box("handle", (hx, 9, -1.25), (hx + 1, 22, -0.5), Paint("steel", 5, "metal", noise=0.02, rim=1.4))
+        for hy in (9.5, 20.5):
+            m.box("handle_post", (hx + 0.25, hy, -0.5), (hx + 0.75, hy + 1, 0), flat("steel", 3))
+    # the doors' stickers on the glass (just in front of it): a 1+1 burst on the left door, 당기세요 by each handle
+    pr = _surface("store_talker_1+1", lambda: ART.talker_big("1+1", w=32, h=40))
+    m.plate("sticker", (26.5, 23, 0.7), (29, 26, 0.7), {"north": (pr, [0, 0, 32, 40])}, one_sided=True)
+    pull = _surface("store_fridge_pull", lambda: ART.header("당기세요", 64, 16, bg=("snow", 2), fg=("water", 1), edge=("water", 2)))
+    for px0 in (10.5, 18.5):
+        m.plate("pull", (px0, 22.5, 0.7), (px0 + 3, 23.25, 0.7), {"north": (pull, [0, 0, 64, 16])}, one_sided=True)
+    # LED strips down the inside of the case's sides
+    for lx in ((1, 1.25), (30.75, 31)):
+        m.box("led", (lx[0], 4, 2), (lx[1], 27, 2.5), glow("snow", 2))
     return gui(m)
 
 
@@ -560,6 +621,9 @@ def freezer():
     m.box("side", (0, 0, 1.5), (1.5, 13, 14.5), white)
     m.box("side", (30.5, 0, 1.5), (32, 13, 14.5), white)
     m.box("well", (1.5, 0, 1.5), (30.5, 6, 14.5), flat("ice", 3))
+    for bx in ((0, 1.25), (30.75, 32)):
+        m.box("bumper", (bx[0], 0.5, -0.25), (bx[1], 12.5, 0), Paint("iron", 3, "lacquer", rim=1.2))
+    m.box("bumper_rail", (1.25, 1, -0.25), (30.75, 1.75, 0), Paint("iron", 3, "lacquer", rim=1.2))
     pic = _surface("store_freezer_front", lambda: ART.header("아이스크림", 224, 32, bg=("sapphire", 2), edge=("sapphire", 2), scale=2))
     m.plate("label", (2, 3, -0.01), (30, 7, -0.01), {"north": (pic, [0, 0, 224, 32])})
     # ice creams in two baskets: bars lying in rows (left), cones standing (right)
@@ -585,8 +649,13 @@ def freezer():
         if u == 1 and v == 1:
             return ("doenjang", 2)
         return ("pepper", 2) if (u + v) % 2 else ("car_white", 3)
-    m.box("bars", (1.5, 6, 2.5), (15.5, 10, 13.5), Paint("sapphire", 3, noise=0, decal=bars))
-    m.box("cones", (16.5, 6, 2.5), (30.5, 9.5, 13.5), Paint("fox", 3, noise=0, decal=cones))
+    m.skin("bars", (1.5, 6, 2.5), (15.5, 10, 13.5), Paint("sapphire", 3, noise=0, decal=bars), "up",
+           _surface("store_freezer_bars", ART.freezer_bars), uv=[0, 44, 56, 0])
+    m.skin("cones", (16.5, 6, 2.5), (30.5, 9.5, 13.5), Paint("fox", 3, noise=0, decal=cones), "up",
+           _surface("store_freezer_cones", ART.freezer_cones), uv=[0, 44, 56, 0])
+    # a 2+1 sticker on the front
+    st = _surface("store_talker_2+1", lambda: ART.talker_big("2+1", w=32, h=40))
+    m.plate("sticker", (26, 7.5, -0.01), (29, 11.25, -0.01), {"north": (st, [0, 0, 32, 40])}, one_sided=True)
     m.box("divider", (15.5, 6, 2), (16.5, 11, 14), flat("steel", 4))
     m.group("lids")
     rim = Paint("steel", 4, "metal", noise=0.02, rim=1.2)
@@ -622,32 +691,20 @@ def _cabinet(m):
 
 
 def microwave():
-    m = BModel("store_microwave", floor=0, planes=(("z>", 16),))
+    m = HModel("store_microwave", floor=0, planes=(("z>", 16),))
     _cabinet(m)
     m.group("microwave")
 
-    def body(c):
-        x, y = c.p[0], c.p[1]
-        if c.face == "north":
-            if 4.5 <= x < 14 and 14.5 <= y < 21:
-                if 5.5 <= x < 12.5 and 15.5 <= y < 20:
-                    # the window: dark glass, the turntable's glow faint inside, a glint across its corner
-                    if math.floor(x - y) == -9 or math.floor(x - y) == -11 and x < 9:
-                        return ("steel", 3)
-                    if y < 16.5 and 7 <= x < 11:
-                        return ("iron", 2)
-                    return ("iron", 1)
-                return ("iron", 2)
-            if 1.5 <= x < 4.5 and 14.5 <= y < 21:
-                if 19 <= y < 20.5:
-                    return ("raw", (90, 230, 140, 255)) if 2 <= x < 4 else ("iron", 1)   # the green display
-                if 15 <= y < 18.5 and (c.i[0] + c.i[1]) % 2 == 0:
-                    return ("car_white", 2)                # keypad
-                return ("iron", 2)
+    def vents(c):
+        if c.face in ("east", "west") and 18 <= c.p[1] < 21.5 and math.floor(c.p[2] * 2) % 3 == 0 and 5 <= c.p[2] < 12:
+            return ("iron", 2)                             # the vent slots on its sides
         return None
-    m.box("body", (1.5, 13, 3), (14.5, 22, 14), Paint("car_white", 3, "lacquer", noise=0.02, rim=1.0, decal=body))
-    m.box("handle", (12.5, 15, 2), (13.5, 20.5, 3), flat("steel", 4, rim=1.2))
-    m.box("foot", (2, 13, 4), (3, 13.5, 13), flat("iron", 1))
+    mf = _surface("store_microwave_front", ART.microwave_front)
+    m.skin("body", (1.5, 13.5, 3), (14.5, 22.5, 14), Paint("car_white", 3, "lacquer", noise=0.02, rim=1.0, decal=vents), "north", mf)
+    m.box("handle", (4.75, 15, 2), (5.5, 21, 3), Paint("steel", 4, "metal", rim=1.3))
+    for fx in (2, 13):
+        m.box("foot", (fx, 13, 4), (fx + 1, 13.5, 13), flat("iron", 1))
+    m.box("cord", (11, 13, 14), (12, 14.5, 15), flat("iron", 1))
     return gui(m)
 
 
@@ -664,16 +721,17 @@ def kettle():
             if 5 <= x < 11 and 18 <= y < 21:
                 return ("iron", 1)                                  # the tap's recess
         return None
-    m.box("body", (3.5, 13, 4), (12.5, 28, 13), Paint("car_white", 3, "lacquer", noise=0.02, rim=1.0, decal=body))
+    kf = _surface("store_kettle_front", ART.kettle_front)
+    m.skin("body", (3.5, 13, 4), (12.5, 28, 13), Paint("car_white", 3, "lacquer", noise=0.02, rim=1.0, decal=body), "north", kf)
     m.box("lid", (4, 28, 4.5), (12, 29, 12.5), flat("steel", 4, rim=1.2))
     m.box("knob", (7, 29, 7.5), (9, 30, 9.5), flat("iron", 2))
     m.box("tap", (7, 18.5, 2.5), (9, 20.5, 4), flat("pepper", 2, rim=1.2))
     m.box("nozzle", (7.5, 17.5, 3), (8.5, 18.5, 3.75), flat("steel", 3))
     m.box("tray", (4.5, 13, 1.5), (11.5, 14, 4), flat("iron", 2, decal=lambda c: ("iron", 1) if c.face == "up" and c.i[0] % 2 else None))
-    lab = _surface("store_kettle_label", lambda: ART.header("온수", 48, 16, bg=("pepper", 2), edge=("pepper", 1)))
-    m.plate("label", (5, 23, 3.99), (11, 25, 3.99), {"north": (lab, [0, 0, 48, 16])})
-    # paper cups stacked on the cabinet's corner
-    cyl(m, "cups", (14.25, 5), 3, 13, 20, Paint("paper", 2, "paper", decal=lambda c: ("pepper", 2) if 15 <= c.p[1] < 16 else None))
+    # paper cups stacked in a clear dispenser tube on the cabinet's corner, the top cup's rim
+    cyl(m, "cups", (14.25, 5), 3, 13, 21, Paint("paper", 2, "paper", decal=lambda c: ("pepper", 2) if 15 <= c.p[1] < 16 else
+                                                 ("paper", 1) if math.floor(c.p[1] * 2) % 2 and c.p[1] >= 16 else None))
+    cyl(m, "cup_rim", (14.25, 5), 3, 21, 21.5, flat("snow", 2, decal=lambda c: ("paper", 1) if c.face == "up" and abs(c.p[0] - 14.25) < 0.6 and abs(c.p[2] - 5) < 0.6 else None))
     return gui(m)
 
 
@@ -688,20 +746,21 @@ def counter():
     def front(c):
         y = c.p[1]
         if c.face == "north":
-            if y < 1:
-                return ("iron", 2)
             if 10 <= y < 12:
                 return (GREEN, 2) if y < 11.5 else (GREEN, 3)
             if 12 <= y < 12.5:
                 return ("corn", 3)
-            if math.floor(c.p[0]) % 16 == 0:
-                return ("hinoki", 1)                       # the laminate's panel joints
+            if 13.5 <= y:
+                return ("hinoki", 3)                       # the lit edge under the top's overhang
+            k = math.floor(c.p[0] + 16) % 16
+            if k == 0:
+                return ("hinoki", 0)                       # the laminate's panel joints (a groove)
+            if k == 1:
+                return ("hinoki", 3)
         if c.face == "south":
             # the worker's side: shelves of rolled bags and receipt paper, the cash drawer under the POS
-            if 9 <= c.p[0] < 17 and 11 <= y < 13.5:
-                return ("iron", 2) if y >= 11.5 else ("iron", 1)
-            if y < 1:
-                return ("iron", 2)
+            if y >= 13:
+                return ("car_white", 2)
             if 6 <= y < 6.5:
                 return ("car_white", 2)
             if 1 <= y < 6 or 6.5 <= y < 11:
@@ -711,70 +770,116 @@ def counter():
                 b = math.floor((c.p[0] + 16) / 3)
                 if (y < 4 if y < 6 else y < 9.5) and h3(b, 0 if y < 6 else 1, 0, 3) < 0.35 and k not in (1, 11):
                     return ("snow", 1) if h3(b, 1, 0, 3) < 0.6 else ("corn", 3)   # rolls of bags, receipt paper
+                if (y < 1.75 or 6.5 <= y < 7.25) and k not in (0,):
+                    return ("iron", 2)                     # the cubbies' floors catching light
                 return ("iron", 1)
         return None
-    m.box("cabinet", (-16, 0, 1.5), (32, 14, 16), Paint("hinoki", 2, "grain", axis="x", noise=0.04, decal=front))
+    # the cabinet on a recessed dark kick plinth
+    m.box("plinth", (-15.5, 0, 2.25), (31.5, 1, 15.5), flat("iron", 1))
+    m.skin("cabinet", (-16, 1, 1.5), (32, 14, 16), Paint("hinoki", 2, "grain", axis="x", noise=0.04, decal=front), "south",
+           _surface("store_counter_back", ART.counter_back))
     logo = _surface("store_counter_logo", lambda: ART.sign_face().resize((160, 32), 0))
-    m.plate("logo", (-4, 4, 1.49), (16, 8, 1.49), {"north": (logo, [0, 0, 160, 32])})
-    top = Paint("car_white", 3, noise=0.0, rim=1.2, decal=lambda c: ("car_white", 2) if c.face == "north" else None)
-    m.box("top", (-16, 14, 0), (32, 15, 16), top)
-    # the mat for the customer's goods
+    m.plate("logo", (-4, 4, 1.49), (16, 8, 1.49), {"north": (logo, [0, 0, 160, 32])}, one_sided=True)
+    poster = _surface("store_counter_poster", ART.counter_poster)
+    m.plate("poster", (18, 2, 1.49), (30, 9, 1.49), {"north": (poster, [0, 0, 96, 56])}, one_sided=True)
+    bagfee = _surface("store_counter_bagfee", lambda: ART.header("봉투 유료", 80, 24, bg=("snow", 2), fg=(GREEN, 1), edge=(GREEN, 2)))
+    m.plate("bag_fee", (-15, 6, 1.49), (-5, 9, 1.49), {"north": (bagfee, [0, 0, 80, 24])}, one_sided=True)
+
+    def top_d(c):
+        if c.face == "north":
+            return ("steel", 5) if c.p[1] >= 14.5 else ("steel", 4)     # the steel nosing
+        if c.face == "up" and c.p[2] < 0.75:
+            return ("snow", 2)
+        return None
+    m.box("top", (-16, 14, 0), (32, 15, 16), Paint("car_white", 3, noise=0.0, rim=1.2, decal=top_d))
+    # the mat for the customer's goods (its top stays at y 15.25: the store's logic puts the goods there)
     m.group("mat")
-    m.box("mat", (-14, 15, 2), (2, 15.25, 12), flat("iron", 3, decal=lambda c: ("iron", 2) if c.face == "up" and c.i[2] % 2 else None))
-    # the customer display: a dark screen on a pole, facing the customer
+
+    def mat_d(c):
+        if c.face == "up":
+            if c.p[0] < -13.5 or c.p[0] >= 1.5 or c.p[2] < 2.5 or c.p[2] >= 11.5:
+                return ("iron", 1)                         # the raised lip
+            return ("iron", 2) if c.i[2] % 2 else ("iron", 3)
+        return None
+    m.box("mat", (-14, 15, 2), (2, 15.25, 12), flat("iron", 3, decal=mat_d))
+    # the customer display: a dark screen on a pole, facing the customer (its face is the store's text spot)
     m.group("customer_display")
-    m.box("pole", (4.25, 15, 3.25), (5.25, 19.5, 4.25), flat("iron", 2, rim=1.2))
-    m.box("foot", (3.25, 15, 2.25), (6.25, 15.5, 5.25), flat("iron", 2))
+    m.box("pole", (4.25, 15, 3.25), (5.25, 19.5, 4.25), Paint("steel", 3, "metal", rim=1.2))
+    cyl(m, "foot", (4.75, 3.75), 4, 15, 15.5, Paint("iron", 2, "metal", rim=1.2))
 
     def scr(c):
         if c.face == "north" and 2 <= c.p[0] < 7.5 and 20 <= c.p[1] < 24:
             return ("tint", 1) if c.p[1] < 23 else ("tint", 2)
+        if c.face == "north" and c.p[1] < 20 and 4 <= c.p[0] < 5.5:
+            return ("steel", 4)                            # a small maker's badge under the screen
+        if c.face == "south" and 3 <= c.p[0] < 6.5 and 21 <= c.p[1] < 23:
+            return ("iron", 2)                             # the back's vent
         return None
     m.box("screen", (1.5, 19.5, 1.5), (8, 24.5, 3), flat("iron", 1, decal=scr))
-    # the POS: a base, the screen on an arm tilted to the worker
+    # the POS: a base with its cash drawer key, the screen on an arm tilted to the worker (the POS app lit on it)
     m.group("pos")
-    m.box("pos_base", (9, 15, 8), (17, 16.5, 14), Paint("iron", 2, "metal", rim=1.2))
-    m.box("pos_arm", (12.5, 16.5, 10), (13.5, 19.5, 11), flat("iron", 3))
 
-    def pos_screen(c):
-        if c.face == "south":
-            x, y = c.p[0], c.p[1]
-            if 9.5 <= x < 16.5 and 20 <= y < 24.5:
-                if y >= 23.5:
-                    return raw(GREEN, 2)
-                if 14 <= x < 16 and y < 22:
-                    return raw("corn", 3) if (c.i[0] + c.i[1]) % 2 else raw(GREEN, 3)
-                if math.floor(y * 2) % 2 == 0 and x < 13.5:
-                    return raw("snow", 1)
-                return raw("sapphire", 3)
-            return raw("iron", 1)
+    def pos_base(c):
+        if c.face == "south" and 15.5 <= c.p[1] < 16 and 10 <= c.p[0] < 16:
+            return ("iron", 0)
+        if c.face == "up" and 9.5 <= c.p[0] < 12 and 12 <= c.p[2] < 13.5:
+            return ("raw", (90, 230, 140, 255)) if c.i[0] % 2 else ("iron", 1)   # status lamps
         return None
-    m.box("pos_screen", (9, 19.5, 10.5), (17, 25, 11.5), Paint("iron", 1, decal=pos_screen),
-          rotation=("x", 22.5, (13, 19.5, 11)))
-    # the card terminal facing the customer, tilted, a slot; the scanner's cradle behind it
-    m.group("card_terminal")
+    m.box("pos_base", (9, 15, 8), (17, 16.5, 14), Paint("iron", 2, "metal", rim=1.2, decal=pos_base))
+    m.box("pos_arm", (12.5, 16.5, 10), (13.5, 19.5, 11), Paint("steel", 3, "metal", rim=1.1))
+    rot = ("x", 22.5, (13, 19.5, 11))
+    m.box("pos_bezel", (9, 19.5, 10.5), (17, 25, 11.5), Paint("iron", 1, "lacquer", rim=1.2), rotation=rot,
+          faces={"south": None})
+    m.elements[-1]["open"] = ("south",)
+    ps = _surface("store_pos_screen", ART.pos_screen)
+    m.plate("pos_screen", (9, 19.5, 11.5), (17, 25, 11.5), {"south": (ps, [0, 0, 64, 44])}, glow=True, rotation=rot,
+            one_sided=True)
+    # the receipt printer beside it, a receipt curling out of its slot
+    m.group("printer")
 
-    def keypad(c):
-        x, z = c.p[0], c.p[2]
+    def printer(c):
+        if c.face == "up" and 10.5 <= c.p[2] < 11:
+            return ("iron", 0)                             # the paper slot
+        if c.face == "north" and 16 <= c.p[1] < 16.5 and 28.5 <= c.p[0] < 29:
+            return ("raw", (90, 230, 140, 255))
+        if c.face == "up" and c.p[2] >= 11:
+            return ("car_white", 2)                        # the lid
+        return None
+    m.box("printer", (25, 15, 9), (30, 17.5, 14.5), Paint("car_white", 2, "lacquer", noise=0.02, rim=1.2, decal=printer))
+    rc = _surface("store_receipt", ART.receipt_paper)
+    m.plate("receipt", (25.75, 17.5, 10.75), (29.25, 20, 10.75), {"north": (rc, [0, 0, 16, 24]), "south": (rc, [0, 0, 16, 24])},
+            rotation=("x", -22.5, (27.5, 17.5, 10.75)))
+    # the money tray on the customer's side: a shallow dark dish, two coins in it
+    m.group("cash_tray")
+
+    def tray(c):
         if c.face == "up":
-            if 3.5 <= z < 5.5:
-                return raw("tint", 2)
-            if (c.i[0] + c.i[2]) % 2 == 0 and z >= 6:
-                return ("car_white", 3)
+            if 10.5 <= c.p[0] < 15.5 and 2.5 <= c.p[2] < 6:
+                return ("iron", 1)
         return None
-    m.box("terminal", (19, 15, 2.5), (23, 16.5, 9), Paint("iron", 2, rim=1.2, decal=keypad), rotation=("x", -22.5, (21, 15, 9)))
+    m.box("cash_tray", (10, 15, 2), (16, 15.5, 6.5), Paint("iron", 3, noise=0, rim=1.3, decal=tray))
+    # the card terminal facing the customer, tilted (its keypad and screen drawn on its face); the scanner's cradle
+    m.group("card_terminal")
+    trot = ("x", -22.5, (21, 15, 9))
+    m.box("terminal", (19, 15, 2.5), (23, 16.5, 9), Paint("iron", 2, rim=1.2), rotation=trot, faces={"up": None})
+    m.elements[-1]["open"] = ("up",)
+    tf = _surface("store_terminal_face", ART.terminal_face)
+    m.plate("terminal_face", (19, 16.5, 2.5), (23, 16.5, 9), {"up": (tf, [32, 52, 0, 0])}, rotation=trot, one_sided=True)
     m.box("terminal_back", (19, 15, 7), (23, 16, 10), flat("iron", 2))
-    m.box("cradle", (19.5, 15, 11), (22.5, 17, 14), Paint(GREEN, 1, rim=1.2))
+    m.box("cradle", (19.5, 15, 11), (22.5, 17, 14), Paint(GREEN, 1, rim=1.2,
+          decal=lambda c: ("raw", (255, 70, 60, 255)) if c.face == "north" and 16 <= c.p[1] < 16.5 and 20.5 <= c.p[0] < 21.5 else None))
     m.box("cradle_cup", (19.5, 17, 11), (22.5, 18, 12), flat(GREEN, 1))
-    # the little rack at the left end: 숙취해소제 bottles and gum
+    # the little rack at the left end: 숙취해소제 bottles and gum, a 2+1 talker on it
     m.group("impulse")
-    m.box("rack", (24.5, 15, 1), (31.5, 16, 7), flat("car_white", 3, rim=1.2))
+    m.box("rack", (24.5, 15, 1), (31.5, 16, 7), Paint("car_white", 3, rim=1.2, decal=lambda c: ("pepper", 2) if c.face == "north" and c.p[1] < 15.5 else None))
     for hx in (25.5, 27.75, 30):
         m.box("hangover", (hx - 0.75, 16, 2), (hx + 0.75, 19, 3.5), Paint("doenjang", 1, noise=0,
-              decal=lambda c: ("gold", 2) if 17 <= c.p[1] < 18 else None))
-        m.box("hangover_cap", (hx - 0.5, 19, 2.25), (hx + 0.5, 19.75, 3.25), flat("gold", 3))
+              decal=lambda c: ("gold", 2) if 17 <= c.p[1] < 18 else ("snow", 2) if c.face == "north" and 18.25 <= c.p[1] < 18.5 else None))
+        m.box("hangover_cap", (hx - 0.5, 19, 2.25), (hx + 0.5, 19.75, 3.25), Paint("gold", 3, "metal", rim=1.2))
     m.box("gum", (25, 16, 4.5), (31, 17.5, 6.5), Paint(GREEN, 3, noise=0,
                                                        decal=lambda c: (GREEN, 3) if math.floor(c.p[0]) % 2 else ("car_white", 3)))
+    tk = _surface("store_talker_2+1", lambda: ART.talker_big("2+1", w=32, h=40))
+    m.plate("talker", (29.5, 17.5, 0.75), (31.5, 20, 0.75), {"north": (tk, [0, 0, 32, 40]), "south": (tk, [0, 0, 32, 40])})
     # the bag hook off the worker's side, a bundle of bags hanging from it
     m.group("bags")
     m.box("hook", (-14, 13, 16), (-13, 14, 17.5), flat("steel", 4))
@@ -782,8 +887,23 @@ def counter():
     def bag(c):
         if c.face == "south" and 9.5 <= c.p[1] < 11 and -15 <= c.p[0] < -12:
             return (GREEN, 2)                              # the print
+        if c.face == "south" and 10 <= c.p[1] < 10.5 and -14.25 <= c.p[0] < -13.5:
+            return ("corn", 2)
+        if c.face in ("east", "west", "south") and math.floor(c.p[1] * 2) % 5 == 0:
+            return ("snow", 0)                             # the stacked bags' edges
         return None
     m.box("bags", (-15.5, 6, 16.5), (-11.5, 13, 17.75), Paint("snow", 1, noise=0.06, decal=bag))
+    # the cash drawer under the POS on the worker's side, its key lock and handle
+    m.group("drawer")
+
+    def drawer(c):
+        if c.face == "south":
+            if 12.5 <= c.p[1] < 13 and 11 <= c.p[0] < 15:
+                return ("steel", 4)
+            if 11.5 <= c.p[1] < 12 and 15.75 <= c.p[0] < 16.25:
+                return ("gold", 2)
+        return None
+    m.box("drawer", (9, 11, 16), (17, 13.5, 16.25), Paint("iron", 2, "metal", rim=1.2, decal=drawer))
     return gui(m)
 
 
@@ -853,9 +973,9 @@ def cig_shelf():
                 return PAL[brand[1]] if math.floor(x + 16) % 2 == 0 else PAL[brand[2]]
             return ("stone", 2) if math.floor(x + 16) % 2 == 0 else ("stone", 1)
         return decal
-    m.box("row", (-15, 16.5, 9), (21, 20.5, 14), Paint("iron", 2, noise=0, decal=packs(0, 16.5)))
-    m.box("row", (-15, 20.5, 9), (31, 24.5, 14), Paint("iron", 2, noise=0, decal=packs(5, 20.5)))
-    m.box("row", (-15, 24.5, 9), (31, 28.5, 14), Paint("iron", 2, noise=0, decal=packs(9, 24.5)))
+    for (x1, y, seed) in ((21, 16.5, 0), (31, 20.5, 5), (31, 24.5, 9)):
+        pk = _surface(f"store_cig_packs_{seed}", lambda n=x1 + 15, sd=seed: ART.cig_packs(n, sd))
+        m.skin("row", (-15, y, 9), (x1, y + 4, 14), Paint("iron", 2, noise=0, decal=packs(seed, y)), "north", pk)
     # the gum rack and the lottery dispenser on the cabinet
     m.group("gum_lottery")
     m.box("gum", (-15, 13, 6), (21, 16, 11), Paint(GREEN, 3, noise=0, decal=facing_decal_rows(
@@ -916,7 +1036,7 @@ PARASOL_SEATS = [(-1, 0), (1, 0)]
 
 
 def eat_bar():
-    m = BModel("store_eat_bar", floor=0, planes=(("z>", 16),))
+    m = HModel("store_eat_bar", floor=0, planes=(("z>", 16),))
     m.group("bar")
     wood = Paint("hinoki", 2, "grain", axis="x", noise=0.05, rim=1.2)
     m.box("top", (-16, 13, 12), (32, 14, 16), wood)
@@ -924,18 +1044,37 @@ def eat_bar():
     for x in (-15, 7.5, 30):
         m.box("leg", (x, 0.5, 14), (x + 1, 12.5, 15), flat("steel", 4, rim=1.2))
         m.box("leg_foot", (x - 0.5, 0, 13.5), (x + 1.5, 0.5, 15.5), flat("iron", 2))
+    for x in (-15, 7.5, 30):
+        m.box("bracket", (x, 11.5, 12.5), (x + 1, 12.5, 14), flat("steel", 3))
     m.group("things")
-    m.box("napkins", (-4, 14, 13), (-1, 16, 15), Paint("car_white", 3, decal=lambda c: (GREEN, 2) if c.p[1] < 14.75 else None))
-    cyl(m, "chopsticks_cup", (21, 14.5), 2, 14, 16, flat("steel", 4))
+
+    def holder(c):
+        if c.face == "north" and 14.5 <= c.p[1] < 16:
+            return ("snow", 2) if c.p[1] < 15.75 else ("car_white", 3)   # the napkins showing through its slot
+        if c.face == "up" and c.p[2] < 14.5:
+            return ("snow", 2)
+        return None
+    m.box("napkins", (-4, 14, 13), (-1, 16.5, 15), Paint("steel", 4, "metal", noise=0.02, rim=1.2, decal=holder))
+    cyl(m, "chopsticks_cup", (21, 14.5), 2, 14, 16, Paint("steel", 4, "metal", rim=1.2))
     for dx in (-0.5, 0.25):
         m.box("chopstick", (20.75 + dx, 16, 14.25), (21 + dx, 18, 14.5), flat("hinoki", 3))
+    m.box("spoon", (21.25, 16, 14.75), (21.75, 17.5, 15), flat("steel", 5))
+    # sauces: a red hot sauce and a yellow mustard bottle with their nozzles
+    for (sx, col) in ((24, ("pepper", 2)), (25.25, ("corn", 2))):
+        m.box("sauce", (sx, 14, 14), (sx + 1, 16, 15), Paint(col[0], col[1], "lacquer", rim=1.2,
+              decal=lambda c, col=col: ("snow", 2) if c.face == "north" and 14.75 <= c.p[1] < 15.5 else None))
+        m.box("sauce_cap", (sx + 0.25, 16, 14.25), (sx + 0.75, 16.75, 14.75), flat("snow", 2))
+    # a little acrylic card: 셀프 정리 (please clear your table)
+    card = _surface("store_eat_card", lambda: ART.stand_card("셀프 정리", w=64, h=40))
+    m.box("card_foot", (8.5, 14, 13.25), (12.5, 14.25, 14.75), flat("glass", 3))
+    m.plate("card", (8.5, 14.25, 14), (12.5, 16.75, 14), {"north": (card, [0, 0, 64, 40]), "south": (card, [0, 0, 64, 40])})
     for (sx, _) in EAT_SEATS:
         bar_stool(m, f"stool_{sx}", sx * 16 + 7.5, 4.5)
     return gui(m)
 
 
 def parasol():
-    m = BModel("store_parasol", floor=0, scale=2)
+    m = HModel("store_parasol", floor=0, scale=2)
     white = Paint("car_white", 3, "lacquer", noise=0.02, rim=1.0)
     m.group("table")
     cyl(m, "base", (8, 8), 8, 0, 1, flat("iron", 2, rim=1.2))
@@ -966,7 +1105,20 @@ def parasol():
     for i, (hw, y0, y1) in enumerate(((19, 36.5, 38), (15, 38, 39.5), (11, 39.5, 41), (7, 41, 42.5), (3, 42.5, 43.5))):
         m.box("canopy", (8 - hw, y0, 8 - hw), (8 + hw, y1, 8 + hw), cpaint)
     m.box("finial", (7.25, 43.5, 7.25), (8.75, 45, 8.75), flat("car_white", 3))
-    # the GS26 print on two sides of the valance (a sun-yellow disc and a white bar)
+    # the GS26 print on the valance's four sides (the lightbox's picture, small)
+    logo = _surface("store_parasol_logo", lambda: ART.sign_face().resize((80, 16), 0))
+    L = 0.1
+    m.plate("print", (4.25, 35.25, -12 - L), (11.75, 36.75, -12 - L), {"north": (logo, [0, 0, 80, 16])}, one_sided=True)
+    m.plate("print", (4.25, 35.25, 28 + L), (11.75, 36.75, 28 + L), {"south": (logo, [0, 0, 80, 16])}, one_sided=True)
+    m.plate("print", (-12 - L, 35.25, 4.25), (-12 - L, 36.75, 11.75), {"west": (logo, [0, 0, 80, 16])}, one_sided=True)
+    m.plate("print", (28 + L, 35.25, 4.25), (28 + L, 36.75, 11.75), {"east": (logo, [0, 0, 80, 16])}, one_sided=True)
+    # the runner on the pole and four stretchers up to the canopy's ribs
+    m.box("runner", (7.25, 30, 7.25), (8.75, 31.5, 8.75), flat("steel", 4, rim=1.2))
+    rib = flat("steel", 4, rim=1.1)
+    m.box("stretcher", (8.75, 30.75, 7.75), (21.75, 31.25, 8.25), rib, rotation=("z", 22.5, (8.75, 31, 8)))
+    m.box("stretcher", (-5.75, 30.75, 7.75), (7.25, 31.25, 8.25), rib, rotation=("z", -22.5, (7.25, 31, 8)))
+    m.box("stretcher", (7.75, 30.75, 8.75), (8.25, 31.25, 21.75), rib, rotation=("x", -22.5, (8, 31, 8.75)))
+    m.box("stretcher", (7.75, 30.75, -5.75), (8.25, 31.25, 7.25), rib, rotation=("x", 22.5, (8, 31, 7.25)))
     plastic_chair(m, "seat0_chair", -8, 8, "w", Paint("car_white", 3, "lacquer", noise=0.02, rim=1.0))
     plastic_chair(m, "seat1_chair", 24, 8, "e", Paint("car_white", 3, "lacquer", noise=0.02, rim=1.0))
     return gui(m)
@@ -1097,7 +1249,7 @@ def sign():
 # ================================================================================================
 
 def G(name):
-    return BModel(name, floor=8, scale=2)
+    return HModel(name, floor=8, scale=2)
 
 
 def _ang(c):
@@ -1151,7 +1303,8 @@ def dosirak():
             return (GREEN, 2)
         return ("glass", 2) if c.face in SIDES else None
     m.box("tray", (1, 8, 3), (15, 10, 13), Paint("iron", 1, rim=1.0))
-    m.box("lid", (1.5, 10, 3.5), (14.5, 12, 12.5), Paint("glass", 3, noise=0, decal=lid))
+    top = _surface("store_front_dosirak_top", lambda: ART.goods_front("dosirak_top", 52, 36))
+    m.skin("lid", (1.5, 10, 3.5), (14.5, 12, 12.5), Paint("glass", 3, noise=0, decal=lid), "up", top, uv=[52, 36, 0, 0])
     return held(m, grip_y=8.5)
 
 
@@ -1335,7 +1488,8 @@ def bag_pack(key, body, pic, size=(10, 12)):
     p = Paint(body[0], body[1], "lacquer", noise=0.02, decal=pic)
     m.box("bottom_seam", (x0, 8, 7.25), (x1, 9, 8.75), Paint(body[0], body[1] - 1, decal=crimp))
     m.box("body", (x0, 9, 6), (x1, 8 + h - 1, 10), p)
-    m.box("puff", (x0 + 1, 10.5, 5), (x1 - 1, 8 + h - 2.5, 11), p)
+    front = _surface(f"store_front_{key}", lambda k=key, a=(w - 2) * 4, b=(h - 5) * 4: ART.goods_front(k, a, b))
+    m.skin("puff", (x0 + 1, 10.5, 5), (x1 - 1, 8 + h - 2.5, 11), p, "north", front)
     m.box("top_seam", (x0, 8 + h - 1, 7.25), (x1, 8 + h + 0.5, 8.75), Paint(body[0], body[1] - 1, decal=crimp))
     return held(m)
 
@@ -1385,7 +1539,9 @@ def _candy_pic(c):
 def box_pack(key, size, body, pic):
     m = G(f"store_item_{key}")
     w, h, d = size
-    m.box("box", (8 - w / 2, 8, 8 - d / 2), (8 + w / 2, 8 + h, 8 + d / 2), Paint(body[0], body[1], "lacquer", noise=0.02, rim=1.1, decal=pic))
+    front = _surface(f"store_front_{key}", lambda k=key, a=round(w * 4), b=round(h * 4): ART.goods_front(k, a, b))
+    m.skin("box", (8 - w / 2, 8, 8 - d / 2), (8 + w / 2, 8 + h, 8 + d / 2), Paint(body[0], body[1], "lacquer", noise=0.02, rim=1.1, decal=pic),
+           "north", front)
     return held(m)
 
 

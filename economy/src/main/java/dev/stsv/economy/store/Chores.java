@@ -51,13 +51,6 @@ public final class Chores {
         return true;
     }
 
-    /** A thing back onto its shelf (a player walked off without paying): one more, at most full. */
-    public void putBack(StoreSpec spec, String place) {
-        StoreSpec.Shelf s = spec.shelves().get(place);
-        Integer n = stock.get(place);
-        if (s != null && n != null) stock.put(place, Math.min(s.capacity(), n + 1));
-    }
-
     /** The model state of a shelf (full / half / empty). */
     public String state(StoreSpec spec, String place) {
         StoreSpec.Shelf s = spec.shelves().get(place);

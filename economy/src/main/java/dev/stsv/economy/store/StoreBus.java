@@ -1,10 +1,8 @@
 package dev.stsv.economy.store;
 
-import dev.stsv.core.util.Lang;
 import dev.stsv.economy.bus.BusModule;
 import dev.stsv.economy.bus.BusStop;
 import org.bukkit.Location;
-import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.util.List;
@@ -12,8 +10,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * The 편의점 and the 마을버스 (기획안 §9, store.yml bus-link): a store with a stop near it sends its customers to wait there
- * with their bag; "다음 버스 언제 와요?" is answered with the nearest running bus's driver; a driver who buys a 캔커피 keeps
- * their passengers awake a while; kinds served often in the store know the driver on the bus.
+ * with their bag; "다음 버스 언제 와요?" is answered with the nearest running bus's driver; kinds served often in the store
+ * know the driver on the bus.
  */
 final class StoreBus implements BusModule.Watcher {
 
@@ -77,16 +75,6 @@ final class StoreBus implements BusModule.Watcher {
         if (lines.isEmpty()) return "";
         String line = lines.get(ThreadLocalRandom.current().nextInt(lines.size()));
         return best == null ? line : line.replace("{driver}", best.getName());
-    }
-
-    /** A player customer bought these: a bus driver with a 캔커피 keeps their passengers awake a while. */
-    void bought(Player p, List<String> items) {
-        BusModule b = bus();
-        if (b == null || !items.contains("coffee_can") || !b.driving(p.getUniqueId())) return;
-        StoreLife.BusLink link = m.life().bus();
-        b.coffee(p.getUniqueId(), System.currentTimeMillis() + link.coffeeMinutes() * 60_000L, link.coffeeDoze());
-        p.sendMessage(Lang.msg("store.coffee-driver", "m", link.coffeeMinutes()));
-        p.playSound(p.getLocation(), Sound.ENTITY_GENERIC_DRINK, 0.6f, 1.2f);
     }
 
     /** On the bus: a kind this driver served often in a store knows them. */

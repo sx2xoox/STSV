@@ -193,7 +193,7 @@ public record StoreLife(List<Rank> ranks, String title, String vestManager, Stri
     // ------------------------------------------------------------------------------------------ 버스
 
     /** The bus link (§9). */
-    public record BusLink(double radius, double carry, int most, double ask, double askMood, int coffeeMinutes, double coffeeDoze, int greetAt,
+    public record BusLink(double radius, double carry, int most, double ask, double askMood, int greetAt,
                           Map<String, List<String>> talk) {
         public List<String> lines(String key) {
             return talk.getOrDefault(key, List.of());
@@ -388,8 +388,8 @@ public record StoreLife(List<Rank> ranks, String title, String vestManager, Stri
         for (String k : List.of("ask", "driver", "none", "greet")) if (btalk.getOrDefault(k, List.of()).isEmpty()) problems.add("bus-link.talk." + k + ": 대사가 없음");
         for (String l : btalk.getOrDefault("driver", List.of())) if (!l.contains("{driver}")) problems.add("bus-link.talk.driver: {driver} 가 없음: " + l);
         BusLink bus = new BusLink(Math.clamp(b.getDouble("radius", 24), 4, 64), clamp01(b.getDouble("carry", 0.5)), Math.clamp(b.getInt("most", 3), 0, 6),
-                clamp01(b.getDouble("ask", 0.06)), b.getDouble("ask-mood", 6), Math.max(1, b.getInt("coffee-minutes", 10)),
-                Math.clamp(b.getDouble("coffee-doze", 0.5), 0, 1), Math.max(1, b.getInt("greet-at", 10)), btalk);
+                clamp01(b.getDouble("ask", 0.06)), b.getDouble("ask-mood", 6),
+                Math.max(1, b.getInt("greet-at", 10)), btalk);
 
         ConfigurationSection ru = section(c, "rush");
         List<int[]> windows = new ArrayList<>();

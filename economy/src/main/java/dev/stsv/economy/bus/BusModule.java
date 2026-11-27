@@ -1941,7 +1941,7 @@ public final class BusModule extends EcoModule {
             }
             if (!r.dozeChecked && rode > x.dozeAfter()) {
                 r.dozeChecked = true;
-                r.dozing = ThreadLocalRandom.current().nextDouble() < r.type.doze() * awake(run.driver);
+                r.dozing = ThreadLocalRandom.current().nextDouble() < r.type.doze();
             }
             if (r.dozing && ticks % 80 < 20) {   // nodding: the head drops and comes up, Zz now and then
                 r.m.setRotation(r.m.getLocation().getYaw(), ticks % 160 < 20 ? 35 : 5);
@@ -2988,25 +2988,6 @@ public final class BusModule extends EcoModule {
             }
         }
         return null;
-    }
-
-    /** driver -> until when (ms) their passengers doze less, and by how much (편의점 캔커피) */
-    private final Map<UUID, double[]> coffee = new java.util.concurrent.ConcurrentHashMap<>();
-
-    /** 편의점: a driver drank a 캔커피 — until `until` (ms) their passengers' chance to doze is × `factor`. */
-    public void coffee(UUID driver, long until, double factor) {
-        coffee.put(driver, new double[]{until, Math.clamp(factor, 0, 1)});
-    }
-
-    /** The doze factor of this driver's passengers now (1: as usual). */
-    double awake(UUID driver) {
-        double[] c = driver == null ? null : coffee.get(driver);
-        if (c == null) return 1;
-        if (System.currentTimeMillis() > c[0]) {
-            coffee.remove(driver);
-            return 1;
-        }
-        return c[1];
     }
 
     /** Whether this player is driving a bus now. */

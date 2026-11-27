@@ -173,7 +173,7 @@ final class StoreDay {
         }
         if (!sh.guests.isEmpty()) {
             StoreModule.Guest g = sh.guests.get(ThreadLocalRandom.current().nextInt(sh.guests.size()));
-            if (!g.inspector && g.visit == null) m.sayLine(g, life().events().lines("outage"));
+            if (!g.inspector && g.visit == null) m.sayLine(g, life().events().lines("outage"), Bubbles.Kind.CHATTER);
         }
         if (p != null) {
             p.sendMessage(Lang.msg("store.outage", "s", o.seconds()));
@@ -197,7 +197,7 @@ final class StoreDay {
         if (w != null) w.playSound(sh.shop.at(0.5, 2, 9.5, 0), Sound.BLOCK_BEACON_ACTIVATE, 1f, 1.2f);
         if (!sh.guests.isEmpty()) {
             StoreModule.Guest g = sh.guests.get(ThreadLocalRandom.current().nextInt(sh.guests.size()));
-            if (!g.inspector && g.visit == null) m.sayLine(g, life().events().lines("restored"));
+            if (!g.inspector && g.visit == null) m.sayLine(g, life().events().lines("restored"), Bubbles.Kind.CHATTER);
         }
         if (fixed) {
             sh.log.bonus(life().events().outage().fix());
@@ -264,7 +264,7 @@ final class StoreDay {
             return;
         }
         sh.crowdLeft--;
-        if (rnd.nextDouble() < 0.6) m.sayLine(g, life().events().lines("group"));
+        if (rnd.nextDouble() < 0.6) m.sayLine(g, life().events().lines("group"), Bubbles.Kind.CHATTER);
     }
 
     // ---- 본사 점검

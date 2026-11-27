@@ -11,11 +11,11 @@ import java.util.Set;
 import java.util.random.RandomGenerator;
 
 /**
- * store.yml's 2차 (README "편의점" 내 가게 · 신분증 · 진상 · 폐기 · 청소 · 플레이어 손님, 기획안 §5 §6 §7 §13): the three 내 가게 등급,
- * the ID check, the player customers' prices, the 폐기 and the mess, the weather's and the calendar's demand, the twelve
+ * store.yml's 2차 (README "편의점" 내 가게 · 신분증 · 진상 · 폐기 · 청소, 기획안 §5 §6 §13): the three 내 가게 등급,
+ * the ID check, the food a worker is given (gifts: product -> item), the 폐기 and the mess, the weather's and the calendar's demand, the twelve
  * troubles' buttons and lines. Pure (unit-tested); {@link StoreSpec} keeps the 1차.
  */
-public record StoreRules(Map<String, Tier> tiers, Id id, Players players, Waste waste, Mess mess, Demand demand,
+public record StoreRules(Map<String, Tier> tiers, Id id, Map<String, String> gifts, Waste waste, Mess mess, Demand demand,
                          Map<Trouble.Kind, TroubleText> troubles, Trouble.Numbers numbers) {
 
     /**
@@ -43,28 +43,6 @@ public record StoreRules(Map<String, Tier> tiers, Id id, Players players, Waste 
 
         public List<String> lines(String key) {
             return talk.getOrDefault(key, List.of());
-        }
-    }
-
-    /**
-     * 플레이어 손님 (§7): G per 원 (`rate`), the 무인 계산대's markup and what it sells, the worker's commission (of what a player
-     * pays), at most `most` things in a basket, the food each product becomes, the 컵라면 that need hot water (dry -> hot item).
-     */
-    public record Players(double rate, double unmanned, Set<String> unmannedItems, double commission, int most, Map<String, String> food,
-                          Map<String, String> hot) {
-        /** A product's price for a player (G, at least 1): its 원 × rate, × the markup at the 무인 계산대. */
-        public long price(int won, boolean unmannedNow) {
-            return Math.max(1, Math.round(won * rate * (unmannedNow ? unmanned : 1)));
-        }
-
-        /** What the worker gets of a player's purchase (G). */
-        public long commission(long paid) {
-            return Math.max(0, Math.round(paid * commission));
-        }
-
-        /** Whether a player can buy this product here now (it becomes food; the 무인 계산대 sells fewer). */
-        public boolean sells(String product, boolean unmannedNow) {
-            return food.containsKey(product) && (!unmannedNow || unmannedItems.contains(product));
         }
     }
 
@@ -202,14 +180,13 @@ public record StoreRules(Map<String, Tier> tiers, Id id, Players players, Waste 
                 is.getDouble("refused-adult", -35), is.getDouble("refused-minor", -10), java.util.Collections.unmodifiableMap(kinds), List.copyOf(names),
                 java.util.Collections.unmodifiableMap(idTalk));
 
-        ConfigurationSection ps = section(c, "players");
-        Map<String, String> food = strings(ps.getConfigurationSection("food")), hot = strings(ps.getConfigurationSection("hot"));
-        for (String p : food.keySet()) if (!spec.products().containsKey(p)) problems.add("players.food: 없는 상품 " + p);
-        for (String p : hot.keySet()) if (!food.containsKey(p)) problems.add("players.hot: food 에 없는 상품 " + p);
-        Set<String> unmannedItems = new LinkedHashSet<>(ps.getStringList("unmanned-items"));
-        for (String p : unmannedItems) if (!food.containsKey(p)) problems.add("players.unmanned-items: food 에 없는 상품 " + p);
-        Players players = new Players(Math.max(0.0001, ps.getDouble("rate", 0.01)), Math.max(1, ps.getDouble("unmanned", 1.2)), Set.copyOf(unmannedItems),
-                Math.clamp(ps.getDouble("commission", 0.25), 0, 0.9), Math.clamp(ps.getInt("most", 5), 1, 5), java.util.Collections.unmodifiableMap(food), java.util.Collections.unmodifiableMap(hot));
+        // 근무자가 받는 음식 (players no longer buy anything: only these gifts, 할머니's 사탕 and the like)
+        Map<String, String> gifts = strings(c.getConfigurationSection("gifts"));
+        for (Map.Entry<String, String> g : gifts.entrySet()) {
+            if (!spec.products().containsKey(g.getKey())) problems.add("gifts: 없는 상품 " + g.getKey());
+            if (!g.getValue().matches("[a-z0-9_.-]+:[a-z0-9_./-]+")) problems.add("gifts." + g.getKey() + ": 잘못된 아이템 키 " + g.getValue());
+        }
+        if (c.isConfigurationSection("players")) problems.add("players: 플레이어 손님은 없어졌음 (이 칸은 지워도 됨)");
 
         ConfigurationSection ws = section(c, "waste");
         String wastePlace = ws.getString("place", "meal");
@@ -263,7 +240,16 @@ public record StoreRules(Map<String, Tier> tiers, Id id, Players players, Waste 
             for (String key : k.talk) if (talk.getOrDefault(key, List.of()).isEmpty()) problems.add(at + ".talk." + key + ": 대사가 없음");
             troubles.put(k, new TroubleText(k, clamp01(t.getDouble("chance", 0.5)), java.util.Collections.unmodifiableMap(buttons), java.util.Collections.unmodifiableMap(talk)));
         }
-        return new StoreRules(tiers, id, players, waste, mess, demand, troubles, numbers);
+        return new StoreRules(tiers, id, java.util.Collections.unmodifiableMap(gifts), waste, mess, demand, troubles, numbers);
+    }
+
+    /** The shelves whose things are eaten or drunk (what a 환불 손님 brings back half eaten). */
+    static final Set<String> EDIBLE = Set.of("meal", "noodle", "snack", "fridge", "freezer");
+
+    /** Whether a 환불 손님 may bring this back half eaten: something to eat or drink, not 술 (the ID's things). */
+    public boolean refundable(StoreSpec spec, String product) {
+        StoreSpec.Product p = spec.products().get(product);
+        return p != null && EDIBLE.contains(p.place()) && !id.items().contains(product);
     }
 
     /** The tier of a name or id (골목점 / alley), or null. */

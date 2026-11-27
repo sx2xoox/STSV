@@ -275,7 +275,6 @@ class StoreLifeTest {
         StoreLife.BusLink b = life().bus();
         for (String k : List.of("ask", "driver", "none", "greet")) assertFalse(b.lines(k).isEmpty(), k);
         for (String d : b.lines("driver")) assertTrue(d.contains("{driver}"), d);
-        assertTrue(b.coffeeDoze() < 1 && b.coffeeMinutes() <= 15, "the coffee's perk is small");
         assertEquals(24, b.radius(), 1e-9);
     }
 
