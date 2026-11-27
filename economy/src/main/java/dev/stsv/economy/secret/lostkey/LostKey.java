@@ -369,7 +369,7 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         boolean test = m.test(u);
         if (!test && m.get(this, u, "given") != null) return false;   // once a player, ever (until 초기화)
         if (!test && bus().lostReturned(u) < cfg.getLong("start.returns", 30)) return false;
-        if (!m.roll(u, cfg.getDouble("start.chance", 0.002))) return false;
+        if (!m.roll(u, cfg.getDouble("start.chance", 0.02))) return false;
         begin(driver, passenger, passengerTag, here);
         return true;
     }

@@ -169,7 +169,7 @@ class LostKeyTest {
     @Test
     void settingsHaveEveryLine() throws Exception {
         YamlConfiguration y = YamlConfiguration.loadConfiguration(PACK.resolve("secrets/lostkey.yml").toFile());
-        assertTrue(y.getDouble("start.chance") > 0 && y.getDouble("start.chance") < 0.01, "start.chance stays very rare");
+        assertTrue(y.getDouble("start.chance") > 0 && y.getDouble("start.chance") <= 0.05, "start.chance stays rare (2026-11 주인: 0.2% → 2%)");
         assertEquals(30, y.getInt("start.returns"));
         assertEquals(0, y.getLong("rewards.money"), "one of a kind, not money");
         assertTrue(y.getBoolean("charm.enabled"));
