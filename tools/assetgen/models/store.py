@@ -1360,11 +1360,19 @@ def ramen(key, ramp, label, band):
         top = 12 if not big else 7
         if y >= top - 1.5:
             return band                                    # the rim band
-        if _front(c) and abs(c.p[0] - 8) < 3.2 and top * 0.3 <= y < top * 0.8:
-            dx, dy = c.p[0] - 8, y - top * 0.55
-            if abs(dx) < 1.6 and abs(dy) < 1.1:
-                return label                               # the name's block on the white panel
+        if _front(c) and abs(c.p[0] - 8) < 3.2 and top * 0.25 <= y < top * 0.85:
+            dx = c.p[0] - 8
+            if y >= top * 0.6:
+                if abs(dx) < 2.6 and y < top * 0.85 - 0.5:
+                    return ("snow", 2) if math.floor(y) == math.floor(top * 0.72) and abs(dx) < 1.6 and c.i[0] % 2 else label
+                return ("snow", 2)                         # the brand's block on the white panel
+            if abs(dx) < 2.2 and top * 0.3 <= y < top * 0.5:
+                return ("corn", 2) if (c.i[0] + c.i[1]) % 3 == 0 else ("tomato", 3)   # the bowl: noodles in soup
+            if abs(dx) < 2.6 and top * 0.25 <= y < top * 0.3:
+                return ("car_white", 2)                    # the bowl's rim
             return ("snow", 2)
+        if c.face in SIDES and not _front(c) and math.floor(_ang(c) * 4) % 3 == 0 and y < top - 1.5:
+            return (ramp[0], ramp[1] + 1)                  # the print's stripes round the back
         if y < 1:
             return (ramp[0], ramp[1] - 1)
         return None
