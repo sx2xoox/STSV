@@ -22,8 +22,13 @@
                            only (a vest: the arms stay bare), a V neck open to the shirt under it, a zip, a white
                            name tag on the chest, a white GS26 band on the back
 
+  3차: license_face(tier) 80 x 104, id_card() 128 x 80, vest_layer_manager() / vest_layer_night() 64 x 32,
+  manager_tag() 48 x 24, tablet_screen() 88 x 64 (see each function)
+
     python3 tools/assetgen/store_art.py out_dir     # writes the pictures there, 4x, to look at
 """
+
+import math
 
 from PIL import Image
 
@@ -471,6 +476,368 @@ def vest_layer():
     return im
 
 
+# ------------------------------------------------------------------------------------------------
+# 3차 (docs/plans/편의점_기획안.md §16 새 모델): the licences, the ID card, the two new vests' layers, the order tablet
+# ------------------------------------------------------------------------------------------------
+
+# tier -> (name, border ramp, ribbon ramp, stars): 골목점 bronze on green, 표준점 silver on navy, 대형점 gold on wine
+LICENSE_TIERS = {"alley": ("골목점", GREEN, "copper", 1), "standard": ("표준점", "indigo", "fish_silver", 2),
+                 "large": ("대형점", "wine", "gold", 3)}
+# the ribbon's steps (lit, base, shade) per ramp: the ramps differ in length
+RIBBON = {"copper": (4, 3, 1), "fish_silver": (4, 3, 1), "gold": (3, 2, 0)}
+
+STAR = ["..#..", "..#..", "#####", ".###.", ".#.#."]
+
+
+def _mask_at(px, m, x0, y0, col, W, H):
+    for j, row in enumerate(m):
+        for i, v in enumerate(row):
+            if v and 0 <= x0 + i < W and 0 <= y0 + j < H:
+                px[x0 + i, y0 + j] = col
+
+
+def license_face(tier):
+    """80 x 104 (a 10 x 13 px certificate, 8 texels a px): cream paper with a fine guilloche, a border in the tier's
+    colour inside a gold rule, corner diamonds; the GS26 mark (the sign's disc and leaf, GS26 in the sign's letters),
+    "권리증", the tier's name on a ribbon banner in the ribbon's metal with its stars, lines of print, a signature line
+    and the red 직인 stamp. The bottom left is left plain: the model's wax seal and ribbon tails sit there."""
+    name, border, rib, stars = LICENSE_TIERS[tier]
+    W, H = 80, 104
+    im = Image.new("RGBA", (W, H), _c("cream", 3))
+    px = im.load()
+    lit, base, dark = RIBBON[rib]
+    for y in range(H):
+        for x in range(W):
+            e = min(x, y, W - 1 - x, H - 1 - y)
+            if e < 1:
+                px[x, y] = _c(border, 0)
+            elif e < 4:
+                px[x, y] = _c(border, 1 if e == 3 else 2)
+                if tier == "large" and e == 2 and (x + y) % 4 == 0:
+                    px[x, y] = _c("gold", 2)              # the 대형점's border stitched with gold
+            elif e == 5:
+                px[x, y] = _c("gold", 1)                  # the gold rule
+            elif e == 4:
+                px[x, y] = _c("cream", 3)
+            else:
+                # the guilloche: two crossing waves, faint
+                w1 = math.sin(x * 0.35 + y * 0.12) * 3 + y * 0.5
+                w2 = math.sin(x * 0.28 - y * 0.15 + 1.3) * 3 - y * 0.45
+                px[x, y] = _c("cream", 2) if (int(w1) % 7 == 0 and int(w1 * 10) % 10 < 3) or \
+                    (int(w2) % 9 == 0 and int(abs(w2) * 10) % 10 < 3) else _c("cream", 3)
+    # corner diamonds on the rule
+    for cx, cy in ((5, 5), (W - 6, 5), (5, H - 6), (W - 6, H - 6)):
+        for dy in range(-2, 3):
+            for dx in range(-2, 3):
+                if abs(dx) + abs(dy) <= 2:
+                    px[cx + dx, cy + dy] = _c("gold", 2) if abs(dx) + abs(dy) < 2 else _c("gold", 0)
+    # the GS26 mark: a sun-yellow disc with the leaf, then GS (green) 26 (gold) in the sign's letters, 1x
+    cx, cy, R = 24, 14, 6
+    for y in range(cy - R - 1, cy + R + 2):
+        for x in range(cx - R - 1, cx + R + 2):
+            d = ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5
+            if d < R:
+                px[x, y] = _c("corn", 2)
+                u, v = (x - cx) * 0.75 - (y - cy) * 0.66, (x - cx) * 0.66 + (y - cy) * 0.75
+                if (abs(u) / 4.5) ** 1.6 + (abs(v) / 2.6) ** 1.6 < 1:
+                    px[x, y] = _c(GREEN, 2) if v >= 0 else _c(GREEN, 3)
+            elif d < R + 1:
+                px[x, y] = _c("corn", 0)
+    x = 33
+    for ch in "GS26":
+        col = _c(GREEN, 1) if ch in "GS" else _c("corn", 0)
+        for j, row in enumerate(LETTERS[ch]):
+            for i, c in enumerate(row):
+                if c == "#":
+                    px[x + i, 10 + j] = col
+        x += 7 if ch != "S" else 8
+    # 권리증, ink, bold
+    m = GA.word_mask("권리증", spacing=3)
+    _mask_at(px, m, (W - len(m[0])) // 2, 25, _c("iron", 2), W, H)
+    # the ribbon banner: its ends notched, folds behind it (darker) at both ends
+    y0, y1 = 44, 60
+    for y in range(y0, y1):
+        for x in range(8, W - 8):
+            t = y - y0
+            notch = abs(t - (y1 - y0 - 1) / 2) <= 2.5 - 0
+            if (x < 15 or x >= W - 15):
+                if (x < 11 or x >= W - 11) and abs(t - 7.5) < 3 - min(x - 8, W - 9 - x) * 1.0:
+                    continue                            # the V notch at the tails
+                px[x, y] = _c(rib, dark)
+                if y in (y0 + 2, y1 - 3):
+                    px[x, y] = _c(rib, base)
+                continue
+            if 15 <= x < 17 or W - 17 <= x < W - 15:
+                px[x, y] = _c(rib, 0)                   # the fold's shadow
+                continue
+            px[x, y] = _c(rib, lit) if t <= 1 else _c(rib, dark) if t >= y1 - y0 - 2 else _c(rib, base)
+    m = GA.word_mask(name, spacing=2)
+    ink = _c("iron", 1) if rib != "copper" else _c("snow", 2)
+    shadow = _c(rib, dark)
+    ox = (W - len(m[0])) // 2
+    _mask_at(px, m, ox + 1, 46, shadow, W, H)
+    _mask_at(px, m, ox, 45, ink, W, H)
+    # the stars under the banner
+    sx = (W - (stars * 7 - 2)) // 2
+    for k in range(stars):
+        for j, row in enumerate(STAR):
+            for i, c in enumerate(row):
+                if c == "#":
+                    px[sx + k * 7 + i, 63 + j] = _c("gold", 2) if j < 3 else _c("gold", 1)
+    # lines of print: words of grey ink, the last line short
+    rows = [(72, 56), (77, 54), (82, 50), (87, 32)]
+    for (y, length) in rows:
+        x = 12
+        k = 0
+        while x < 12 + length:
+            wl = 3 + int(h_(k * 7 + y) * 6)
+            for i in range(wl):
+                if x + i < 12 + length:
+                    px[x + i, y] = _c("stone", 1)
+                    if (x + i + y) % 3 == 0:
+                        px[x + i, y - 1] = _c("stone", 2)
+            x += wl + 2
+            k += 1
+    # the signature line (right), a scrawl over it, and the red 직인 stamp beside it
+    for x in range(44, 70):
+        px[x, 96] = _c("stone", 1)
+    for k in range(18):
+        X = 46 + k
+        Y = 94 + int(round(math.sin(k * 0.9) * 1.5))
+        px[X, Y] = _c("indigo", 1)
+    for y in range(88, 97):
+        for x in range(62, 71):
+            e = min(x - 62, y - 88, 70 - x, 96 - y)
+            if e == 0 or (e >= 2 and ((x - 62) in (3, 5) or (y - 88) == 4) and (x + y) % 5):
+                px[x, y] = _c("pepper", 2) if (x * 3 + y) % 7 else _c("pepper", 3)
+    return im
+
+
+def h_(n):
+    """a small fixed hash in 0..1"""
+    n = (n * 2654435761) & 0xFFFFFFFF
+    return ((n >> 8) & 0xFFFF) / 65535.0
+
+
+def id_card():
+    """128 x 80 (a 6.4 x 4 px card, 20 texels a px): an ID card in the Korean layout, not a real one: a pale
+    blue-white card with a fine wave guilloche, "신분증" in navy at the top left, the text area under it left plain
+    (the store shows the name and the year of birth over it with a TextDisplay), the photo on the right (a grey-blue
+    head and shoulders), a small rainbow hologram disc on the photo's corner, a navy strip along the bottom."""
+    W, H = 128, 80
+    im = Image.new("RGBA", (W, H), _c("porcelain", 2))
+    px = im.load()
+    for y in range(H):
+        for x in range(W):
+            if min(x, W - 1 - x) + min(y, H - 1 - y) < 4:
+                px[x, y] = (0, 0, 0, 0)               # the rounded corners
+                continue
+            w = math.sin(x * 0.11 + math.sin(y * 0.07) * 2) * 4 + y * 0.6
+            if int(w * 4) % 22 == 0:
+                px[x, y] = _c("ice", 3) if x < 84 else _c("ice", 2)
+            if y >= H - 6:
+                px[x, y] = _c("indigo", 2) if y >= H - 5 else _c("indigo", 3)
+    m = GA.word_mask("신분증", spacing=2)
+    _mask_at(px, m, 8, 6, _c("indigo", 1), W, H)
+    for x in range(8, 78):
+        px[x, 24] = _c("ice", 1)                      # a rule under the title
+    # the photo
+    x0, y0, x1, y1 = 88, 10, 120, 58
+    for y in range(y0, y1):
+        for x in range(x0, x1):
+            if x in (x0, x1 - 1) or y in (y0, y1 - 1):
+                px[x, y] = _c("fish_silver", 1)
+                continue
+            px[x, y] = _c("fish_silver", 4)
+            cx = (x0 + x1) / 2
+            if ((x - cx) / 8.5) ** 2 + ((y - 27) / 10) ** 2 < 1:
+                px[x, y] = _c("fish_silver", 2)       # the head
+            if y >= 40 and abs(x - cx) < 6 + (y - 40) * 0.9:
+                px[x, y] = _c("fish_silver", 2)       # the shoulders
+            if 36 <= y < 41 and abs(x - cx) < 3.5:
+                px[x, y] = _c("fish_silver", 2)       # the neck
+    for y in range(50, 63):
+        for x in range(108, 122):
+            d = ((x - 115) ** 2 + (y - 56) ** 2) ** 0.5
+            if d < 6:
+                hue = int((x + y * 0.5) / 3) % 4
+                px[x, y] = _c("aurora", 4 - hue) if d < 5 else _c("aurora", 1)
+    return im
+
+
+def _vest_layer(main, dark, band, tag, trim=None, stripes=None, back_band=None):
+    """vest_layer's cut with other colours: main / dark (the sides and back) / band (row 8, or None) / tag (the name
+    tag's two colours) / trim (the front edges and the hem) / stripes (reflective tape: rows and the shoulder columns)
+    / back_band (rows 2-4 on the back: (colour, dot colour))."""
+    im = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
+    px = im.load()
+
+    def fill(x0, y0, w, h, fn):
+        for y in range(h):
+            for x in range(w):
+                c = fn(x, y)
+                if c:
+                    px[x0 + x, y0 + y] = c
+
+    def tape(x, y, front):
+        if stripes is None:
+            return None
+        rows, cols, col, lit = stripes
+        if y in rows:
+            return lit if (x + y) % 3 == 0 else col
+        if front is not None and x in cols and y < min(rows):
+            return lit if y % 3 == 0 else col
+        return None
+    top_strap = lambda x, y, c: (stripes[2] if stripes and x in (1, 6) else c) if (x < 2 or x > 5) else None
+    fill(20, 16, 8, 4, lambda x, y: top_strap(x, y, shade_c(main, 1.08)))
+    fill(28, 16, 8, 4, lambda x, y: top_strap(x, y, dark))
+
+    def front(x, y):
+        if y < 6 and 2 <= x <= 5 and abs(x - 3.5) < 2.2 - y * 0.35:
+            return None
+        if y == 11:
+            return trim or shade_c(dark, 0.8)
+        if x in (3, 4) and y >= 4:
+            return _c("steel", 4) if (y % 2) else _c("steel", 3)
+        if trim and (x in (2, 5) and y < 6 and abs(x - 3.5) >= 2.2 - y * 0.35 - 1):
+            return trim                               # the gold piping up the V neck
+        if x in (5, 6) and y in (4, 5):
+            return tag[0] if y == 4 else tag[1]
+        t = tape(x, y, True)
+        if t:
+            return t
+        if x == 0 or x == 7:
+            return dark
+        if band and y == 8:
+            return band if x not in (3, 4) else None
+        return main
+    fill(20, 20, 8, 12, front)
+
+    def side(x, y):
+        if y == 11:
+            return trim or shade_c(dark, 0.8)
+        t = tape(x, y, None)
+        if t:
+            return t
+        if band and y == 8:
+            return band
+        return dark
+    fill(16, 20, 4, 12, side)
+    fill(28, 20, 4, 12, side)
+
+    def back(x, y):
+        if y == 11:
+            return trim or shade_c(dark, 0.8)
+        if back_band and 2 <= y <= 4:
+            return back_band[0] if not (y == 3 and x % 2) else back_band[1]
+        t = tape(x, y, True)
+        if t:
+            return t
+        if band and y == 8:
+            return band
+        return main
+    fill(32, 20, 8, 12, back)
+    return im
+
+
+def shade_c(c, k):
+    return tuple(max(0, min(255, int(round(v * k)))) for v in c[:3]) + (255,)
+
+
+def vest_layer_manager():
+    """64 x 32: 점장 조끼 (economy:store_vest_manager): the work vest's cut in a deeper green, gold piping up the V neck,
+    down the front edges and round the hem, a gold band, a gold name tag (점장), a gold band across the back."""
+    return _vest_layer(main=_c(GREEN, 1), dark=_c(GREEN, 0), band=_c("gold", 2), tag=(_c("gold", 3), _c("gold", 1)),
+                       trim=_c("gold", 1), back_band=(_c("gold", 2), _c(GREEN, 0)))
+
+
+def vest_layer_night():
+    """64 x 32: 야간 조끼 (economy:store_vest_night): navy, two bands of silver reflective tape round the body (rows 7
+    and 9) and tape up over the shoulders front and back, a white name tag."""
+    return _vest_layer(main=_c("indigo", 1), dark=_c("indigo", 0), band=None, tag=(_c("snow", 2), _c("snow", 1)),
+                       stripes=((7, 9), (1, 6), _c("fish_silver", 4), _c("snow", 2)))
+
+
+def manager_tag():
+    """48 x 24: the 점장 name tag on the vest item: gold, 점장 in dark green."""
+    im = Image.new("RGBA", (48, 24), _c("gold", 2))
+    px = im.load()
+    for y in range(24):
+        for x in range(48):
+            e = min(x, y, 47 - x, 23 - y)
+            if e < 2:
+                px[x, y] = _c("gold", 1) if e == 0 else _c("gold", 3)
+    m = GA.word_mask("점장", spacing=2)
+    _mask_at(px, m, (48 - len(m[0])) // 2, (24 - len(m)) // 2, _c(GREEN, 0), 48, 24)
+    return im
+
+
+TABLET_ROWS = [(("pepper", 2), 26, "12"), (("corn", 2), 18, "24"), (("sapphire", 2), 30, "8"), (("iron", 3), 14, "3")]
+SMALL_DIG = {"0": ["###", "#.#", "#.#", "#.#", "###"], "1": [".#.", "##.", ".#.", ".#.", "###"],
+             "2": ["###", "..#", "###", "#..", "###"], "3": ["###", "..#", "###", "..#", "###"],
+             "4": ["#.#", "#.#", "###", "..#", "..#"], "8": ["###", "#.#", "###", "#.#", "###"]}
+
+
+def tablet_screen():
+    """88 x 64 (an 11 x 8 px screen, 8 texels a px): the 발주 app: a green header with 발주 and tomorrow's weather (a
+    sun behind a cloud), four lines of goods (a colour chip, the name as grey bars, a - / count / + stepper), a green
+    send key along the bottom. Lit."""
+    W, H = 88, 64
+    im = Image.new("RGBA", (W, H), _c("snow", 2))
+    px = im.load()
+    for y in range(16):
+        for x in range(W):
+            px[x, y] = _c(GREEN, 2) if y < 15 else _c(GREEN, 0)
+    m = GA.word_mask("발주", bold=False, spacing=1)
+    _mask_at(px, m, 5, 1, _c("snow", 2), W, H)
+    # tomorrow's weather: a sun peeking over a cloud
+    for y in range(2, 14):
+        for x in range(62, 84):
+            if ((x - 72) ** 2 + (y - 6) ** 2) ** 0.5 < 4:
+                px[x, y] = _c("corn", 2)
+            if ((x - 70) ** 2 + (y - 10) ** 2) ** 0.5 < 3.2 or ((x - 75) ** 2 + (y - 9.5) ** 2) ** 0.5 < 3.6 or \
+                    (66 <= x <= 79 and 10 <= y <= 12):
+                px[x, y] = _c("snow", 2)
+    for r, (chip, length, count) in enumerate(TABLET_ROWS):
+        y0 = 18 + r * 9
+        for x in range(2, W - 2):
+            px[x, y0 + 8] = _c("snow", 0)            # the row's rule
+        for y in range(y0 + 1, y0 + 7):
+            for x in range(4, 10):
+                px[x, y] = _c(*chip) if not (x == 4 and y == y0 + 1) else _c(chip[0], chip[1] + 1)
+        for x in range(13, 13 + length):
+            if (x - 13) % 9 != 8:
+                px[x, y0 + 3] = _c("iron", 3)
+                px[x, y0 + 4] = _c("iron", 3)
+        # the stepper: [-] count [+]
+        for y in range(y0 + 1, y0 + 7):
+            for x in range(55, 61):
+                px[x, y] = _c("car_white", 1)
+            for x in range(77, 83):
+                px[x, y] = _c(GREEN, 2)
+        for x in range(56, 60):
+            px[x, y0 + 4] = _c("iron", 2)
+        for x in range(78, 82):
+            px[x, y0 + 4] = _c("snow", 2)
+        for y in range(y0 + 2, y0 + 6):
+            px[79 + 1, y] = _c("snow", 2)
+        cx = 69 - (len(count) * 4 - 1) // 2
+        for k, ch in enumerate(count):
+            for j, row in enumerate(SMALL_DIG[ch]):
+                for i, c in enumerate(row):
+                    if c == "#":
+                        px[cx + k * 4 + i, y0 + 1 + j] = _c("iron", 1)
+    # the send key
+    for y in range(55, 63):
+        for x in range(4, W - 4):
+            px[x, y] = _c(GREEN, 2) if y < 61 else _c(GREEN, 1)
+    for k in range(4):                               # a white check mark
+        px[40 + k, 57 + k] = px[40 + k, 58 + k] = _c("snow", 2)
+    for k in range(6):
+        px[44 + k, 60 - k] = px[44 + k, 59 - k] = _c("snow", 2)
+    return im
+
+
 def main(out):
     from pathlib import Path
     out = Path(out)
@@ -479,6 +846,9 @@ def main(out):
     pics.update({f"change_{n}": change_button(n) for n in CHANGE})
     pics.update({f"note_{n}": note(n) for n in (1000, 5000, 10000, 50000)})
     pics.update(sign=sign_face(), card=card(), lottery=lottery(), vest=vest_layer())
+    pics.update({f"license_{t}": license_face(t) for t in LICENSE_TIERS})
+    pics.update(id_card=id_card(), vest_manager=vest_layer_manager(), vest_night=vest_layer_night(), manager_tag=manager_tag(),
+                tablet=tablet_screen())
     for k, im in pics.items():
         im.resize((im.width * 4, im.height * 4), Image.NEAREST).save(out / f"{k}.png")
 

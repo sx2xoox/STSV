@@ -29,8 +29,8 @@ class PackTest {
     static final String MACHINE = "(gem_bench(_wheel)?|mill(_stone)?|fish_bench|forge|kitchen|still|press(_screw)?)_[0-4]";
     /** the 도박장 models that give light (models/gamble.py): the work light, the drum fire and the buttons */
     static final String GAMBLE_LIT = "gamble_(prop_worklight|prop_drumfire|btn_[a-z]+)";
-    /** the 편의점 models that give light (models/store.py): the sign, the fridges, the cigarette wall's header, the keys, the scanner */
-    static final String STORE_LIT = "store_(sign|fridge_[a-z]+|cig_shelf|btn_[a-z0-9_]+|scanner)";
+    /** the 편의점 models that give light (models/store.py): the sign, the fridges, the cigarette wall's header, the keys, the scanner, the order tablet's screen */
+    static final String STORE_LIT = "store_(sign|fridge_[a-z]+|cig_shelf|btn_[a-z0-9_]+|scanner|order_tablet)";
     // crop stages are crossed planes with cut-out textures
 
     @Test
@@ -39,10 +39,10 @@ class PackTest {
         try (var s = Files.list(PACK.resolve("models"))) {
             models = s.filter(p -> p.toString().endsWith(".bbmodel")).sorted().toList();
         }
-        assertEquals(7 * 5 + 3 * 5 + 77 + 9 + 1 + 1 + 5 + 2 + 2 + 13 + 50 + 63 + 23 + 96, models.size(),
+        assertEquals(7 * 5 + 3 * 5 + 77 + 9 + 1 + 1 + 5 + 2 + 2 + 13 + 50 + 63 + 23 + 103, models.size(),
                 "7 machines in 5 tiers (4세대: 4강), 3 spinning parts in 5 tiers, 77 growth stages of 17 crops, 9 하역장 props (6 container colours), the 국도 sign, "
                         + "its guide sign and its 5 arrows, the 통발 and the 가두리, the 숨은 비밀 기념비 stone unsolved and solved, and solved with each secret's own emblem (13), "
-                        + "and the 도박장's 50 (2 tables, 7 props, 21 cards, 5 chip piles, the die, the bowl, the dice cup, 11 buttons, the whiteboard) and its 별관's 63 (the poker and baccarat tables, 53 playing cards, 3 baccarat chip piles, 5 more buttons), and the 23 things bus passengers hold (models/bus_hold.py: the hen and her flapping self, 21 more), and the 편의점's 96 (models/store.py)");
+                        + "and the 도박장's 50 (2 tables, 7 props, 21 cards, 5 chip piles, the die, the bowl, the dice cup, 11 buttons, the whiteboard) and its 별관's 63 (the poker and baccarat tables, 53 playing cards, 3 baccarat chip piles, 5 more buttons), and the 23 things bus passengers hold (models/bus_hold.py: the hen and her flapping self, 21 more), and the 편의점's 103 (models/store.py: 96, and 3차's licences 3, ID card, two vests, order tablet)");
         for (Path p : models) {
             String name = p.getFileName().toString().replace(".bbmodel", "");
             BBModelConverter.Result r = BBModelConverter.convert(p, "economy:item/" + name);

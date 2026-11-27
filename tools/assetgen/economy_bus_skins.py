@@ -8,7 +8,8 @@ textures, so nothing is uploaded to Mojang.
     python3 economy_bus_skins.py --sheet out.png --types farmer,drunk   # the sheet with only these types
     python3 economy_bus_skins.py --shiny-sheet shiny.png   # + the 별난 손님 sheet (each kind's first look and its <id>_s1)
 
-Also NPCs drawn the same way that are not passengers (NPCS: 현장 소장 site_boss of the 도박장, 딜러 dealer of its 별관's baccarat table), written to the same folder.
+Also NPCs drawn the same way that are not passengers (NPCS: 현장 소장 site_boss of the 도박장, 딜러 dealer of its 별관's baccarat table,
+본사 점검원 hq_inspector of the 편의점 and one more of the 편의점's, STORE_NPCS), written to the same folder.
 
 A texture at assets/economy/textures/entity/bus/<id>.png is the key "economy:entity/bus/<id>"
 (ResolvableProfile.skinPatch().body(key), with .model(SLIM) for the slim ones: see SLIM / main()).
@@ -5318,7 +5319,139 @@ def dealer():
     return s
 
 
-NPCS = {"site_boss": site_boss, "dealer": dealer}
+def hq_inspector():
+    """본사 점검원 (편의점 하루 이벤트 "본사 점검", docs/plans/편의점_기획안.md §16): a neat woman from head office: dark hair
+    pulled back into a low bun, a tidy side fringe, thin dark-framed glasses, a straight mouth; a navy suit (a fitted
+    jacket buttoned once, its lapels, a pocket square of the brand's green), a white blouse with a small collar, a
+    company ID card on a green lanyard, a clipboard of white checklists held in her left hand (a steel clip, ticks on
+    the sheet), navy trousers, polished black shoes. Slim arms."""
+    s, sk = Skin(slim=True), "f2d0b4"
+    hair = "2a2024"
+    head(s, sk, hair, "part", brows="5a4440", mouth="b8786e", pupils="in")
+    H = C(hair)
+
+    def bun(fc, x, y, w, h):
+        # the low bun at the back (outer layer), the hair smoothed back over the top
+        if fc == "back" and 4 <= y <= 6 and 2 <= x <= 5 and not (y == 6 and x in (2, 5)):
+            return shade(H, 1.25) if (x, y) == (3, 4) else H
+        if fc == "top":
+            return shade(H, 1.12) if x == 3 and y % 2 == 0 else H
+        return None
+    s.paint("head", bun, 1)
+    s.paint("head", lambda fc, x, y, w, h: H if fc in SIDES and y <= 5 and fwd(fc, x, 8) >= 3 else None)   # combed back over the ears
+    # thin browline glasses: the dark upper rims over the eyes, the bridge between them, the temples
+    s.paint("head", lambda fc, x, y, w, h: (C("4a3c3e") if y == 3 and x in (1, 2, 5, 6) else None)
+            if fc == "front" else (C("4a3c3e") if fc in SIDES and y == 3 and fwd(fc, x, 8) <= 3 else None), 1)
+    navy, blouse, green = "1f2a48", "f6f6f2", "1f8a52"
+    N, B = C(navy), C(blouse)
+
+    def b(fc, x, y, w, h):
+        if fc == "front":
+            if y == 0 and x in (3, 4):
+                return C(sk)
+            if y == 0 and x in (2, 5):
+                return shade(B, 0.9)                     # the blouse's collar points
+            if x in (3, 4) and y in (2, 4):
+                return shade(B, 0.92)                    # buttons
+            if y == 11:
+                return C("16161c")
+        return B
+    body(s, b)
+
+    def suit(fc, x, y, w, h):
+        if fc == "bottom":
+            return None
+        if fc == "front":
+            if y < 5 and 2 + (1 if y == 0 else 0) <= x <= 5 - (1 if y == 0 else 0) and abs(x - 3.5) <= 2.5 - y * 0.35:
+                return None                                # the V of the lapels
+            if y < 5 and x in (1, 6):
+                return shade(N, 0.78)                      # the lapels
+            if (x, y) == (3, 6):
+                return C("c8c4bc")                         # the one button
+            if y >= 6 and x == 4:
+                return shade(N, 0.85)                      # the jacket's front edge
+            if y == 9 and x in (1, 2, 5, 6):
+                return shade(N, 0.8)                       # the pocket flaps
+            if (x, y) == (6, 2):
+                return C(green)                            # the pocket square
+            return N
+        if fc == "back":
+            return shade(N, 0.9) if x in (3, 4) and y >= 7 else N
+        return N
+    s.paint("body", suit, 1)
+    lanyard(green, "f4f4ee")(s)
+    # the ID card's green band and a tiny photo (on the card painted by the lanyard)
+    s.paint("body", lambda fc, x, y, w, h: (C(green) if (x, y) == (6, 5) else C("8a96a8") if (x, y) == (5, 6) else None) if fc == "front" else None, 1)
+    arms(s, blouse, sk, sleeve=10, cuff=blouse, layer_cloth=navy)
+
+    def board(fc, x, y, w, h):
+        # the clipboard in her left hand, held against her side: a brown board, white sheets, the steel clip, ticks
+        if fc == "front" and 7 <= y <= 11:
+            if y == 7:
+                return C("a8aeb6") if x == 1 else C("8a6a44")
+            if x == 0:
+                return C("8a6a44")
+            if (x, y) in ((1, 9), (2, 10)):
+                return C("1f8a52")                         # the ticks
+            return C("f8f8f4") if y % 2 else C("dcdcd6")
+        if fc == "left" and 7 <= y <= 11:
+            return C("8a6a44") if x in (0, 3) else C("f2f2ee")
+        if fc == "bottom":
+            return C("8a6a44")
+        return None
+    s.paint("larm", board, 1)
+    legs(s, navy, "141418", shoe_rows=1)
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(N, 1.2) if fc == "front" and x == 1 and y < 11 else None)   # the crease
+        s.paint(lg, lambda fc, x, y, w, h: C("3a3a44") if fc == "front" and y == 11 and x == 1 else None)     # the shine on the shoe
+    return s
+
+
+def night_regular():
+    """숨은 비밀 손님 (관리자 문서). A quiet late-night regular, a little odd but never scary: a plain mid-grey hoodie
+    with the hood up over messy black hair that falls over the forehead, pale skin with a cool tint, tired half-lidded
+    eyes with grey shadows under them looking straight ahead, a small flat mouth; grey sweatpants, white socks and
+    dark slides. No marks or prints. Wide arms."""
+    s, sk = Skin(), "e6dcd4"
+    hair, grey = "1a1a20", "8a8c92"
+    head(s, sk, hair, "messy", eye="20222c", mouth="b09a98", pupils="in", extra=[tired(), lids(shade_hex(sk, 0.86))])
+    s.paint("head", lambda fc, x, y, w, h: C(hair) if fc == "front" and (y == 1 or (y == 2 and x in (0, 7))) else None)   # the fringe low, strands at the sides
+    s.paint("head", lambda fc, x, y, w, h: C("cbbfc0") if fc == "front" and y == 5 and x in (1, 2, 5, 6) else None)  # faint shadows under the eyes
+    s.paint("head", lambda fc, x, y, w, h: C("dcd6d2") if fc == "front" and y == 4 and x in (1, 6) else None)       # the whites dimmed: half-lidded
+    s.paint("head", lambda fc, x, y, w, h: shade(C(sk), 0.95) if fc == "front" and y == 6 and x in (2, 5) else None)
+    G_ = C(grey)
+
+    def hood_up(fc, x, y, w, h):
+        # the hood up: over the top, the back and the sides, framing the face (rows 0-1 and the edge columns), its
+        # rim a shade lighter where it catches the shop's light
+        if fc == "bottom":
+            return None
+        if fc == "front":
+            if y == 0:
+                return shade(G_, 1.1)
+            if x in (0, 7) and y <= 6:
+                return shade(G_, 1.05) if y < 6 else shade(G_, 0.9)
+            return None
+        if fc == "top":
+            return shade(G_, 1.08) if (x + y) % 5 == 0 else G_
+        if fc == "back" and y >= 6 and x in (3, 4):
+            return shade(G_, 0.85)                         # the seam
+        return G_
+    s.paint("head", hood_up, 1)
+    body(s, hoodie_body(grey, "c8c8cc", pocket=True))
+    s.paint("body", lambda fc, x, y, w, h: shade(G_, 0.8) if fc == "front" and y == 0 and 2 <= x <= 5 else None)   # the hood's shadow at the neck
+    arms(s, grey, sk, sleeve=11, cuff=shade_hex(grey, 0.85))
+    for a in ("rarm", "larm"):
+        s.paint(a, lambda fc, x, y, w, h: shade(G_, 0.9) if fc in ("front", "back") and y in (4, 8) and x in (1, 2) else None)   # creases
+    legs(s, "4e5058", "26262c", shoe_rows=1, sock="eeeeea")
+    for lg in ("rleg", "lleg"):
+        s.paint(lg, lambda fc, x, y, w, h: shade(C("4e5058"), 0.85) if fc not in ("top", "bottom") and y == 8 else None)   # the cuffed hem
+    return s
+
+
+# 편의점 (tools/assetgen/store_assets.py writes only these two): 본사 점검원, and night_regular: 숨은 비밀 손님 (관리자 문서)
+NPCS = {"site_boss": site_boss, "dealer": dealer, "hq_inspector": hq_inspector, "night_regular": night_regular}
+STORE_NPCS = ("hq_inspector", "night_regular")
 
 
 def build_npcs():

@@ -2,8 +2,9 @@
 편의점 알바 assets (docs/plans/편의점_기획안.md §15): writes only the convenience store's own files, and its preview
 sheet.
 
-    python3 tools/assetgen/store_assets.py            # models + equipment + docs/previews/store_assets.png
-    python3 tools/assetgen/store_assets.py --no-sheet # models + equipment only
+    python3 tools/assetgen/store_assets.py            # models + equipment + skins + docs/previews/store_assets.png, store_assets_3.png
+    python3 tools/assetgen/store_assets.py --no-sheet # models + equipment + the two store NPC skins only
+    python3 tools/assetgen/store_assets.py --sheet3-only  # docs/previews/store_assets_3.png only (nothing in the pack touched)
     (the sheet needs: cd tools/assetgen/render && npm install)
 
   models     economy/content/economy/models/store_*.bbmodel (models/store.py; economy_models.ALL has them too, so a
@@ -11,6 +12,11 @@ sheet.
   equipment  economy/content/economy/assets/economy/equipment/store_vest.json and the armour layer
              assets/economy/textures/entity/equipment/humanoid/store_vest.png (store_art.vest_layer): store_vest worn
              in the chest slot (items/store.yml equipment: { slot: chest, asset: economy:store_vest })
+  3차 (§16)  models store_license_<alley|standard|large>, store_id_card, store_vest_manager, store_vest_night,
+             store_order_tablet (models/store.py ALL3); equipment store_vest_manager.json / store_vest_night.json and
+             their layers (store_art.vest_layer_manager / vest_layer_night); the skins economy:entity/bus/hq_inspector
+             and night_regular (economy_bus_skins.STORE_NPCS: only these two are written, every other skin is left alone)
+  sheet3     docs/previews/store_assets_3.png: the 3차 pieces in a store, held and worn, close, and flat
   sheet      docs/previews/store_assets.png: a store laid out (the counter, the cigarette wall, shelves, fridges,
              the eat bar, the sign), then every piece on its own: the twelve shelves (4 kinds x full / half / empty,
              both sides), the fridges and the freezer, the appliances and props, the 33 goods, the boxes, money and
@@ -20,6 +26,7 @@ sheet.
 import base64
 import io
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
@@ -33,9 +40,12 @@ PACK = REPO / "economy" / "content" / "economy"
 BUILD = HERE / "build"
 RENDER = HERE / "render" / "render.mjs"
 SHEET = REPO / "docs" / "previews" / "store_assets.png"
+SHEET3 = REPO / "docs" / "previews" / "store_assets_3.png"
 FONT = HERE / "fonts" / "Sunflower-Medium.ttf"
 EQUIPMENT = PACK / "assets" / "economy" / "equipment" / "store_vest.json"
 VEST_LAYER = PACK / "assets" / "economy" / "textures" / "entity" / "equipment" / "humanoid" / "store_vest.png"
+# 3차: the 점장 and 야간 vests (equipment economy:store_vest_manager / economy:store_vest_night, the same pattern)
+VESTS3 = ("store_vest_manager", "store_vest_night")
 
 
 def write():
@@ -49,6 +59,15 @@ def write():
     EQUIPMENT.write_text(json.dumps({"layers": {"humanoid": [{"texture": "economy:store_vest"}]}}, indent=2) + "\n")
     VEST_LAYER.parent.mkdir(parents=True, exist_ok=True)
     ART.vest_layer().save(VEST_LAYER)
+    layers = {"store_vest_manager": ART.vest_layer_manager, "store_vest_night": ART.vest_layer_night}
+    for v in VESTS3:
+        (EQUIPMENT.parent / f"{v}.json").write_text(json.dumps({"layers": {"humanoid": [{"texture": f"economy:{v}"}]}}, indent=2) + "\n")
+        layers[v]().save(VEST_LAYER.parent / f"{v}.png")
+    # the store's two NPC skins only (economy_bus_skins.STORE_NPCS): every other skin is left alone
+    import economy_bus_skins as B
+    B.OUT.mkdir(parents=True, exist_ok=True)
+    for key in B.STORE_NPCS:
+        B.NPCS[key]().finish().save(B.OUT / f"{key}.png")
     return list(S.ALL)
 
 
@@ -287,7 +306,193 @@ def _plans(d, x0, y0, f, small):
         d.text((x0, y0 + 160 + i * 24), t, font=small, fill=(200, 204, 212))
 
 
+# ------------------------------------------------------------------------------------------------
+# 3차 (§16 새 모델): the second sheet, docs/previews/store_assets_3.png
+# ------------------------------------------------------------------------------------------------
+
+def _turned(els, at, deg):
+    """Puppet elements (with "matrix") turned about y through `at` by deg (a figure facing +z instead of -z)."""
+    import numpy as np
+    a = math.radians(deg)
+    r = np.array([[math.cos(a), 0, math.sin(a), 0], [0, 1, 0, 0], [-math.sin(a), 0, math.cos(a), 0], [0, 0, 0, 1]])
+    t = np.eye(4)
+    t[:3, 3] = at
+    ti = np.eye(4)
+    ti[:3, 3] = [-v for v in at]
+    m = t @ r @ ti
+    out = []
+    for e in els:
+        e = dict(e)
+        e["matrix"] = [float(x) for x in (m @ np.array(e["matrix"]).reshape(4, 4)).flatten()]
+        out.append(e)
+    return out
+
+
+def _armour(key, slim, part_pose, at):
+    """A chest-slot armour layer (64 x 32, texture `key`) on a posed figure: the body box grown by 1 px (the
+    humanoid outer armour's inflation), the neck at `at`."""
+    import numpy as np
+    import economy_bus_skins as B
+    import bus_hold_assets as BA
+    pivot, org, size = BA.parts(slim)["body"]
+    mat = BA._tr(at) @ BA.ROOT @ BA._affine(BA._rzyx(*part_pose["body"]), pivot)
+    r = B.rects(16, 16, 8, 12, 4)
+    faces = {}
+    for f, sf in BA.FACE_OF.items():
+        x0, y0, fw, fh = r[sf]
+        q = [x0 * 0.25, y0 * 0.5, (x0 + fw) * 0.25, (y0 + fh) * 0.5]
+        faces[f] = {"uv": q if sf == "top" else [q[2], q[3], q[0], q[1]], "texture": key}
+    g = 1.0
+    return [{"from": [org[i] - g for i in range(3)], "to": [org[i] + size[i] + g for i in range(3)], "faces": faces,
+             "shade": True, "rotation": None, "matrix": [float(x) for x in mat.flatten()]}]
+
+
+def _figure(skin_key, slim, at, pvs, main=None, vest=None, turn=0):
+    import bus_hold_assets as BA
+    pp = BA.pose(False, main, None)
+    els = BA.passenger(skin_key, slim, at, False, main, None, pvs)
+    if vest:
+        els += _armour(vest, slim, pp, at)
+    return _turned(els, at, turn) if turn else els
+
+
+def sheet3(path=SHEET3):
+    """The 3차 pieces: the order tablet beside the counter with a licence and an ID card on it, the head office
+    inspector and the late regular in front of it, a worker in the 점장 vest behind; the three licences and the ID
+    card from above; the licences held up and the three vests worn; the tablet and the vest items close; then the
+    skins, the layers and the pictures flat (the ID card's text area marked, a sample of the overlay)."""
+    from models import store as S
+    import store_art as ART
+    import economy_bus_skins as B
+    BUILD.mkdir(exist_ok=True)
+    keys = list(S.ALL3) + ["store_counter", "store_vest", "store_cig_shelf"]
+    models = {k: S.ALL[k]() for k in keys}
+    pv = {k: m.to_preview() for k, m in models.items()}
+    pvs = {k: (pv[k], models[k].display) for k in keys}
+    tex = _floor_tex()
+    for p in pv.values():
+        tex.update(p["textures"])
+    skins = {k: B.NPCS[k]() for k in B.STORE_NPCS}
+    worker = B.TYPES[[t for t, _, _ in B.TYPES].index("univ")][2](1)
+    tex.update({k: _uri(s.finish()) for k, s in skins.items()})
+    tex["worker"] = _uri(worker.finish())
+    tex["vest"] = _uri(ART.vest_layer())
+    tex["vest_manager"] = _uri(ART.vest_layer_manager())
+    tex["vest_night"] = _uri(ART.vest_layer_night())
+    els, views, labels = [], [], []
+    W = 1600
+
+    def view(x, y, w, h, centre, radius, az, el, k, label, fov=35):
+        views.append({"x": x, "y": y, "w": w, "h": h, "az": az, "el": el, "k": k, "center": centre, "radius": radius,
+                      "fov": fov, "far": 6000})
+        labels.append((x, y, label))
+
+    # row 1: the counter, the tablet beside it (+x: the customer's left), a licence and an ID card on the mat,
+    # the worker behind in the 점장 vest, the inspector and the regular in front
+    els.extend(_placed(pv["store_cig_shelf"], (0, 8, 40), 1))
+    els.extend(_placed(pv["store_counter"], (0, 8, 0), 1))
+    els.extend(_placed(pv["store_order_tablet"], (32, 8, 0), 1))
+    els.extend(_placed(pv["store_id_card"], (-6, 15.25, 7), 1))
+    els.extend(_placed(pv["store_license_standard"], (-18, 15.25, 7), 1, turn=-20))
+    els.append(_plane("tile", -60, -56, 64, 56))
+    els.append(_wall("wallbg", -60, 64, 0, 64, 52))
+    els += _figure("worker", False, (2, 24, 18), pvs, vest="vest_manager")
+    els += _figure("hq_inspector", True, (-44, 24, -12), pvs, turn=-105)
+    els += _figure("night_regular", False, (-12, 24, -22), pvs, turn=180)
+    view(0, 0, 1000, 620, [4, 18, 0], 70, 24, 22, 1.7, "계산대 옆 store_order_tablet · 위에 권리증 · 신분증 / 본사 점검원 · 밤 손님 · 점장 조끼")
+    view(1000, 0, 600, 620, [-28, 18, -16], 40, 150, 24, 1.8, "점원 쪽에서: 본사 점검원 · 밤 손님")
+
+    # row 2: the licences and the ID card from above
+    y0 = 620
+    for i, t in enumerate(S.LICENSES):
+        els.extend(_placed(pv[f"store_license_{t}"], (1048 - i * 16, 0, 0), 1))   # +x is the viewer's left
+    els.extend(_placed(pv["store_id_card"], (1002, 0, 0), 1))
+    els.append(_plane("tile", 985, -14, 1062, 14))
+    view(0, y0, W, 420, [1026, 0, 0], 22, 0, 62, 2.3, "store_license_alley · standard · large (골목점 동 · 표준점 은 · 대형점 금) · store_id_card", fov=24)
+
+    # row 3: the licences held up, the three vests worn
+    y0 += 420
+    for i, t in enumerate(S.LICENSES):
+        at = (2000 + i * 40, 24, 0)
+        els += _figure("worker", False, at, pvs, main=f"store_license_{t}")
+        view(i * 260, y0, 260, 420, [at[0] + 7, 17, -2], 32, 18, 8, 1.9, f"들고 ({t})")
+    for i, (v, label) in enumerate((("vest", "store_vest"), ("vest_manager", "store_vest_manager"), ("vest_night", "store_vest_night"))):
+        at = (2200 + i * 40, 24, 0)
+        els += _figure("worker", False, at, pvs, vest=v)
+        view(780 + i * 274, y0, 274, 420, [at[0], 15, 0], 30, 25 if i != 1 else -150, 10, 1.9, label + (" (등)" if i == 1 else ""))
+
+    # row 4: the tablet close, the vest items
+    y0 += 420
+    els.extend(_placed(pv["store_order_tablet"], (3000, 8, 0), 1))
+    els.append(_plane("tile", 2980, -20, 3020, 20))
+    view(0, y0, 420, 440, [3000, 13, 2], 16, 20, 30, 3.0, "store_order_tablet · 1×1 (빛나는 화면)")
+    view(420, y0, 380, 440, [3000, 11, 2], 16, 120, 14, 3.0, "옆 · 뒤 (발주기 PDA 거치대)")
+    els.extend(_placed(pv["store_vest_manager"], (3140, 0, 0), 1))
+    els.extend(_placed(pv["store_vest_night"], (3120, 0, 0), 1))
+    els.extend(_placed(pv["store_vest"], (3100, 0, 0), 1))
+    els.append(_plane("tile", 3085, -14, 3155, 14))
+    view(800, y0, 800, 440, [3120, 6, 0], 30, 0, 18, 2.2, "store_vest_manager · store_vest_night · (store_vest)", fov=24)
+    H = y0 + 440
+
+    src = BUILD / "store_assets_3.preview.json"
+    src.write_text(json.dumps({"textures": tex, "elements": els, "grid": False, "size": [W, H], "views": views}))
+    shot = BUILD / "store_assets_3.render.png"
+    subprocess.run(["node", str(RENDER), str(src), str(shot)], check=True, stdout=subprocess.DEVNULL)
+    im = Image.open(shot).convert("RGBA")
+
+    extra = 560
+    out = Image.new("RGBA", (W, H + extra), (27, 29, 34, 255))
+    out.alpha_composite(im, (0, 0))
+    d = ImageDraw.Draw(out)
+    f, small = _font(19), _font(15)
+    for (x, y, label) in labels:
+        tw = d.textlength(label, font=f)
+        d.rectangle((x + 8, y + 8, x + 20 + tw, y + 38), fill=(20, 22, 26, 210))
+        d.text((x + 14, y + 10), label, font=f, fill=(240, 236, 220))
+    for yy in (620, 1040, 1460, H):
+        d.line((0, yy, W, yy), fill=(60, 64, 72), width=2)
+    # the skins flat
+    y = H + 14
+    for j, (k, title) in enumerate((("hq_inspector", "본사 점검원 hq_inspector (slim)"), ("night_regular", "night_regular (wide)"))):
+        sx = 20 + j * 300
+        d.text((sx, y), title, font=small, fill=(240, 236, 220))
+        sk = skins[k]
+        out.alpha_composite(B.flat(sk.finish(), sk.slim).resize((128, 256), Image.NEAREST), (sx, y + 30))
+        out.alpha_composite(B.flat(sk.finish(), sk.slim, back=True).resize((128, 256), Image.NEAREST), (sx + 140, y + 30))
+    # the vest layers flat
+    d.text((620, y), "조끼 갑옷 층 (점장 · 야간)", font=small, fill=(240, 236, 220))
+    out.alpha_composite(ART.vest_layer_manager().resize((256, 128), Image.NEAREST), (620, y + 30))
+    out.alpha_composite(ART.vest_layer_night().resize((256, 128), Image.NEAREST), (620, y + 170))
+    # the ID card picture with its text area and a sample of the overlay
+    card = ART.id_card().resize((384, 240), Image.NEAREST)
+    cx, cy = 920, y + 30
+    out.alpha_composite(card, (cx, cy))
+    d.text((cx, y), "store_id_card 그림 · 점선 = 글씨 칸 (TextDisplay)", font=small, fill=(240, 236, 220))
+    bx0, by0, bx1, by1 = cx + 8 * 3, cy + 26 * 3, cx + 80 * 3, cy + 70 * 3
+    for xx in range(bx0, bx1, 8):
+        d.line((xx, by0, xx + 4, by0), fill=(220, 60, 60))
+        d.line((xx, by1, xx + 4, by1), fill=(220, 60, 60))
+    for yy in range(by0, by1, 8):
+        d.line((bx0, yy, bx0, yy + 4), fill=(220, 60, 60))
+        d.line((bx1, yy, bx1, yy + 4), fill=(220, 60, 60))
+    d.text((bx0 + 12, by0 + 18), "이름  김편의", font=_font(26), fill=(30, 40, 80))
+    d.text((bx0 + 12, by0 + 62), "1999년생", font=_font(26), fill=(30, 40, 80))
+    d.text((cx, cy + 250), "모델: x 7.2..10.8 · z 6.5..8.7 · 윗면 y 8.25 (북쪽에서 읽음)", font=small, fill=(200, 204, 212))
+    # the licence faces flat
+    for i, t in enumerate(S.LICENSES):
+        out.alpha_composite(ART.license_face(t).resize((160, 208), Image.NEAREST), (20 + i * 176, y + 300))
+    d.text((20, y + 516), "권리증 그림 (80×104) · 왼쪽 아래 = 모델의 메달 · 리본 자리", font=small, fill=(200, 204, 212))
+    out.alpha_composite(ART.tablet_screen().resize((264, 192), Image.NEAREST), (620, y + 360 - 10))
+    d.text((900, y + 360), "발주 화면 (88×64, 빛남)", font=small, fill=(200, 204, 212))
+    out.convert("RGB").save(path, optimize=True)
+    return path
+
+
 if __name__ == "__main__":
+    if "--sheet3-only" in sys.argv:
+        print(sheet3())
+        sys.exit()
     print(len(write()), "models written")
     if "--no-sheet" not in sys.argv:
         print(sheet())
+        print(sheet3())

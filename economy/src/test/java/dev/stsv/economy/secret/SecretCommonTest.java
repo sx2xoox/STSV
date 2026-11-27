@@ -65,7 +65,9 @@ class SecretCommonTest {
         assertEquals(13, Monument.SLOTS);
         // the bus secret and every secrets/<id>.yml (common.yml is the shared settings): no blank stone is left
         try (Stream<Path> s = Files.list(Path.of(System.getProperty("stsv.content")).resolve("economy").resolve("secrets"))) {
-            long secrets = s.filter(p -> p.toString().endsWith(".yml") && !p.getFileName().toString().equals("common.yml")).count();
+            // (a secret whose file says stone: false has none: 새벽단골, so the newcomer stays the thirteenth)
+            long secrets = s.filter(p -> p.toString().endsWith(".yml") && !p.getFileName().toString().equals("common.yml"))
+                    .filter(p -> org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(p.toFile()).getBoolean("stone", true)).count();
             assertEquals(Monument.SLOTS, 1 + secrets);
         }
     }

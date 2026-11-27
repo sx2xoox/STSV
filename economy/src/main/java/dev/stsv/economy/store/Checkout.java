@@ -61,6 +61,27 @@ public final class Checkout {
         return true;
     }
 
+    /**
+     * 스캔 단축: scans thing i and then the next ones not yet scanned until `n` are scanned by this click (경력, 묶음 스캔).
+     * Returns the things scanned now (none when i was scanned already or there is no such thing).
+     */
+    public List<Integer> scanMany(int i, int n) {
+        List<Integer> out = new ArrayList<>();
+        if (!scan(i)) return out;
+        out.add(i);
+        for (int k = 0; k < scanned.length && out.size() < n; k++) if (scan(k)) out.add(k);
+        return out;
+    }
+
+    /** The same till paid in cash (정전: the card terminal is dead): what is scanned stays scanned, the asks stay. */
+    public Checkout asCash() {
+        Checkout c = new Checkout(items, prices, Method.CASH);
+        System.arraycopy(scanned, 0, c.scanned, 0, scanned.length);
+        c.asks.addAll(asks);
+        c.mistake = mistake;
+        return c;
+    }
+
     public boolean allScanned() {
         for (boolean b : scanned) if (!b) return false;
         return true;

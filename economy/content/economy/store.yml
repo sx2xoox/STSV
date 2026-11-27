@@ -862,3 +862,168 @@ troubles:
       buttons: {}
       talk:
         start: ["(딸랑) …아무도 없다.", "(문 종이 울렸다) …바람인가?", "(딸랑…) 방금 누가 들어온 것 같았는데."]
+
+# ══ 3차 + 보완안 (기획안 §8 · §9 · §16): 경력 · 야간 · 발주 · 단골 메뉴 · 2인 근무 · 남의 가게 알바 · 버스 연동 · 러시 · 스캔 단축 · 하루 이벤트 ══
+# 숫자는 모두 store.yml 에서만 바꿈. G 는 "몫 떼기 전" (직영점은 그 40%, 내 가게는 100%) 이라고 적은 곳만 몫을 뗌.
+
+# ── 경력 (§8): 받은 손님 수 (근무한 모든 가게 합) 로 오름. 한 번 오르면 내려가지 않음. 오르면 본인에게만 알림 ──────────
+# 알바 = 야간 근무 · 선임 = 발주 · 점장 대리 = 폐기 할인 스티커 · 2인 근무의 계산 자리 · 점장 = 칭호 · 점장 조끼 · 간판 아래 "이달의 점장"
+career:
+  ranks:
+    trainee: {name: 수습, at: 0}
+    parttime: {name: 알바, at: 50}
+    senior: {name: 선임, at: 300}
+    deputy: {name: 점장 대리, at: 800}
+    manager: {name: 점장, at: 2000}
+  title: economy:store_manager          # 점장이 되면 (titles/titles.yml)
+  vest-manager: economy:store_vest_manager
+  vest-night: economy:store_vest_night  # 야간 근무 (야간 시각에 출근) 에 입는 조끼 (점장 조끼보다 먼저)
+  # 스캔 단축 (보완안): 스캐너 한 번에 찍는 개수. 단골 (그 손님 종류를 regulars.at 번 넘게 받음) 의 장바구니는 한 번에 전부 (묶음 스캔)
+  scan: {trainee: 1, parttime: 1, senior: 2, deputy: 2, manager: 3}
+
+# ── 야간 근무 (알바부터): 게임 시각 from ~ to 에 출근하면 야간 근무 (야간 조끼). 그 시각에 받은 손님은 보수 × pay ────────────
+# 수습은 야간에 출근할 수 없음. boost: 야간 근무 중 이 손님 종류가 이만큼 더 자주 (취객 · 새벽 손님)
+night:
+  rank: parttime
+  from: 20
+  to: 6
+  pay: 1.3
+  boost: {drunk: 1.6, nurse: 1.5, rider: 1.3, worker: 1.3, ghost: 1.5}
+
+# ── 폐기 할인 스티커 (점장 대리부터): 폐기를 집은 손님이 항의하지 않고 반값 스티커로 사 감 (기분 +mood, 보너스 bonus G 몫 떼기 전) ──
+sticker:
+  rank: deputy
+  mood: 3
+  bonus: 40
+
+# ── 발주 (선임부터, §8): 계산대 옆 발주 단말기 (store_order_tablet) 우클릭 = 내일 (다음 게임 하루) 힘줄 묶음을 하나씩 넘겨 봄,
+# 웅크리고 우클릭 = 그걸로 발주. 다음 날 그 가게의 "오늘 잘 나가는 것" 이 발주와 같으면 그날 그 묶음 상품이 팔릴 때마다 hit G,
+# 첫 손님 때 first G 한 번. 다르면 miss G 만 (잃는 돈 없음). 근무 중이 아니어도 발주할 수 있음 (퇴근하며).
+# 그날 잘 나가는 것 (위에서부터 먼저): 비 = rain · 장날 = market · 여름 달 (demand.summer.months) = cold · 주말 = night · 그 밖 = snack
+order:
+  rank: senior
+  hit: 60
+  miss: 15
+  first: 600
+  groups:
+    rain: {name: 우산 · 따끈한 것, products: [umbrella, coffee_cup, ramen_red, ramen_mild, ramen_big, hotbar]}
+    market: {name: 도시락 · 생활용품, products: [dosirak, samgak_tuna, samgak_bibim, samgak_bulgogi, tissue, battery, bandage]}
+    cold: {name: 음료 · 아이스크림, products: [ice_bar, ice_cone, soda, ion_drink, water, coffee_can]}
+    night: {name: 술 · 안주, products: [soju, beer, hangover, egg, chips, shrimp]}
+    snack: {name: 과자 · 간식, products: [choco_snack, jelly, chocolate, candy, banana_milk, gum]}
+
+# ── 단골 메뉴 (§4): 같은 사람 종류를 at 번 넘게 받으면, 그 손님은 chance 로 아무것도 안 고르고 "늘 먹던 걸로" 라고만 함 →
+# 그 사람의 메뉴 (menu) 가 있는 진열대 · 냉장고 · 냉동고를 근무자가 우클릭하면 꺼내 줌 (기분 +mood, 팁 × tip). 틀린 곳이면 기분 wrong.
+# hint 초 동안 못 찾으면 메뉴 이름을 말해 줌. 처음 맞히면 인물 도감 그 사람 칸에 "단골 메뉴: …" 가 적힘 (근무자마다)
+regulars:
+  at: 5
+  chance: 0.3
+  mood: 15
+  tip: 2
+  wrong: -6
+  hint: 20
+  menu:
+    resident: tissue
+    student: banana_milk
+    grandma: candy
+    office: coffee_can
+    tourist: water
+    vip: coffee_cup
+    farmer: ion_drink
+    hiker: chocolate
+    fisher: ramen_red
+    soldier: choco_snack
+    couple: ice_cone
+    drunk: ramen_big
+    courier: ion_drink
+    nurse: coffee_cup
+    chatty: shrimp
+    rider: hotbar
+    youtuber: jelly
+    uncle: egg
+    univ: ramen_red
+    worker: coffee_can
+    kid: jelly
+    tardy: samgak_tuna
+    traveler: water
+    rude: soda
+    thug: soda
+    ghost: ice_bar
+    monk: water
+    police: coffee_can
+    camper: ramen_mild
+    market: samgak_bibim
+    complainer: water
+    dodger: chips
+    prankster: choco_snack
+    gentleman: coffee_cup
+    phone: ion_drink
+    wrestler: dosirak
+    bride: chocolate
+  talk:
+    ask: ["늘 먹던 걸로요.", "늘 먹던 거요~", "그거요, 늘 먹던 걸로!", "(씩 웃으며) 아시죠? 늘 먹던 걸로."]
+    hint: ["…{item}요. 늘 먹던 거.", "에이, {item}! 맨날 사 가잖아요~", "(서운한 눈치) {item}요…"]
+    right: ["역시! 기억하시네요~", "와, 말 안 해도 아시네!", "이 맛에 여기 온다니까요"]
+    wrong: ["아니 그거 말고요…", "어… 그건 아닌데?", "(고개를 젓는다)"]
+
+# ── 2인 근무 (§8 · §13): 근무 중인 가게의 옷걸이를 다른 사람이 우클릭하면 둘째로 출근 (직영점 · two 등급의 내 가게).
+# 첫째 = 계산 (손님마다 보수), 둘째 = 진열 (진열 · 폐기 · 청소 · 컵 · 온수 한 번마다 보수 + 손님이 계산할 때마다 assist).
+# 점장 대리 이상이 둘째로 오고 첫째가 그보다 아래면 계산 자리를 맡음. 근무자가 웅크리고 옷걸이 우클릭 = 둘이 자리 바꾸기.
+# 첫째가 퇴근하면 둘째가 계산을 이어받음. 모두 G 몫 떼기 전, 할 때마다 바로 받음.
+# 남의 가게 알바 (§13): 내 가게가 아닌 가게 옷걸이 우클릭 = 알바 지원 → 주인이 발주 단말기를 웅크리고 우클릭하면 받아 줌 (주인이 없을 때
+# 지원하면 접속했을 때 알림). 받아 준 알바는 그 가게에서 혼자서도 근무: 보수의 hired-share, 그때마다 주인에게 owner-cut 이 바로 (접속 안 해도)
+staff:
+  two: [large]
+  hired-share: 0.4
+  owner-cut: 0.2
+  restock: 600
+  chore: 250
+  assist: 100
+  busy: 0.8          # 둘이 근무하면 손님 간격 × 이것 (더 붐빔)
+
+# ── 버스 연동 (§9) ─────────────────────────────────────────────────────────────────────────────
+# radius 칸 안에 버스 정류장이 있는 가게: 계산하고 나간 손님은 carry 확률로 그 정류장에 기다리는 손님이 됨 (산 봉투를 들고, 정류장마다 most 명까지).
+# 계산대 손님이 ask 확률로 "다음 버스 언제 와요?" → [버스 알려 주기] 를 누르면 지금 운행 중인 가장 가까운 버스 기사 이름 (없으면 없다고).
+# 버스를 운전 중인 플레이어가 손님으로 캔커피를 사면 coffee-minutes 분 동안 승객이 졸 확률 × coffee-doze.
+# 편의점에서 greet-at 번 넘게 받은 종류의 손님은 그 사람이 운전하는 버스에 타며 알아봄 (반대로 버스는 recognize-at, 위)
+bus-link:
+  radius: 24
+  carry: 0.5
+  most: 3
+  ask: 0.06
+  ask-mood: 6
+  coffee-minutes: 10
+  coffee-doze: 0.5
+  greet-at: 10
+  talk:
+    ask: ["저기, 다음 버스 언제 와요?", "혹시 버스 언제 오는지 아세요?", "버스 놓쳤나… 다음 거 언제 와요?"]
+    driver: ["아, {driver} 기사님 버스요? 고마워요!", "{driver} 기사님이 오신대요? 얼른 가야지~", "오, {driver} 기사님! 그분 운전 잘하시던데"]
+    none: ["지금은 운행 중인 버스가 없대요… 걸어가야겠다", "버스가 없어요? 에휴, 택시 타야지", "아… 오늘은 버스가 안 다니나 보네요"]
+    greet: ["어? 편의점 알바생 아니에요? 운전도 해요?", "어머, 편의점 그분이시네! 버스도 하세요?", "알바생이 운전도 해요? 대단하시다~"]
+
+# ── 러시 타임 (보완안): 게임 시각 windows 마다 (출근 · 하교) 손님이 몰려옴 (간격 × every). seconds 초 안에 target 명을
+# 보내면 bonus G (몫 떼기 전) + 팡파레. 화면에 "러시!". 한 창마다 한 번
+rush:
+  windows: [[7, 9], [16, 18]]
+  every: 0.35
+  target: 8
+  seconds: 150
+  bonus: 1500
+
+# ── 하루 이벤트 (보완안): 근무 중 check 초마다 굴려 가끔 하나 (한 가게에 게임 하루 per-day 번까지)
+# 정전: 불이 꺼지고 seconds 초 (카드 단말기 먹통 → 현금만, 손님 기분 mood). 뒷벽 차단기 (레버) 우클릭 = 바로 복구 (fix G 몫 떼기 전)
+# 수학여행: 학생 min ~ max 명이 gap 초 간격으로 우르르 (가게 안 인원 제한은 그대로)
+# 본사 점검: 점검원이 seconds 초 동안 진열대 · 폐기 · 바닥을 봄 → 점수 (100 에서 빈 진열대 -15, 폐기 -10, 어지른 곳 -10, 빈 온수기 -10, 쌓인 상자 -5)
+#   pass 이상 = 평점 보너스 good G, fail 미만 = 벌금 fine G
+events:
+  check: 60
+  per-day: 1
+  outage: {chance: 0.03, seconds: 60, mood: -5, fix: 200}
+  group: {chance: 0.03, min: 8, max: 12, gap: [1, 3], kinds: [student]}
+  inspect: {chance: 0.02, seconds: 120, skin: "economy:entity/bus/hq_inspector", kind: office, good: 1500, fine: 800, pass: 70, fail: 40}
+  talk:
+    outage: ["어? 불 나갔어요?", "깜깜해!", "카드 돼요? …안 되겠네", "정전이에요?"]
+    restored: ["오, 불 들어왔다", "휴~ 밝다", "다행이다~"]
+    group: ["얘들아 편의점이다!!", "선생님 몰래 빨리빨리!", "야 나 젤리 사 줘!", "줄 서, 줄!"]
+    inspect-good: ["진열 상태 좋네요.", "청결 합격.", "(클립보드에 체크)"]
+    inspect-bad: ["여기 비었네요.", "바닥이… 흠.", "(클립보드에 X 표시)", "폐기 관리가 안 되네요."]

@@ -160,13 +160,22 @@ public final class BusModule extends EcoModule {
      * Someone queued to wait at a stop: a transfer passenger (their line and stop), one of an event team (출근 대란, 야구 끝,
      * 소풍날: its number) or a 특급 손님 (its kind).
      */
-    record Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special, boolean shiny) {
+    record Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special, boolean shiny, String hold) {
         Forced(String type, Integer line, Integer dest, boolean transfer) {
-            this(type, line, dest, transfer, 0, null, false);
+            this(type, line, dest, transfer, 0, null, false, null);
         }
 
         Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special) {
-            this(type, line, dest, transfer, team, special, false);
+            this(type, line, dest, transfer, team, special, false, null);
+        }
+
+        Forced(String type, Integer line, Integer dest, boolean transfer, int team, String special, boolean shiny) {
+            this(type, line, dest, transfer, team, special, shiny, null);
+        }
+
+        /** 편의점: one who just shopped at a store near the stop, holding what they bought (an item key). */
+        static Forced shopper(String type, String hold) {
+            return new Forced(type, null, null, false, 0, null, false, hold);
         }
 
         /** A 별난 손님 waiting on unseen (its kind kept; null: any kind, the admin's test), else an ordinary one. */
@@ -1353,7 +1362,12 @@ public final class BusModule extends EcoModule {
         } else {
             HudModule.flash(p, Lang.mm("bus.boarded", "type", typeTag(w.type, w.shiny), "dest", destName, "km", km(r.road)), 2000);
         }
-        talk(run, r.m, r.type, w.transfer ? "transfer" : w.shiny || mood > start - 5 ? "board" : "waited", w.shiny || mood <= start - 5);
+        String known = w.shiny ? null : watcherBoardLine(p, w.type.id());   // 편의점: one the driver served there often knows them
+        if (known != null) {
+            say(r.m, known);
+            r.said = known;
+            r.saidUntil = System.currentTimeMillis() + 3000;
+        } else talk(run, r.m, r.type, w.transfer ? "transfer" : w.shiny || mood > start - 5 ? "board" : "waited", w.shiny || mood <= start - 5);
         if (w.type.announce()) Bukkit.broadcast(Lang.msg("bus.vip", "player", p.getName(), "dest", destName));
         return true;
     }
@@ -1927,7 +1941,7 @@ public final class BusModule extends EcoModule {
             }
             if (!r.dozeChecked && rode > x.dozeAfter()) {
                 r.dozeChecked = true;
-                r.dozing = ThreadLocalRandom.current().nextDouble() < r.type.doze();
+                r.dozing = ThreadLocalRandom.current().nextDouble() < r.type.doze() * awake(run.driver);
             }
             if (r.dozing && ticks % 80 < 20) {   // nodding: the head drops and comes up, Zz now and then
                 r.m.setRotation(r.m.getLocation().getYaw(), ticks % 160 < 20 ? 35 : 5);
@@ -2957,6 +2971,72 @@ public final class BusModule extends EcoModule {
         default boolean hints(Player driver) {
             return false;
         }
+
+        /** What a passenger of this kind says getting on this driver's bus instead of their usual line (null: their own). */
+        default String boardLine(Player driver, String type) {
+            return null;
+        }
+    }
+
+    private String watcherBoardLine(Player driver, String type) {
+        for (Watcher w : watchers.values()) {
+            try {
+                String l = w.boardLine(driver, type);
+                if (l != null) return l;
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[버스] watcher 오류", e);
+            }
+        }
+        return null;
+    }
+
+    /** driver -> until when (ms) their passengers doze less, and by how much (편의점 캔커피) */
+    private final Map<UUID, double[]> coffee = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** 편의점: a driver drank a 캔커피 — until `until` (ms) their passengers' chance to doze is × `factor`. */
+    public void coffee(UUID driver, long until, double factor) {
+        coffee.put(driver, new double[]{until, Math.clamp(factor, 0, 1)});
+    }
+
+    /** The doze factor of this driver's passengers now (1: as usual). */
+    double awake(UUID driver) {
+        double[] c = driver == null ? null : coffee.get(driver);
+        if (c == null) return 1;
+        if (System.currentTimeMillis() > c[0]) {
+            coffee.remove(driver);
+            return 1;
+        }
+        return c[1];
+    }
+
+    /** Whether this player is driving a bus now. */
+    public boolean driving(UUID player) {
+        for (Run r : runs.values()) if (player.equals(r.driver)) return true;
+        return false;
+    }
+
+    /** The drivers of the buses running now (online). */
+    public List<Player> drivers() {
+        List<Player> out = new ArrayList<>();
+        for (Run r : runs.values()) {
+            Player p = r.driver == null ? null : Bukkit.getPlayer(r.driver);
+            if (p != null && !out.contains(p)) out.add(p);
+        }
+        return out;
+    }
+
+    /**
+     * 편의점: a customer who just left a store near this stop comes to wait there (a passenger of this kind, holding `hold`, an
+     * item key), at most `most` of them waiting so. False when there is no such stop or enough wait already.
+     */
+    public boolean fromStore(int stop, String type, String hold, int most) {
+        if (!stops.containsKey(stop) || spec.types().get(type) == null || spec.types().get(type).weight() <= 0) return false;
+        Deque<Forced> q = forced.computeIfAbsent(stop, k -> new ArrayDeque<>());
+        int n = 0;
+        for (Forced f : q) if (f.hold() != null) n++;
+        if (n >= most) return false;
+        q.addLast(Forced.shopper(type, hold));
+        return true;
     }
 
     private final Map<String, Watcher> watchers = new java.util.concurrent.ConcurrentHashMap<>();
@@ -3693,6 +3773,7 @@ public final class BusModule extends EcoModule {
         BusSpec.Type type = only != null ? only : f != null && f.type() != null ? spec.types().get(f.type()) : pickType(s);
         if (f != null && f.shiny() && !spec.shiny().eligible(type)) type = pickType(s);   // (a kind taken out since)
         if (f != null) queue.pollFirst();
+        String hold = f == null ? null : f.hold();   // 편의점: what they bought there
         if (type == null) return null;
         // 별난 손님: one who came shiny (a ticket of the stop), one kept from before (hidden, set down), the other half of a pair
         boolean shiny = only != null ? partnerShiny : f != null ? f.shiny() && spec.shiny().eligible(type)
@@ -3723,6 +3804,7 @@ public final class BusModule extends EcoModule {
             face = key.substring(key.lastIndexOf('/') + 1);
         }
         Waiter out = new Waiter(m, type, face);
+        if (hold != null && m.getEquipment() != null) m.getEquipment().setItemInMainHand(prop(hold));
         out.skin = skin;
         out.shiny = shiny;
         if (shiny) sparkle(m, true);

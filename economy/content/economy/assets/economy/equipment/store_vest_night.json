@@ -1,0 +1,9 @@
+{
+  "layers": {
+    "humanoid": [
+      {
+        "texture": "economy:store_vest_night"
+      }
+    ]
+  }
+}

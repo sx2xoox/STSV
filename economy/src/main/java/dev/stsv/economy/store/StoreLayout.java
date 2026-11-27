@@ -282,6 +282,11 @@ public final class StoreLayout {
         set(-3, 0, 11, "white_concrete");
         set(-3, 0, 12, "white_concrete");
         piece("mop", "economy:store_mop", -5, 13, -5, 13, 0, 90);
+        // 3차: the 발주 tablet (on its stand, between the cigarette shelf and the hanger, its screen to the worker's lane) and
+        // the breaker on the stockroom wall (정전: a lever, right-clicked)
+        piece("order", "economy:store_order_tablet", -5, 9, -5, 9, 0, 90);
+        set(-4, 1, BACK - 1, "lever[face=wall,facing=north,powered=false]");   // (facing away from the back wall it hangs on)
+        labels.add(new Label(-3.5, 1.75, BACK - 0.03, 180, "<white><b>차단기</b>", 0.4f, 0xC0303030));
         // the four shelves (double-sided, along z), the fridges on the back wall, the freezer and the eat bar at the window
         piece("shelf_snack", "economy:store_shelf_snack_full", 0, 6, 0, 8, 0, 0);
         piece("shelf_noodle", "economy:store_shelf_noodle_full", 0, 10, 0, 12, 0, 0);

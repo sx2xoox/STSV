@@ -85,7 +85,8 @@ public final class SecretModule extends EcoModule {
                 dev.stsv.economy.secret.jesa.Jesa::new,
                 dev.stsv.economy.secret.garage.Garage::new,
                 dev.stsv.economy.secret.pager.Pager::new,
-                dev.stsv.economy.secret.newcomer.Newcomer::new)) {
+                dev.stsv.economy.secret.newcomer.Newcomer::new,
+                dev.stsv.economy.secret.dawn.DawnRegular::new)) {
             Secret s = f.apply(this);
             secrets.put(s.id(), s);
         }

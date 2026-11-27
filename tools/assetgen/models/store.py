@@ -73,6 +73,22 @@ the scanner are centred on it.
   store_scanner        바코드 스캐너 (hand item): a dark grey gun with a green stripe, a red window at its nose.
   store_vest           근무 조끼 item (folded flat vest); worn in the chest slot it shows the armour layer
                        economy:store_vest (store_art.vest_layer, assets/economy/equipment/store_vest.json).
+
+3차 (§16 새 모델):
+
+  store_order_tablet   발주 단말기 (furniture, 1 cell, beside the counter): a round foot, a steel post, a POS tablet
+                       tilted back 45 degrees with the 발주 app lit on it (store_art.tablet_screen), a cradle on the
+                       post holding the handheld 발주기 (PDA, a small lit screen).
+  store_license_<alley|standard|large>
+                       권리증 (display + held; the items are in items/store_extra.yml): a 10 x 13 px certificate lying
+                       face up, reading from the north (store_art.license_face: the tier's border, ribbon banner and
+                       stars), a bronze / silver / gold rosette seal with ribbon tails on its bottom left. Held up in
+                       the fist facing out; the inventory shows its face.
+  store_id_card        신분증, lying flat (6.4 x 4 px, store_art.id_card): the text area left plain for a TextDisplay
+                       (model x 7.2..10.8, z 6.5..8.7, top y 8.25), the photo on the right.
+  store_vest_manager · store_vest_night
+                       점장 · 야간 조끼 items (folded, like store_vest); worn in the chest slot they show the layers
+                       economy:store_vest_manager / economy:store_vest_night.
 """
 
 import math
@@ -109,7 +125,7 @@ class HModel(BModel):
         super().__init__(*a, **k)
         self._plates = []
 
-    def plate(self, name, frm, to, faces, glow=False):
+    def plate(self, name, frm, to, faces, glow=False, rotation=None):
         """faces: {face: (texture, [u0, v0, u1, v1] in its pixels)}. A flat plate (no thickness) given one side gets
         the other side too, the picture's corner texel (it is seen only edge on or from behind a wall)."""
         faces = dict(faces)
@@ -119,16 +135,18 @@ class HModel(BModel):
                 for f, o in ((a, b), (b, a)):
                     if f in faces and o not in faces:
                         faces[o] = (faces[f][0], [0, 0, 1, 1])
-        self._plates.append((self._group, name, frm, to, faces, glow))
+        self._plates.append((self._group, name, frm, to, faces, glow, rotation))
 
     def bake(self):
         if self._baked:
             return
         super().bake()
         keep = self._group
-        for group, name, frm, to, faces, lit in self._plates:
+        for group, name, frm, to, faces, lit, rot in self._plates:
             self._group = group
-            Model.box(self, name, self.to_model(frm), self.to_model(to), None, glow=lit,
+            if rot:
+                rot = (rot[0], rot[1], self.to_model(rot[2]))
+            Model.box(self, name, self.to_model(frm), self.to_model(to), None, glow=lit, rotation=rot,
                       faces={f: (faces[f][0] if f in faces else None) for f in FACES6}, uv={f: faces[f][1] for f in faces})
         self._group = keep
 
@@ -1704,6 +1722,186 @@ def vest_item():
 
 
 # ================================================================================================
+# 3차 (docs/plans/편의점_기획안.md §16 새 모델): the licences, the ID card, the 점장 and 야간 vests, the order tablet
+# ================================================================================================
+
+LICENSE_RIBBON = {"copper": ("copper", 2), "fish_silver": ("fish_silver", 3), "gold": ("gold", 2)}
+
+
+def _face_gui(m, fill=0.9, rot=(90, 180, 0)):
+    """An inventory look facing the viewer (a flat sheet lying face up, turned to stand upright, reading the right
+    way round), fitted to its bounds."""
+    lo, hi = _bounds(m)
+    big = max(hi[i] - lo[i] for i in range(3)) / 16
+    s = round(min(fill / big, 3.5), 3)
+    off = [(lo[i] + hi[i]) / 2 - 8 for i in range(3)]
+    r = presets._rot_xyz(list(rot))
+    t = [round(-sum(r[i][j] * off[j] * s for j in range(3)), 3) for i in range(3)]
+    m.display["gui"] = {"rotation": list(rot), "translation": t, "scale": [s] * 3}
+    return m
+
+
+def license(tier):
+    """권리증: a 10 x 13 px certificate lying face up (store_art.license_face, reading from the north), a card-thick
+    sheet with a metal rosette seal (the tier's bronze, silver or gold) on its bottom left and two ribbon tails off
+    its bottom edge. Held up in the fist facing out (the picture to the front); the inventory shows its face."""
+    from models import bus_hold as BH
+    name, _border, rib, _stars = ART.LICENSE_TIERS[tier]
+    rr, rs = LICENSE_RIBBON[rib]
+    m = HModel(f"store_license_{tier}", floor=8, scale=2)
+    face = _surface(f"store_license_{tier}_face", lambda t=tier: ART.license_face(t))
+    m.group("sheet")
+    m.box("sheet", (-2, 8, -5), (18, 8.5, 21), Paint("cream", 2, "paper", noise=0.02, rim=1.0))
+    m.plate("face", (-2, 8.54, -5), (18, 8.54, 21), {"up": (face, [80, 104, 0, 0])})
+    m.group("seal")
+    # the ribbon tails under the seal, splayed, off the sheet's bottom edge (-z), V-cut ends
+    tail = Paint(rr, rs, noise=0.02, rim=1.1, decal=lambda c: (rr, max(0, rs - 1)) if c.face == "up" and c.p[2] < -6.2 else None)
+    m.box("tail", (11, 8.5, -8), (13, 8.75, -1), tail, rotation=("y", 22.5, (13, 8.6, -2)))
+    m.box("tail", (13, 8.5, -8), (15, 8.75, -1), tail, rotation=("y", -22.5, (13, 8.6, -2)))
+    hi_ = min(rs + 1, ladder_size(rr) - 1)
+
+    def rosette(c):
+        if c.face != "up":
+            return (rr, max(0, rs - 1)) if math.floor(_ang_at(c, 13, -2) * 12 / math.pi) % 2 else None
+        r = math.hypot(c.p[0] - 13, c.p[2] + 2)
+        if r > 3.2:
+            return (rr, max(0, rs - 1)) if math.floor(_ang_at(c, 13, -2) * 12 / math.pi) % 2 else (rr, hi_)
+        return None
+    cyl(m, "rosette", (13, -2), 8, 8.5, 9.25, Paint(rr, rs, "metal", noise=0.02, rim=1.2, decal=rosette))
+
+    def boss(c):
+        if c.face == "up":
+            r = math.hypot(c.p[0] - 13, c.p[2] + 2)
+            if r < 1.2:
+                return (rr, hi_)
+            if 1.8 < r < 2.4:
+                return (rr, max(0, rs - 1))             # the struck ring
+        return None
+    cyl(m, "boss", (13, -2), 5, 9.25, 9.75, Paint(rr, rs, "metal", noise=0.02, rim=1.3, decal=boss))
+    # held: by its bottom corner on the body's side, stood up facing out (top up, the picture to the front), the
+    # sheet reaching out and up from the fist clear of the arm
+    grip = m.to_model((-1, 8.25, -2))
+    tr = BH.hold_transform(grip=grip, at=BH.fist(dx=0.5), turn=BH.turn(x=-90), scale=1.0, pose=BH.STANDING)
+    BH.displays(m, tr, gui_fill=0.9)
+    m.display["firstperson_righthand"] = {"rotation": [60, 180, 0], "translation": [1.5, 4.5, -1], "scale": [0.55, 0.55, 0.55]}
+    m.display["firstperson_lefthand"] = {"rotation": [60, 180, 0], "translation": [1.5, 4.5, -1], "scale": [0.55, 0.55, 0.55]}
+    m.display["fixed"] = {"rotation": [90, 180, 0], "translation": [0, 0, 0], "scale": [1, 1, 1]}
+    return _face_gui(m)
+
+
+def ladder_size(r):
+    from stsv_assets.palette import size
+    return size(r)
+
+
+def _ang_at(c, cx, cz):
+    return math.atan2(c.p[2] - cz, c.p[0] - cx)
+
+
+def id_card():
+    """신분증: a 6.4 x 4 px ID card lying flat (store_art.id_card), reading from the north; its text area (the left
+    of the picture, model +x) is left plain for the store's TextDisplay: model x 7.2..10.8, z 6.5..8.7, top y 8.25."""
+    return _flat_pic("store_id_card", "store_id_card_tex", ART.id_card, 128, 80, 6.4, 4)
+
+
+def _vest3_paint(kind, x0, x1, y0, y1):
+    """The 점장 vest (deep green, gold piping up the V and round the hem, a gold band) or the 야간 vest (navy, silver
+    reflective tape: two bands and braces up over the shoulders), seen from in front (north) or behind."""
+    mid = (x0 + x1) / 2
+
+    def decal(c):
+        x, y = c.p[0], c.p[1]
+        if c.face == "north":
+            vn = y > y1 - 4 and abs(x - mid) < (y - (y1 - 4)) * 0.6 + 0.3
+            if vn:
+                return ("iron", 1)
+            if abs(x - mid) < 0.5:
+                return ("steel", 4)
+            if kind == "manager" and y > y1 - 5 and abs(x - mid) < (y - (y1 - 4)) * 0.6 + 1.3:
+                return ("gold", 2)                     # the piping up the V
+            if kind == "night" and mid - 4 <= x < mid - 1.5 and y1 - 6 <= y < y1 - 4.5:
+                return ("snow", 2)                     # the name tag
+        if kind == "manager":
+            if math.floor(y) == math.floor(y0 + 3):
+                return ("gold", 2)
+            if y < y0 + 1:
+                return ("gold", 1)
+            if c.face in ("north", "south") and (x < x0 + 0.5 or x > x1 - 0.5):
+                return (GREEN, 0)
+            return None
+        if math.floor(y) in (math.floor(y0 + 3), math.floor(y0 + 5)):
+            return ("snow", 2) if (math.floor(x) + math.floor(y)) % 3 else ("fish_silver", 4)
+        if c.face in ("north", "south") and y > y0 + 5 and abs(abs(x - mid) - 4.5) < 0.75:
+            return ("snow", 2) if math.floor(y) % 3 else ("fish_silver", 4)
+        if y < y0 + 1:
+            return ("indigo", 0)
+        return None
+    return decal
+
+
+def vest3_item(kind):
+    """점장 조끼 · 야간 조끼 items: the folded vest of store_vest in their colours; the 점장's with a gold 점장 tag."""
+    m = HModel(f"store_vest_{kind}", floor=8, scale=2)
+    base = Paint(GREEN, 1, "weave", noise=0.03) if kind == "manager" else Paint("indigo", 1, "weave", noise=0.03)
+    vest = base(decal=_vest3_paint(kind, 1, 15, 8, 24))
+    m.group("vest")
+    m.box("vest", (1, 8, 6.5), (15, 23, 9.5), vest)
+    m.box("strap", (2, 23, 6.5), (5.5, 25, 9.5), vest)
+    m.box("strap", (10.5, 23, 6.5), (14, 25, 9.5), vest)
+    if kind == "manager":
+        tag = _surface("store_vest_manager_tag", ART.manager_tag)
+        m.plate("tag", (2.25, 17, 6.49), (6.75, 19.25, 6.49), {"north": (tag, [0, 0, 48, 24])})
+    return held(m, grip_y=m.to_model((8, 24, 8))[1])
+
+
+def order_tablet():
+    """발주 단말기, 1 cell, beside the counter: a weighted round foot, a steel post (its cable down the back), a head
+    holding a POS tablet tilted back 45 degrees (a dark bezel, the 발주 app lit on its screen: store_art.tablet_screen,
+    a green GS26 stripe on its back), and on the post's side a cradle with the handheld 발주기 (PDA) in it: a dark
+    grey handset, a small lit screen, a keypad, a red scan window on top."""
+    m = HModel("store_order_tablet", floor=0)
+    m.group("stand")
+    cyl(m, "foot", (8, 9), 10, 0, 1, Paint("iron", 2, "metal", rim=1.2))
+    cyl(m, "foot_cap", (8, 9), 5, 1, 1.75, Paint("steel", 3, "metal", rim=1.2))
+    m.box("post", (7.25, 1.75, 8.25), (8.75, 13.5, 9.75), Paint("steel", 4, "metal", axis="y", rim=1.1))
+    m.box("cable", (7.6, 1, 9.75), (8.4, 13, 10.25), flat("iron", 1))
+    m.box("mount", (6, 12.75, 8), (10, 14, 10), Paint("iron", 2, "metal", rim=1.2))
+    m.group("tablet")
+    rot = ("x", 45, (8, 13.5, 9))
+
+    def back(c):
+        if c.face == "south" and abs(c.p[1] - 20) < 0.75 and 4 <= c.p[0] < 12:
+            return (GREEN, 2)
+        if c.face == "north":
+            if 13.5 <= c.p[1] < 14 and abs(c.p[0] - 8) < 0.5:
+                return ("iron", 3)                     # the home key under the screen
+        return None
+    m.box("tablet", (2, 13, 8), (14, 22.5, 9), Paint("iron", 1, "lacquer", noise=0.01, rim=1.3, decal=back), rotation=rot)
+    scr = _surface("store_tablet_screen", ART.tablet_screen)
+    m.plate("screen", (2.5, 14, 7.99), (13.5, 22, 7.99), {"north": (scr, [0, 0, 88, 64])}, glow=True, rotation=rot)
+    m.group("pda")
+    m.box("arm", (8.75, 6, 8.5), (12, 7, 9.5), flat("steel", 4, rim=1.1))
+    m.box("cradle", (12, 5, 7.5), (15.5, 8, 10.5), Paint("iron", 2, "lacquer", rim=1.2,
+                                                       decal=lambda c: ("raw", (90, 230, 140, 255)) if c.face == "north" and 6 <= c.p[1] < 6.5 and 14.5 <= c.p[0] < 15 else None))
+
+    def pda(c):
+        x, y = c.p[0], c.p[1]
+        if c.face == "north" and 8 <= y < 10.5 and 13 <= x < 14.5 and (c.i[0] + c.i[1]) % 2 == 0:
+            return ("car_white", 1)                    # the keypad
+        if c.face == "up" and c.p[2] < 9 and 13 <= x < 14.5:
+            return ("raw", (220, 50, 46, 255))         # the scan window
+        if c.face in ("east", "west") and 8 <= y < 11:
+            return (GREEN, 2)                          # a green grip on each side
+        return None
+    m.box("pda", (12.5, 7, 8), (15, 13.5, 10), Paint("iron", 3, "lacquer", noise=0.02, rim=1.2, decal=pda))
+    m.box("pda_screen", (13, 10.75, 7.9), (14.5, 13, 8), Paint("iron", 1, glow=True, light=False, noise=0,
+                                                              decal=lambda c: ("raw", (150, 230, 170, 255)) if c.face == "north" and c.p[1] >= 12.25 else ("raw", (220, 250, 228, 255)) if c.face == "north" else None))
+    return gui(m)
+
+
+LICENSES = tuple(ART.LICENSE_TIERS)
+
+# ================================================================================================
 
 GOODS = {
     "samgak_tuna": lambda: samgak("samgak_tuna", ("sapphire", 2)),
@@ -1772,4 +1970,12 @@ for _n in ART.CHANGE:
 DISPLAY["store_scanner"] = scanner
 DISPLAY["store_vest"] = vest_item
 
-ALL = {**FURNITURE, **DISPLAY}
+# 3차 (§16): the order tablet is furniture (1 cell); the rest are display / held models. The licences' items live in
+# items/store_extra.yml (their model: lines point here); the others are items of items/store.yml.
+FURNITURE3 = {"store_order_tablet": order_tablet}
+DISPLAY3 = {f"store_license_{_t}": (lambda t=_t: license(t)) for _t in LICENSES}
+DISPLAY3.update({"store_id_card": id_card, "store_vest_manager": lambda: vest3_item("manager"),
+                 "store_vest_night": lambda: vest3_item("night")})
+ALL3 = {**FURNITURE3, **DISPLAY3}
+
+ALL = {**FURNITURE, **DISPLAY, **ALL3}

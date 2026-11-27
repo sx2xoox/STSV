@@ -116,6 +116,17 @@ public final class StoreModule extends EcoModule {
     /** when a worker last saw a store scene (ms) */
     private final Map<UUID, Long> sceneAt = new HashMap<>();
     private int promptIds;
+    /** 3차 + 보완안 (store.yml career · night · sticker · order · regulars · staff · bus-link · rush · events) */
+    private StoreLife life;
+    private CareerBook book;
+    private StoreDay day;
+    private StoreBus link;
+    /** other modules' customers (a hidden secret's), by the visitor's id */
+    final Map<String, StoreVisit.Visitor> visitors = new LinkedHashMap<>();
+    /** 남의 가게 알바: who asked to work in a 내 가게 (store -> them, in memory until a restart) */
+    private final Map<String, Set<UUID>> applied = new HashMap<>();
+    /** a player paging the 발주 tablet: {store, group shown} */
+    final Map<UUID, String[]> ordering = new HashMap<>();
 
     private record Picking(String store, String place, int index) {}
 
@@ -156,9 +167,17 @@ public final class StoreModule extends EcoModule {
             }
             return null;
         });
-        core.admin().add(EcoPlugin.ADMIN_OWNER, "편의점", "건설 · 철거 · 목록 · 시험 · 손님 · 배송 · 진상 · 신분증 · 장면 · 폐기 · 청소 · 권리증 · 내가게 · 회수",
-                "편의점(GS26 직영점) 짓기 · 허물기 · 시험 근무 · 손님 · 배송 · 진상 손님 부르기 · 신분증 손님 · 장면 · 폐기 · 청소 · 내 가게 권리증 지급 · 목록 · 회수",
+        core.admin().add(EcoPlugin.ADMIN_OWNER, "편의점", "건설 · 철거 · 목록 · 시험 · 손님 · 배송 · 진상 · 신분증 · 장면 · 폐기 · 청소 · 권리증 · 내가게 · 회수 · "
+                        + "경력 · 러시 · 정전 · 단체 · 점검 · 발주 · 단골 · 버스 · 알바",
+                "편의점(GS26 직영점) 짓기 · 허물기 · 시험 근무 · 손님 · 배송 · 진상 손님 부르기 · 신분증 손님 · 장면 · 폐기 · 청소 · 내 가게 권리증 지급 · 목록 · 회수 · "
+                        + "경력 단계 · 러시 · 정전 · 수학여행 · 본사 점검 · 발주 시험 · 단골 손님 · 버스 손님 · 알바 허용",
                 this::admin, this::adminComplete);
+        book = new CareerBook(core.db());
+        book.start();
+        day = new StoreDay(this);
+        link = new StoreBus(this);
+        if (eco.bus() != null) eco.bus().watch("store", link);
+        day.relight(shops.values());
         if (core.hud() != null) {
             core.hud().board(HUD, BOARD_SHIFT, p -> working.containsKey(p.getUniqueId()), this::board);
             core.hud().line(HUD, 0, this::actionLine);
@@ -166,6 +185,7 @@ public final class StoreModule extends EcoModule {
         purge();
         every(1, this::frame);
         every(20, this::second);
+        every(600, () -> day.labels(shops.values()));
     }
 
     @Override
@@ -173,6 +193,8 @@ public final class StoreModule extends EcoModule {
         if (job != null && job.running()) job.cancel();
         for (Shop s : shops.values()) if (s.shift != null) clockOut(s, "store.out-reload");
         working.clear();
+        for (Shop s : shops.values()) if (s.label != null) s.label.remove();
+        if (eco.bus() != null) eco.bus().watch("store", null);
         if (core.hud() != null) {
             core.hud().removeBoard(HUD);
             core.hud().removeLine(HUD);
@@ -189,6 +211,7 @@ public final class StoreModule extends EcoModule {
         org.bukkit.configuration.file.YamlConfiguration y = eco.data("store.yml");
         spec = StoreSpec.parse(y, problems);
         rules = StoreRules.parse(y, spec, problems);
+        life = StoreLife.parse(y, spec, problems);
         BusModule bus = eco.bus();
         if (bus != null && bus.spec() != null) problems.addAll(spec.check(bus.spec()));
         problems.forEach(p -> eco.getLogger().warning("[store.yml] " + p));
@@ -205,6 +228,42 @@ public final class StoreModule extends EcoModule {
         return spec;
     }
 
+    public StoreLife life() {
+        return life;
+    }
+
+    CareerBook book() {
+        return book;
+    }
+
+    EcoPlugin eco() {
+        return eco;
+    }
+
+    /** The worker at the till of a shift (online), or null. */
+    Player worker(Shift sh) {
+        return Bukkit.getPlayer(sh.worker);
+    }
+
+    /**
+     * Registers (null: removes) a module's customers under an id: asked every 30 seconds of a real shift for a visit
+     * ({@link StoreVisit}). A hidden secret's way into the store.
+     */
+    public void visitor(String id, StoreVisit.Visitor v) {
+        if (v == null) visitors.remove(id);
+        else visitors.put(id, v);
+    }
+
+    /** A player's 편의점 rank (경력), by the customers they served. */
+    public StoreLife.Rank rank(UUID player) {
+        return life.rank(book == null ? 0 : book.served(player));
+    }
+
+    /** Customers this player served at night (야간 근무), ever. */
+    public long nightServed(UUID player) {
+        return book == null ? 0 : book.night(player);
+    }
+
     // ------------------------------------------------------------------------------------------ state
 
     /** A built store: where it is, its stock, the shift on now (null: closed, only its furniture). */
@@ -217,6 +276,12 @@ public final class StoreModule extends EcoModule {
         /** 내 가게 (2차): its owner and 등급 id (null: a 직영점) */
         UUID owner;
         String tier;
+        /** 3차: the "이달의 점장" line under the sign; what sells best today (발주) and on which game day; the matched order's
+         *  first bonus paid (its day); the day's events (their day, how many); the rush window done (day × 16 + window) */
+        TextDisplay label;
+        String demand;
+        long demandDay = Long.MIN_VALUE, firstDay = Long.MIN_VALUE, eventDay = Long.MIN_VALUE, rushKey = Long.MIN_VALUE;
+        int eventsToday;
 
         Shop(String name, StoreLayout.Site site, Chores chores) {
             this.name = name;
@@ -254,9 +319,9 @@ public final class StoreModule extends EcoModule {
             return t == null ? spec.spawn().maxInside() : t.maxInside();
         }
 
-        /** The worker's share of the pay: the 직영점's 40%, all of it in one's own store. */
-        double share() {
-            return owner == null ? spec.pay().share() : 1;
+        /** A worker's share of the pay: the 직영점's 40%, all of it for the owner in their own store, a hired worker's share there. */
+        double share(UUID worker) {
+            return life.staff().share(owner != null, worker != null && worker.equals(owner), spec.pay().share());
         }
 
         World world() {
@@ -283,10 +348,28 @@ public final class StoreModule extends EcoModule {
     /** One shift: the worker, the tally, the people inside, the till. */
     final class Shift implements Shopper.Env {
         final Shop shop;
-        final UUID worker;
+        /** the worker at the till (계산); 2인 근무: they may swap with the helper, the helper takes over when they go */
+        UUID worker;
         final boolean test;
-        final ShiftLog log = new ShiftLog();
-        final long started = System.currentTimeMillis();
+        ShiftLog log = new ShiftLog();
+        long started = System.currentTimeMillis();
+        /** 2인 근무 (3차): the second worker (진열), their tally, when they came; null: one worker */
+        UUID helper;
+        ShiftLog helperLog;
+        long helperStarted;
+        long helperAway;
+        /** 야간 근무: clocked in at night (the night vest) */
+        boolean night;
+        /** 러시 · 하루 이벤트 · visits (StoreDay) */
+        StoreLife.RushRun rush;
+        boolean outage;
+        long outageUntil, inspectUntil;
+        int crowdLeft, crowdClock, eventClock, visitClock;
+        Guest inspector;
+        /** a visit's thing left on the counter (until an answer takes it) */
+        ItemDisplay visitProp;
+        /** an admin's 단골: the next customer asks for their usual */
+        boolean forceUsual, forceBus;
         final List<Guest> guests = new ArrayList<>();
         final List<Shopper> line = new ArrayList<>();
         final Map<String, ItemDisplay> boxes = new HashMap<>();
@@ -357,6 +440,14 @@ public final class StoreModule extends EcoModule {
         double tipX = 1;
         IdCheck.Card card;
         int seat = -1, prize = -1;
+        /** 3차: asks for their usual (단골 메뉴: the product, when they asked, the hint said); a regular's basket (묶음 스캔);
+         *  asked when the next bus comes; the 본사 점검원; another module's visit (and who sent it); what they bought */
+        boolean usual, hinted, regular, busAsk, inspector, visitDone;
+        String usualItem;
+        long usualAt;
+        StoreVisit.Visit visit;
+        StoreVisit.Visitor visitor;
+        List<String> bought;
 
         Guest(Shopper s, BusSpec.Type type, Mannequin m) {
             this.s = s;
@@ -408,6 +499,7 @@ public final class StoreModule extends EcoModule {
                 continue;
             }
             if (watch(shop, sh, p)) continue;
+            if (sh.helper != null) watchHelper(shop, sh);
             World w = shop.world();
             if (w == null) continue;
             int hour = Chores.hour(w.getTime());
@@ -422,11 +514,11 @@ public final class StoreModule extends EcoModule {
             sh.nextSpawn -= 1;
             if (sh.nextSpawn <= 0) {
                 if (sh.guests.size() < shop.maxInside()) spawn(sh, null, hour);
-                sh.nextSpawn = spec.interval(hour, ThreadLocalRandom.current(), rules.demand().busy(marketDay()));   // 장날: more of them
+                sh.nextSpawn = spec.interval(hour, ThreadLocalRandom.current(), rules.demand().busy(marketDay())) * day.spawnFactor(sh);   // 장날 · 러시: more
             }
             // patience
             for (Guest g : new ArrayList<>(sh.guests)) {
-                if (!g.s.inLine()) continue;
+                if (!g.s.inLine() || g.visit != null || g.inspector) continue;
                 if (sh.till != null && sh.till.g == g && sh.till.c.paid()) continue;   // paid, waiting for the microwave
                 if (g.s.held()) continue;   // in a scene, asked something: not waiting on the worker
                 if (g.s.fedUp(spec.patience())) {
@@ -441,6 +533,9 @@ public final class StoreModule extends EcoModule {
             }
             chores(shop, sh, p, hour);
             sceneTick(sh, p);
+            if (shop.shift != sh) continue;
+            day.second(shop, sh, p, hour);
+            usualClock(sh);
         }
         checkCarrying();
         if (core.hud() != null && !working.isEmpty()) core.hud().refreshBoard();
@@ -491,33 +586,48 @@ public final class StoreModule extends EcoModule {
 
     /** A customer walks in (a kind, or one picked for the hour). Null when none could. */
     Guest spawn(Shift sh, String kind, int hour) {
-        return spawn(sh, kind, hour, null, false);
+        return spawn(sh, kind, hour, null, false, null);
+    }
+
+    Guest spawn(Shift sh, String kind, int hour, Trouble.Kind force, boolean young) {
+        return spawn(sh, kind, hour, force, young, null);
     }
 
     /**
      * The same; `force` makes them bring that trouble (진상, an admin's call), `young` makes them look young enough for the ID
-     * check (with 술 · 담배 among their things).
+     * check (with 술 · 담배 among their things), `visit` is another module's customer (its kind, skin, name, things, lines).
+     * A regular (단골, 3차) may come for their usual only.
      */
-    Guest spawn(Shift sh, String kind, int hour, Trouble.Kind force, boolean young) {
+    Guest spawn(Shift sh, String kind, int hour, Trouble.Kind force, boolean young, StoreVisit.Visit visit) {
         BusModule bus = eco.bus();
         if (bus == null || bus.spec() == null) return null;
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        String typeId = kind != null ? kind : spec.pickType(hour, allowed(), rnd);
+        String typeId = visit != null ? visit.kind() : kind != null ? kind
+                : spec.pickType(hour, allowed(), rnd, sh.night ? life.night().boost() : Map.of());   // 야간 근무: 취객 · 새벽 손님 more
         BusSpec.Type type = typeId == null ? null : bus.spec().types().get(typeId);
         if (type == null) return null;
         StoreSpec.Customer c = spec.customers().getOrDefault(typeId,
                 new StoreSpec.Customer(typeId, 1, 1, 3, Map.of(), 0, -1, -1, Map.of()));
         Shop shop = sh.shop;
         StoreRules.Tier tier = shop.tier();
-        List<String> things = new ArrayList<>(spec.pickItems(c, rnd, shop.sold(), tier == null ? 0 : tier.items()));
+        // 단골 메뉴 (3차): one of a kind this worker served often may want only "the usual"
+        long seen = book.kind(sh.worker, typeId);
+        String usual = life.regulars().usual(typeId);
+        boolean asksUsual = visit == null && force == null && !young && usual != null && shop.sells(usual)
+                && !shop.layout().spots().getOrDefault(placeOf(usual), List.of()).isEmpty()
+                && (sh.forceUsual || life.regulars().asks(typeId, seen, rnd.nextDouble()));
+        if (asksUsual) sh.forceUsual = false;
+        boolean plain = visit != null || asksUsual;   // no extras, no ID, no trouble
+        List<String> things = new ArrayList<>(visit != null ? visit.items() : asksUsual ? List.of()
+                : spec.pickItems(c, rnd, shop.sold(), tier == null ? 0 : tier.items()));
         // 날씨 · 달력: an umbrella in the rain, an ice cream in summer
         World world = shop.world();
         java.time.ZonedDateTime kst = java.time.ZonedDateTime.now(KST);
-        for (String x : rules.demand().extra(world != null && world.hasStorm(), kst.getMonthValue(), shop.sold(), things, rnd)) {
+        if (!plain) for (String x : rules.demand().extra(world != null && world.hasStorm(), kst.getMonthValue(), shop.sold(), things, rnd)) {
             if (things.size() < 5) things.add(x);
         }
         // 신분증: a kind that looks young now and then tries 술 · 담배; with them in hand it may be asked for an ID
-        IdCheck.Kind idKind = rules.id().kinds().get(typeId);
+        IdCheck.Kind idKind = plain ? null : rules.id().kinds().get(typeId);
         IdCheck.Card card = null;
         if (idKind != null) {
             List<String> restricted = new ArrayList<>();
@@ -530,7 +640,7 @@ public final class StoreModule extends EcoModule {
             }
         }
         // 진상: the trouble this kind brings, now and then (or as the admin asked)
-        Trouble.Kind trouble = force != null && force.type.equals(typeId) ? force : Trouble.Kind.forType(typeId);
+        Trouble.Kind trouble = plain ? null : force != null && force.type.equals(typeId) ? force : Trouble.Kind.forType(typeId);
         String refundItem = null;
         if (trouble != null) {
             StoreRules.TroubleText tt = rules.troubles().get(trouble);
@@ -562,7 +672,7 @@ public final class StoreModule extends EcoModule {
         java.util.function.Function<String, String> placeOf = this::placeOf;
         List<Shopper.Stop> round = Shopper.plan(l, things, placeOf, "door");
         double chance = spec.shinyChance() >= 0 ? spec.shinyChance() : bus.spec().shiny().chance();
-        boolean shiny = bus.spec().shiny().eligible(type) && rnd.nextDouble() < chance;
+        boolean shiny = visit == null && bus.spec().shiny().eligible(type) && rnd.nextDouble() < chance;
         double speed = spec.spawn().speed() / Math.max(1, Math.sqrt(type.slow()));
         int browse = (int) Math.round(40 * Math.min(3, Math.max(1, Math.sqrt(type.slow()))));
         // a mess or a 취객 asleep at the bar sours them the moment they walk in
@@ -572,15 +682,23 @@ public final class StoreModule extends EcoModule {
                 l.nodes().get("out"));
         Location at = sh.shop.at(s.x(), 0, s.z(), s.yaw());
         if (!at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return null;
-        String skin = shiny ? bus.shinySkin(type, true, false) : null;
+        String skin = visit != null && visit.skin() != null ? visit.skin() : shiny ? bus.shinySkin(type, true, false) : null;
         if (skin == null) skin = BusModule.pickSkin(type, false);
         String firstSkin = skin;
-        Mannequin m = bus.spawnGuest(at, type, skin, shiny, x -> tagGuest(x, bus.typeTag(type, shiny)));
+        String tag = visit != null && visit.name() != null ? visit.name() : bus.typeTag(type, shiny);
+        Mannequin m = bus.spawnGuest(at, type, skin, shiny, x -> tagGuest(x, tag));
         Guest g = new Guest(s, type, m);
         g.trouble = trouble;
         g.card = card;
         g.refundItem = refundItem;
-        if (type.pair()) {
+        g.visit = visit;
+        g.regular = visit == null && life.regulars().regular(seen);
+        if (visit != null) g.scened = true;   // (not in the scenes)
+        if (asksUsual) {
+            g.usual = true;
+            g.usualItem = usual;
+        }
+        if (type.pair() && visit == null) {
             String other = shiny ? bus.shinySkin(type, true, true) : BusModule.partnerSkin(type, firstSkin, rnd);
             g.partner = bus.spawnGuest(at, type, other, shiny, x -> tagGuest(x, null));
         }
@@ -593,9 +711,9 @@ public final class StoreModule extends EcoModule {
         w.playSound(door, Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.7f);
         Bukkit.getScheduler().runTaskLater(eco, () -> w.playSound(door, Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 2.0f), 3L);
         Player worker = Bukkit.getPlayer(sh.worker);
-        if (!sh.test && worker != null && knows(worker, typeId)) say(g, "recognize");
+        if (visit == null && !sh.test && worker != null && knows(worker, typeId)) say(g, "recognize");
         else say(g, "enter");
-        if (shop.chores.messes() > 0 && rnd.nextDouble() < 0.4) Bukkit.getScheduler().runTaskLater(eco, () -> say(g, "messy"), 50L);
+        if (visit == null && shop.chores.messes() > 0 && rnd.nextDouble() < 0.4) Bukkit.getScheduler().runTaskLater(eco, () -> say(g, "messy"), 50L);
         return g;
     }
 
@@ -609,7 +727,7 @@ public final class StoreModule extends EcoModule {
     }
 
     /** Whether today is a 장날 (the bus calendar's). */
-    private boolean marketDay() {
+    boolean marketDay() {
         BusModule bus = eco.bus();
         return bus != null && bus.spec() != null && eco.calendar() != null && bus.spec().marketDay(eco.calendar().day());
     }
@@ -631,20 +749,16 @@ public final class StoreModule extends EcoModule {
 
     /** One tick of a customer: their shopper's step, the mannequin moved there, what happened. */
     private void step(Shift sh, Guest g) {
+        if (g.inspector) {   // 본사 점검 (StoreDay)
+            day.stepInspector(sh, g);
+            return;
+        }
         if (!g.m.isValid()) {
             drop(sh, g);
             return;
         }
         Shopper.Event e = g.s.tick(sh);
-        Location to = sh.shop.at(g.s.x(), 0, g.s.z(), g.s.yaw());
-        Location from = g.m.getLocation();
-        if (from.distanceSquared(to) > 1e-6 || Math.abs(from.getYaw() - to.getYaw()) > 1) g.m.teleport(to);
-        if (g.partner != null && g.partner.isValid()) {
-            // a step behind on their right
-            double r = Math.toRadians(g.s.yaw());
-            double px = g.s.x() - Math.sin(r) * 0.55 + Math.cos(r) * 0.5, pz = g.s.z() - Math.cos(r) * 0.55 - Math.sin(r) * 0.5;
-            g.partner.teleport(sh.shop.at(px, 0, pz, g.s.yaw()));
-        }
+        move(sh, g);
         switch (e) {
             case BROWSING -> {
                 if (browsing(sh, g)) break;   // a 진상 at the shelf (the 슬쩍 손님, the 관광객)
@@ -670,9 +784,24 @@ public final class StoreModule extends EcoModule {
             case ATE -> ate(sh, g);
             case LEFT -> {
                 if (g.stolen != null && !g.caught) escaped(sh, g);
+                if (g.visit != null) day.parasol(sh.shop, g.visit.parasol());
+                else if (g.bought != null && !sh.test) link.carry(sh.shop, g.type.id(), g.bought);   // to the bus stop, the bag in hand
                 drop(sh, g);
             }
             default -> {}
+        }
+    }
+
+    /** The mannequin (and a partner) where its shopper is now. */
+    void move(Shift sh, Guest g) {
+        Location to = sh.shop.at(g.s.x(), 0, g.s.z(), g.s.yaw());
+        Location from = g.m.getLocation();
+        if (from.distanceSquared(to) > 1e-6 || Math.abs(from.getYaw() - to.getYaw()) > 1) g.m.teleport(to);
+        if (g.partner != null && g.partner.isValid()) {
+            // a step behind on their right
+            double r = Math.toRadians(g.s.yaw());
+            double px = g.s.x() - Math.sin(r) * 0.55 + Math.cos(r) * 0.5, pz = g.s.z() - Math.cos(r) * 0.55 - Math.sin(r) * 0.5;
+            g.partner.teleport(sh.shop.at(px, 0, pz, g.s.yaw()));
         }
     }
 
@@ -703,7 +832,13 @@ public final class StoreModule extends EcoModule {
     }
 
     /** A customer gone out the door: their mannequins away. */
-    private void drop(Shift sh, Guest g) {
+    void drop(Shift sh, Guest g) {
+        if (g.visit != null && !g.visitDone && g.visitor != null) {
+            g.visitDone = true;
+            Player p = Bukkit.getPlayer(sh.worker);
+            if (p != null) g.visitor.missed(p, sh.shop.name, g.visit);
+        }
+        if (sh.inspector == g) sh.inspector = null;
         clearPrompts(sh, g);
         if (sh.playing != null && sh.playing.has(g)) endScene(sh, false);
         sh.guests.remove(g);
@@ -717,6 +852,10 @@ public final class StoreModule extends EcoModule {
     void say(Guest g, String situation) {
         BusModule bus = eco.bus();
         if (bus == null || !g.m.isValid()) return;
+        if (g.visit != null) {   // another module's customer says only its own lines
+            sayLine(g, g.visit.lines(situation));
+            return;
+        }
         List<String> lines = null;
         if (g.s.shiny() && (situation.equals("enter") || situation.equals("thanks"))) {
             lines = bus.spec().shiny().lines(g.type, situation.equals("enter") ? "board" : "thanks");
@@ -734,7 +873,8 @@ public final class StoreModule extends EcoModule {
         while (things.size() > 5) things.removeLast();
         List<Integer> prices = new ArrayList<>();
         for (String t : things) prices.add(spec.products().get(t).price());
-        Checkout c = new Checkout(things, prices, ThreadLocalRandom.current().nextDouble() < spec.cash().card() ? Checkout.Method.CARD : Checkout.Method.CASH);
+        boolean card = !sh.outage && ThreadLocalRandom.current().nextDouble() < spec.cash().card();   // 정전: cash only
+        Checkout c = new Checkout(things, prices, card ? Checkout.Method.CARD : Checkout.Method.CASH);
         Till t = new Till(g, c);
         sh.till = t;
         StoreLayout.Layout l = StoreLayout.of();
@@ -746,6 +886,22 @@ public final class StoreModule extends EcoModule {
         if (eq != null) {
             if (eq.getItemInMainHand().getPersistentDataContainer().has(GUEST)) eq.setItemInMainHand(null);
             if (eq.getItemInOffHand().getPersistentDataContainer().has(GUEST)) eq.setItemInOffHand(null);
+        }
+        if (g.usual) {   // 단골 메뉴: "늘 먹던 걸로" — the worker fetches it from its shelf
+            t.hold = true;
+            c.ask("usual");
+            g.usualAt = System.currentTimeMillis();
+            sayLine(g, life.regulars().lines("ask"));
+            drawScreen(sh);
+            return;
+        }
+        if (g.visit != null && !g.visit.buttons().isEmpty()) {   // another module's customer: its buttons instead of paying
+            t.hold = true;
+            c.ask("visit");
+            say(g, "pay");
+            ask(sh, g, "visit", g.visit.buttons());
+            drawScreen(sh);
+            return;
         }
         if (g.refundItem == null) say(g, "pay");
         boolean warmable = false;
@@ -759,6 +915,13 @@ public final class StoreModule extends EcoModule {
         if (g.refundItem != null) t.extra.add(display(sh.shop.at(l.slots().getFirst()), spec.products().get(g.refundItem).item(), 0.75f));
         if (g.trouble == Trouble.Kind.PARCEL) t.extra.add(display(sh.shop.at(l.slots().get(3)), "economy:store_box_daily", 0.55f));
         counterQuestions(sh, g);
+        // 버스 연동: "다음 버스 언제 와요?" (a stop near the store; nothing else asked)
+        if (!t.hold && g.visit == null && (sh.forceBus || ThreadLocalRandom.current().nextDouble() < life.bus().ask()) && link.near(sh.shop) != null) {
+            sh.forceBus = false;
+            g.busAsk = true;
+            sayLine(g, life.bus().lines("ask"));
+            ask(sh, g, "bus", Map.of("tell", Lang.raw("store.bus-tell")));
+        }
         drawScreen(sh);
     }
 
@@ -766,7 +929,7 @@ public final class StoreModule extends EcoModule {
      * A display model (store.py's display convention, the 도박장's: spawned at yaw 0, its north side turned to the point's yaw
      * by the transformation, its bottom or centre on the point as drawn).
      */
-    private ItemDisplay display(Location at, String item, float scale) {
+    ItemDisplay display(Location at, String item, float scale) {
         ItemStack shown = StoreBuilder.shown(core, item);
         float yaw = at.getYaw();
         Location spot = at.clone();
@@ -796,6 +959,10 @@ public final class StoreModule extends EcoModule {
             t.c.settle();
             drawScreen(sh);
             maybeDone(sh);
+            return;
+        }
+        if (t.g.visit != null && t.g.visit.exact()) {   // exact coins, counted out one by one
+            coins(sh, t);
             return;
         }
         if (trouble(sh, t.g, Trouble.Stage.PAY)) {   // the 초등학생 counting coins, 할머니 looking for her purse
@@ -926,18 +1093,36 @@ public final class StoreModule extends EcoModule {
         long earn = t.free ? 0   // 외상: given away, nothing earned on it
                 : tier == null ? spec.earn(mood, g.type.tip() * g.tipX, !t.c.mistake())
                 : tier.earn(spec, mood, g.type.tip() * g.tipX, !t.c.mistake(), t.c.bill());
+        int hour = hourOf(sh);
+        if (!t.free) earn = life.nightPay(earn, hour, book.served(sh.worker));   // 야간 근무: × night.pay
         sh.log.served(stars, earn, t.c.bill(), !t.c.mistake());
+        if (!t.free) sh.log.bonus(day.orderBonus(sh, t.c.items()));   // 발주: the day's group sold
         long paidNow = payNow(sh);
+        assist(sh);
         Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) {
             p.playSound(p.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.6f);
-            HudModule.flash(p, Lang.mm("store.served", "type", eco.bus().typeTag(g.type, g.s.shiny()), "stars", starText(stars), "g", gold(paidNow)), 2000);
-            if (!sh.test && eco.people() != null) eco.people().met(p, g.type.id(), g.s.shiny(), PeopleSpec.PLACE_STORE);
+            HudModule.flash(p, Lang.mm("store.served", "type", g.visit != null ? Text.plain(String.valueOf(g.visit.name())) : eco.bus().typeTag(g.type, g.s.shiny()),
+                    "stars", starText(stars), "g", gold(paidNow)), 2000);
+            if (!sh.test && g.visit == null && eco.people() != null) eco.people().met(p, g.type.id(), g.s.shiny(), PeopleSpec.PLACE_STORE);
+            career(p, sh, g.type.id(), hour);
         }
+        day.served(sh, p);
+        g.bought = List.copyOf(t.c.items());
         say(g, "thanks");
         if (g.s.shiny()) BusModule.sparkle(g.m, false);
+        boolean leaves = false;
+        if (g.visit != null) {   // another module's customer paid: it hears so; maybe something stays on the counter
+            g.visitDone = true;
+            if (g.visitor != null && p != null) g.visitor.paid(p, sh.shop.name, g.visit);
+            if (g.visit.counter() != null) {
+                if (sh.visitProp != null) sh.visitProp.remove();
+                sh.visitProp = display(sh.shop.at(StoreLayout.of().slots().get(2)), g.visit.counter(), 0.75f);
+                leaves = true;
+            }
+        }
         // what they bought goes with them in a GS26 bag
-        EntityEquipment eq = g.m.getEquipment();
+        EntityEquipment eq = leaves ? null : g.m.getEquipment();
         if (eq != null) {
             ItemStack bag = StoreBuilder.shown(core, "economy:store_bag");
             bag.editMeta(m -> m.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1));
@@ -1081,6 +1266,7 @@ public final class StoreModule extends EcoModule {
                 if (d != null) d.remove();
                 p.playSound(me, Sound.ITEM_BUCKET_EMPTY, 0.6f, 1.4f);
                 HudModule.flash(p, Lang.mm("store.mopped"), 1500);
+                task(p, sh, life.staff().chore());
             }
             return;
         }
@@ -1091,6 +1277,7 @@ public final class StoreModule extends EcoModule {
                 if (d != null) d.remove();
                 p.playSound(me, Sound.ITEM_BUNDLE_INSERT, 0.6f, 1.2f);
                 HudModule.flash(p, Lang.mm("store.cleared"), 1500);
+                task(p, sh, life.staff().chore());
             }
             return;
         }
@@ -1104,17 +1291,40 @@ public final class StoreModule extends EcoModule {
                 return;
             }
             int i = Integer.parseInt(key.substring(5));
-            if (!t.c.scan(i)) return;
+            // 스캔 단축 (경력): a higher rank scans more with one click, a regular's basket all at once (묶음 스캔)
+            boolean regular = t.g != null && t.g.regular;
+            int n = StoreLife.scanBatch(rank(p.getUniqueId()), regular, t.c.size() - count(t.c));
+            List<Integer> did = t.c.scanMany(i, Math.max(1, n));
+            if (did.isEmpty()) return;
             p.getWorld().playSound(me, Sound.BLOCK_NOTE_BLOCK_BIT, 0.8f, 2.0f);   // 삑
-            ItemDisplay it = t.items.get(i);
-            Location to = sh.shop.at(StoreLayout.of().scanned().get(i));
-            to.setYaw(0);   // (its turn is in its transformation)
-            if (it.isValid()) it.teleport(to);
+            for (int k = 1; k < did.size(); k++) {
+                int pitch = k;
+                Bukkit.getScheduler().runTaskLater(eco, () -> p.getWorld().playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 0.8f, 2.0f - 0.05f * pitch), 2L * k);
+            }
+            for (int k : did) {
+                ItemDisplay it = t.items.get(k);
+                Location to = sh.shop.at(StoreLayout.of().scanned().get(k));
+                to.setYaw(0);   // (its turn is in its transformation)
+                if (it.isValid()) it.teleport(to);
+            }
+            if (did.size() > 1) HudModule.flash(p, Lang.mm(regular && did.size() == t.c.size() ? "store.scan-bundle" : "store.scan-many", "n", did.size()), 1500);
             drawScreen(sh);
             if (t.c.allScanned()) startPaying(sh);
             return;
         }
         if (key.equals("card") && t != null) {
+            if (sh.outage && t.g != null && t.c.method() == Checkout.Method.CARD && !t.c.paid()) {   // 정전: the terminal is dead, cash then
+                HudModule.flash(p, Lang.mm("store.outage-card"), 2500);
+                for (Entity e : t.paying) e.remove();
+                t.paying.clear();
+                for (Entity e : t.buttons.values()) e.remove();
+                t.buttons.clear();
+                t.c = t.c.asCash();
+                t.payStarted = false;
+                say(t.g, "cash");
+                startPaying(sh);
+                return;
+            }
             if (t.c.card()) {
                 p.getWorld().playSound(me, Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.8f);
                 for (Entity e : t.paying) e.remove();
@@ -1251,6 +1461,7 @@ public final class StoreModule extends EcoModule {
         p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.8f, 1.3f);
         HudModule.flash(p, Lang.mm("store.restocked", "shelf", Lang.raw("store.place." + place)), 2000);
         refreshShelf(sh.shop, place);
+        task(p, sh, life.staff().restock());
     }
 
     /** The microwave: food in (someone asked), the ding, out (warm), or burnt. */
@@ -1342,20 +1553,66 @@ public final class StoreModule extends EcoModule {
     /** The hanger: on shift (vest, scanner) or off (pay). */
     private void hanger(Player p, Shop shop) {
         Shift sh = shop.shift;
-        if (sh != null && sh.worker.equals(p.getUniqueId())) {
+        UUID u = p.getUniqueId();
+        if (sh != null && sh.worker.equals(u)) {
             clockOut(shop, "store.out-hanger");
             return;
         }
-        if (sh != null) {
-            Player w = Bukkit.getPlayer(sh.worker);
-            p.sendMessage(Lang.msg("store.taken", "player", w == null ? "?" : w.getName()));
+        if (sh != null && u.equals(sh.helper)) {
+            helperOut(shop, "store.out-hanger");
             return;
         }
-        if (shop.owner != null && !shop.owner.equals(p.getUniqueId())) {   // 내 가게: only its owner works there (2차)
-            p.sendMessage(Lang.msg("store.own-not-yours", "player", String.valueOf(Bukkit.getOfflinePlayer(shop.owner).getName())));
+        if (shop.owner != null && !shop.owner.equals(u) && !book.hired(shop.name).contains(u)) {   // 내 가게: its owner and those they hired
+            apply(p, shop);
+            return;
+        }
+        World w = shop.world();
+        if (!life.mayWork(w == null ? 12 : Chores.hour(w.getTime()), book.served(u))) {   // 야간 근무: 알바부터
+            StoreLife.Rank need = life.rankOf(life.night().rank());
+            p.sendMessage(Lang.msg("store.night-locked", "rank", need == null ? "?" : need.name()));
+            return;
+        }
+        if (sh != null) {
+            Player x = Bukkit.getPlayer(sh.worker);
+            if (sh.test || sh.helper != null || !life.staff().twoIn(shop.tier) || working.containsKey(u)) {
+                p.sendMessage(Lang.msg(life.staff().twoIn(shop.tier) && !sh.test && sh.helper == null ? "store.already" : "store.taken",
+                        "player", x == null ? "?" : x.getName()));
+                return;
+            }
+            join(p, shop);   // 2인 근무
             return;
         }
         clockIn(p, shop, false);
+    }
+
+    /** 남의 가게 알바: someone asks to work in a store that is not theirs; its owner is told (now, or when they come on). */
+    private void apply(Player p, Shop shop) {
+        String owner = String.valueOf(Bukkit.getOfflinePlayer(shop.owner).getName());
+        if (!applied.computeIfAbsent(shop.name, k -> new java.util.LinkedHashSet<>()).add(p.getUniqueId())) {
+            p.sendMessage(Lang.msg("store.apply-waiting", "player", owner));
+            return;
+        }
+        p.sendMessage(Lang.msg("store.apply-sent", "player", owner, "share", Math.round(life.staff().hiredShare() * 100)));
+        Player o = Bukkit.getPlayer(shop.owner);
+        if (o != null) {
+            o.sendMessage(Lang.msg("store.apply-owner", "player", p.getName(), "store", shop.name));
+            o.playSound(o.getLocation(), Sound.BLOCK_NOTE_BLOCK_BELL, 0.6f, 1.4f);
+        }
+    }
+
+    /** The owner sneak-clicks their 발주 tablet: the first who asked is hired. False when nobody asked. */
+    boolean acceptApplicant(Player owner, Shop shop) {
+        Set<UUID> asked = applied.get(shop.name);
+        if (asked == null || asked.isEmpty()) return false;
+        UUID u = asked.iterator().next();
+        asked.remove(u);
+        book.hire(shop.name, u);
+        String name = String.valueOf(Bukkit.getOfflinePlayer(u).getName());
+        owner.sendMessage(Lang.msg("store.hired", "player", name, "cut", Math.round(life.staff().ownerCut() * 100), "left", asked.size()));
+        owner.playSound(owner.getLocation(), Sound.ENTITY_VILLAGER_YES, 0.7f, 1.2f);
+        Player x = Bukkit.getPlayer(u);
+        if (x != null) x.sendMessage(Lang.msg("store.hired-you", "store", shop.name, "share", Math.round(life.staff().hiredShare() * 100)));
+        return true;
     }
 
     boolean clockIn(Player p, Shop shop, boolean test) {
@@ -1375,9 +1632,12 @@ public final class StoreModule extends EcoModule {
             p.sendMessage(Lang.msg("store.inventory-full"));
             return false;
         }
+        World sw = shop.world();
+        boolean night = !test && sw != null && life.night().at(Chores.hour(sw.getTime()));
         PlayerInventory inv = p.getInventory();
-        if (inv.getChestplate() == null || inv.getChestplate().getType().isAir()) inv.setChestplate(tool(VEST));
+        if (inv.getChestplate() == null || inv.getChestplate().getType().isAir()) inv.setChestplate(tool(vest(p.getUniqueId(), night)));
         Shift sh = new Shift(shop, p.getUniqueId(), test);
+        sh.night = night;
         Location l = p.getLocation();
         sh.lastX = l.getX();
         sh.lastZ = l.getZ();
@@ -1393,9 +1653,13 @@ public final class StoreModule extends EcoModule {
         showBoxes(sh);
         drawMesses(sh);
         p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.1f);
-        p.sendMessage(Lang.msg(test ? "store.in-test" : shop.owner != null ? "store.in-own" : "store.in", "store", shop.name,
-                "share", Math.round(spec.pay().share() * 100), "tier", shop.tier() == null ? "" : shop.tier().name()));
-        HudModule.flash(p, Lang.mm("store.in-flash"), 3000);
+        boolean hiredHere = shop.owner != null && !shop.owner.equals(p.getUniqueId());
+        p.sendMessage(Lang.msg(test ? "store.in-test" : hiredHere ? "store.in-hired" : shop.owner != null ? "store.in-own" : "store.in", "store", shop.name,
+                "share", Math.round(shop.share(p.getUniqueId()) * 100), "tier", shop.tier() == null ? "" : shop.tier().name(),
+                "owner", shop.owner == null ? "" : String.valueOf(Bukkit.getOfflinePlayer(shop.owner).getName())));
+        if (!test) p.sendMessage(Lang.msg(night ? "store.in-night" : "store.in-rank", "rank", rank(p.getUniqueId()).name(),
+                "x", String.format(java.util.Locale.ROOT, "%.1f", life.night().pay())));
+        HudModule.flash(p, Lang.mm(night ? "store.in-flash-night" : "store.in-flash"), 3000);
         if (core.hud() != null) core.hud().refreshBoard();
         return true;
     }
@@ -1404,6 +1668,13 @@ public final class StoreModule extends EcoModule {
     void clockOut(Shop shop, String why) {
         Shift sh = shop.shift;
         if (sh == null) return;
+        if (sh.helper != null && !"store.out-reload".equals(why) && !"store.out-admin".equals(why)) {   // 2인 근무: the helper takes the till
+            handOverTill(shop, sh, why);
+            return;
+        }
+        if (sh.helper != null) helperOut(shop, why);
+        day.endOutage(sh, false);
+        if (sh.visitProp != null) sh.visitProp.remove();
         shop.shift = null;
         working.remove(sh.worker);
         clearTill(sh);
@@ -1430,37 +1701,217 @@ public final class StoreModule extends EcoModule {
         shop.chores.putDown();
         shop.chores.resetOven();
         shop.chores.mop(false);
-        Player p = Bukkit.getPlayer(sh.worker);
-        if (p != null) stripTools(p);
-        ShiftLog.Payout pay = sh.log.payout(spec, shop.share());
-        long rest = sh.log.settle(spec, shop.share(), true);   // the rating bonus (and anything held back), the rest was paid per customer
-        if (!sh.test && rest > 0) core.economy().deposit(sh.worker, rest, "store");
-        if (p != null) receipt(p, shop, sh, pay, why, rest);
-        clicks.forget(sh.worker);
-        hints.forget(sh.worker);
+        settleOut(shop, sh, sh.worker, sh.log, sh.test, why);
         if (core.hud() != null) core.hud().refreshBoard();
     }
 
+    /** One worker's end of a shift: the tools back, the rest of the pay (the rating bonus), the receipt, the 발주 reminder. */
+    private void settleOut(Shop shop, Shift sh, UUID worker, ShiftLog log, boolean test, String why) {
+        Player p = Bukkit.getPlayer(worker);
+        if (p != null) stripTools(p);
+        double share = shop.share(worker);
+        ShiftLog.Payout pay = log.payout(spec, share);
+        long rest = log.settle(spec, share, true);   // the rating bonus (and anything held back), the rest was paid per customer
+        if (!test && rest > 0) {
+            core.economy().deposit(worker, rest, "store");
+            ownerCut(shop, worker, rest);
+        }
+        if (p != null) {
+            receipt(p, shop, sh, worker, log, pay, why, rest, test);
+            if (!test && day.ordered(shop, StoreDay.gameDay(shop.world()) + 1) == null && life.reached(book.served(worker), life.order().rank())
+                    && (shop.owner == null || shop.owner.equals(worker) || book.hired(shop.name).contains(worker))) {
+                p.sendMessage(Lang.msg("store.order-remind"));
+            }
+        }
+        clicks.forget(worker);
+        hints.forget(worker);
+    }
+
+    /** The till's worker goes, the helper stays: the helper works on alone at the till. */
+    private void handOverTill(Shop shop, Shift sh, String why) {
+        UUID gone = sh.worker;
+        ShiftLog log = sh.log;
+        working.remove(gone);
+        settleOut(shop, sh, gone, log, sh.test, why);
+        sh.worker = sh.helper;
+        sh.log = sh.helperLog;
+        sh.started = sh.helperStarted;
+        sh.helper = null;
+        sh.helperLog = null;
+        sh.lastActive = System.currentTimeMillis();
+        Player p = Bukkit.getPlayer(sh.worker);
+        if (p != null) {
+            p.sendMessage(Lang.msg("store.two-alone"));
+            HudModule.flash(p, Lang.mm("store.two-till"), 2500);
+        }
+        if (core.hud() != null) core.hud().refreshBoard();
+    }
+
+    /** The helper goes (the till's worker stays). */
+    void helperOut(Shop shop, String why) {
+        Shift sh = shop.shift;
+        if (sh == null || sh.helper == null) return;
+        UUID u = sh.helper;
+        ShiftLog log = sh.helperLog;
+        sh.helper = null;
+        sh.helperLog = null;
+        working.remove(u);
+        settleOut(shop, sh, u, log, false, why);
+        Player w = Bukkit.getPlayer(sh.worker);
+        if (w != null) w.sendMessage(Lang.msg("store.two-left", "player", String.valueOf(Bukkit.getOfflinePlayer(u).getName())));
+        if (core.hud() != null) core.hud().refreshBoard();
+    }
+
+    /** The helper: gone from the server or away from the store too long = out. */
+    private void watchHelper(Shop shop, Shift sh) {
+        Player h = Bukkit.getPlayer(sh.helper);
+        if (h == null) {
+            helperOut(shop, null);
+            return;
+        }
+        Location l = h.getLocation();
+        double[] m = shop.site.middle();
+        boolean far = !l.getWorld().getName().equals(shop.site.world()) || Math.hypot(l.getX() - m[0], l.getZ() - m[1]) > AWAY;
+        long now = System.currentTimeMillis();
+        if (!far) sh.helperAway = 0;
+        else if (sh.helperAway == 0) {
+            sh.helperAway = now;
+            h.sendMessage(Lang.msg("store.away-warn", "s", spec.shift().away()));
+        } else if (now - sh.helperAway > spec.shift().away() * 1000L) helperOut(shop, "store.out-away");
+    }
+
+    /** 2인 근무: the second worker joins (진열); a 점장 대리 or above takes the till from someone below. */
+    private void join(Player p, Shop shop) {
+        Shift sh = shop.shift;
+        if (!giveScanner(p)) {
+            p.sendMessage(Lang.msg("store.inventory-full"));
+            return;
+        }
+        PlayerInventory inv = p.getInventory();
+        if (inv.getChestplate() == null || inv.getChestplate().getType().isAir()) inv.setChestplate(tool(vest(p.getUniqueId(), sh.night)));
+        sh.helper = p.getUniqueId();
+        sh.helperLog = new ShiftLog();
+        sh.helperStarted = System.currentTimeMillis();
+        sh.helperAway = 0;
+        working.put(p.getUniqueId(), shop);
+        p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 1f, 1.1f);
+        Player w = Bukkit.getPlayer(sh.worker);
+        int deputy = life.index("deputy");
+        boolean senior = rank(p.getUniqueId()).index() >= deputy && (w == null || rank(sh.worker).index() < deputy);
+        if (senior) swap(sh);
+        p.sendMessage(Lang.msg(senior ? "store.two-in-till" : "store.two-in", "player", w == null ? "?" : w.getName(), "share",
+                Math.round(shop.share(p.getUniqueId()) * 100)));
+        if (w != null) w.sendMessage(Lang.msg(senior ? "store.two-joined-senior" : "store.two-joined", "player", p.getName()));
+        if (core.hud() != null) core.hud().refreshBoard();
+    }
+
+    /** The two workers swap: the till (계산) and the shelves (진열), each with their own tally. */
+    private void swap(Shift sh) {
+        if (sh.helper == null) return;
+        UUID w = sh.worker;
+        ShiftLog l = sh.log;
+        long st = sh.started;
+        sh.worker = sh.helper;
+        sh.log = sh.helperLog;
+        sh.started = sh.helperStarted;
+        sh.helper = w;
+        sh.helperLog = l;
+        sh.helperStarted = st;
+        sh.lastActive = System.currentTimeMillis();
+        for (UUID u : List.of(sh.worker, sh.helper)) {
+            Player x = Bukkit.getPlayer(u);
+            if (x != null) HudModule.flash(x, Lang.mm(u.equals(sh.worker) ? "store.two-till" : "store.two-shelf"), 2500);
+        }
+    }
+
+    /** The vest a worker wears: at night the night vest, a 점장 the manager's, else the green one. */
+    private String vest(UUID u, boolean night) {
+        if (night) return life.vestNight();
+        if (rank(u) == life.top()) return life.vestManager();
+        return VEST;
+    }
+
     /** Pays what the shift has earned since the last pay (손님마다 바로; the rating bonus waits for clock-out). */
-    private long payNow(Shift sh) {
-        long g = sh.log.settle(spec, sh.shop.share(), false);
-        if (g > 0 && !sh.test) core.economy().deposit(sh.worker, g, "store");
+    long payNow(Shift sh) {
+        long g = sh.log.settle(spec, sh.shop.share(sh.worker), false);
+        if (g > 0 && !sh.test) {
+            core.economy().deposit(sh.worker, g, "store");
+            ownerCut(sh.shop, sh.worker, g);
+        }
         return g;
     }
 
-    private void receipt(Player p, Shop shop, Shift sh, ShiftLog.Payout pay, String why, long rest) {
+    /** 남의 가게 알바: what a hired worker was paid gives the owner their cut at once (online or not). */
+    private void ownerCut(Shop shop, UUID worker, long paid) {
+        if (shop.owner == null || shop.owner.equals(worker)) return;
+        long cut = life.staff().ownerCut(paid);
+        if (cut > 0) core.economy().deposit(shop.owner, cut, "store");
+    }
+
+    /** 2인 근무: the helper's pay since the last (their tasks, their share of each customer). */
+    private long payHelper(Shift sh) {
+        if (sh.helper == null || sh.helperLog == null) return 0;
+        long g = sh.helperLog.settle(spec, sh.shop.share(sh.helper), false);
+        if (g > 0) {
+            core.economy().deposit(sh.helper, g, "store");
+            ownerCut(sh.shop, sh.helper, g);
+        }
+        return g;
+    }
+
+    /** A customer served while two work: the 진열 worker's share of it. */
+    private void assist(Shift sh) {
+        if (sh.helper == null || sh.helperLog == null || life.staff().assist() <= 0) return;
+        sh.helperLog.bonus(life.staff().assist());
+        payHelper(sh);
+    }
+
+    /** A 진열 task done (a restock, a chore): when two work and the 진열 worker did it, it pays them. */
+    private void task(Player p, Shift sh, long g) {
+        if (sh.helper == null || !p.getUniqueId().equals(sh.helper) || g <= 0) return;
+        sh.helperLog.bonus(g);
+        long paid = payHelper(sh);
+        if (paid > 0) HudModule.flash(p, Lang.mm("store.task-paid", "g", gold(paid)), 1500);
+    }
+
+    /** A customer served counts on the worker's 경력 (not on a test shift): a new rank is told, 점장's title given. */
+    private void career(Player p, Shift sh, String kind, int hour) {
+        if (sh.test) return;
+        UUID u = p.getUniqueId();
+        book.served(u, sh.shop.name, kind, life.night().at(hour));
+        announce(p);
+    }
+
+    /** Tells a worker their new rank (once), what it opens; at the top the title. */
+    void announce(Player p) {
+        UUID u = p.getUniqueId();
+        StoreLife.Rank r = life.rank(book.served(u));
+        int before = book.shown(u, r.index());
+        if (r.index() <= before) return;
+        p.sendMessage(Lang.msg("store.rank-up", "rank", r.name()));
+        p.sendMessage(Lang.msg("store.unlock." + r.id()));
+        p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.3f);
+        HudModule.flash(p, Lang.mm("store.rank-flash", "rank", r.name()), 3500);
+        if (r == life.top() && !life.title().isEmpty() && core.profiles() != null) core.profiles().grantTitle(u, life.title());
+    }
+
+    private void receipt(Player p, Shop shop, Shift sh, UUID worker, ShiftLog log, ShiftLog.Payout pay, String why, long rest, boolean test) {
         if (why != null) p.sendMessage(Lang.msg(why));
-        long minutes = Math.max(1, (System.currentTimeMillis() - sh.started) / 60000);
+        long minutes = Math.max(1, (System.currentTimeMillis() - (worker.equals(sh.helper) ? sh.helperStarted : sh.started)) / 60000);
         p.sendMessage(Lang.mm("store.receipt-head", "store", shop.name, "minutes", minutes));
         p.sendMessage(Lang.mm("store.receipt-people", "served", pay.served(), "lost", pay.lost(), "stars", starNumber(pay.stars())));
         p.sendMessage(Lang.mm("store.receipt-sales", "sales", won(pay.sales()), "mistakes", pay.mistakes()));
         p.sendMessage(Lang.mm("store.receipt-earned", "earned", gold(pay.earned()), "bonus", gold(pay.bonus()), "rate", Math.round(pay.bonusRate() * 100)));
-        if (pay.handled() > 0 || sh.log.coveredWon() > 0 || pay.fines() > 0) p.sendMessage(Lang.mm("store.receipt-trouble", "handled", pay.handled(),
-                "covered", won(sh.log.coveredWon()), "fines", gold(pay.fines())));
-        p.sendMessage(Lang.mm(shop.owner != null ? "store.receipt-share-own" : "store.receipt-share", "share", Math.round(pay.shareRate() * 100),
+        if (pay.handled() > 0 || log.coveredWon() > 0 || pay.fines() > 0) p.sendMessage(Lang.mm("store.receipt-trouble", "handled", pay.handled(),
+                "covered", won(log.coveredWon()), "fines", gold(pay.fines())));
+        String shareKey = shop.owner == null ? "store.receipt-share" : shop.owner.equals(worker) ? "store.receipt-share-own" : "store.receipt-share-hired";
+        p.sendMessage(Lang.mm(shareKey, "share", Math.round(pay.shareRate() * 100),
                 "cut", gold(pay.share()), "deduct", pay.deduction() > 0 ? Lang.raw("store.receipt-deduct", "g", gold(pay.deduction())) : ""));
-        p.sendMessage(Lang.mm(sh.test ? "store.receipt-test" : "store.receipt-pay", "pay", gold(sh.test ? pay.pay() : sh.log.paid()),
-                "during", gold(Math.max(0, sh.log.paid() - rest)), "rest", gold(rest)));
+        p.sendMessage(Lang.mm(test ? "store.receipt-test" : "store.receipt-pay", "pay", gold(test ? pay.pay() : log.paid()),
+                "during", gold(Math.max(0, log.paid() - rest)), "rest", gold(rest)));
+        StoreLife.Rank r = rank(worker), next = life.next(r);
+        if (!test) p.sendMessage(Lang.mm(next == null ? "store.receipt-rank-top" : "store.receipt-rank", "rank", r.name(), "next", next == null ? "" : next.name(),
+                "left", next == null ? 0 : Math.max(0, next.at() - book.served(worker))));
         String word = pay.served() == 0 ? "store.word-none" : pay.stars() >= 4.5 ? "store.word-5" : pay.stars() >= 3.5 ? "store.word-4"
                 : pay.stars() >= 2.5 ? "store.word-3" : "store.word-low";
         p.sendMessage(Lang.mm("store.receipt-word", "line", Lang.raw(word)));
@@ -1472,10 +1923,12 @@ public final class StoreModule extends EcoModule {
     private ItemStack tool(String id) {
         ItemStack it = dev.stsv.economy.util.Items.create(id, 1).orElse(null);
         if (it == null) {
-            it = new ItemStack(id.equals(VEST) ? Material.LEATHER_CHESTPLATE : Material.PAPER);
+            boolean vest = id.contains("vest");
+            it = new ItemStack(vest ? Material.LEATHER_CHESTPLATE : Material.PAPER);
             it.editMeta(m -> {
-                m.customName(Lang.item(id.equals(VEST) ? "store.vest-name" : "store.scanner-name"));
-                if (m instanceof org.bukkit.inventory.meta.LeatherArmorMeta lm) lm.setColor(Color.fromRGB(0x1F9D55));
+                m.customName(Lang.item(vest ? "store.vest-name" : "store.scanner-name"));
+                if (m instanceof org.bukkit.inventory.meta.LeatherArmorMeta lm) lm.setColor(Color.fromRGB(id.contains("night") ? 0x2B3A67
+                        : id.contains("manager") ? 0x8A1F2B : 0x1F9D55));
             });
         }
         it.editMeta(m -> m.getPersistentDataContainer().set(TOOL, PersistentDataType.BYTE, (byte) 1));
@@ -1545,7 +1998,12 @@ public final class StoreModule extends EcoModule {
         if (!clicks.accept(p.getUniqueId(), Bukkit.getCurrentTick())) return;   // one click, however many events
         if (role.equals("hanger")) {
             if (!p.isSneaking()) hanger(p, shop);
+            else if (mine == shop && shop.shift != null && shop.shift.helper != null) swap(shop.shift);   // 2인 근무: swap the till and the shelves
             else ownerHanger(p, shop);   // 내 가게: its owner takes it down (twice)
+            return;
+        }
+        if (role.equals("order")) {   // 발주 단말기 (3차): on shift or not
+            day.tablet(p, shop, p.isSneaking());
             return;
         }
         if (mine == null) {   // 플레이어 손님 (2차): a shelf to pick from, the counter to pay at, the kettle for a 컵라면
@@ -1557,6 +2015,8 @@ public final class StoreModule extends EcoModule {
         sh.lastActive = System.currentTimeMillis();
         Chores ch = shop.chores;
         String wastePlace = rules.waste().place();
+        String placeHere = role.startsWith("shelf_") ? role.substring(6) : role.startsWith("fridge_") ? "fridge" : role.equals("freezer") ? "freezer" : null;
+        if (placeHere != null && fetchUsual(p, sh, placeHere)) return;   // 단골 메뉴: their usual from this shelf
         if (role.equals("shelf_" + wastePlace) && ch.carrying() == null && ch.expired(wastePlace) > 0) takeWaste(p, sh);
         else if (role.startsWith("shelf_")) restock(p, sh, role.substring(6));
         else if (role.startsWith("fridge_")) restock(p, sh, "fridge");
@@ -1585,7 +2045,12 @@ public final class StoreModule extends EcoModule {
             e.setCancelled(true);
             return;
         }
-        if (!working.containsKey(e.getPlayer().getUniqueId())) return;
+        Shop at = working.get(e.getPlayer().getUniqueId());
+        if (at == null) return;
+        if (at.shift != null && e.getClickedBlock() != null && e.getAction().isRightClick() && day.breaker(e.getPlayer(), at.shift, e.getClickedBlock())) {   // 정전: the breaker
+            e.setCancelled(true);
+            return;
+        }
         if (workerClick(e.getPlayer())) e.setCancelled(true);
     }
 
@@ -1628,23 +2093,32 @@ public final class StoreModule extends EcoModule {
     @EventHandler
     public void onDeath(PlayerDeathEvent e) {
         e.getDrops().removeIf(StoreModule::isTool);
-        Shop s = working.get(e.getPlayer().getUniqueId());
-        if (s != null) clockOut(s, "store.out-death");
+        quit(e.getPlayer().getUniqueId(), "store.out-death");
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        Shop s = working.get(e.getPlayer().getUniqueId());
-        if (s != null) clockOut(s, null);
+        quit(e.getPlayer().getUniqueId(), null);
         stripTools(e.getPlayer());
         putBack(e.getPlayer(), null);
         picking.remove(e.getPlayer().getUniqueId());
         confirms.remove(e.getPlayer().getUniqueId());
     }
 
+    /** A worker's shift ends (gone, dead): the helper's part, or the till's (the helper, if any, takes over). */
+    private void quit(UUID u, String why) {
+        Shop s = working.get(u);
+        if (s == null || s.shift == null) return;
+        if (u.equals(s.shift.helper)) helperOut(s, why);
+        else clockOut(s, why);
+    }
+
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
         if (!working.containsKey(e.getPlayer().getUniqueId())) stripTools(e.getPlayer());
+        Shop own = owned(e.getPlayer().getUniqueId());
+        Set<UUID> asked = own == null ? null : applied.get(own.name);
+        if (asked != null && !asked.isEmpty()) e.getPlayer().sendMessage(Lang.msg("store.apply-pending", "n", asked.size(), "store", own.name));
     }
 
     @EventHandler
@@ -1662,20 +2136,42 @@ public final class StoreModule extends EcoModule {
         Shop shop = working.get(viewer.getUniqueId());
         if (shop == null || shop.shift == null) return null;
         Shift sh = shop.shift;
-        ShiftLog.Payout pay = sh.log.payout(spec, shop.share());
+        boolean helper = viewer.getUniqueId().equals(sh.helper) && sh.helperLog != null;
+        ShiftLog log = helper ? sh.helperLog : sh.log;
+        ShiftLog.Payout pay = log.payout(spec, shop.share(viewer.getUniqueId()));
         List<HudLayout.Board.Row> rows = new ArrayList<>();
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("store.board-people", "served", pay.served(), "lost", pay.lost(),
-                "stars", pay.served() + pay.lost() == 0 ? "-" : starNumber(pay.stars()))));
-        rows.add(new HudLayout.Board.Row(null, Lang.mm("store.board-sales", "sales", won(pay.sales()))));
-        rows.add(new HudLayout.Board.Row(null, Lang.mm(sh.test ? "store.board-pay-test" : "store.board-pay", "pay", gold(pay.pay()))));
-        for (String todo : todos(sh)) rows.add(new HudLayout.Board.Row(null, Text.mm(todo)));
-        return new HudLayout.Board(Lang.mm("store.board-title", "store", shop.name), rows);
+        if (helper) rows.add(new HudLayout.Board.Row(null, Lang.mm("store.board-helper", "pay", gold(log.paid()))));
+        else {
+            rows.add(new HudLayout.Board.Row(null, Lang.mm("store.board-people", "served", pay.served(), "lost", pay.lost(),
+                    "stars", pay.served() + pay.lost() == 0 ? "-" : starNumber(pay.stars()))));
+            rows.add(new HudLayout.Board.Row(null, Lang.mm("store.board-sales", "sales", won(pay.sales()))));
+            rows.add(new HudLayout.Board.Row(null, Lang.mm(sh.test ? "store.board-pay-test" : "store.board-pay", "pay", gold(pay.pay()))));
+        }
+        String event = eventRow(sh);
+        if (event != null) rows.add(new HudLayout.Board.Row(null, Text.mm(event)));
+        List<String> todos = todos(sh);
+        if (event != null && todos.size() > 3) todos = todos.subList(0, 3);
+        for (String todo : todos) rows.add(new HudLayout.Board.Row(null, Text.mm(todo)));
+        StoreLife.Rank r = rank(viewer.getUniqueId());
+        return new HudLayout.Board(Lang.mm(sh.helper == null ? "store.board-title" : helper ? "store.board-title-shelf" : "store.board-title-till",
+                "store", shop.name, "rank", r.name()), rows);
+    }
+
+    /** The board's row for what is going on (러시, 정전, 점검, 단체 손님), or null. */
+    private String eventRow(Shift sh) {
+        long now = System.currentTimeMillis();
+        if (sh.rush != null) return Lang.raw("store.board-rush", "n", sh.rush.served(), "all", sh.rush.target(), "s", sh.rush.left(now));
+        if (sh.outage) return Lang.raw("store.board-outage", "s", Math.max(0, (sh.outageUntil - now + 999) / 1000));
+        if (sh.inspector != null) return Lang.raw("store.board-inspect", "s", Math.max(0, (sh.inspectUntil - now + 999) / 1000));
+        if (sh.crowdLeft > 0) return Lang.raw("store.board-crowd", "n", sh.crowdLeft);
+        return null;
     }
 
     /** What wants doing (the board's last rows, most pressing first). */
     private List<String> todos(Shift sh) {
         List<String> out = new ArrayList<>();
         Chores ch = sh.shop.chores;
+        if (sh.till != null && sh.till.g != null && sh.till.g.usual) out.add(Lang.raw("store.todo-usual"));
         if (!sh.prompts.isEmpty()) out.add(Lang.raw("store.todo-ask"));
         if (!sh.buyers.isEmpty() && (sh.till == null || sh.till.g != null)) out.add(Lang.raw("store.todo-player", "n", sh.buyers.size()));
         if (ch.oven() == Chores.Oven.DONE) out.add(Lang.raw("store.todo-ding"));
@@ -1695,6 +2191,13 @@ public final class StoreModule extends EcoModule {
         if (shop == null || shop.shift == null) return null;
         Shift sh = shop.shift;
         List<ActionLine.Part> parts = new ArrayList<>();
+        if (sh.rush != null) {   // 러시!
+            String r = Lang.raw("store.line-rush", "n", sh.rush.served(), "all", sh.rush.target());
+            parts.add(new ActionLine.Part(r, Text.plain(r), 0));
+        } else if (sh.outage) {
+            String r = Lang.raw("store.line-outage");
+            parts.add(new ActionLine.Part(r, Text.plain(r), 0));
+        }
         Till t = sh.till;
         if (t != null) {
             Player buyer = t.basket == null ? null : Bukkit.getPlayer(t.basket.buyer);
@@ -1741,6 +2244,15 @@ public final class StoreModule extends EcoModule {
             case "권리증" -> adminLicense(s, a.length >= 2 ? a[1] : null, a.length >= 3 ? a[2] : null);
             case "내가게" -> adminOwned(s);
             case "회수" -> adminReclaim(s, a.length >= 2 ? a[1] : null);
+            case "경력" -> adminCareer(s, a.length >= 2 ? a[1] : null, a.length >= 3 ? a[2] : null);
+            case "러시" -> adminRush(s);
+            case "정전" -> adminEvent(s, StoreLife.Event.OUTAGE);
+            case "단체" -> adminEvent(s, StoreLife.Event.GROUP);
+            case "점검" -> adminEvent(s, StoreLife.Event.INSPECT);
+            case "발주" -> adminOrder(s, a.length >= 2 ? a[1] : null);
+            case "단골" -> adminUsual(s, a.length >= 2 ? a[1] : null);
+            case "버스" -> adminBus(s);
+            case "알바" -> adminHire(s, a.length >= 2 ? a[1] : null, a.length >= 3 ? a[2] : null, a.length >= 4 ? a[3] : null);
             default -> s.sendMessage(Lang.msg("store.admin-usage"));
         }
     }
@@ -1748,7 +2260,15 @@ public final class StoreModule extends EcoModule {
     private List<String> adminComplete(CommandSender s, String[] a) {
         String last = a[a.length - 1];
         List<String> out = new ArrayList<>();
-        if (a.length == 1) out.addAll(List.of("건설", "철거", "목록", "시험", "손님", "배송", "진상", "신분증", "장면", "폐기", "청소", "권리증", "내가게", "회수"));
+        if (a.length == 1) out.addAll(List.of("건설", "철거", "목록", "시험", "손님", "배송", "진상", "신분증", "장면", "폐기", "청소", "권리증", "내가게", "회수",
+                "경력", "러시", "정전", "단체", "점검", "발주", "단골", "버스", "알바"));
+        else if (a.length == 2 && a[0].equals("경력")) for (Player p : Bukkit.getOnlinePlayers()) out.add(p.getName());
+        else if (a.length == 3 && a[0].equals("경력")) for (StoreLife.Rank r : life.ranks()) out.add(r.name().replace(" ", ""));
+        else if (a.length == 2 && a[0].equals("발주")) for (StoreLife.Group g : life.order().groups().values()) out.add(g.id());
+        else if (a.length == 2 && a[0].equals("단골")) out.addAll(life.regulars().menu().keySet());
+        else if (a.length == 2 && a[0].equals("알바")) out.addAll(shops.keySet());
+        else if (a.length == 3 && a[0].equals("알바")) out.addAll(List.of("허용", "해제", "목록"));
+        else if (a.length == 4 && a[0].equals("알바")) for (Player p : Bukkit.getOnlinePlayers()) out.add(p.getName());
         else if (a.length == 2 && a[0].equals("철거")) out.addAll(shops.keySet());
         else if (a.length == 2 && a[0].equals("진상")) for (Trouble.Kind k : Trouble.Kind.values()) out.add(k.id);
         else if (a.length == 2 && a[0].equals("장면")) out.addAll(scenes.scenes().keySet());
@@ -1833,6 +2353,8 @@ public final class StoreModule extends EcoModule {
         }
         shops.remove(name);
         core.db().execute("DELETE FROM eco_store WHERE name = ?", name);
+        book.forget(name);
+        applied.remove(name);
     }
 
     private void adminList(CommandSender s) {
@@ -2038,7 +2560,7 @@ public final class StoreModule extends EcoModule {
     }
 
     /** A line from a list over a customer (a speech bubble), nothing when the list is empty. */
-    private void sayLine(Guest g, List<String> lines) {
+    void sayLine(Guest g, List<String> lines) {
         BusModule bus = eco.bus();
         if (bus == null || lines == null || lines.isEmpty() || !g.m.isValid()) return;
         bus.bubble(g.m, lines.get(ThreadLocalRandom.current().nextInt(lines.size())), 70L);
@@ -2144,6 +2666,17 @@ public final class StoreModule extends EcoModule {
         if (!sh.guests.contains(g)) return;
         if (pr.what.equals("id")) {
             idAnswer(p, sh, g, choice);
+            return;
+        }
+        if (pr.what.equals("bus")) {   // 버스 연동: the nearest running bus's driver, or none
+            g.busAsk = false;
+            g.s.mood(life.bus().askMood());
+            String line = link.answer(sh.shop);
+            if (!line.isEmpty()) eco.bus().bubble(g.m, line, 70L);
+            return;
+        }
+        if (pr.what.equals("visit")) {
+            visitAnswer(p, sh, g, choice);
             return;
         }
         Trouble.Kind k = g.trouble;
@@ -2286,6 +2819,100 @@ public final class StoreModule extends EcoModule {
         drawScreen(sh);
     }
 
+    /** A button over another module's customer: what it says, the counter's thing taken, a figure outside, it goes. */
+    private void visitAnswer(Player p, Shift sh, Guest g, String choice) {
+        if (g.visitor == null || g.visit == null) return;
+        StoreVisit.Reply r;
+        try {
+            r = g.visitor.answered(p, sh.shop.name, g.visit, choice);
+        } catch (RuntimeException e) {
+            eco.getLogger().log(java.util.logging.Level.WARNING, "[편의점] 방문 응답 오류", e);
+            r = new StoreVisit.Reply(List.of(), false, null, true);
+        }
+        g.visitDone = true;
+        if (r.takeCounter() && sh.visitProp != null) {
+            sh.visitProp.remove();
+            sh.visitProp = null;
+            p.playSound(p.getLocation(), Sound.ITEM_BUNDLE_INSERT, 0.6f, 1.1f);
+        }
+        long at = 0;
+        for (String line : r.lines()) {
+            long when = at;
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (g.m.isValid()) eco.bus().bubble(g.m, line, 80L);
+            }, when);
+            at += 70;
+        }
+        String figure = r.figure();
+        if (figure != null) Bukkit.getScheduler().runTaskLater(eco, () -> day.figure(sh.shop, g.visit.kind(), figure), at + 40);
+        Till t = sh.till;
+        if (r.leave()) {
+            long go = Math.max(20, at);
+            Bukkit.getScheduler().runTaskLater(eco, () -> {
+                if (sh.shop.shift != sh || !sh.guests.contains(g)) return;
+                if (sh.till != null && sh.till.g == g) clearTill(sh);
+                sh.line.remove(g.s);
+                g.tallied = true;
+                g.s.hold(false);
+                g.s.leave(sh, Shopper.Exit.PAID);
+            }, go);
+            if (t != null && t.g == g) g.s.hold(true);
+        } else if (t != null && t.g == g) {
+            t.hold = false;
+            t.c.answer("visit");
+            drawScreen(sh);
+        }
+    }
+
+    // ------------------------------------------------------------------------------------------ 단골 메뉴
+
+    /**
+     * The worker clicked a shelf (this place) while the customer at the till wants their usual: the right shelf hands it over
+     * (big mood, a tip, the 도감 learns it), a wrong one disappoints. False when nobody is waiting for theirs.
+     */
+    private boolean fetchUsual(Player p, Shift sh, String place) {
+        Till t = sh.till;
+        if (t == null || t.g == null || !t.g.usual || !t.c.asks().contains("usual")) return false;
+        Guest g = t.g;
+        if (!place.equals(placeOf(g.usualItem))) {
+            g.s.mood(life.regulars().wrong());
+            sayLine(g, life.regulars().lines("wrong"));
+            p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 1.2f);
+            return true;
+        }
+        if (!sh.shop.chores.take(place)) {
+            HudModule.flash(p, Lang.mm("store.usual-empty", "shelf", Lang.raw("store.place." + place)), 2500);
+            return true;
+        }
+        refreshShelf(sh.shop, place);
+        g.usual = false;
+        g.s.mood(life.regulars().mood());
+        g.tipX *= life.regulars().tip();
+        sayLine(g, life.regulars().lines("right"));
+        p.playSound(p.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 1.7f);
+        String name = spec.products().get(g.usualItem).name();
+        boolean first = !sh.test && book.usual(p.getUniqueId(), g.type.id());
+        HudModule.flash(p, Lang.mm(first ? "store.usual-learnt" : "store.usual-right", "item", name, "type", eco.bus().typeTag(g.type, g.s.shiny())), 3000);
+        t.hold = false;
+        t.c.answer("usual");
+        retill(sh, List.of(g.usualItem));
+        return true;
+    }
+
+    /** Once a second: a regular waiting for their usual says what it is after a while, gives up much later. */
+    private void usualClock(Shift sh) {
+        Till t = sh.till;
+        if (t == null || t.g == null || !t.g.usual || !t.c.asks().contains("usual")) return;
+        Guest g = t.g;
+        long waited = (System.currentTimeMillis() - g.usualAt) / 1000;
+        if (!g.hinted && waited >= life.regulars().hint()) {
+            g.hinted = true;
+            List<String> lines = life.regulars().lines("hint");
+            if (!lines.isEmpty()) eco.bus().bubble(g.m, lines.get(ThreadLocalRandom.current().nextInt(lines.size()))
+                    .replace("{item}", spec.products().get(g.usualItem).name()), 70L);
+        }
+    }
+
     // ------------------------------------------------------------------------------------------ 신분증
 
     private void idAnswer(Player p, Shift sh, Guest g, String choice) {
@@ -2421,8 +3048,19 @@ public final class StoreModule extends EcoModule {
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
         Chores ch = sh.shop.chores;
         if (st.place().equals(rules.waste().place()) && ch.picksExpired(st.place(), rnd.nextDouble())) {
-            g.s.mood(rules.waste().complain());
-            say(g, "expired");
+            if (!sh.test && life.reached(book.served(sh.worker), life.sticker().rank())) {   // 폐기 할인 스티커 (점장 대리): half price, gladly
+                g.s.mood(life.sticker().mood());
+                eco.bus().bubble(g.m, Lang.raw("store.sticker-line"), 60L);
+                if (ch.giveExpired(st.place())) {   // that one sold with its sticker: its tag gone
+                    drawWaste(sh);
+                    refreshShelf(sh.shop, st.place());
+                }
+                sh.log.bonus(life.sticker().bonus());
+                payNow(sh);
+            } else {
+                g.s.mood(rules.waste().complain());
+                say(g, "expired");
+            }
         }
         if (st.place().equals("fridge") && rnd.nextDouble() < rules.mess().spillChance(g.type.id())) {
             String node = StoreLayout.AISLE.get(rnd.nextInt(StoreLayout.AISLE.size()));
@@ -2506,6 +3144,7 @@ public final class StoreModule extends EcoModule {
         Guest g = null;
         for (Guest y : sh.guests) if (y.m.equals(x) || x.equals(y.partner)) g = y;
         if (g == null) return false;
+        if (g.inspector || g.visit != null) return false;
         boolean thief = g.stolen != null && !g.caught;
         if (!thief && sh.till != null && sh.till.g == g) return false;   // (the customer being served: a click on the till, not on them)
         if (!clicks.accept(p.getUniqueId(), Bukkit.getCurrentTick())) return true;
@@ -2660,6 +3299,7 @@ public final class StoreModule extends EcoModule {
             for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
         });
         HudModule.flash(p, Lang.mm("store.waste-done", "n", n), 3000);
+        task(p, sh, life.staff().chore());
     }
 
     /** The worker fills the kettle. */
@@ -2668,6 +3308,7 @@ public final class StoreModule extends EcoModule {
         if (sh.shop.chores.refill(cap)) {
             p.playSound(p.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.7f, 1.2f);
             HudModule.flash(p, Lang.mm("store.water-filled", "n", cap), 2000);
+            task(p, sh, life.staff().chore());
         } else HudModule.flash(p, Lang.mm("store.water-full", "n", sh.shop.chores.water(cap), "all", cap), 2000);
     }
 
@@ -2909,6 +3550,7 @@ public final class StoreModule extends EcoModule {
                 return;
             }
             handOver(p, shop.name, items);
+            link.bought(p, items);
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 0.8f, 2.0f);
             p.sendMessage(Lang.msg("store.unmanned-paid", "n", items.size(), "g", gold(total)));
             return;
@@ -2968,6 +3610,7 @@ public final class StoreModule extends EcoModule {
         }
         t.c.settle();
         handOver(buyer, b.store, t.c.items());
+        link.bought(buyer, t.c.items());   // 버스 기사의 캔커피
         long cut = sh.test ? 0 : players().commission(total);
         if (cut > 0) core.economy().deposit(sh.worker, cut, "store");
         buyer.playSound(buyer.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.5f, 1.6f);
@@ -3234,6 +3877,8 @@ public final class StoreModule extends EcoModule {
         }
         shops.remove(name);
         core.db().execute("DELETE FROM eco_store WHERE name = ?", name);
+        book.forget(name);
+        applied.remove(name);
         if (tier != null && owner != null) dev.stsv.economy.util.Items.create(tier.license(), 1).ifPresent(it -> {
             if (to != null && to.getUniqueId().equals(owner)) {
                 for (ItemStack left : dev.stsv.economy.util.Items.give(to, it)) eco.mail().deliver(owner, left, "store");
@@ -3257,7 +3902,7 @@ public final class StoreModule extends EcoModule {
         return shop.shift;
     }
 
-    private int hourOf(Shift sh) {
+    int hourOf(Shift sh) {
         World w = sh.shop.world();
         return w == null ? 12 : Chores.hour(w.getTime());
     }
@@ -3396,6 +4041,139 @@ public final class StoreModule extends EcoModule {
         }
         demolish(found, null);
         s.sendMessage(Lang.msg("store.owned-reclaimed", "store", found.name));
+    }
+
+    // ------------------------------------------------------------------------------------------ admin (3차)
+
+    /** /관리자 편의점 경력 &lt;플레이어&gt; [단계]: their served count set to that rank's (or shown). */
+    private void adminCareer(CommandSender s, String who, String rankWord) {
+        org.bukkit.OfflinePlayer op = who == null ? null : Bukkit.getOfflinePlayerIfCached(who);
+        if (op == null) {
+            s.sendMessage(Lang.msg("store.career-usage", "ranks", String.join(", ", life.ranks().stream().map(r -> r.name().replace(" ", "")).toList())));
+            return;
+        }
+        UUID u = op.getUniqueId();
+        if (rankWord == null) {
+            StoreLife.Rank r = rank(u);
+            s.sendMessage(Lang.msg("store.career-show", "player", String.valueOf(op.getName()), "rank", r.name(), "served", book.served(u), "night", book.night(u)));
+            return;
+        }
+        StoreLife.Rank r = life.rankOf(rankWord);
+        if (r == null) {
+            s.sendMessage(Lang.msg("store.career-usage", "ranks", String.join(", ", life.ranks().stream().map(x -> x.name().replace(" ", "")).toList())));
+            return;
+        }
+        book.set(u, r.at(), Math.max(0, r.index() - 1));
+        Player p = op.getPlayer();
+        if (p != null) announce(p);
+        s.sendMessage(Lang.msg("store.career-set", "player", String.valueOf(op.getName()), "rank", r.name(), "served", r.at()));
+    }
+
+    /** /관리자 편의점 러시: a rush starts now at the admin's store. */
+    private void adminRush(CommandSender s) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        if (sh.rush != null) {
+            sh.rush = null;
+            s.sendMessage(Lang.msg("store.admin-rush-off"));
+            return;
+        }
+        day.startRush(sh, Bukkit.getPlayer(sh.worker));
+    }
+
+    /** /관리자 편의점 정전 · 단체 · 점검: that event now (정전 again: the power back). */
+    private void adminEvent(CommandSender s, StoreLife.Event e) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        if (e == StoreLife.Event.OUTAGE && sh.outage) {
+            day.endOutage(sh, false);
+            return;
+        }
+        if (!day.start(sh.shop, sh, Bukkit.getPlayer(sh.worker), e, StoreDay.gameDay(sh.shop.world()))) s.sendMessage(Lang.msg("store.admin-event-busy"));
+    }
+
+    /** /관리자 편의점 발주 [묶음]: an order for today at the admin's store (to see the bonus now), and what today asks for. */
+    private void adminOrder(CommandSender s, String word) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        long d = StoreDay.gameDay(sh.shop.world());
+        String want = day.wanted(sh.shop, d);
+        StoreLife.Group g = word == null ? life.order().groups().get(want) : life.order().group(word);
+        if (g == null) {
+            s.sendMessage(Lang.msg("store.admin-order-usage", "groups", String.join(", ", life.order().groups().keySet())));
+            return;
+        }
+        eco.kv().set("store.order." + sh.shop.name, d + "|" + g.id() + "|" + sh.worker);
+        sh.shop.firstDay = Long.MIN_VALUE;
+        s.sendMessage(Lang.msg("store.admin-order", "group", g.name(), "want", life.order().groups().get(want).name(),
+                "hit", Lang.raw(g.id().equals(want) ? "store.order-today-hit" : "store.order-today-miss")));
+    }
+
+    /** /관리자 편의점 단골 [종류]: the next customer (that kind now) asks for their usual. */
+    private void adminUsual(CommandSender s, String kind) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        if (kind != null && !life.regulars().menu().containsKey(kind)) {
+            s.sendMessage(Lang.msg("store.guest-usage"));
+            return;
+        }
+        sh.forceUsual = true;
+        if (kind == null) {
+            s.sendMessage(Lang.msg("store.admin-usual-next"));
+            return;
+        }
+        if (sh.guests.size() >= sh.shop.maxInside()) {
+            s.sendMessage(Lang.msg("store.guest-full", "n", sh.shop.maxInside()));
+            return;
+        }
+        Guest g = spawn(sh, kind, hourOf(sh));
+        s.sendMessage(Lang.msg(g == null ? "store.guest-failed" : g.usual ? "store.admin-usual" : "store.admin-usual-cannot", "type", kind,
+                "item", spec.products().containsKey(String.valueOf(life.regulars().usual(kind))) ? spec.products().get(life.regulars().usual(kind)).name() : "?"));
+    }
+
+    /** /관리자 편의점 버스: the next customer at the counter asks when the next bus comes (a stop must be near). */
+    private void adminBus(CommandSender s) {
+        Shift sh = adminShift(s);
+        if (sh == null) return;
+        var stop = link.near(sh.shop);
+        if (stop == null) {
+            s.sendMessage(Lang.msg("store.admin-bus-none", "r", Math.round(life.bus().radius())));
+            return;
+        }
+        sh.forceBus = true;
+        s.sendMessage(Lang.msg("store.admin-bus", "stop", stop.name(), "answer", link.answer(sh.shop)));
+    }
+
+    /** /관리자 편의점 알바 &lt;가게&gt; &lt;허용|해제|목록&gt; [플레이어]: a 내 가게's hired workers. */
+    private void adminHire(CommandSender s, String store, String what, String who) {
+        Shop shop = store == null ? null : shops.get(store);
+        if (shop == null || shop.owner == null || what == null) {
+            s.sendMessage(Lang.msg("store.admin-hire-usage"));
+            return;
+        }
+        if (what.equals("목록")) {
+            List<String> names = new ArrayList<>();
+            for (UUID u : book.hired(shop.name)) names.add(String.valueOf(Bukkit.getOfflinePlayer(u).getName()));
+            s.sendMessage(Lang.msg("store.admin-hire-list", "store", shop.name, "list", names.isEmpty() ? "-" : String.join(", ", names)));
+            return;
+        }
+        org.bukkit.OfflinePlayer op = who == null ? null : Bukkit.getOfflinePlayerIfCached(who);
+        if (op == null || !(what.equals("허용") || what.equals("해제"))) {
+            s.sendMessage(Lang.msg("store.admin-hire-usage"));
+            return;
+        }
+        boolean ok = what.equals("허용") ? book.hire(shop.name, op.getUniqueId()) : book.fire(shop.name, op.getUniqueId());
+        s.sendMessage(Lang.msg(what.equals("허용") ? "store.admin-hired" : "store.admin-fired", "store", shop.name, "player", String.valueOf(op.getName()),
+                "ok", ok ? "" : Lang.raw("store.admin-hire-same")));
+    }
+
+    // ------------------------------------------------------------------------------------------ 인물 도감 (3차)
+
+    /** The 도감 page's extra lines of a person for this player: their usual (단골 메뉴) once they fetched it. */
+    public List<Component> peopleLines(UUID player, String person) {
+        if (book == null || life == null || !book.knowsUsual(player, person)) return List.of();
+        StoreSpec.Product p = spec.products().get(life.regulars().usual(person));
+        return p == null ? List.of() : List.of(Lang.item("store.codex-usual", "item", p.name()));
     }
 
     // ------------------------------------------------------------------------------------------ words

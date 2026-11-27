@@ -386,6 +386,7 @@ public final class PeopleModule extends EcoModule {
                 }
                 // 주민의 부탁 (README "주민의 부탁"): 친밀도, and the 명인 의뢰's regulars
                 if (eco.requests() != null) lore.addAll(eco.requests().peopleLines(p.getUniqueId(), id));
+                if (eco.store() != null) lore.addAll(eco.store().peopleLines(p.getUniqueId(), id));   // 편의점 단골 메뉴
                 String name = known ? (shiny ? Lang.raw("people.name-shiny", "name", nameOf(t)) : nameOf(t))
                         : Lang.raw(shiny ? "people.unknown-name-shiny" : "people.unknown-name");
                 boolean glint = known && shiny;

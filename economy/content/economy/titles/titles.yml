@@ -180,3 +180,8 @@ sprout:
   name: "<#8fd16a>[새싹]"
   description: "길라잡이의 모든 주제를 마쳤다"
   category: event
+# ── 편의점 경력 (store.yml career.title: 받은 손님 2,000명 = 점장)
+store_manager:
+  name: "<#1f9d55>[편의점 점장]"
+  description: "GS26 편의점에서 손님 2,000명을 받아 점장이 되었다"
+  category: job

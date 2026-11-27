@@ -162,7 +162,7 @@ final class Stones {
         for (Spot s : spots) if (s.id().equals(his)) real = true;
         if (!real) {
             List<String> ids = new ArrayList<>(List.of("bus"));
-            for (Secret s : order) ids.add(s.id());
+            for (Secret s : order) if (s.hasStone()) ids.add(s.id());   // (a secret without a stone stands nowhere)
             int i = ids.indexOf(his);
             if (i >= 0) {
                 double[] at = arc(p.x(), p.z(), p.yaw(), i, Math.max(SLOTS, ids.size()));

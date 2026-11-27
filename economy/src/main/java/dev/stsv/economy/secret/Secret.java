@@ -42,6 +42,11 @@ public abstract class Secret implements Listener {
         return false;
     }
 
+    /** Whether it has a stone on the monument at all (a small secret may have none: the monument keeps its thirteen). */
+    public boolean hasStone() {
+        return true;
+    }
+
     /** How many stages before the end (the status shows n/stages). */
     public abstract int stages();
 

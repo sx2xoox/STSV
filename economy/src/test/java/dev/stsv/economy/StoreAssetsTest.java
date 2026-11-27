@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * 편의점 assets (docs/plans/편의점_기획안.md §15 작업 계약, items/store.yml, tools/assetgen/models/store.py): every id of the
  * contract is an item with its model and nothing else is; the furniture keeps the contract's sizes; the seats sit where
  * there is no barrier and face the right way; the counter, shelves and cases block; the vest is worn in the chest slot
- * with its armour layer.
+ * with its armour layer (and the 3차 점장 · 야간 vests); the 3차 licences, ID card, order tablet and NPC skins exist.
  */
 class StoreAssetsTest {
 
@@ -54,6 +54,7 @@ class StoreAssetsTest {
         out.put("store_waste", new int[]{1, 1, 1});
         out.put("store_mop", new int[]{1, 1, 1});
         out.put("store_sign", new int[]{5, 1, 1});
+        out.put("store_order_tablet", new int[]{1, 1, 1});      // 3차 (§16): 발주 단말기, beside the counter
         return out;
     }
 
@@ -67,6 +68,7 @@ class StoreAssetsTest {
         for (String b : List.of("card", "cash", "give", "bag", "nobag", "warm", "yes", "no", "wait", "id", "refuse", "sell", "wake", "point"))
             ids.add("store_btn_" + b);
         for (int n : new int[]{50000, 10000, 5000, 1000, 500, 100}) ids.add("store_btn_change_" + n);
+        ids.addAll(List.of("store_id_card", "store_vest_manager", "store_vest_night"));   // 3차 (§16)
         return ids;
     }
 
@@ -78,10 +80,10 @@ class StoreAssetsTest {
     void everyContractIdIsAnItemWithItsModel() {
         YamlConfiguration y = items();
         List<String> ids = new ArrayList<>(furniture().keySet());
-        assertEquals(26, ids.size());
+        assertEquals(27, ids.size());
         assertEquals(33, GOODS.size());
         ids.addAll(displayIds());
-        assertEquals(26 + 70, ids.size());
+        assertEquals(27 + 73, ids.size());
         assertEquals(ids.size(), y.getKeys(false).size(), "items/store.yml holds the contract's ids and nothing else");
         for (String id : ids) {
             ConfigurationSection sec = y.getConfigurationSection(id);
@@ -96,14 +98,30 @@ class StoreAssetsTest {
     }
 
     @Test
-    void theVestIsWornInTheChestSlotWithItsLayer() throws Exception {
-        ConfigurationSection eq = items().getConfigurationSection("store_vest.equipment");
-        assertNotNull(eq, "store_vest.equipment");
-        assertEquals("chest", eq.getString("slot"));
-        assertEquals("economy:store_vest", eq.getString("asset"));
-        Path asset = PACK.resolve("assets/economy/equipment/store_vest.json");
-        assertTrue(Files.readString(asset).contains("\"economy:store_vest\""), "the humanoid layer's texture");
-        assertTrue(Files.exists(PACK.resolve("assets/economy/textures/entity/equipment/humanoid/store_vest.png")));
+    void theVestsAreWornInTheChestSlotWithTheirLayers() throws Exception {
+        for (String v : List.of("store_vest", "store_vest_manager", "store_vest_night")) {
+            ConfigurationSection eq = items().getConfigurationSection(v + ".equipment");
+            assertNotNull(eq, v + ".equipment");
+            assertEquals("chest", eq.getString("slot"), v);
+            assertEquals("economy:" + v, eq.getString("asset"), v);
+            Path asset = PACK.resolve("assets/economy/equipment/" + v + ".json");
+            assertTrue(Files.readString(asset).contains("\"economy:" + v + "\""), v + ": the humanoid layer's texture");
+            assertTrue(Files.exists(PACK.resolve("assets/economy/textures/entity/equipment/humanoid/" + v + ".png")), v);
+        }
+    }
+
+    @Test
+    void theLicencesWearTheirOwnModelsAndTheNpcSkinsExist() {
+        // 3차 (§16): the 권리증 items live in items/store_extra.yml, their models are the store's
+        YamlConfiguration extra = YamlConfiguration.loadConfiguration(PACK.resolve("items/store_extra.yml").toFile());
+        for (String t : List.of("alley", "standard", "large")) {
+            String id = "store_license_" + t;
+            assertEquals(id, extra.getString(id + ".model"), id);
+            assertTrue(Files.exists(PACK.resolve("models/" + id + ".bbmodel")), id);
+            assertFalse(items().contains(id), id + " is defined once, in items/store_extra.yml");
+        }
+        for (String k : List.of("hq_inspector", "night_regular"))
+            assertTrue(Files.exists(PACK.resolve("assets/economy/textures/entity/bus/" + k + ".png")), k + " skin");
     }
 
     @Test

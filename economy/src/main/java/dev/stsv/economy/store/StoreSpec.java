@@ -224,14 +224,19 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
 
     /** Who walks in at this hour: a kind of `allowed` (the bus kinds there are), by weight; null when none may come. */
     public String pickType(int hour, Set<String> allowed, RandomGenerator rnd) {
+        return pickType(hour, allowed, rnd, Map.of());
+    }
+
+    /** The same with some kinds `extra` × as often (야간 근무: 취객 · 새벽 손님, store.yml night.boost). */
+    public String pickType(int hour, Set<String> allowed, RandomGenerator rnd, Map<String, Double> extra) {
         double total = 0;
-        for (Customer c : customers.values()) if (allowed.contains(c.type())) total += weight(c, hour);
+        for (Customer c : customers.values()) if (allowed.contains(c.type())) total += weight(c, hour) * extra.getOrDefault(c.type(), 1.0);
         if (total <= 0) return null;
         double roll = rnd.nextDouble() * total;
         String last = null;
         for (Customer c : customers.values()) {
             if (!allowed.contains(c.type())) continue;
-            double w = weight(c, hour);
+            double w = weight(c, hour) * extra.getOrDefault(c.type(), 1.0);
             if (w <= 0) continue;
             last = c.type();
             roll -= w;
