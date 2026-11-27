@@ -212,6 +212,15 @@ public final class Designer extends Secret {
 
     /** MachineModule: a lane of op's just made this (into an empty output slot); he may sign it. */
     public void made(UUID op, String job, ItemStack product) {
+        made(op, job, product, true);
+    }
+
+    /**
+     * A product came out of a machine whose operator is op. Rolled on every product; empty: the output slot was empty, so
+     * this product starts its own stack (only such a stack can carry his name; a win on a piled-up slot waits, saved as
+     * "pending", for the next product that starts a fresh stack).
+     */
+    public void made(UUID op, String job, ItemStack product, boolean empty) {
         if (!on()) return;
         Player p = Bukkit.getPlayer(op);
         if (p == null || !open(op)) return;
@@ -220,10 +229,16 @@ public final class Designer extends Secret {
         if (st == 0) {
             if (!m.test(op) && level(op, job) < cfg.getInt("start.min-level", 20)) return;
             if (m.today(op).equals(m.get(this, op, "marked"))) return;
-            if (!m.roll(op, cfg.getDouble("start.chance", 0.0002))) return;
+            boolean waiting = m.get(this, op, "pending") != null;
+            if (!waiting && !m.roll(op, cfg.getDouble("start.chance", 0.0002))) return;
+            if (!empty) {
+                if (!waiting) m.set(this, op, "pending", m.today(op));
+                return;
+            }
+            m.remove(this, op, "pending");
             sign(product, op);
             begin(p);
-        } else if (st <= stages() && !m.test(op)
+        } else if (empty && st <= stages() && !m.test(op)
                 && ThreadLocalRandom.current().nextDouble() < cfg.getDouble("echo-chance", 0.002)) {
             sign(product, op);   // now and then, again: he is still there
         }

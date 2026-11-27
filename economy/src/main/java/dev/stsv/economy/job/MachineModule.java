@@ -630,7 +630,9 @@ public final class MachineModule extends EcoModule {
         if (product == null) return;
         ItemStack slot = m.inv.getItem(output(lane));
         // 숨은 비밀 설계자: now and then (any hour), a fresh stack is signed by someone else
-        if ((slot == null || slot.isEmpty()) && op != null && !trial(m) && designer() != null) designer().made(op, job, product);
+        // 숨은 비밀 설계자: rolled on every product (not only when the output slot is empty: outputs usually pile up, which
+        // made the chance far rarer than its number); a signed stack can only start in an empty slot, so a win waits for one
+        if (op != null && !trial(m) && designer() != null) designer().made(op, job, product, slot == null || slot.isEmpty());
         if (slot == null || slot.isEmpty()) m.inv.setItem(output(lane), product);
         else slot.setAmount(Math.min(slot.getMaxStackSize(), slot.getAmount() + product.getAmount()));
         boolean counts = op != null && job != null && !trial(m);   // 길라잡이 trial machines give no XP and count for nothing
