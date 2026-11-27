@@ -13,8 +13,9 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.237-stable")
     compileOnly("dev.stsv:stsv-core")
-    // the official Anthropic Java SDK (hidden secret "newcomer": secret/newcomer/ClaudeMind): downloaded by the server at
-    // startup (plugin.yml "libraries"), not shaded. Tests never call it (NewcomerMind has a scripted implementation)
+    // the official Anthropic Java SDK (hidden secret "newcomer": secret/newcomer/ClaudeCall, the only class that uses it):
+    // NOT in plugin.yml "libraries" (a failed download there stops the whole plugin from loading) and not shaded: fetched
+    // fail-soft at runtime by secret/newcomer/Sdk into a class loader of its own. Tests never call it.
     compileOnly("com.anthropic:anthropic-java:3.3.0")
 
     testImplementation("io.papermc.paper:paper-api:26.3.build.237-stable")

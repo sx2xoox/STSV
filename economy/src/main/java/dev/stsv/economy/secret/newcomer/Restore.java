@@ -146,6 +146,11 @@ final class Restore implements BusModule.Watcher {
      * if so its shard, already counted. force: an admin's 흔적 (no chance, no counts).
      */
     Optional<ItemStack> trace(Player p, Shards.Look look, boolean force) {
+        return trace(p, look, force, true);
+    }
+
+    /** count: false = only whether it shows itself (the shard comes later and is counted then: the bus). */
+    Optional<ItemStack> trace(Player p, Shards.Look look, boolean force, boolean count) {
         UUID u = p.getUniqueId();
         if (!force) {
             if (!gate(p) || !room(u)) return Optional.empty();
@@ -161,15 +166,19 @@ final class Restore implements BusModule.Watcher {
             if (!n.module().roll(u, chance)) return Optional.empty();
         }
         Optional<ItemStack> it = make(look, n.record(u), null, -1);
+        if (!count) return it;
         if (it.isPresent() && !force) counted(u);
         if (it.isPresent()) n.plugin().getLogger().info("[비밀] 새로 온 사람: " + p.getName() + " 에게 깨진 흔적 (" + look.place + ")"
                 + (force ? " · 관리자" : "") + (test(u) ? " · 테스트" : ""));
         return it;
     }
 
+    /** Into their hands (a ticket left on a seat, a bottle that came up with the catch); what does not fit goes to the mailbox. */
     private void give(Player p, ItemStack it) {
-        if (n.eco().mail() != null) n.eco().mail().deliver(p.getUniqueId(), it, MAIL);
-        else for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
+        for (ItemStack left : p.getInventory().addItem(it).values()) {
+            if (n.eco().mail() != null) n.eco().mail().deliver(p.getUniqueId(), left, MAIL);
+            else p.getWorld().dropItem(p.getLocation(), left);
+        }
     }
 
     // ------------------------------------------------------------------------------------------
@@ -194,24 +203,112 @@ final class Restore implements BusModule.Watcher {
         touch = null;
     }
 
-    /** The bus: the stop's sign reads broken for a few seconds (to the driver alone), and a ticket was left on a seat. */
-    @Override
-    public void stopped(Player driver, BusStop here) {
-        bus(driver, here, false);
+    /** A stop whose sign read broken to this driver as they came up to it: stopping there leaves the ticket (until, ms). */
+    record Glitched(int stop, long until) {}
+
+    /** driver -> the stop that read broken to them; driver -> the stop they were last coming up to (one roll an approach) */
+    private final java.util.Map<UUID, Glitched> glitched = new ConcurrentHashMap<>();
+    private final java.util.Map<UUID, double[]> approach = new ConcurrentHashMap<>();
+    /** how near a stop (blocks) its sign may read broken, and how long the broken stop waits to be stopped at */
+    static final double SIGN_NEAR = 40, SIGN_FAR = 14;
+    static final long GLITCH_WAIT = 180_000L;
+
+    /**
+     * Each second, for every driver: coming up to a stop (nearer than {@link #SIGN_NEAR}, getting nearer, not yet there),
+     * one roll for that stop; if it comes up, its sign reads broken to that driver alone for a few seconds. Pure choice of
+     * the stop: {@link #comingUp}.
+     */
+    private void drivers() {
+        BusModule b = n.eco().bus();
+        if (b == null) return;
+        long now = System.currentTimeMillis();
+        glitched.values().removeIf(g -> g.until() < now);
+        for (Player d : b.drivers()) {
+            UUID u = d.getUniqueId();
+            if (glitched.containsKey(u)) continue;
+            Location l = d.getLocation();
+            BusStop best = null;
+            double bestD = Double.MAX_VALUE;
+            for (BusStop s : b.stops()) {
+                if (!s.world().equals(l.getWorld().getName())) continue;
+                double dd = Math.hypot(s.x() - l.getX(), s.z() - l.getZ());
+                if (dd < bestD) {
+                    bestD = dd;
+                    best = s;
+                }
+            }
+            double[] last = approach.get(u);
+            int verdict = comingUp(best == null ? -1 : best.id(), bestD, last);
+            if (best == null || bestD > SIGN_NEAR) {
+                approach.remove(u);
+                continue;
+            }
+            approach.put(u, new double[]{best.id(), bestD, verdict == 1 || (last != null && (int) last[0] == best.id() && last[2] == 1) ? 1 : 0});
+            if (verdict != 1) continue;
+            Optional<ItemStack> it = trace(d, Shards.Look.TICKET, false, false);   // the roll only: the ticket is made at the stop
+            if (it.isEmpty()) continue;
+            glitched.put(u, new Glitched(best.id(), now + GLITCH_WAIT));
+            sign(d, best);
+            n.plugin().getLogger().info("[비밀] 새로 온 사람: " + d.getName() + " 에게 " + best.name() + " 정류장 표지판이 깨져 보임 (세우면 승차권)"
+                    + (test(u) ? " · 테스트" : ""));
+        }
     }
 
-    boolean bus(Player driver, BusStop here, boolean force) {
-        Optional<ItemStack> it = trace(driver, Shards.Look.TICKET, force);
-        if (it.isEmpty()) return false;
-        String name = here == null ? "정류장" : here.name();
+    /**
+     * Whether a driver is coming up to a stop now: 1 = roll for it now (nearer than SIGN_NEAR, farther than SIGN_FAR, and
+     * nearer than a second ago: it is ahead), 0 = not now. last: {stop, distance, rolled} a second ago, or null. One roll
+     * an approach: once rolled for a stop, never again until another stop is the nearest.
+     */
+    static int comingUp(int stop, double dist, double[] last) {
+        if (stop < 0 || dist > SIGN_NEAR || dist < SIGN_FAR || last == null || (int) last[0] != stop) return 0;
+        if (last[2] == 1) return 0;
+        return dist < last[1] - 0.3 ? 1 : 0;
+    }
+
+    /** The stop's sign, broken, to the driver alone. */
+    private void sign(Player driver, BusStop here) {
         Location at = driver.getEyeLocation().add(driver.getLocation().getDirection().setY(0).normalize().multiply(3)).add(0, 0.6, 0);
         if (here != null) {
             World w = Bukkit.getWorld(here.world());
             double[] xz = here.at(0, BusStop.ROAD_HALF + 2.5);
             if (w != null && w.equals(driver.getWorld())) at = new Location(w, xz[0], here.top() + 2.6, xz[1]);
         }
-        glitch(driver, at, name, 90L);
+        glitch(driver, at, here == null ? "정류장" : here.name(), 100L);
         driver.playSound(driver.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 0.5f, 0.5f);
+    }
+
+    /** The bus stopped: if it is the stop whose sign read broken to this driver, a ticket was left on a seat. */
+    @Override
+    public void stopped(Player driver, BusStop here) {
+        Glitched g = glitched.get(driver.getUniqueId());
+        if (g == null || here == null || g.stop() != here.id()) return;
+        glitched.remove(driver.getUniqueId());
+        Optional<ItemStack> it = make(Shards.Look.TICKET, n.record(driver.getUniqueId()), null, -1);
+        if (it.isEmpty()) return;
+        counted(driver.getUniqueId());
+        driver.playSound(driver.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_RESONATE, 0.4f, 0.7f);
+        n.plugin().getLogger().info("[비밀] 새로 온 사람: " + driver.getName() + " 에게 깨진 흔적 (버스: " + here.name() + " 에 두고 내린 승차권)"
+                + (test(driver.getUniqueId()) ? " · 테스트" : ""));
+        give(driver, it.get());
+    }
+
+    /** An admin's 흔적:버스: the broken sign (at the nearest stop, else in front of them) and the ticket, now. */
+    boolean bus(Player driver, BusStop here, boolean force) {
+        Optional<ItemStack> it = trace(driver, Shards.Look.TICKET, force);
+        if (it.isEmpty()) return false;
+        BusModule b = n.eco().bus();
+        if (here == null && b != null) {
+            double best = 64;
+            for (BusStop s : b.stops()) {
+                if (!s.world().equals(driver.getWorld().getName())) continue;
+                double dd = Math.hypot(s.x() - driver.getLocation().getX(), s.z() - driver.getLocation().getZ());
+                if (dd < best) {
+                    best = dd;
+                    here = s;
+                }
+            }
+        }
+        sign(driver, here);
         give(driver, it.get());
         return true;
     }
@@ -277,16 +374,56 @@ final class Restore implements BusModule.Watcher {
         bites.remove(u);
     }
 
+    /** Opened anew: no broken stop waits for anyone. */
+    void forgetAll() {
+        bites.clear();
+        glitched.clear();
+        approach.clear();
+    }
+
+    /** They left (or it was switched off): nothing of theirs waits any more. */
+    void forget(UUID u) {
+        bites.remove(u);
+        glitched.remove(u);
+        approach.remove(u);
+    }
+
     // ------------------------------------------------------------------------------------------
     // at the stone
     // ------------------------------------------------------------------------------------------
 
+    /**
+     * Whether the stone takes clicks at all: someone found it and it is not signed yet (on the server's record), or a tester
+     * online has found their own. Before that it is the bare stone (nothing in it eats a click); after, nothing is left to do.
+     */
+    static boolean clickable(boolean serverFound, boolean serverSigned, boolean testerFound) {
+        return (serverFound && !serverSigned) || testerFound;
+    }
+
+    private boolean wanted() {
+        Record r = n.record(null);
+        boolean tester = false;
+        for (Player p : Bukkit.getOnlinePlayers()) {
+            if (test(p.getUniqueId()) && n.record(p.getUniqueId()).found() && n.record(p.getUniqueId()).witness().isEmpty()) {
+                tester = true;
+                break;
+            }
+        }
+        return clickable(r.found(), r.witness().isPresent() || n.module().closed(n), tester);
+    }
+
     /** Each second: the unseen thing to click stands in his stone while there is anything left to do there. */
     void tick() {
+        try {
+            drivers();
+        } catch (RuntimeException e) {
+            n.plugin().getLogger().log(java.util.logging.Level.WARNING, "[비밀] newcomer 버스 흔적 오류", e);
+        }
         if (++ticks % 60 == 0) mail();
         if (ticks % 3 != 0) return;
         Optional<Location> st = n.stone();
-        boolean want = st.isPresent() && n.isOn() && st.get().getWorld().isChunkLoaded(st.get().getBlockX() >> 4, st.get().getBlockZ() >> 4);
+        boolean want = st.isPresent() && n.isOn() && st.get().getWorld().isChunkLoaded(st.get().getBlockX() >> 4, st.get().getBlockZ() >> 4)
+                && wanted();
         if (!want) {
             if (touch != null && touch.isValid()) touch.remove();
             touch = null;
@@ -364,7 +501,7 @@ final class Restore implements BusModule.Watcher {
             default -> "날짜 몇 글자가";
         } : "글자 몇 개가";
         n.module().set(n, u, "shard.detail", detail);
-        n.memories().update(u, name, note -> note.plusShard().note("조각을 넣어 줌 (" + s.line().word + ")"));
+        n.remember(p, note -> note.plusShard().note("조각을 넣어 줌 (" + s.line().word + ")"));
         n.plugin().getLogger().info("[비밀] 새로 온 사람: " + p.getName() + " 이(가) 조각을 넣음 (" + s.tag() + ", 새 글자 " + fresh + ")"
                 + (test(u) ? " · 테스트" : ""));
         n.restored(p, s.line(), r);
@@ -396,7 +533,7 @@ final class Restore implements BusModule.Watcher {
         r.name(u);
         tag.subtract(1);
         sign(p, true);
-        n.memories().update(u, n.nameOf(p), note -> note.engraved().note("이름을 새겨 줌"));
+        n.remember(p, note -> note.engraved().note("이름을 새겨 줌"));
         n.plugin().getLogger().info("[비밀] 새로 온 사람: " + p.getName() + " 이(가) 이름을 새김" + (test ? " · 테스트" : ""));
         n.restored(p, null, r);
     }

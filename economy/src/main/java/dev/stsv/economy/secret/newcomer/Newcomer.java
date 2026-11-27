@@ -200,8 +200,21 @@ public final class Newcomer extends Secret {
     @Override
     public void serverReset() {
         record(null).clear();
-        for (String k : List.of(SAY, TOLD, TWO, TYPO_NIGHT)) eco.kv().remove(k);
+        for (String k : List.of(SAY, TOLD, TWO, TYPO_NIGHT, K + "ai.letters")) eco.kv().remove(k);
         vigil.reset();
+        // the stone is bare again: nobody has whispered at it, nobody has tried a name tag; what was done for the record is
+        // forgotten (a rehearsal on the live server must not leave "증인" or "조각" for the real night's letters and prompts).
+        // A tester's own record (secret.newcomer.<uuid>.stone.*) is theirs: 초기화 for them.
+        for (String k : eco.kv().all().keySet()) {
+            if (!k.startsWith(K)) continue;
+            String rest = k.substring(K.length());
+            int dot = rest.indexOf('.');
+            if (dot != 36) continue;   // per player: <uuid>.<key>
+            String key = rest.substring(dot + 1);
+            if (List.of("atstone", "shard.detail", "two", "tag.night", "tag.n").contains(key)) eco.kv().remove(k);
+        }
+        memories.forgetRecord();
+        restore.forgetAll();
     }
 
     /** His stone says nothing until it is solved: it is the bare one. */
@@ -308,6 +321,10 @@ public final class Newcomer extends Secret {
                 eco.getLogger().warning("[비밀] newcomer.yml: name \"" + who + "\" 은(는) 누군가의 닉네임이에요. 그 사람이 접속한 밤에는 이 비밀이 쉽니다. "
                         + "닉네임을 풀거나 (/관리자 닉네임 해제) 다른 이름으로 바꾸세요.");
             }
+            if (Bukkit.getOfflinePlayerIfCached(truth.name()) != null || Names.byNickname(truth.name()).isPresent()) {
+                eco.getLogger().warning("[비밀] newcomer.yml: truth.name \"" + truth.name() + "\" 은(는) 이 서버의 실제 계정 이름 · 닉네임이에요. "
+                        + "그의 퇴장 줄 · /프로필 이 그 사람과 겹칩니다. 다른 이름으로 바꾸세요 (진짜 밤 전에).");
+            }
             if (Bukkit.getOfflinePlayerIfCached(who) != null) {
                 eco.getLogger().warning("[비밀] newcomer.yml: name \"" + who + "\" 은(는) 이 서버에 실제로 들어온 적 있는 계정 이름이에요. "
                         + "그 사람이 접속한 밤에는 이 비밀이 쉽니다. 다른 이름으로 바꾸는 편이 좋아요.");
@@ -383,24 +400,53 @@ public final class Newcomer extends Secret {
         int[] cap = range("ai.max-per-night", 30, 40);
         Voice.Settings st = new Voice.Settings(cfg.getBoolean("ai.enabled", true), cfg.getDouble("ai.ratio-start", 0.5),
                 cfg.getInt("ai.ratio-days", 2), cap[0], cap[1], seed, Math.max(0, cfg.getLong("ai.max-calls-per-day", 400)),
-                1000L * Math.max(1, cfg.getInt("ai.timeout-seconds", 8)));
+                1000L * Math.max(1, cfg.getInt("ai.timeout-seconds", 8)), Math.max(1, cfg.getLong("ai.max-calls-per-player-day", 40)),
+                Math.max(0, cfg.getLong("ai.max-letter-calls", 300)));
         NewcomerMind mind = new ScriptedMind();
         if (st.enabled()) {
+            String model = cfg.getString("ai.model", ClaudeMind.DEFAULT_MODEL);
+            if (model == null || model.isBlank()) model = ClaudeMind.DEFAULT_MODEL;
+            long maxTokens = Math.max(1024, cfg.getLong("ai.max-tokens", 16000));
             try {
-                if (ClaudeMind.credential()) {
-                    mind = new ClaudeMind(cfg.getString("ai.model", ClaudeMind.DEFAULT_MODEL), cfg.getLong("ai.max-tokens", 16000),
-                            java.time.Duration.ofMillis(st.timeoutMs()), voice::error);
-                    eco.getLogger().info("[비밀] 새로 온 사람: AI 켜짐 (모델 " + cfg.getString("ai.model", ClaudeMind.DEFAULT_MODEL) + ")");
-                } else {
+                if (!ClaudeMind.credential()) {
                     eco.getLogger().info("[비밀] 새로 온 사람: ai.enabled 이지만 서버 환경 변수 ANTHROPIC_API_KEY 가 없어서 대본으로만 말합니다");
+                } else {
+                    Optional<NewcomerMind> made = Sdk.mind(model.strip(), maxTokens, java.time.Duration.ofMillis(st.timeoutMs()), voice::error);
+                    if (made.isPresent()) {
+                        mind = made.get();
+                        eco.getLogger().info("[비밀] 새로 온 사람: AI 켜짐 (모델 " + model + ")");
+                    } else if (Sdk.state() == Sdk.State.FAILED) {
+                        eco.getLogger().warning("[비밀] 새로 온 사람: AI 라이브러리가 없어서 대본으로만 말합니다 (" + Sdk.why() + ")");
+                    } else if (Sdk.state() != Sdk.State.READY) {
+                        // fetched in the background, fail-soft; his scripts until it is there (then this runs again)
+                        eco.getLogger().info("[비밀] 새로 온 사람: AI 라이브러리를 받는 중 (그동안 대본)");
+                        Sdk.fetch(eco, eco.getLogger(), () -> {
+                            if (!shut) mind();
+                        });
+                    }
                 }
             } catch (RuntimeException | LinkageError e) {
-                // the library is not there, or the client could not be made: his scripts will do
+                // the client could not be made: his scripts will do
                 eco.getLogger().warning("[비밀] 새로 온 사람: AI 를 켤 수 없어서 대본으로만 말합니다 (" + e.getClass().getSimpleName() + ")");
                 mind = new ScriptedMind();
             }
         }
         voice.set(mind, st);
+    }
+
+    /** this instance was let go of (the module reloaded or stopped): nothing of it runs on */
+    private volatile boolean shut;
+
+    /** The module stops (a reload, the plugin going down): the model's threads, his figure, the click box, a signing. */
+    @Override
+    public void shutdown() {
+        shut = true;
+        try {
+            vigil.stop();
+        } finally {
+            restore.unhook();
+            voice.close();
+        }
     }
 
     private List<String> lines(String path, List<String> def) {
@@ -496,6 +542,15 @@ public final class Newcomer extends Secret {
 
     Memories memories() {
         return memories;
+    }
+
+    /**
+     * What he remembers of a player changes: never for someone in test mode (what they do is a rehearsal: it must not
+     * turn into a real letter, or into a "증인" note fed to the model on the real night).
+     */
+    void remember(Player p, java.util.function.UnaryOperator<Memories.Note> change) {
+        if (m.test(p.getUniqueId())) return;
+        memories.update(p.getUniqueId(), nameOf(p), change);
     }
 
     Vigil vigil() {
@@ -812,8 +867,9 @@ public final class Newcomer extends Secret {
         long nth = eco.kv().getLong(TYPO_N, 0);
         ThreadLocalRandom r = ThreadLocalRandom.current();
         List<String> pool = small("hanyoung.lines", Hanyoung.LINES, new ArrayList<>());
-        String line = Talk.pick(pool, recent, r);
-        String typed = Hanyoung.slip(line, Hanyoung.letter(truth.name(), nth), r);
+        char key = Hanyoung.letter(truth.name(), nth);
+        String line = Hanyoung.line(pool, key, List.copyOf(recent), r);
+        String typed = Hanyoung.slip(line, key, r);
         String fix = Talk.pick(small("hanyoung.fix", Hanyoung.FIXES, new ArrayList<>()), recent, r);
         long at = now + (v.quick ? 2500L : 12_000L + r.nextInt(14_000)) + typing(typed);
         queue(v, typed, at);
@@ -890,7 +946,7 @@ public final class Newcomer extends Secret {
             eco.kv().set(TOLD, "done");
         }
         String owed = eco.kv().get(SAY);
-        if (owed != null) for (String l : owed.split("\n")) if (!l.isBlank() && lines.size() < 3) lines.add(l);
+        if (owed != null) for (String l : owed.split("\n")) if (!l.isBlank() && lines.size() < 5) lines.add(l);
         eco.kv().remove(SAY);
         if (allBack) lines.add(cfg.getString("vigil.arrive", ALL_BACK));
         long at = Math.max(v.lastPending(now), now + (v.quick ? 1000L : gap(v, true) / 3));
@@ -907,6 +963,15 @@ public final class Newcomer extends Secret {
      * the next time he comes. For a tester it is said to them alone.
      */
     void sayLater(Player to, String line) {
+        sayLater(to, line, true);
+    }
+
+    /**
+     * As above. important: a line of its own (a line whole again, two of three, his name): always kept for later; a passing
+     * "뭔가 돌아왔어요" is kept for later only when nothing else waits (twenty shards while he was away are one such line, and
+     * never push out the ones that matter).
+     */
+    void sayLater(Player to, String line, boolean important) {
         if (line == null || !Talk.small(line)) return;
         if (to != null && m.test(to.getUniqueId())) {
             Bukkit.getScheduler().runTaskLater(eco, () -> {
@@ -920,8 +985,14 @@ public final class Newcomer extends Secret {
             queue(v, line, v.lastPending(now) + typing(line) + 1500L);
             return;
         }
-        String owed = eco.kv().get(SAY);
-        eco.kv().set(SAY, owed == null || owed.isBlank() ? line : owed + "\n" + line);
+        eco.kv().set(SAY, owe(eco.kv().get(SAY), line, important));
+    }
+
+    /** What he owes the chat with one more line (lines kept in kv SAY, one a line). Pure: see {@link #sayLater}. */
+    static String owe(String owed, String line, boolean important) {
+        if (owed == null || owed.isBlank()) return line;
+        if (!important || List.of(owed.split("\n")).contains(line)) return owed;
+        return owed + "\n" + line;
     }
 
     /**
@@ -937,7 +1008,7 @@ public final class Newcomer extends Secret {
         String player = nameOf(by);
         if (line == null) sayLater(by, cfg.getString("restored.name", WHOLE_NAME).replace("{player}", player));
         else if (r.whole(line)) sayLater(by, line == Shards.Line.DATE ? cfg.getString("restored.date", WHOLE_DATE) : cfg.getString("restored.what", WHOLE_WHAT));
-        else sayLater(by, line == Shards.Line.DATE && rnd.nextInt(3) == 0 ? BACK_DATE : Talk.pick(small("restored.back", BACK, new ArrayList<>()), recent, rnd));
+        else sayLater(by, line == Shards.Line.DATE && rnd.nextInt(3) == 0 ? BACK_DATE : Talk.pick(small("restored.back", BACK, new ArrayList<>()), recent, rnd), false);
         String twoKey = test ? null : TWO;
         if (r.lines() == 2 && (twoKey == null ? m.get(this, by.getUniqueId(), "two") == null : !eco.kv().has(twoKey))) {
             if (twoKey == null) m.set(this, by.getUniqueId(), "two", 1);
@@ -1140,9 +1211,11 @@ public final class Newcomer extends Secret {
         if (!(v.viewer != null ? m.roll(v.viewer, chance) : ThreadLocalRandom.current().nextDouble() < chance)) return;
         if (re.line() == null) return;
         String id = re.intent().id;
-        if (id.equals("answer")) memories.update(by, nameOf(p), Memories.Note::plusAnswer);
-        else if (id.equals("bot")) memories.update(by, nameOf(p), Memories.Note::plusTease);
-        else if (named) memories.update(by, nameOf(p), n -> n);   // spoke to him: he knows them
+        if (v.viewer == null) {   // only what happened in public is remembered (a tester's own visit is not)
+            if (id.equals("answer")) remember(p, Memories.Note::plusAnswer);
+            else if (id.equals("bot")) remember(p, Memories.Note::plusTease);
+            else if (named) remember(p, n -> n);   // spoke to him: he knows them
+        }
         String line = re.line();
         boolean real = v.viewer == null && v.night != null;
         if (voice.active() && real && voice.mood(LocalDate.parse(v.night), v.qs.size() - v.next) == Awakening.Mood.SLEEPY
@@ -1151,7 +1224,7 @@ public final class Newcomer extends Secret {
         Voice.Thought thought = voice.none();
         if (voice.active()) {
             long think = between("ai.think-seconds", 2, 5);
-            thought = chatWords(by, line, type + think, v.viewer != null || m.test(by));
+            thought = chatWords(by, v.viewer, line, type + think, v.viewer != null);
             if (thought.asked()) at += think;
         }
         v.pending.addLast(new Pending(line, Math.max(at, v.lastPending(at)), thought.asked() ? thought : null));
@@ -1248,7 +1321,7 @@ public final class Newcomer extends Secret {
         }
         long nights = whisperNight(u);
         if (m.stage(this, u) < 1) m.stage(this, u, 1);
-        memories.update(u, nameOf(p), fresh ? Memories.Note::plusWhisper : n -> n);
+        remember(p, fresh ? Memories.Note::plusWhisper : n -> n);
         boolean test = m.test(u);
         boolean sulky = sulking(test ? u : null);
         if (insult(w.get().message())) {                 // sworn at, even at his stone: he sulks (once a night)
@@ -1323,7 +1396,7 @@ public final class Newcomer extends Secret {
         long now = System.currentTimeMillis();
         if (first) {
             answered.put(u, now + 12_000L);
-            memories.update(u, nameOf(p), n -> n.note("비석을 찾아 줌"));
+            remember(p, n -> n.note("비석을 찾아 줌"));
             long at = 0;
             for (String line : lines("stone.found-lines", FOUND)) {
                 whisperLater(p, line, null, at);
@@ -1381,17 +1454,31 @@ public final class Newcomer extends Secret {
         return f;
     }
 
+    /**
+     * His own last lines as the model reads them: not his 한/영 slips (a Latin letter in a Korean line) nor their fixes —
+     * night after night those letters spell his name, and the model is never to see them (it might copy the "habit").
+     */
+    static List<String> forModel(java.util.Collection<String> said) {
+        List<String> out = new ArrayList<>();
+        for (String l : said) if (l != null && !l.contains("한영") && !l.matches("(?s).*[가-힣].*[A-Za-z].*|(?s).*[A-Za-z].*[가-힣].*")) out.add(l);
+        return out;
+    }
+
     private Predicate<String> swearing() {
         return this::insult;
     }
 
-    /** An answer in public chat (the scripted line is the fallback). sure: a tester's (always asked, whatever the day's share). */
-    private Voice.Thought chatWords(UUID to, String scripted, long budget, boolean sure) {
-        Record r = record(to);
+    /**
+     * An answer in chat (the scripted line is the fallback). viewer: who alone sees it (a tester's own visit, a scene), or
+     * null for public chat: then what he knows and may say is the SERVER's record, never a tester's own (a tester's whole
+     * lamp line must not let the lamp out in public). sure: always asked, whatever the day's share (one viewer only).
+     */
+    private Voice.Thought chatWords(UUID to, UUID viewer, String scripted, long budget, boolean sure) {
+        Record r = record(viewer);
         NewcomerMind.Ask ask = new NewcomerMind.Ask(NewcomerMind.Kind.CHAT, scripted, List.copyOf(overheard), Memories.brief(memories.of(to)),
-                List.copyOf(recent), facts(to), memories.of(to).name());
+                forModel(recent), facts(viewer), memories.of(to).name());
         return voice.think(ask, Filter.Rules.chat(truth, r.whole(Shards.Line.WHAT), r.found(), swearing()), budget,
-                LocalDate.now(SecretModule.KST), () -> sure ? 0 : ThreadLocalRandom.current().nextDouble());
+                LocalDate.now(SecretModule.KST), () -> sure ? 0 : ThreadLocalRandom.current().nextDouble(), to);
     }
 
     private Voice.Thought whisperWords(Player p, NewcomerMind.Kind kind, String scripted, String message, List<String> more, long budget) {
@@ -1399,9 +1486,9 @@ public final class Newcomer extends Secret {
         List<String> f = new ArrayList<>(facts(u));
         f.addAll(more);
         NewcomerMind.Ask ask = new NewcomerMind.Ask(kind, scripted, message == null || message.isBlank() ? List.of() : List.of(new NewcomerMind.Heard(nameOf(p), message)),
-                Memories.brief(memories.of(u)), List.copyOf(recentWhispers), f, nameOf(p));
+                Memories.brief(memories.of(u)), forModel(recentWhispers), f, nameOf(p));
         return voice.think(ask, Filter.Rules.whisper(truth, record(u).whole(Shards.Line.WHAT), swearing()), budget,
-                LocalDate.now(SecretModule.KST), () -> m.test(u) ? 0 : ThreadLocalRandom.current().nextDouble());
+                LocalDate.now(SecretModule.KST), () -> m.test(u) ? 0 : ThreadLocalRandom.current().nextDouble(), kind == NewcomerMind.Kind.FAREWELL ? null : u);
     }
 
     /** One more line for the one who signs, out of what he remembers of them ("" when the model writes none). */
@@ -1414,17 +1501,23 @@ public final class Newcomer extends Secret {
         NewcomerMind.Ask ask = new NewcomerMind.Ask(NewcomerMind.Kind.LETTER, scripted, List.of(), Memories.brief(note), List.of(),
                 List.of("그는 어젯밤 처음으로 서버에서 나갔다. 이제 다시 오지 않는다", "그가 그날 한 일: 등불 하나를 켰다"), note.name());
         Filter.Rules rules = new Filter.Rules(truth.name(), truth.alias(), true, true, false, Filter.MAX, swearing());
-        return voice.think(ask, rules, 30_000L, LocalDate.now(SecretModule.KST), () -> 0);
+        return voice.think(ask, rules, 30_000L, LocalDate.now(SecretModule.KST), () -> 0, null);
     }
 
-    /** He was signed for ({@link Vigil}): the title, the stone whole, and for the server it is closed. */
+    /** A tester signed for him ({@link Vigil}): their title, their own stone whole; nothing closes. */
     void signed(Player p, boolean alone) {
-        if (!alone) visit = null;
         m.solve(this, p);
-        if (alone) {
-            p.sendMessage(Text.msg("<yellow>[테스트] 비석 (나에게만):<newline>" + record(p.getUniqueId()).text()));
-            return;
-        }
+        p.sendMessage(Text.msg("<yellow>[테스트] 비석 (나에게만):<newline>" + record(p.getUniqueId()).text()));
+    }
+
+    /**
+     * He was signed for, for real ({@link Vigil}): the title, the stone whole, and for the server it is closed. p: the
+     * signer if still online (else it is done by account: they left after the announcement, or the server restarted).
+     */
+    void signed(UUID who, String account, Player p) {
+        visit = null;
+        if (p != null && p.isOnline()) m.solve(this, p);
+        else m.solveOffline(this, who, account);
         m.redraw();
         try {
             // /프로필 <his name>: a profile whose last day is today
@@ -1462,7 +1555,7 @@ public final class Newcomer extends Secret {
     private void sulk(Player p, Visit v, boolean whisper) {
         UUID u = p.getUniqueId();
         long now = System.currentTimeMillis();
-        memories.update(u, nameOf(p), Memories.Note::plusRude);
+        remember(p, Memories.Note::plusRude);
         String key = Sulk.key(nowKst(), from, to);
         boolean own = whisper ? m.test(u) : v != null && v.viewer != null;
         Visit gone;
@@ -1510,6 +1603,30 @@ public final class Newcomer extends Secret {
         e.setCancelled(true);
         if (e.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
         restore.touched(e.getPlayer());
+    }
+
+    /**
+     * The figure standing at his stone (3단계): nothing may be done to him (a name tag would rename him, a lead, a bucket…).
+     * Clicking him is taken as clicking his stone (people will reach for him, not for the stone behind him).
+     */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onFigure(org.bukkit.event.player.PlayerInteractEntityEvent e) {
+        if (!Vigil.figure(e.getRightClicked())) return;
+        e.setCancelled(true);
+        if (e.getHand() != org.bukkit.inventory.EquipmentSlot.HAND) return;
+        restore.touched(e.getPlayer());
+    }
+
+    /** The armour-stand style click (with a position) on the figure or the click box: never through to vanilla. */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onFigureAt(org.bukkit.event.player.PlayerInteractAtEntityEvent e) {
+        if (Vigil.figure(e.getRightClicked()) || Restore.touch(e.getRightClicked())) e.setCancelled(true);
+    }
+
+    /** He cannot be hurt, pushed off or killed by anything (he is not there to the server). */
+    @EventHandler(priority = EventPriority.LOW)
+    public void onFigureHurt(org.bukkit.event.entity.EntityDamageEvent e) {
+        if (Vigil.figure(e.getEntity())) e.setCancelled(true);
     }
 
     /** The float: a bite that twitches the wrong way, and what comes up with the catch. */
@@ -1587,7 +1704,7 @@ public final class Newcomer extends Secret {
         answered.remove(u);
         counted.remove(u);
         vigil.cleanup(u);
-        restore.slack(u);
+        restore.forget(u);
         if (!on()) {   // switched off: he does not stand at the stone, nothing of his can be clicked
             vigil.stop();
             restore.unhook();
@@ -1721,7 +1838,7 @@ public final class Newcomer extends Secret {
                 String scripted = re == null || re.line() == null ? "아 네네" : re.line();
                 overheard.addLast(new NewcomerMind.Heard(nameOf(p), text));
                 while (overheard.size() > 6) overheard.removeFirst();
-                Voice.Thought t = chatWords(u, scripted, voice.settings().timeoutMs(), true);
+                Voice.Thought t = chatWords(u, u, scripted, voice.settings().timeoutMs(), true);
                 String heard = text;
                 admin.sendMessage(Text.msg("<gray>ai \"<white>" + esc(heard) + "</white>\" → 대본: <white>" + esc(scripted) + "</white> · AI 에게 물어보는 중 (최대 "
                         + voice.settings().timeoutMs() / 1000 + "초)…"));
@@ -1741,7 +1858,8 @@ public final class Newcomer extends Secret {
             case "한영키" -> {
                 long nth = eco.kv().getLong(TYPO_N, 0);
                 char c = Hanyoung.letter(truth.name(), nth);
-                String line = Hanyoung.slip(Talk.pick(Hanyoung.LINES, List.of(), ThreadLocalRandom.current()), c, ThreadLocalRandom.current());
+                List<String> pool = small("hanyoung.lines", Hanyoung.LINES, new ArrayList<>());
+                String line = Hanyoung.slip(Hanyoung.line(pool, c, List.of(), ThreadLocalRandom.current()), c, ThreadLocalRandom.current());
                 CommandSender to = admin instanceof Player ? admin : p;
                 to.sendMessage(look.chat(line));
                 to.sendMessage(look.chat(Hanyoung.FIXES.getFirst()));

@@ -43,6 +43,14 @@ import java.util.concurrent.ConcurrentHashMap;
 final class Vigil {
 
     static final NamespacedKey FIGURE = new NamespacedKey("economy", "newcomer_figure"), LANTERN = new NamespacedKey("economy", "newcomer_lantern");
+    /** a figure one player alone sees (a tester, a preview): not one of the strays to tidy away */
+    static final NamespacedKey OWN = new NamespacedKey("economy", "newcomer_figure_own");
+    /**
+     * eco.kv: the signing that has passed its point of no return (the dated announcement went out to everyone): who, their
+     * name, how many stood by. Whatever happens after (they leave, the chunk unloads, the server stops), it is finished: at
+     * once, or on the next start. So the announcement is never said twice and never said for nothing.
+     */
+    static final String SIGNING = Newcomer.K + "signing", LANTERN_AT = Newcomer.K + "lantern.at";
     static final NamespacedKey LANTERN_MODEL = new NamespacedKey("economy", "model/everlasting_lantern");
     static final List<String> LAST = List.of("…그 공지, 그날 보고 싶었어요.", "…고마워요, {player}님.", "…저는 이제 나가 볼게요. 처음으로.");
     static final String ANNOUNCE = "<dark_gray>〔{date}〕 {name}님이 숨은 비밀을 풀었습니다.";
@@ -97,6 +105,12 @@ final class Vigil {
         return Optional.of(l);
     }
 
+    /** Whether an entity is his figure (the one everyone sees, or one shown to a single player). */
+    static boolean figure(Entity e) {
+        return e instanceof Mannequin && (e.getPersistentDataContainer().has(FIGURE, PersistentDataType.BYTE)
+                || e.getPersistentDataContainer().has(OWN, PersistentDataType.BYTE));
+    }
+
     private String shownName(String name) {
         return "<gray>" + MiniMessage.miniMessage().escapeTags(name);
     }
@@ -112,6 +126,7 @@ final class Vigil {
 
     void tick() {
         ticks++;
+        if (signing == null && n.kv().has(SIGNING)) recover();
         boolean want = waitingNow() || (signing != null && !signing.preview);
         if (!want) {
             if (figure != null && signing == null) gone();
@@ -162,7 +177,7 @@ final class Vigil {
         asked.remove(u);
         Signing s = previews.remove(u);
         if (s != null) s.stop();
-        if (signing != null && signing.who.equals(u)) {
+        if (signing != null && signing.who.equals(u) && !signing.committed) {   // after the announcement it goes on without them
             signing.stop();
             signing = null;
         }
@@ -176,7 +191,7 @@ final class Vigil {
 
     void stop() {
         gone();
-        if (signing != null) signing.stop();
+        if (signing != null) signing.stop();   // committed or not: a committed one is finished from kv (recover)
         signing = null;
         for (UUID u : List.copyOf(own.keySet())) cleanup(u);
     }
@@ -192,6 +207,7 @@ final class Vigil {
             return l;
         });
         f = n.module().haunt().figure(p, at, null, shownName(n.who()));
+        f.getPersistentDataContainer().set(OWN, PersistentDataType.BYTE, (byte) 1);
         own.put(p.getUniqueId(), f);
         return f;
     }
@@ -212,7 +228,7 @@ final class Vigil {
         boolean test = n.module().test(u);
         if (test && n.record(u).restored() && own.get(u) == null) showTo(p);   // a tester need not wait for the next night
         Mannequin f = figureFor(p);
-        if (f == null || signing != null || previews.containsKey(u)) return;
+        if (f == null || signing != null || previews.containsKey(u) || (!test && n.kv().has(SIGNING))) return;
         double near = n.cfg().getDouble("vigil.range", 5);
         if (!f.getWorld().equals(p.getWorld()) || f.getLocation().distanceSquared(p.getLocation()) > near * near) return;
         long now = System.currentTimeMillis();
@@ -244,10 +260,17 @@ final class Vigil {
         return signing != null;
     }
 
-    /** One signing, played to its end; nothing is saved before the last step (the signer leaving stops it). */
+    /**
+     * One signing, played to its end. Before the announcement nothing is saved and the signer leaving (or the figure
+     * going) stops it quietly; from the announcement on it is committed ({@link #SIGNING}) and goes to its end whatever
+     * happens: the whispers only reach the signer if they are still here.
+     */
     private final class Signing implements Runnable {
         final UUID who;
+        final String account;
         final Mannequin f;
+        boolean committed;
+        int others;
         /** an admin's look */
         final boolean preview;
         /** said to that player alone (a preview, a tester) */
@@ -259,6 +282,7 @@ final class Vigil {
 
         Signing(Player p, Mannequin f, boolean preview) {
             this.who = p.getUniqueId();
+            this.account = p.getName();
             this.f = f;
             this.preview = preview;
             this.alone = preview || n.module().test(who);
@@ -278,25 +302,45 @@ final class Vigil {
         @Override
         public void run() {
             Player p = Bukkit.getPlayer(who);
-            if (p == null || !f.isValid() || !n.isOn()) {   // they left him there: nothing was signed
+            if (!committed && (p == null || !f.isValid() || !n.isOn())) {   // they left him there before the announcement: nothing was signed
                 stop();
                 if (signing == this) signing = null;
                 previews.remove(who, this);
                 return;
             }
+            if (committed && !alone && (!n.isOn() || t >= 450)) {   // switched off meanwhile: the end all the same
+                stop();
+                finish(p);
+                return;
+            }
             try {
                 step(p);
             } catch (RuntimeException e) {
-                n.plugin().getLogger().log(java.util.logging.Level.WARNING, "[비밀] newcomer 되돌리기 오류 (멈춤: 다시 서명하면 처음부터)", e);
+                n.plugin().getLogger().log(java.util.logging.Level.WARNING, "[비밀] newcomer 되돌리기 오류"
+                        + (committed ? " (공지 뒤: 바로 마무리)" : " (멈춤: 다시 서명하면 처음부터)"), e);
                 stop();
-                if (signing == this) signing = null;
-                previews.remove(who, this);
+                if (committed) {
+                    try {
+                        finish(Bukkit.getPlayer(who));
+                    } catch (RuntimeException e2) {
+                        n.plugin().getLogger().log(java.util.logging.Level.WARNING, "[비밀] newcomer 마무리 오류 (다음 시작 때 다시 마무리)", e2);
+                        if (signing == this) signing = null;
+                    }
+                } else {
+                    if (signing == this) signing = null;
+                    previews.remove(who, this);
+                }
             }
             t += 2;
         }
 
+        private boolean here(Player p) {
+            return p != null && p.isOnline();
+        }
+
         private void step(Player p) {
             List<String> last = n.lastLines();
+            boolean fig = f.isValid();
             if (t == 0) {
                 // the world goes quiet, and for the first time he looks at someone
                 if (alone) p.stopAllSounds();
@@ -307,26 +351,44 @@ final class Vigil {
                 l.setPitch(0);
                 f.teleport(l);
             } else if (t == 40) {
+                if (!alone) {   // the point of no return: from here on it ends, whatever happens
+                    others = near(p);
+                    n.kv().set(SIGNING, new Pending(who, hearer, others, account).text());
+                    committed = true;
+                }
                 tell(p, Text.msg(announcement(n.cfg().getString("announce"), n.record(alone ? who : null).truth())));
             } else if (t == 110) {
-                p.sendMessage(n.incoming(last.get(0)));
+                if (here(p)) p.sendMessage(n.incoming(last.get(0)));
             } else if (t == 190) {
                 String more = extra.or("");
-                if (!more.isBlank()) p.sendMessage(n.incoming(more));
+                if (!more.isBlank() && here(p)) p.sendMessage(n.incoming(more));
             } else if (t == 260) {
-                p.sendMessage(n.incoming(last.get(Math.min(1, last.size() - 1)).replace("{player}", MiniMessage.miniMessage().escapeTags(hearer))));
+                if (here(p)) p.sendMessage(n.incoming(last.get(Math.min(1, last.size() - 1)).replace("{player}", MiniMessage.miniMessage().escapeTags(hearer))));
             } else if (t == 340) {
-                p.sendMessage(n.incoming(last.get(last.size() - 1)));
+                if (here(p)) p.sendMessage(n.incoming(last.get(last.size() - 1)));
             } else if (t == 400) {
-                f.customName(Text.mm(shownName(n.record(alone ? who : null).truth().name())));
+                if (fig) f.customName(Text.mm(shownName(n.record(alone ? who : null).truth().name())));
             } else if (t >= 450) {
                 stop();
                 finish(p);
             }
-            if (t % 20 == 0 && t < 400) {
+            if (t % 20 == 0 && t < 400 && here(p)) {
                 if (alone) p.stopAllSounds();
-                p.spawnParticle(Particle.FALLING_DUST, f.getLocation().add(0, 2.1, 0), 3, 0.2, 0.1, 0.2, 0, Material.GRAVEL.createBlockData());
+                if (fig) p.spawnParticle(Particle.FALLING_DUST, f.getLocation().add(0, 2.1, 0), 3, 0.2, 0.1, 0.2, 0, Material.GRAVEL.createBlockData());
             }
+        }
+
+        /** Who else stands by him now (the "외 n명"). */
+        private int near(Player p) {
+            if (alone) return 0;
+            Location at = f.isValid() ? f.getLocation() : standing().orElse(null);
+            if (at == null) return others;
+            double r = n.cfg().getDouble("vigil.range", 5);
+            int k = 0;
+            for (Player q : at.getWorld().getPlayers()) {
+                if (!q.getUniqueId().equals(who) && q.getLocation().distanceSquared(at) <= r * r) k++;
+            }
+            return k;
         }
 
         private void finish(Player p) {
@@ -334,34 +396,57 @@ final class Vigil {
             Component left = n.lookFor(r.truth().name()).joinLine(false);
             previews.remove(who, this);
             if (preview) {
-                p.sendMessage(left);
+                if (here(p)) p.sendMessage(left);
                 cleanup(who);
                 return;
             }
-            int others = 0;
-            if (!alone) {
-                double near = n.cfg().getDouble("vigil.range", 5);
-                for (Player q : f.getWorld().getPlayers()) {
-                    if (!q.getUniqueId().equals(who) && q.getLocation().distanceSquared(f.getLocation()) <= near * near) others++;
-                }
-            }
-            tell(p, left);
-            r.witness(who, hearer, others);
-            n.memories().update(who, hearer, note -> note.witnessed().note("증인으로 서명함"));
             if (alone) {
+                if (!here(p)) return;
+                p.sendMessage(left);
+                r.witness(who, hearer, 0);
                 cleanup(who);
-            } else {
-                signing = null;
-                gone();
-                n.plugin().getLogger().info("[비밀] 새로 온 사람 (" + r.truth().name() + ") 이 나갔다고 모두에게 알렸습니다 (처음이자 마지막 · 증인 "
-                        + p.getName() + " 외 " + others + "명)");
+                n.signed(p, true);
+                return;
             }
-            n.signed(p, alone);
-            if (!alone) {
-                lantern();
-                prepare();
-            }
+            if (here(p)) others = Math.max(others, near(p));
+            n.toAll(left);
+            signing = null;
+            gone();
+            closeRecord(who, hearer, others, account, p);
         }
+    }
+
+    /**
+     * The record closes (the end of a signing, or its recovery after a restart): the witness on the stone, what he
+     * remembers of them, the secret solved (online or not), the lamp, the letters. Idempotent: a closed record is left.
+     */
+    private void closeRecord(UUID who, String hearer, int others, String account, Player p) {
+        Record r = n.record(null);
+        if (r.witness().isEmpty()) r.witness(who, hearer, others);
+        n.memories().update(who, hearer, note -> note.witnessed().note("증인으로 서명함"));
+        n.signed(who, account, p);
+        n.kv().remove(SIGNING);
+        n.plugin().getLogger().info("[비밀] 새로 온 사람 (" + r.truth().name() + ") 이 나갔다고 모두에게 알렸습니다 (처음이자 마지막 · 증인 "
+                + account + " 외 " + others + "명)");
+        lantern();
+        prepare();
+    }
+
+    /**
+     * A signing had passed its announcement when the server (or the module) stopped: it is finished now, as it would have
+     * been (the leave line to whoever is here, the record closed). Never announced again.
+     */
+    private void recover() {
+        Optional<Pending> pd = Pending.parse(n.kv().get(SIGNING));
+        if (pd.isEmpty() || (n.module().closed(n) && n.record(null).witness().isPresent())) {
+            n.kv().remove(SIGNING);
+            return;
+        }
+        Pending x = pd.get();
+        n.plugin().getLogger().warning("[비밀] 새로 온 사람: 공지 뒤에 멈춘 서명을 마무리합니다 (증인 " + x.account() + ")");
+        n.toAll(n.lookFor(n.record(null).truth().name()).joinLine(false));
+        gone();
+        closeRecord(x.who(), x.hearer(), x.others(), x.account(), Bukkit.getPlayer(x.who()));
     }
 
     // ------------------------------------------------------------------------------------------
@@ -370,16 +455,25 @@ final class Vigil {
 
     /** Beside his stone once it is signed (and gone again when an admin opens the secret anew). */
     void lantern() {
+        boolean want = n.module().closed(n) && n.cfg().getBoolean("lantern.enabled", true);
         Optional<Location> st = n.stone();
+        Optional<Location> was = spot(n.kv().get(LANTERN_AT));
+        // where it stood before (the monument moved or was taken away, or it is no longer wanted): gone from there
+        if (was.isPresent() && (!want || st.isEmpty() || !near(was.get(), lanternAt(st.get()), 0.25))) {
+            Location o = was.get();
+            if (o.getWorld().isChunkLoaded(o.getBlockX() >> 4, o.getBlockZ() >> 4)) {
+                for (Entity e : o.getWorld().getNearbyEntities(o, 2, 3, 2)) {
+                    if (e instanceof ItemDisplay && e.getPersistentDataContainer().has(LANTERN, PersistentDataType.BYTE)) e.remove();
+                }
+                org.bukkit.block.Block ob = o.getBlock().getRelative(0, 1, 0);
+                if (ob.getType() == Material.LIGHT) ob.setType(Material.AIR, false);
+                n.kv().remove(LANTERN_AT);
+            }
+        }
         if (st.isEmpty()) return;
         Location s = st.get();
         if (!s.getWorld().isChunkLoaded(s.getBlockX() >> 4, s.getBlockZ() >> 4)) return;
-        boolean want = n.module().closed(n) && n.cfg().getBoolean("lantern.enabled", true);
-        Location c = n.centre().orElse(s);
-        // beside the stone, along the row (a quarter turn from the way it faces the monument)
-        double dx = c.getX() - s.getX(), dz = c.getZ() - s.getZ(), len = Math.max(1e-6, Math.hypot(dx, dz));
-        double side = n.cfg().getDouble("lantern.side", 0.55), out = n.cfg().getDouble("lantern.out", 0.75);
-        Location at = new Location(s.getWorld(), s.getX() + dx / len * out - dz / len * side, s.getY(), s.getZ() + dz / len * out + dx / len * side);
+        Location at = lanternAt(s);
         List<Entity> have = new ArrayList<>();
         for (Entity e : s.getWorld().getNearbyEntities(s, 20, 8, 20)) {
             if (e instanceof ItemDisplay && e.getPersistentDataContainer().has(LANTERN, PersistentDataType.BYTE)) have.add(e);
@@ -415,13 +509,40 @@ final class Vigil {
                 b.setBlockData(l, false);
             }
         }
+        n.kv().set(LANTERN_AT, at.getWorld().getName() + "," + at.getX() + "," + at.getY() + "," + at.getZ());
+    }
+
+    /** Beside the stone, along the row (a quarter turn from the way it faces the monument). */
+    private Location lanternAt(Location s) {
+        Location c = n.centre().orElse(s);
+        double dx = c.getX() - s.getX(), dz = c.getZ() - s.getZ(), len = Math.max(1e-6, Math.hypot(dx, dz));
+        double side = n.cfg().getDouble("lantern.side", 0.55), out = n.cfg().getDouble("lantern.out", 0.75);
+        return new Location(s.getWorld(), s.getX() + dx / len * out - dz / len * side, s.getY(), s.getZ() + dz / len * out + dx / len * side);
+    }
+
+    private static boolean near(Location a, Location b, double d) {
+        return a.getWorld().equals(b.getWorld()) && a.distanceSquared(b) <= d * d;
+    }
+
+    private static Optional<Location> spot(String saved) {
+        if (saved == null) return Optional.empty();
+        String[] w = saved.split(",");
+        try {
+            org.bukkit.World world = Bukkit.getWorld(w[0]);
+            return world == null ? Optional.empty() : Optional.of(new Location(world, Double.parseDouble(w[1]), Double.parseDouble(w[2]), Double.parseDouble(w[3])));
+        } catch (RuntimeException e) {
+            return Optional.empty();
+        }
     }
 
     // ------------------------------------------------------------------------------------------
     // the letters of the night after
     // ------------------------------------------------------------------------------------------
 
-    private static final String LETTER = Newcomer.K + "letter.", DUE = Newcomer.K + "letters.due", SENT = Newcomer.K + "letters.sent";
+    private static final String LETTER = Newcomer.K + "letter.", DUE = Newcomer.K + "letters.due", SENT = Newcomer.K + "letters.sent",
+            WRITTEN = Newcomer.K + "letters.written", AI = Newcomer.K + "letter.ai.";
+    /** the model's letters still to write were looked for since this instance began */
+    private boolean resumed;
 
     /** The letter someone would get as things stand (scripted): kind, then its lines. */
     List<String> scripted(UUID u, Memories.Note note) {
@@ -437,37 +558,59 @@ final class Vigil {
         return scripted(u, n.memories().of(u));
     }
 
-    /** Just after he left: everyone's letter is written (scripted at once; the model's, where it writes one, replaces it). */
+    /** Just after he left: the night the letters go out is set, and they are written (now, or as soon as all are known). */
     void prepare() {
         var kv = n.kv();
         LocalDateTime now = Newcomer.nowKst();
         int[] w = n.window();
         LocalDate last = Schedule.night(now, w[0], w[1]).orElse(Schedule.next(now, w[0], w[1]).minusDays(1));
-        kv.set(DUE, last.plusDays(1).toString());
+        if (!kv.has(DUE)) kv.set(DUE, last.plusDays(1).toString());
         kv.remove(SENT);
+        kv.remove(WRITTEN);
+        writing.clear();
+        if (n.memories().ready()) write();
+    }
+
+    /** Everyone's letter, scripted at once (the model's, where it writes one, replaces it later). */
+    private void write() {
+        var kv = n.kv();
         writing.clear();
         for (Map.Entry<UUID, Memories.Note> e : n.memories().all().entrySet()) {
             UUID u = e.getKey();
             Memories.Kind kind = Memories.kind(e.getValue());
-            kv.set(LETTER + u, String.join("\n", scripted(u, e.getValue())));
-            if (!Letters.blank(kind) && n.cfg().getBoolean("ai.letters", true)) writing.put(u, null);
+            if (!kv.has(LETTER + u)) kv.set(LETTER + u, String.join("\n", scripted(u, e.getValue())));
+            if (!Letters.blank(kind) && n.cfg().getBoolean("ai.letters", true) && !kv.has(AI + u)) writing.put(u, null);
         }
+        kv.set(WRITTEN, System.currentTimeMillis());
+        resumed = true;
         n.plugin().getLogger().info("[비밀] 새로 온 사람: 편지 " + n.memories().all().size() + "통을 써 두었습니다 (" + kv.get(DUE) + " 밤, 그가 오던 시각에 우편함으로)");
     }
 
     /** One letter at a time from the model; then, when the hour has come, they all go out. */
     private void letters() {
         var kv = n.kv();
+        if (kv.has(DUE) && !kv.has(SENT) && n.module().closed(n) && n.memories().ready()) {
+            if (!kv.has(WRITTEN)) write();
+            else if (!resumed) {   // a restart since: the model's letters not yet written are asked for again (once each)
+                resumed = true;
+                if (n.cfg().getBoolean("ai.letters", true)) {
+                    for (Map.Entry<UUID, Memories.Note> e : n.memories().all().entrySet()) {
+                        if (!Letters.blank(Memories.kind(e.getValue())) && !kv.has(AI + e.getKey())) writing.put(e.getKey(), null);
+                    }
+                }
+            }
+        }
         if (!writing.isEmpty()) {
             Map.Entry<UUID, Voice.Thought> e = writing.entrySet().iterator().next();
             UUID u = e.getKey();
             if (e.getValue() == null) {
                 Memories.Note note = n.memories().of(u);
                 e.setValue(n.letterWords(u, note, String.join(" ", Letters.body(Memories.kind(note), note.name(), n.module().get(n, u, "shard.detail", "")))));
-                if (!e.getValue().asked()) writing.remove(u);
+                if (!e.getValue().asked()) writing.remove(u);   // the model is off, or the day's calls are used: the scripted one stays
             } else if (e.getValue().done()) {
                 List<String> body = e.getValue().lines(3, 6);
                 if (body != null && kv.get(LETTER + u) != null) kv.set(LETTER + u, String.join("\n", Letters.whole(body)));
+                kv.set(AI + u, body != null ? "1" : "0");   // asked once: a restart does not ask again
                 writing.remove(u);
             }
         }
@@ -480,14 +623,54 @@ final class Vigil {
         } catch (RuntimeException ex) {
             return;
         }
-        if (Newcomer.nowKst().isBefore(at) || n.eco().mail() == null) return;
+        // right after a start the table may not be read yet: a round sent then would reach nobody
+        if (!deliverNow(true, false, true, !Newcomer.nowKst().isBefore(at), n.eco().mail() != null, n.memories().ready(), kv.has(WRITTEN))) return;
         kv.set(SENT, System.currentTimeMillis());
         int sent = 0;
         for (UUID u : n.memories().all().keySet()) {
-            deliver(u);
-            sent++;
+            try {
+                deliver(u);
+                sent++;
+            } catch (RuntimeException ex) {
+                n.plugin().getLogger().log(java.util.logging.Level.WARNING, "[비밀] 새로 온 사람: " + u + " 에게 편지를 넣지 못했습니다", ex);
+            }
         }
+        writing.clear();
         n.plugin().getLogger().info("[비밀] 새로 온 사람: 편지 " + sent + "통을 우편함에 넣었습니다");
+    }
+
+    /**
+     * Whether the letters go out now: a round is due and not sent, the secret is closed, the hour has come, there is a
+     * mailbox, everyone he remembers is known (the table is read) and the letters were written. Pure.
+     */
+    static boolean deliverNow(boolean due, boolean sent, boolean closed, boolean hourCame, boolean mail, boolean known, boolean written) {
+        return due && !sent && closed && hourCame && mail && known && written;
+    }
+
+    /** A committed signing as kept in kv ({@link #SIGNING}): who, their name as he said it, how many stood by, their account. */
+    record Pending(UUID who, String hearer, int others, String account) {
+
+        static Optional<Pending> parse(String v) {
+            if (v == null) return Optional.empty();
+            String[] w = v.split("\n", -1);
+            try {
+                UUID who = UUID.fromString(w[0].strip());
+                String hearer = w.length > 1 && !w[1].isBlank() ? w[1] : "?";
+                int others = 0;
+                try {
+                    others = w.length > 2 ? Math.max(0, Integer.parseInt(w[2].strip())) : 0;
+                } catch (NumberFormatException ignored) {
+                    // hand-edited
+                }
+                return Optional.of(new Pending(who, hearer, others, w.length > 3 && !w[3].isBlank() ? w[3] : hearer));
+            } catch (RuntimeException e) {
+                return Optional.empty();
+            }
+        }
+
+        String text() {
+            return who + "\n" + hearer.replace('\n', ' ') + "\n" + others + "\n" + account.replace('\n', ' ');
+        }
     }
 
     /** The letter as an item: a sheet from him, its lines as the lore (the witness's: nothing but the postscript). */
@@ -519,10 +702,15 @@ final class Vigil {
     /** An admin opened the secret anew: no letters wait, the lamp goes. */
     void reset() {
         var kv = n.kv();
-        kv.removePrefix(LETTER);
+        kv.removePrefix(LETTER);   // the model's marks (letter.ai.) too
         kv.remove(DUE);
         kv.remove(SENT);
+        kv.remove(WRITTEN);
+        kv.remove(SIGNING);
         writing.clear();
+        if (signing != null) signing.stop();
+        signing = null;
+        gone();
         lantern();
     }
 

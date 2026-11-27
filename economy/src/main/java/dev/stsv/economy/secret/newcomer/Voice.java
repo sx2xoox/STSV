@@ -17,9 +17,15 @@ import java.util.function.DoubleSupplier;
 final class Voice {
 
     /** ai.* of newcomer.yml. */
-    record Settings(boolean enabled, double ratioStart, int ratioDays, int capLo, int capHi, long seed, long callsPerDay, long timeoutMs) {
+    record Settings(boolean enabled, double ratioStart, int ratioDays, int capLo, int capHi, long seed, long callsPerDay, long timeoutMs,
+                    long callsPerPlayerDay, long letterCalls) {
 
         static final Settings OFF = new Settings(false, 0.5, 2, 30, 40, 13, 400, 8000);
+
+        /** ai.max-calls-per-player-day (40) and ai.max-letter-calls (300) at their defaults. */
+        Settings(boolean enabled, double ratioStart, int ratioDays, int capLo, int capHi, long seed, long callsPerDay, long timeoutMs) {
+            this(enabled, ratioStart, ratioDays, capLo, capHi, seed, callsPerDay, timeoutMs, 40, 300);
+        }
     }
 
     /** What may come of asking: {@link #or} is called when the line is due (on the server thread). */
@@ -106,6 +112,8 @@ final class Voice {
     private volatile NewcomerMind mind = new ScriptedMind();
     private volatile Settings settings = Settings.OFF;
     private volatile String lastError;
+    /** today's calls for each player (a flood of whispers from one player does not use up everyone's day): day, count */
+    private final java.util.Map<java.util.UUID, String[]> perPlayer = new java.util.concurrent.ConcurrentHashMap<>();
 
     Voice(Record.Keep keep, String prefix) {
         this.keep = keep;
@@ -250,16 +258,43 @@ final class Voice {
      * line is due (the call gives up a little before; never longer than ai.timeout-seconds).
      */
     Thought think(NewcomerMind.Ask ask, Filter.Rules rules, long budgetMs, LocalDate today, DoubleSupplier roll) {
+        return think(ask, rules, budgetMs, today, roll, null);
+    }
+
+    /** As above; who: the player it answers (counted against ai.max-calls-per-player-day), or null (not counted per player). */
+    Thought think(NewcomerMind.Ask ask, Filter.Rules rules, long budgetMs, LocalDate today, DoubleSupplier roll, java.util.UUID who) {
         if (!active()) return none();
-        boolean shared = ask.kind() == NewcomerMind.Kind.CHAT || ask.kind() == NewcomerMind.Kind.WHISPER;
-        if (shared && roll.getAsDouble() >= ratio(today)) return none();
+        boolean shared = ask.kind() == NewcomerMind.Kind.CHAT || ask.kind() == NewcomerMind.Kind.WHISPER || ask.kind() == NewcomerMind.Kind.SHARD;
+        if ((ask.kind() == NewcomerMind.Kind.CHAT || ask.kind() == NewcomerMind.Kind.WHISPER) && roll.getAsDouble() >= ratio(today)) return none();
         String day = today.toString();
+        if (ask.kind() == NewcomerMind.Kind.LETTER) {
+            // the letters are one round, once: a budget of their own (kept), not the night's calls (they come after a whole night)
+            if (num("letters") >= settings.letterCalls()) {
+                error("편지 호출 상한 (" + settings.letterCalls() + ")");
+                return none();
+            }
+            keep.set(prefix + "letters", String.valueOf(num("letters") + 1));
+            return ask(ask, rules, budgetMs);
+        }
         if (!Awakening.under(day, keep.get(prefix + "day"), num("calls"), settings.callsPerDay())) {
             error("하루 호출 상한 (" + settings.callsPerDay() + ")");
             return none();
         }
+        if (who != null && shared) {
+            String[] mine = perPlayer.get(who);
+            long n = mine != null && mine[0].equals(day) ? Long.parseLong(mine[1]) : 0;
+            if (!Awakening.under(day, mine == null ? null : mine[0], n, settings.callsPerPlayerDay())) {
+                error("한 사람 하루 호출 상한 (" + settings.callsPerPlayerDay() + ")");
+                return none();
+            }
+            perPlayer.put(who, new String[]{day, String.valueOf(n + 1)});
+        }
         keep.set(prefix + "calls", String.valueOf(callsToday(day) + 1));
         keep.set(prefix + "day", day);
+        return ask(ask, rules, budgetMs);
+    }
+
+    private Thought ask(NewcomerMind.Ask ask, Filter.Rules rules, long budgetMs) {
         long wait = Math.max(300, Math.min(settings.timeoutMs(), budgetMs - 250));
         try {
             return new Thought(mind.think(ask, Duration.ofMillis(wait)), rules);

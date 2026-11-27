@@ -143,6 +143,11 @@ public final class SecretModule extends EcoModule {
         for (Secret s : secrets.values()) {
             HandlerList.unregisterAll(s);
             for (Player p : Bukkit.getOnlinePlayers()) s.cleanup(p.getUniqueId());
+            try {
+                s.shutdown();
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[비밀] " + s.id() + " 멈춤 정리 오류", e);
+            }
             Sequel q = s.sequel();
             if (q == null) continue;
             HandlerList.unregisterAll(q);
@@ -362,6 +367,31 @@ public final class SecretModule extends EcoModule {
         String line = s.solvedLine();
         if (line != null && !line.isBlank()) Bukkit.getScheduler().runTaskLater(eco, () -> Bukkit.broadcast(Text.msg(line)), 60L);
         eco.getLogger().info("[비밀] " + s.name() + " 을(를) " + p.getName() + " 이(가) 처음 풀었습니다");
+    }
+
+    /**
+     * Solved by someone who is not online any more (a sequence that had passed its point of no return when they left, or a
+     * restart in the middle of it): the money and the title by account, the stage, and the secret closes. Cosmetics and
+     * items need the player and are not given (logged). Not for testers.
+     */
+    public void solveOffline(Secret s, UUID u, String name) {
+        if (closed(s)) return;
+        ConfigurationSection r = s.cfg.getConfigurationSection("rewards");
+        if (r != null) {
+            long money = r.getLong("money", 0);
+            if (money > 0) core.economy().deposit(u, money, "secret");
+            String title = r.getString("title", "");
+            if (!title.isEmpty() && core.profiles() != null) core.profiles().grantTitle(u, title);
+            if (!r.getStringList("cosmetics").isEmpty() || !r.getStringList("items").isEmpty()) {
+                eco.getLogger().warning("[비밀] " + s.name() + ": " + name + " 이(가) 접속해 있지 않아 치장 · 아이템 보상은 주지 못했습니다 (수동으로 주세요)");
+            }
+        }
+        stage(s, u, s.stages() + 1);
+        set(s, u, "done", System.currentTimeMillis());
+        eco.kv().set("secret." + s.id() + ".first", u.toString());
+        eco.kv().set("secret." + s.id() + ".first-at", System.currentTimeMillis());
+        Bukkit.getScheduler().runTaskLater(eco, () -> monument.build(), 80L);
+        eco.getLogger().info("[비밀] " + s.name() + " 을(를) " + name + " 이(가) 처음 풀었습니다 (접속해 있지 않은 채로 마무리)");
     }
 
     /** money, title, cosmetics: [ids], items: ["id amount"] */

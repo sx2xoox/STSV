@@ -104,6 +104,12 @@ public abstract class Secret implements Listener {
     /** Called each second (main thread) while enabled. */
     public void tick() {}
 
+    /**
+     * The module stops (a reload makes new secrets; the plugin goes down): let go of threads, tasks and anything spawned
+     * that this instance alone knows of. Called once, after every player's {@link #cleanup}.
+     */
+    public void shutdown() {}
+
     /** Status line extras for /관리자 비밀 상태 (after "단계 n/max"). */
     public String status(UUID player) {
         return "";
