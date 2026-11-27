@@ -162,4 +162,22 @@ class StoreMotionTest {
         assertEquals("economy:store_held_box_meal", StoreMotion.heldBox("meal"));
         assertEquals("economy:store_box_meal_open", StoreMotion.openBox("meal"));
     }
+
+    // ---- 점검 규칙-14: a shelf left empty between two trucks
+
+    @Test
+    void anEmptyShelfGetsOneBoxAtOnceButNotASecond() {
+        StoreSpec spec = StoreSpec.parse(org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(new java.io.File("content/economy/store.yml")),
+                new java.util.ArrayList<>());
+        Chores ch = new Chores(spec);
+        assertNull(ch.quick(spec), "nothing is empty");
+        StoreSpec.Shelf snack = spec.shelves().get("snack");
+        for (int i = 0; i < snack.capacity(); i++) assertTrue(ch.take("snack"));
+        assertEquals(List.of("snack"), ch.empty());
+        assertEquals(snack.box(), ch.quick(spec));
+        assertTrue(ch.boxes().contains(snack.box()));
+        assertNull(ch.quick(spec), "its box is already waiting");
+        assertTrue(ch.pick(snack.box()));
+        assertNull(ch.quick(spec), "…or in the worker's arms");
+    }
 }

@@ -229,8 +229,8 @@ public final class StoreLayout {
      * 12 × 6 px at 1.
      */
     public static final double KEY_TILT = 35, KEY_GAP = 0.34, KEY_ROW = 0.185;
-    public static final double KEY_X = -3.06, KEY_Y = 1.02, KEY_Z = 6.72;
-    public static final float KEY_SCALE = 0.42f;
+    public static final double KEY_X = -3.06, KEY_Y = 1.02, KEY_Z = 6.74;
+    public static final float KEY_SCALE = 0.4f;
 
     /** Half the sizes of a key's click box (along the row, up, across the rows): a 12 × 6 px plate lying back. */
     public static double[] keyBox() {
@@ -261,7 +261,7 @@ public final class StoreLayout {
     /** Money and cards lie on the counter at this size (the goods at 0.75). */
     public static final float MONEY = 0.55f;
     /** Scanned things: a row along the worker's edge past the keys, this far apart. */
-    public static final double SCANNED_X = -2.9, SCANNED_Z = 7.97, SCANNED_GAP = 0.24;
+    public static final double SCANNED_X = -2.9, SCANNED_Z = 8.03, SCANNED_GAP = 0.23;
     /** The ID card on the worker's edge of the counter, tipped up to them (degrees). */
     public static final double ID_X = -2.85, ID_Z = 7.72, ID_TILT = 30;
     /** The green answer buttons of the customer at the counter: between them and the worker, over the mat. */
@@ -277,8 +277,11 @@ public final class StoreLayout {
     public static final double OVEN_X = -2.52, OVEN_Y = 0.92, OVEN_Z = 9.6;
     /** A visit's thing left on the counter: by the customer display's pole. */
     public static final double PROP_X = -2.3, PROP_Z = 7.52;
-    /** A figure seen outside from the till (a visit's last beat): right of the parasol table, clear of the kettle. */
-    public static final double FIGURE_X = 0.6, FIGURE_Z = 2.3;
+    /**
+     * A figure seen outside from the till (a visit's last beat) and the thing a visit leaves on a parasol table: the left
+     * table (x -6 .. -4), which the worker sees past the kettle's left through the glass (the right one is behind the kettle).
+     */
+    public static final double FIGURE_X = -4.5, FIGURE_Z = 2.3, PARASOL_X = -4.5, PARASOL_Y = 0.78, PARASOL_Z = 1.5;
     /** Where a customer whose food is in the microwave waits (the node "warm"), off the line. */
     public static final String WARM = "warm";
 

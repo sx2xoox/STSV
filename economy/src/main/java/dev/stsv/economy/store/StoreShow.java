@@ -510,7 +510,7 @@ final class StoreShow {
             ItemStack head = new ItemStack(org.bukkit.Material.PLAYER_HEAD);
             head.setData(io.papermc.paper.datacomponent.DataComponentTypes.PROFILE, io.papermc.paper.datacomponent.item.ResolvableProfile
                     .resolvableProfile().name("id_photo").skinPatch(x -> x.body(net.kyori.adventure.key.Key.key(key))).build());
-            Location at = sh.shop.at(StoreLayout.ID_X + 0.03, StoreLayout.TOP + 0.13, StoreLayout.ID_Z - 0.17, 270);
+            Location at = sh.shop.at(StoreLayout.ID_X, StoreLayout.TOP + 0.065, StoreLayout.ID_Z - 0.12, 270);   // (over the card's printed photo)
             float yaw = at.getYaw();
             at.setYaw(0);
             return at.getWorld().spawn(at, ItemDisplay.class, d -> {
@@ -518,7 +518,7 @@ final class StoreShow {
                 d.setItemStack(head);
                 d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
                 d.setTransformation(new Transformation(new Vector3f(), new Quaternionf().rotationY((float) Math.toRadians(-yaw))
-                        .rotateX((float) Math.toRadians(-(90 - StoreLayout.ID_TILT))), new Vector3f(0.3f, 0.3f, 0.02f), new Quaternionf()));
+                        .rotateX((float) Math.toRadians(-(90 - StoreLayout.ID_TILT))), new Vector3f(0.2f, 0.2f, 0.02f), new Quaternionf()));
                 d.setViewRange(0.25f);
                 d.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1);
             });

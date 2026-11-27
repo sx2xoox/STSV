@@ -178,4 +178,72 @@ class ShopperTest {
         s.mood(100);
         assertEquals(100, s.mood(p), 1e-9, "at most 100");
     }
+
+    // ---- 점검 연출-4 · 위치-14 · 연출-2
+
+    @Test
+    void paidAndWaitingForTheMicrowaveTheyStepAsideAndTheLineMovesUp() {
+        Fake f = new Fake();
+        Shopper first = shopper(f, List.of("gum"), 1), second = shopper(f, List.of("gum"), 1);
+        for (int i = 0; i < 2000 && first.state() != Shopper.State.COUNTER; i++) {
+            first.tick(f);
+            second.tick(f);
+        }
+        assertEquals(Shopper.State.COUNTER, first.state());
+        f.line.remove(first);   // (the module: paid, off the line)
+        first.aside(f, StoreLayout.WARM);
+        boolean sat = false, counter = false;
+        for (int i = 0; i < 600; i++) {
+            if (first.tick(f) == Shopper.Event.SAT) sat = true;
+            if (second.tick(f) == Shopper.Event.AT_COUNTER) counter = true;
+        }
+        StoreLayout.Node warm = f.l.nodes().get(StoreLayout.WARM);
+        assertTrue(sat, "they get to the waiting spot");
+        assertTrue(first.seated());
+        assertEquals(warm.x(), first.x(), 1e-6);
+        assertEquals(warm.z(), first.z(), 1e-6);
+        assertEquals(warm.yaw(), first.yaw(), 1e-6, "turned to the counter");
+        assertTrue(counter, "the next one is served meanwhile");
+        assertFalse(first.inLine());
+        // their food comes: out by the door
+        first.leave(f, Shopper.Exit.PAID);
+        Shopper.Event e = Shopper.Event.NONE;
+        for (int i = 0; i < 2000 && e != Shopper.Event.LEFT; i++) e = first.tick(f);
+        assertEquals(Shopper.Event.LEFT, e);
+    }
+
+    @Test
+    void theyWalkInFromThePavementsEndAndBackToIt() {
+        Fake f = new Fake();
+        List<Shopper.Stop> round = Shopper.plan(f.l, List.of("jelly"), PLACE::get, "door");
+        StoreLayout.Node end = f.l.nodes().get(StoreLayout.STREET_L);
+        Shopper s = new Shopper("student", false, round, List.of(), 80, 0.3, 1, 10, end);
+        s.begin(f);
+        assertEquals(end.x(), s.x(), 1e-9);
+        boolean inside = false;
+        Shopper.Event e = Shopper.Event.NONE;
+        for (int i = 0; i < 4000 && e != Shopper.Event.LEFT; i++) {
+            e = s.tick(f);
+            if (s.z() > StoreLayout.FRONT + 0.5) inside = true;
+            if (s.state() == Shopper.State.COUNTER) s.leave(f, Shopper.Exit.PAID);
+        }
+        assertTrue(inside);
+        assertEquals(Shopper.Event.LEFT, e);
+        assertEquals(end.x(), s.x(), 1e-6, "gone where the pavement ends, not at the door");
+        assertEquals(end.z(), s.z(), 1e-6);
+    }
+
+    @Test
+    void impatienceShowsOnlyPastTheGraceAndOnlyInLine() {
+        Fake f = new Fake();
+        StoreSpec.Patience p = new StoreSpec.Patience(20, 90, 20, 120);
+        Shopper s = shopper(f, List.of("gum"), 1);
+        assertFalse(s.impatient(p));
+        for (int i = 0; i < 2000 && s.state() != Shopper.State.COUNTER; i++) s.tick(f);
+        assertFalse(s.impatient(p), "just got there");
+        for (int i = 0; i < 20 * 45; i++) s.tick(f);   // (served: half as fast, so 22 s of waiting)
+        assertTrue(s.impatient(p));
+        s.leave(f, Shopper.Exit.ANGRY);
+        assertFalse(s.impatient(p));
+    }
 }

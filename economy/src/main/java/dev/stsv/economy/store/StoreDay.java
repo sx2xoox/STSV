@@ -606,7 +606,7 @@ final class StoreDay {
     /** Something left on the parasol table outside for a minute (a visit's). */
     void parasol(StoreModule.Shop shop, String item) {
         if (item == null || shop.world() == null) return;
-        var d = m.display(shop.at(-0.5, 0.78, 1.5, 0), item, 0.6f);
+        var d = m.display(shop.at(StoreLayout.PARASOL_X, StoreLayout.PARASOL_Y, StoreLayout.PARASOL_Z, 0), item, 0.6f);
         Bukkit.getScheduler().runTaskLater(m.eco(), () -> {
             if (d.isValid()) d.remove();
         }, 1200L);
@@ -617,7 +617,7 @@ final class StoreDay {
         BusModule bus = m.eco().bus();
         BusSpec.Type type = bus == null || bus.spec() == null ? null : bus.spec().types().get(kind);
         if (type == null || shop.world() == null) return;
-        Location at = shop.at(StoreLayout.FIGURE_X, 0, StoreLayout.FIGURE_Z, 0);   // right of the parasol table, looking in: seen from the till over the eat bar
+        Location at = shop.at(StoreLayout.FIGURE_X, 0, StoreLayout.FIGURE_Z, 0);   // behind the left parasol table, looking in: seen from the till past the kettle
         if (!at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return;
         Mannequin f = bus.spawnGuest(at, type, skin, false, x -> {
             x.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1);

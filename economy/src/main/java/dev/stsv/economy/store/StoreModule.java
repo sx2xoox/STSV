@@ -3772,7 +3772,7 @@ public final class StoreModule extends EcoModule {
         if (t.idModel == null) t.idModel = show.idOnCounter(sh, g);   // §17: the card from their hand onto the counter
         if (t.idPhoto == null) t.idPhoto = show.idPhoto(sh, g, c.sibling());   // the face on it: theirs, or a sibling's
         boolean card = t.idModel != null;
-        Location at = sh.shop.at(StoreLayout.ID_X, StoreLayout.TOP + (card ? 0.2 : 0.3), StoreLayout.ID_Z, 270);
+        Location at = sh.shop.at(StoreLayout.ID_X, StoreLayout.TOP + (card ? 0.2 : 0.3), StoreLayout.ID_Z + 0.08, 270);   // (over its writing, beside the photo)
         t.idCard = at.getWorld().spawn(at, TextDisplay.class, d -> {
             d.setPersistent(false);
             d.text(text);

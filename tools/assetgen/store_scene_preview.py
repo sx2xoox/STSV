@@ -124,10 +124,10 @@ PIECES = [
     ("sign", "store_sign", -2, FRONT - 1, 2, FRONT - 1, ROOF, 180),
     ("cig", "store_cig_shelf", -5, 6, -5, 8, 0, 90),
     ("counter", "store_counter", -3, 6, -3, 8, 0, 90),
-    ("kettle", "store_kettle", -3, 5, -3, 5, 0, 90),
-    ("microwave", "store_microwave", -3, 9, -3, 9, 0, 90),
+    ("kettle", "store_kettle", -3, 5, -3, 5, 0, 270),
+    ("microwave", "store_microwave", -3, 9, -3, 9, 0, 270),
     ("hanger", "store_hanger", -5, 10, -5, 10, 0, 90),
-    ("waste", "store_waste", -3, 10, -3, 10, 0, 90),
+    ("waste", "store_waste", -3, 10, -3, 10, 0, 270),
     ("mop", "store_mop", -5, 13, -5, 13, 0, 90),
     ("order", "store_order_tablet", -5, 9, -5, 9, 0, 90),
     ("shelf_snack", "store_shelf_snack_full", 0, 6, 0, 8, 0, 0),
@@ -148,7 +148,7 @@ NODES = {"out": (5.0, 1.0, 0), "door": (5.0, 4.5, 0), "fr": (4.5, 5.5, 0), "fm":
          "bl": (-0.5, 13.5, 0), "snack_a": (-0.5, 7.5, 90), "snack_b": (1.5, 7.5, 270), "noodle_a": (-0.5, 11.5, 90),
          "noodle_b": (1.5, 11.5, 270), "daily_a": (2.5, 7.5, 90), "daily_b": (4.5, 7.5, 270), "meal_a": (2.5, 11.5, 90),
          "meal_b": (4.5, 11.5, 270), "fridge_a": (0.0, 13.5, 0), "fridge_b": (2.0, 13.5, 0), "fridge_c": (4.0, 13.5, 0),
-         "freezer_a": (2.0, 5.5, 180), "eat_0": (-1.5, 5.2, 180), "eat_1": (-0.5, 5.2, 180), "eat_2": (0.5, 5.2, 180)}
+         "freezer_a": (2.0, 5.5, 180), "warm": (-0.55, 8.55, 270), "eat_0": (-1.5, 5.2, 180), "eat_1": (-0.5, 5.2, 180), "eat_2": (0.5, 5.2, 180)}
 QUEUE = [(-1.5, 7.5, 270), (-1.5, 8.7, 180), (-1.5, 9.9, 180), (-1.5, 11.1, 180), (-1.5, 12.3, 180), (-1.5, 13.5, 180)]
 
 
@@ -167,42 +167,55 @@ def read_anchors():
     A = {}
     m = need(lay, r"slots = List\.of\((.*?)\);\s*List<Point> scanned", "slots")
     A["slots"] = [(f(a), TOP, f(b), f(c)) for a, b, c in re.findall(r"new Point\((-?[\d.]+), y, (-?[\d.]+), (\d+)\)", m.group(1))]
-    m = need(lay, r"scanned\.add\(new Point\((-?[\d.]+), y, ([\d.]+) \+ i \* ([\d.]+), (\d+)\)\)", "scanned")
-    A["scanned"] = [(f(m.group(1)), TOP, f(m.group(2)) + i * f(m.group(3)), f(m.group(4))) for i in range(5)]
-    m = need(lay, r"change\.put\(top\[i\], new Point\((-?[\d.]+), ([\d.]+), ([\d.]+) \+ i \* ([\d.]+), (\d+)\)\);\s*"
-                  r"change\.put\(low\[i\], new Point\((-?[\d.]+), ([\d.]+), ", "change buttons")
-    x, yt, z0, dz, yaw, _, yl = m.groups()
+    # the named numbers (public static final double / float A = 1, B = 2 / 16;)
+    C = {}
+    for decl in re.findall(r"public static final (?:double|float) ([^;]*);", lay):
+        for part in decl.split(","):
+            if "=" in part:
+                k, v = part.split("=")
+                try:
+                    C[k.strip()] = float(eval(v.strip().rstrip("f"), {}))
+                except Exception:   # noqa: BLE001
+                    pass
+    for k in ("KEY_TILT", "KEY_GAP", "KEY_ROW", "KEY_X", "KEY_Y", "KEY_Z", "KEY_SCALE", "POS_X", "POS_Y", "POS_Z", "POS_TILT", "POS_TEXT", "TRAY_X",
+              "TRAY_Y", "TRAY_Z", "CARD_X", "CARD_Z", "MONEY", "SCANNED_X", "SCANNED_Z", "SCANNED_GAP", "ID_X", "ID_Z", "ID_TILT", "ASK_X", "ASK_Y",
+              "ASK_Z", "ASK_STEP", "ASK_HEAD", "CUP_X", "CUP_Y", "CUP_Z", "CUP_SCALE", "STOOL_Y", "STOOL_Z", "FIGURE_X", "FIGURE_Z", "PILE"):
+        if k not in C:
+            raise SystemExit(f"source changed, not found: StoreLayout.{k}")
+    A["C"] = C
+    A["scanned"] = [(C["SCANNED_X"], TOP, C["SCANNED_Z"] + i * C["SCANNED_GAP"], 270.0) for i in range(5)]
+
+    def key(c, r):
+        t = math.radians(C["KEY_TILT"])
+        return (C["KEY_X"] + r * C["KEY_ROW"] * math.cos(t), C["KEY_Y"] + r * C["KEY_ROW"] * math.sin(t), C["KEY_Z"] + c * C["KEY_GAP"], 270.0)
+    need(lay, r"change\.put\(top\[i\], posKey\(2 - i, 1\)\);\s*change\.put\(low\[i\], posKey\(2 - i, 0\)\);", "change keys")
     A["change"] = {}
     for i, (t, lo) in enumerate(((50000, 1000), (10000, 500), (5000, 100))):
-        A["change"][t] = (f(x), f(yt), f(z0) + i * f(dz), f(yaw))
-        A["change"][lo] = (f(x), f(yl), f(z0) + i * f(dz), f(yaw))
-    m = need(lay, r"slots, List\.copyOf\(scanned\),\s*new Point\(([^)]*)\),\s*new Point\(([^)]*)\),\s*new Point\(([^)]*)\),\s*"
-                  r"new Point\(([^)]*)\),\s*new Point\(([^)]*)\),\s*change,\s*new Point\(([^)]*)\),\s*new Point\(([^)]*)\),\s*"
-                  r"new Point\(([^)]*)\),\s*List\.of\(((?:new Point\([^)]*\),?\s*)+)\),\s*new Point\(([^)]*)\)", "the layout's points")
+        A["change"][t] = key(2 - i, 1)
+        A["change"][lo] = key(2 - i, 0)
+    need(lay, r"posKey\(3, 0\),\s*change,\s*posKey\(3, 0\),\s*posKey\(3, 1\),", "give / clear keys")
+    A["give"], A["clear"], A["cardKey"] = key(3, 0), key(3, 1), key(3, 0)
+    A["screen"] = (C["POS_X"], C["POS_Y"], C["POS_Z"], 270.0)
+    A["customerScreen"] = (-2.09, 1.32, 7.70, 90.0)
+    need(lay, r"new Point\(-2\.09, 1\.32, 7\.70, 90\)", "customer screen")
+    A["card"] = (C["CARD_X"], TOP + 0.005, C["CARD_Z"], 0.0)
+    A["terminal"] = (-2.38, TOP + 0.05, 6.69, 270.0)
+    m = need(lay, r"new Point\((-?[\d.]+), ([\d.]+), ([\d.]+), 270\),\s*List\.of\(((?:new Point\([^)]*\),?\s*)+)\),\s*new Point\(([^)]*)\)", "oven / boxes / worker")
+    A["oven"] = (f(m.group(1)), f(m.group(2)), f(m.group(3)), 270.0)
 
     def pt(s):
-        v = [eval(t.replace("y", str(TOP)), {}) for t in s.split(",")]   # "y + 0.005" and plain numbers
-        return tuple(float(t) for t in v)
-    for k, g in zip(("screen", "customerScreen", "card", "terminal", "cardKey", "give", "clear", "oven"), m.groups()[:8]):
-        A[k] = pt(g)
-    A["boxes"] = [pt(s) for s in re.findall(r"new Point\(([^)]*)\)", m.group(9))]
-    A["worker"] = pt(m.group(10))
-    A["button"] = f(need(mod, r"static final float BUTTON = ([\d.]+)f", "BUTTON").group(1))
-    m = need(mod, r"sh\.shop\.at\((-?[\d.]+), ([\d.]+), ([\d.]+), 0\) : g\.m\.getLocation\(\)\.add\(0, ([\d.]+), 0\)", "the answer buttons")
-    A["ask_till"] = (f(m.group(1)), f(m.group(2)), f(m.group(3)))
-    A["ask_head"] = f(m.group(4))
-    A["ask_step"] = f(need(mod, r"base\.clone\(\)\.add\(0, ([\d.]+) \* i\+\+, 0\)", "the buttons' step").group(1))
-    # the ID: a text panel 0.3 over the counter (0.38); with the store_id_card model lying under it, 0.12 over (0.26)
-    m = re.search(r"sh\.shop\.at\((-?[\d.]+), StoreLayout\.TOP \+ \(card \? ([\d.]+) : ([\d.]+)\), ([\d.]+), 270\)", mod)
-    if m:
-        A["id_card"] = (f(m.group(1)), TOP + f(m.group(2)), f(m.group(4)))
-        A["id_scale"], A["id_model"] = 0.26, (f(m.group(1)), TOP, f(m.group(4)), 270.0)
-    else:
-        m = need(mod, r"sh\.shop\.at\((-?[\d.]+), StoreLayout\.TOP \+ ([\d.]+), ([\d.]+), 270\)", "the ID card")
-        A["id_card"] = (f(m.group(1)), TOP + f(m.group(2)), f(m.group(3)))
-        A["id_scale"], A["id_model"] = 0.38, None
-    m = need(mod, r"return new double\[\]\{(-?[\d.]+) \+ seat, ([\d.]+), ([\d.]+)\};", "cupSpot")
-    A["cup"] = (f(m.group(1)), f(m.group(2)), f(m.group(3)))
+        return tuple(float(eval(t, {})) for t in s.split(","))
+    A["boxes"] = [pt(s) for s in re.findall(r"new Point\(([^)]*)\)", m.group(4))]
+    A["worker"] = pt(m.group(5))
+    A["button"] = C["KEY_SCALE"]
+    need(mod, r"sh\.shop\.at\(StoreLayout\.ASK_X, StoreLayout\.ASK_Y, StoreLayout\.ASK_Z, 0\)", "the answer buttons")
+    A["ask_till"] = (C["ASK_X"], C["ASK_Y"], C["ASK_Z"])
+    A["ask_head"] = C["ASK_HEAD"]
+    A["ask_step"] = C["ASK_STEP"]
+    need(mod, r"StoreLayout\.TOP \+ \(card \? 0\.2 : 0\.3\), StoreLayout\.ID_Z \+ 0\.08, 270\)", "the ID card")
+    A["id_card"] = (C["ID_X"], TOP + 0.2, C["ID_Z"] + 0.08)
+    A["id_scale"], A["id_model"] = 0.26, (C["ID_X"], TOP + 0.03, C["ID_Z"], 270.0)
+    A["cup"] = (C["CUP_X"], C["CUP_Y"], C["CUP_Z"])
     m = need(mod, r"shelf\.x0\(\) \+ ([\d.]+), ([\d.]+), \(shelf\.z0\(\) \+ shelf\.z1\(\)\) / 2\.0 \+ ([\d.]+), 0\)", "the 폐기 tag")
     A["waste_tag"] = (3 + f(m.group(1)), f(m.group(2)), 11 + f(m.group(3)))
     bub = (SRC / "Bubbles.java").read_text(encoding="utf-8")
@@ -243,7 +256,7 @@ def block_els(blocks, cut=None):
         if name == "glass":
             els.append(el((x0, y0, z0 + 7), (x0 + 16, y0 + 16, z0 + 9), "glass", opacity=0.22))   # (drawn thin: one clear pane)
         elif name.startswith("iron_door"):
-            els.append(el((x0, y0, z0 + 13), (x0 + 16, y0 + 16, z0 + 16), "iron"))   # facing=north, shut: the slab on the south edge
+            els.append(el((x0, y0, z0), (x0 + 16, y0 + 16, z0 + 3), "iron"))   # facing=south, shut: the leaf on the inner (north) edge
         elif name == "bell":
             els.append(el((x0 + 5, y0 + 4, z0 + 5), (x0 + 11, y0 + 11, z0 + 11), "bell"))
             els.append(el((x0 + 7, y0 + 11, z0 + 7), (x0 + 9, y0 + 16, z0 + 9), "dark"))
@@ -293,10 +306,11 @@ def fit(cells, p):
     raise SystemExit(f"{p[0]} does not fit")
 
 
-def place_model(name, pos, yaw, k, textures, out):
-    """An item display's model (FIXED): its (8, 8, 8) on pos (picture world), its north side turned to yaw."""
+def place_model(name, pos, yaw, k, textures, out, tip=0.0):
+    """An item display's model (FIXED): its (8, 8, 8) on pos (picture world), its north side turned to yaw; `tip`:
+    StoreModule.tipped's rotateX (degrees), applied before the turn."""
     try:
-        GSP.place(name, GSP.display_matrix(pos, GSP.facing(yaw), k), textures, out)
+        GSP.place(name, GSP.display_matrix(pos, GSP.facing(yaw) @ GSP.rot_x(tip), k), textures, out)
         return True
     except Exception as e:   # noqa: BLE001 - a model another tool is rewriting right now must not stop the pictures
         print(f"  (model {name}: {e})")
@@ -359,9 +373,9 @@ class Scene:
         self.n += 1
         self.texts.append((f"t{self.n}", wrap(text), np.array(pos, float), scale, bg, lift))
 
-    def fixed_text(self, text, pos, scale, bg, yaw, shift=(0, 0, 0)):
+    def fixed_text(self, text, pos, scale, bg, yaw, shift=(0, 0, 0), tilt=0.0):
         self.n += 1
-        self.fixed.append((f"f{self.n}", wrap(text), np.array(pos, float), scale, bg, yaw, shift))
+        self.fixed.append((f"f{self.n}", wrap(text), np.array(pos, float), scale, bg, yaw, shift, tilt))
 
     def mark(self, name, pos, colour=(255, 80, 80)):
         self.marks.append((name, np.array(pos, float), colour))
@@ -394,14 +408,14 @@ class Scene:
     def build(self, cam):
         textures = dict(self.textures)
         els = list(self.els)
-        for key, text, pos, k, bg, yaw, shift in self.fixed:
+        for key, text, pos, k, bg, yaw, shift, tilt in self.fixed:
             im, w, n = GSP.text_texture(text, background=bg)
             b = io.BytesIO()
             im.save(b, "PNG")
             textures[key] = "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
             R = GSP.rot_y(-yaw)
             tp = 0.025 * k * PX
-            M = GSP.trans(*(pos * PX)) @ R @ GSP.trans(shift[0] * PX - w / 2 * tp, shift[1] * PX, shift[2] * PX)
+            M = GSP.trans(*(pos * PX)) @ R @ GSP.trans(shift[0] * PX, shift[1] * PX, shift[2] * PX) @ GSP.rot_x(tilt) @ GSP.trans(-w / 2 * tp, 0, 0)
             els.append({"from": [0, 0, 0], "to": [(w + 1) * tp, 10 * n * tp, 0.001], "rotation": None, "glow": True, "opacity": 0.999,
                         "faces": {"south": {"uv": [0, 0, 16, 16], "texture": key}}, "matrix": [float(v) for v in M.reshape(-1)]})
         bills = []
@@ -469,10 +483,10 @@ def base(A, cut=None, skip=()):
     s.fits = furniture(s.textures, s.els, skip)
     # the built labels (FIXED)
     s.fixed_text("<#1f9d55><b>24시</b></#1f9d55><dark_gray> 연중무휴", P(2.5, 1.55, FRONT - 0.03), 0.6, (255, 255, 255, 192), 180)
-    s.fixed_text("<white><b>STAFF ONLY", P(DOOR1 + 0.5, 1.2, BACK - 0.03), 0.5, (48, 48, 48, 192), 180)
+    s.fixed_text("<white><b>STAFF ONLY", P(DOOR1 + 0.5, 2.15, BACK - 0.03), 0.5, (48, 48, 48, 192), 180)
     s.fixed_text("<white><b>차단기</b>", P(-3.5, 1.75, BACK - 0.03), 0.4, (48, 48, 48, 192), 180)
     s.fixed_text("<white><b>계산대", P(-4.4, 2.55, 8.2), 0.55, (31, 157, 85, 208), 90)
-    s.fixed_text("<white>이달의 점장 <b>도토리</b>", P(0.5, 2.6, FRONT - 0.08), 0.5, (31, 157, 85, 200), 180)
+    s.fixed_text("<white>이달의 점장 <b>도토리</b>", P(0.5, 2.62, FRONT - 0.08), 0.9, (31, 157, 85, 200), 180)
     return s
 
 
@@ -486,7 +500,7 @@ def chores(s, A):
     s.mark("쏟은 음료 (ml)", P(-0.5, 0.05, 9.5), (120, 200, 255))
     for seat in (0, 2):
         c = (A["cup"][0] + seat, A["cup"][1], A["cup"][2])
-        place_model("store_trash_cup", P(*c), 180, 0.8, s.textures, s.els)
+        place_model("store_trash_cup", P(*c), 180, A["C"]["CUP_SCALE"], s.textures, s.els)
         s.mark(f"컵{seat}", P(c[0], c[1] + 0.1, c[2]), (120, 200, 255))
     s.text("<white><b>폐기 2", P(*A["waste_tag"]), 0.5, (200, 30, 30, 220))
     s.mark("폐기 딱지", P(*A["waste_tag"]), (255, 90, 90))
@@ -511,8 +525,10 @@ def people(s, A, line=3, eaters=True, browsers=True, bubbles=True):
         s.person("chatty_1.png", *NODES["meal_a"])
         s.person("courier_1.png", *NODES["fridge_b"])
     if eaters:
-        s.person("drunk_2.png", *NODES["eat_0"])
-        s.person("student_2.png", *NODES["eat_1"])
+        # on the stools (a seat display at STOOL_Y, as the bus's people sit), the 취객 with his head down
+        C = A["C"]
+        for seat, (skin, pitch) in enumerate((("drunk_2.png", 62.0), ("student_2.png", 10.0))):
+            GSP.seated_player(skin, P(C["CUP_X"] + seat, C["STOOL_Y"], C["STOOL_Z"]), 180, s.textures, s.els, head_pitch=pitch, arms=-20.0)
         for i in range(3):
             s.mark(f"eat_{i}", P(NODES[f"eat_{i}"][0], 0.05, NODES[f"eat_{i}"][1]), (255, 255, 120))
 
@@ -530,34 +546,63 @@ def till_scan(s, A, items=("ramen_red", "samgak_tuna", "banana_milk", "dosirak",
 
 
 def screen(s, A, text):
-    x, y, z, _ = A["screen"]
-    s.text(text, P(x, y, z), 0.5, SCREEN)
-    s.band(x, z, y, y + 0.5 * (3 * 0.25 + 0.05))   # (StoreModule.fixedBands: three lines, always)
+    """The till's text on the POS monitor's face (FIXED, tipped back with it): StoreModule.drawScreen / posTextAt."""
+    C = A["C"]
+    x, y, z, yaw = A["screen"]
+    n = len(text.split("\n"))
+    t = math.radians(C["POS_TILT"])
+    half = C["POS_TEXT"] * 0.25 * n / 2
+    shift = (0, -half * math.cos(t) + 0.01 * math.sin(t), half * math.sin(t) + 0.01 * math.cos(t))
+    s.fixed_text(text, P(x, y, z), C["POS_TEXT"], (0, 0, 0, 0), yaw, shift, tilt=-C["POS_TILT"])
 
 
-def cash(s, A):
+def tray_place(on, amount):
+    """Checkout.trayPlace."""
+    under = sum(1 for a in on if a == amount)
+    along = {50000: -0.045, 10000: -0.015, 5000: 0.015, 1000: 0.045, 500: -0.07}.get(amount, 0.07)
+    lift = {50000: 0, 10000: 0.25, 5000: 0.5, 1000: 0.75}.get(amount, 0)
+    return (0.055 if amount < 1000 else -0.04, along, under + lift)
+
+
+def cash(s, A, pressed=(1000, 1000, 500, 100)):
+    C = A["C"]
+    # what they handed over: every note on the mat, the same ones piled (Checkout.piles)
     notes = [10000, 1000, 1000, 1000, 1000]
+    kinds = []
     for i, n in enumerate(notes):
-        x, y, z, yaw = A["slots"][i]
-        place_model(f"store_cash_{n}", P(x, y + 0.01 * i, z), yaw + 8 * i, 1.0, s.textures, s.els)
+        if n not in kinds:
+            kinds.append(n)
+        pile, under = kinds.index(n), sum(1 for k in notes[:i] if k == n)
+        x, y, z, yaw = A["slots"][pile]
+        place_model(f"store_cash_{n}", P(x, y + 0.002 + C["PILE"] * under, z), yaw + 7 * under, C["MONEY"], s.textures, s.els)
+    s.mark("낸 돈", P(A["slots"][0][0], TOP + 0.03, A["slots"][0][2]), (255, 255, 160))
+    tilt = -(90 - C["KEY_TILT"])
     for amount, (x, y, z, yaw) in A["change"].items():
-        place_model(f"store_btn_change_{amount}", P(x, y, z), yaw, A["button"], s.textures, s.els)
-        s.mark(f"{amount:,}", P(x, y, z), (255, 220, 90))
+        place_model(f"store_btn_change_{amount}", P(x, y, z), yaw, A["button"], s.textures, s.els, tip=tilt)
     x, y, z, yaw = A["give"]
-    place_model("store_btn_give", P(x, y, z), yaw, A["button"], s.textures, s.els)
+    place_model("store_btn_give", P(x, y, z), yaw, A["button"], s.textures, s.els, tip=tilt)
     s.mark("건네기", P(x, y, z), (90, 230, 140))
     x, y, z, yaw = A["clear"]
-    place_model("store_btn_no", P(x, y, z), yaw, A["button"], s.textures, s.els)
-    s.mark("다시 (store_btn_no)", P(x, y, z), (255, 120, 120))
+    place_model("store_btn_reset", P(x, y, z), yaw, A["button"], s.textures, s.els, tip=tilt)
+    s.mark("다시", P(x, y, z), (255, 120, 120))
+    # the change counted out so far, on the cash tray (StoreModule.toTray)
+    on = []
+    for amount in pressed:
+        dx, dz, k = tray_place(on, amount)
+        name = f"store_cash_{amount}" if amount >= 1000 else f"store_coin_{amount}"
+        place_model(name, P(C["TRAY_X"] + dx, C["TRAY_Y"] + 0.002 + C["PILE"] * k, C["TRAY_Z"] + dz), 270, C["MONEY"], s.textures, s.els)
+        on.append(amount)
+    s.mark("트레이 (센 거스름돈)", P(C["TRAY_X"], C["TRAY_Y"] + 0.03, C["TRAY_Z"]), (255, 220, 90))
 
 
 def card(s, A):
+    C = A["C"]
     x, y, z, yaw = A["card"]
-    place_model("store_card", P(x, y, z), yaw, 1.0, s.textures, s.els)
+    place_model("store_card", P(x, y, z), yaw, C["MONEY"], s.textures, s.els)
     s.mark("손님 카드", P(x, y + 0.02, z), (120, 220, 255))
     x, y, z, yaw = A["cardKey"]
-    place_model("store_btn_card", P(x, y, z), yaw, A["button"], s.textures, s.els)
-    s.mark("[카드] 버튼", P(x, y, z), (255, 220, 90))
+    place_model("store_btn_card", P(x, y, z), yaw, A["button"], s.textures, s.els, tip=-(90 - C["KEY_TILT"]))
+    s.mark("[카드]", P(x, y, z), (255, 220, 90))
     x, y, z, yaw = A["terminal"]
     s.mark("카드 단말기 (누르는 곳)", P(x, y, z), (120, 220, 255))
 
@@ -585,53 +630,53 @@ def main():
     chores(s, A)
     people(s, A)
     till_scan(s, A, scanned=2)
-    screen(s, A, "<white>합계 <b>2,500원</b>\n<gray>2/5개 찍음")
+    screen(s, A, "<gray>2/5\n<white><b>2,500원")
     s.bubble(-1.5, 7.5, "이거 계산이요~")
     render("worker_front", s, look(wx, wz, 90, 8), "1. 계산 자리에서 정면 (눈높이 1.62, 시야 70, 고개 8° 숙임)",
-           "StoreLayout.worker (-3.5, 7.5) · 손님 q0 · 계산대 화면 (-2.6, 2.1, 7.4) 은 화면 위쪽 밖 · 물건은 왼쪽 아래")
+           "합계는 POS 모니터 면 (FIXED 글자) · 손님 q0 · 정면에 뜬 것 없음")
     render("worker_mat", s, look(wx, wz, 55, 32), "2. 물건을 찍으려고 왼쪽 아래를 봄 (왼쪽 35°, 아래 32°)",
-           "물건 5칸 (slots) · 찍은 것이 가는 곳 (scanned, x -2.88) · 합계는 이 시야에 안 들어옴")
-    render("worker_screen", s, look(wx, wz, 90, -30), "3. 합계를 읽으려고 고개를 듦 (위 30°)",
-           "계산대 화면은 TextDisplay (0.5, 빌보드) 가 계산대 위 2.1칸 허공에: POS 모니터 (모델) 의 그림과 따로")
+           "물건 5칸 (slots) · 찍은 것 (x -2.9, 간격 0.23) · 전자레인지 문이 근무 통로 쪽")
+    render("worker_screen", s, look(wx, wz, 110, 20), "3. POS 모니터를 봄 (오른쪽 20°, 아래 20°)",
+           "합계 · 거스름돈 = 모니터 글자 칸 (7 × 3.9 px) 의 TextDisplay 0.3")
 
     # ---- 2. cash: the change buttons
     s = base(A)
     people(s, A, browsers=False, eaters=False)
     till_scan(s, A, scanned=5)
     cash(s, A)
-    screen(s, A, "<white>합계 9,400원 · 받은 돈 14,000원\n<gold><b>거스름돈 4,600원</b>\n<gray>지금 쥔 돈 1,000원")
+    screen(s, A, "<gold>거스름돈\n<white><b>4,600원</b>\n<gray>트레이 2,600원")
     s.bubble(-1.5, 7.5, "현금이요~")
     render("worker_cash_front", s, look(wx, wz, 90, 0), "4. 현금 계산: 정면 (고개 그대로)",
-           "거스름돈 버튼 6 + 건네기 + 다시 (x -2.95, y 1.52 / 1.80) 가 얼굴 앞 0.55칸 · 손님 얼굴과 POS 를 가림")
-    render("worker_cash_right", s, look(wx, wz, 140, 0), "5. 거스름돈 버튼을 보려고 오른쪽 50° 돌림",
-           "50,000 · 1,000 버튼 (z 6.15) 은 근무 자리에서 오른쪽 68°: 버튼끼리 0.42 간격 < 너비 0.45 (겹침)")
-    render("worker_cash_back", s, look(-4.0, wz, 110, 4), "6. 한 발 물러서서 (x -4.0, 담배 진열장에 등을 붙임)",
-           "물러서도 버튼 줄 전체 + 화면 + 손님이 한 화면에 안 들어옴")
+           "손님 얼굴 · POS 를 가리는 것 없음 · 센 거스름돈은 모니터 아래 틈으로 트레이에 보임")
+    render("worker_cash_right", s, look(wx, wz, 112, 48), "5. 거스름돈 키를 내려다봄 (오른쪽 22°, 아래 48°)",
+           "상판 근무자 쪽 가장자리에 2줄 × 4 (35° 눕힘, 간격 0.34): 왼쪽 끝 = 다시 / 건네기")
+    render("worker_cash_back", s, look(-3.9, wz, 108, 36), "6. 한 발 물러서서 (x -3.9) 오른쪽 18°, 아래 36°",
+           "키 8개 + 모니터 + 트레이가 한 화면")
 
     # ---- 3. card + questions at the till
     s = base(A)
     people(s, A, browsers=False, eaters=False)
     till_scan(s, A, items=("beer", "chips", "soju"), scanned=3)
     card(s, A)
-    screen(s, A, "<white>합계 <b>6,400원</b>\n<aqua>카드 → 단말기 우클릭")
+    screen(s, A, "<aqua>카드\n<white><b>6,400원")
     render("worker_card", s, look(wx, wz, 115, 14), "7. 카드 계산: 단말기 쪽 (오른쪽 25°, 아래 14°)",
-           "손님 카드 (l.card -2.15, 6.4) 는 숙취해소제 선반 속 · [카드] 버튼 (-2.95, 1.52, 6.57) 은 POS 앞 허공")
+           "손님 카드 = 단말기와 트레이 사이 빈 상판 (0.55배) · [카드] 키 = [건네기] 자리")
     render("card_close", s, GSP.camera(P(-1.2, 1.75, 5.6), P(-2.3, 1.0, 6.6), fov=40), "7.-b 손님 쪽에서 본 계산대 끝 (확대)",
            "카드 · 단말기 · 숙취해소제 선반")
     s = base(A)
     people(s, A, browsers=False, eaters=False)
     till_scan(s, A, items=("beer", "chips"), scanned=0)
     ask_till(s, A, ["판매", "거절"])
-    screen(s, A, "<yellow>손님 응대 중\n<gray>머리 위 버튼")
+    screen(s, A, "<yellow>응대 중")
     x, y, z = A["id_card"]
-    s.text("<dark_gray><b>주민등록증</b>\n<black>김민준\n<black>2009년생 <dark_gray>(올해 17살)\n<dark_gray>사진: 손님 얼굴 그대로", P(x, y, z), A["id_scale"],
-           (228, 236, 246, 150 if A["id_model"] else 240))
+    s.text("<dark_gray><b>주민등록증</b>\n<black>김민준\n<black>2009년생", P(x, y, z), A["id_scale"], (228, 236, 246, 150 if A["id_model"] else 240))
     if A["id_model"]:
-        place_model("store_id_card", P(*A["id_model"][:3]), A["id_model"][3], 1.0, s.textures, s.els)
+        place_model("store_id_card", P(*A["id_model"][:3]), A["id_model"][3], 1.0, s.textures, s.els, tip=A["C"]["ID_TILT"])
+    s.mark("사진 (손님 얼굴 머리, 납작하게)", P(A["C"]["ID_X"], TOP + 0.065, A["C"]["ID_Z"] - 0.12), (255, 200, 160))
     s.mark("신분증 글자판", P(x, y, z), (228, 236, 246))
-    s.bubble(-1.5, 7.5, "(신분증을 꺼낸다) 여기요…")
-    render("worker_id", s, look(wx, wz, 80, 4), "8. 신분증 확인: 응대 버튼 (계산대 끝 위) · 신분증 글자판 · 화면",
-           "버튼 (-2.2, 1.75 + 0.3i, 8.85) · 신분증 TextDisplay (-2.45, 1.25, 6.95) · store_id_card 모델은 안 쓰임")
+    s.bubble(-1.5, 7.5, "여기요…")
+    render("worker_id", s, look(wx, wz, 70, 30), "8. 신분증 확인: 응대 버튼 (손님과 근무자 사이) · 신분증은 근무자 쪽 가장자리에 30° 세움",
+           "버튼 (-2.45, 1.45 + 0.3i, 7.85) · 신분증 (-2.85, 7.72) + 글자판 + 사진 (손님 스킨 머리)")
 
     # ---- 4. the customer's side, the door, outside
     s = base(A)
@@ -639,20 +684,20 @@ def main():
     people(s, A)
     till_scan(s, A, scanned=5)
     cash(s, A)
-    screen(s, A, "<white>합계 9,400원 · 받은 돈 14,000원\n<gold><b>거스름돈 4,600원</b>\n<gray>지금 쥔 돈 0원")
+    screen(s, A, "<gold>거스름돈\n<white><b>4,600원")
     s.person("univ_1.png", wx, wz, 90) if (GSP.SKINS / "univ_1.png").exists() else s.person("student_3.png", wx, wz, 90)
     worker_marks(s, A)
     s.bubble(-1.5, 7.5, "현금이요~")
     s.bubble(-1.5, 8.7, "줄이 안 줄어드네…")
     s.bubble(-1.5, 9.9, "아이고 다리야… 괜찮다 천천히 해")
     render("customer_side", s, look(-0.45, 5.9, 300, 4), "9. 손님 쪽 (과자 진열대 앞 통로에서 계산대를 봄)",
-           "근무자 · 거스름돈 버튼 뒷면 · 계산대 화면 · 줄 (q0..q3) 말풍선")
+           "근무자 · 누운 키의 옆면 · 줄 (q0..q3) 말풍선")
     render("door", s, look(4.6, 3.2, 20, 4), "10. 문으로 들어서며",
            "문 (x 4..5, 문짝 없음) · 종 · 생활용품 / 도시락 진열대 · 오른쪽 통로")
     render("door_left", s, look(4.6, 4.6, 290, 4), "11. 문 안에서 왼쪽 (시식대 · 냉동고 · 계산대 쪽)",
-           "시식대 손님은 의자 뒤 (z 5.2) 에 서 있음 · 컵 (y 1.0, z 4.55)")
+           "시식대 손님은 의자에 앉음")
     render("eatbar", s, GSP.camera(P(1.15, 1.3, 5.05), P(-1.5, 0.8, 4.45), fov=60), "12. 시식대 가까이",
-           "컵라면 컵 cupSpot (-1.5 + n, 1.0, 4.55): 상판은 y 0.875, z 4.0..4.25")
+           "컵 = 상판 위 (y 0.875, z 4.13, 0.5배) · 손님은 의자에 앉음 (취객은 고개 숙임)")
     render("outside", s, look(1.5, -6.0, 0, -6), "13. 바깥 정면 (길 건너에서)",
            "간판 · 24시 · 이달의 점장 · 파라솔 2 · 휴지통 · 손님이 생기는 곳 out (5, 1)", marks=False)
     render("outside_door", s, look(7.5, -1.5, 335, 0), "14. 바깥 오른쪽 앞 (문 쪽)", "문 · 통유리 너머 계산대", marks=False)
@@ -663,41 +708,42 @@ def main():
                                ("fridge", "fridge_b", 0, "냉장고 (뒤 통로)")):
         x, z, _ = NODES[node]
         render(f"stock_{name}", s, look(x, z, yaw, 0), f"15. 진열: {t}", f"{node} ({x}, {z}) 에서 진열대를 봄 · 눈높이 1.62", marks=False)
-    render("stock_boxes", s, look(4.4, 12.0, 28, 24), "16. 배송 상자 (창고 문 앞)", "상자 5개 (5.5, 0 / 0.5 / 1.0, 13.5 · 14.5) · STAFF ONLY · 냉장고 3")
+    render("stock_boxes", s, look(4.4, 12.0, 28, 24), "16. 배송 상자 (창고 문 앞)",
+           "문판은 안쪽 면 (facing=south) · STAFF ONLY 는 문 위")
     s = base(A)
     chores(s, A)
     people(s, A, eaters=False, browsers=False)
     till_scan(s, A, scanned=5)
-    screen(s, A, "<white>결제 완료\n<gold>데우는 중 14초")
+    screen(s, A, "<green>결제 완료")
     s.text("<gold>데우는 중 14초", P(*A["oven"][:3]), 0.45, (0, 0, 0, 64))
     render("lane_back", s, look(-3.5, 6.2, 0, 10), "17. 근무 통로에서 뒤쪽 (전자레인지 · 단말기 · 옷걸이 · 폐기 · 대걸레 · 차단기)",
-           "전자레인지 · 폐기 바구니 · 온수기는 yaw 90 = 앞면이 손님 쪽: 근무자는 뒷면을 봄")
+           "전자레인지 · 폐기 바구니 · 온수기 yaw 270 = 앞면이 근무 통로 쪽")
     render("lane_microwave", s, look(-3.5, 9.5, 90, 12), "18. 전자레인지 앞 (근무 통로 x -4, z 9)", "데우기 글자 (-2.5, 1.95, 9.5)")
-    render("queue_microwave", s, look(-0.6, 9.5, 270, 6), "19. 손님 줄 쪽에서 본 전자레인지 · 폐기 바구니", "앞면 (문 · 버튼 · 폐기 글자) 은 이쪽")
+    render("queue_microwave", s, look(-0.6, 9.5, 270, 6), "19. 손님 줄 쪽에서 본 전자레인지 · 폐기 바구니",
+           "이쪽은 뒷면 · 데우기 손님 대기 자리 warm (-0.55, 8.55)")
 
     # ---- 6. the secret's last beat: the figure by the parasol, from the till
     s2 = base(A)
-    s2.person("worker_1.png" if (GSP.SKINS / "worker_1.png").exists() else "office_1.png", -1.0, 2.3, 0)
-    s2.mark("새벽 손님 (-1.0, 2.3)", P(-1.0, 1.9, 2.3), (200, 200, 255))
+    fx, fz = A["C"]["FIGURE_X"], A["C"]["FIGURE_Z"]
+    s2.person("worker_1.png" if (GSP.SKINS / "worker_1.png").exists() else "office_1.png", fx, fz, 0)
+    s2.mark(f"새벽 손님 ({fx}, {fz})", P(fx, 1.9, fz), (200, 200, 255))
     s2.person("nurse_1.png" if (GSP.SKINS / "nurse_1.png").exists() else "student_1.png", *QUEUE[0])
-    render("secret_figure", s2, GSP.camera(P(wx, EYE, wz), P(-1.0, 1.4, 2.3), fov=70), "20. (비밀) 계산 자리에서 파라솔의 그를 봄",
-           "StoreDay.figure (-1.0, 0, 2.3): 근무 자리에서는 온수기 뒤")
+    render("secret_figure", s2, GSP.camera(P(wx, EYE, wz), P(fx, 1.4, fz), fov=70), "20. (비밀) 계산 자리에서 왼쪽 파라솔의 그를 봄",
+           "StoreLayout.FIGURE: 온수기 왼쪽으로 통유리 너머")
 
     # ---- 6b. a question in the aisle: the buttons over the customer's head, their name tag, their bubble
     s3 = base(A)
     tx, tz, tyaw = NODES["daily_a"]
     s3.person("tourist_1.png" if (GSP.SKINS / "tourist_1.png").exists() else "camper_1.png", tx, tz, tyaw)
     # the vanilla name tag: its top 0.5 over the entity's height (1.8), 9 text px down (assumed: check in game)
-    s3.text("<white>외국인 여행객", P(tx, 2.3 - 0.25, tz), 1.0, (0, 0, 0, 64))
     for i, lab in enumerate(("생활용품 진열대", "라면 진열대")):
         y = A["ask_head"] + A["ask_step"] * i
         s3.text(f"<white>▶ {lab}", P(tx, y, tz), 0.45, GREEN)
         s3.band(tx, tz, y, y + 0.135)
         s3.mark(f"응대 버튼 {i} (y {y:.2f})", P(tx + 0.45, y + 0.07, tz), (60, 255, 150))
-    s3.mark("이름표 (y 2.08~2.30)", P(tx - 0.5, 2.2, tz), (255, 255, 255))
-    s3.bubble(tx, tz, "이거… 어디… 있어요? (사진을 보여 준다)")
-    render("aisle_ask", s3, GSP.camera(P(2.5, EYE, 10.4), P(tx, 1.9, tz), fov=70), "20.-b 통로에서 응대 버튼 (관광객 · 취객 등 계산대 밖 손님)",
-           "버튼 0 = 발 위 2.05, 버튼 1 = 2.35, 말풍선 2.35+ : 이름표 (머리 위 0.5) 와 겹치는 높이")
+    s3.bubble(tx, tz, "이거… 어디… 있어요?")
+    render("aisle_ask", s3, GSP.camera(P(2.5, EYE, 10.4), P(tx, 1.9, tz), fov=70), "20.-b 통로에서 응대 버튼 (관광객 등 계산대 밖 손님)",
+           "응대 중에는 이름표를 숨김 · 버튼 = 발 위 2.15부터")
 
     # ---- 7. from above, roof off, every anchor named
     s = base(A, cut=ROOF)

@@ -2,6 +2,7 @@ package dev.stsv.economy.store;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -181,7 +182,7 @@ class CheckoutTest {
             assertTrue(seen.add(at[0] + "|" + at[1] + "|" + at[2]), amount + " lies in another piece");
             on.add(amount);
         }
-        assertEquals(1, Checkout.trayPlace(List.of(1000), 1000)[2], 1e-9, "the second of a kind one up");
+        assertEquals(1, Checkout.trayPlace(List.of(1000), 1000)[2] - Checkout.trayPlace(List.of(), 1000)[2], 1e-9, "the second of a kind one up");
         assertEquals(2, Checkout.trayPlace(List.of(100, 500, 100), 100)[2], 1e-9);
         assertTrue(Checkout.trayPlace(List.of(), 500)[0] > Checkout.trayPlace(List.of(), 1000)[0], "coins on the customer's half");
     }

@@ -8,21 +8,21 @@
 store_license_alley:
   material: paper
   name: "<#1f9d55><b>GS26 골목점 권리증"
-  lore: ["<gray>손님 2명 · 상품 12종 · 17×17칸", "<gray>내 땅에서 우클릭", "<dark_gray>500,000 G"]
+  lore: ["<gray>손님 2 · 상품 12", "<gray>내 땅 17×17칸에서 우클릭"]
   model: store_license_alley
   max-stack: 1
 
 store_license_standard:
   material: paper
   name: "<#1f9d55><b>GS26 표준점 권리증"
-  lore: ["<gray>손님 4명 · 상품 22종 · 17×17칸", "<gray>내 땅에서 우클릭", "<dark_gray>1,500,000 G"]
+  lore: ["<gray>손님 4 · 상품 22", "<gray>내 땅 17×17칸에서 우클릭"]
   model: store_license_standard
   max-stack: 1
 
 store_license_large:
   material: paper
   name: "<#1f9d55><b>GS26 대형점 권리증"
-  lore: ["<gray>손님 6명 · 상품 33종 · 17×17칸", "<gray>내 땅에서 우클릭", "<dark_gray>3,000,000 G"]
+  lore: ["<gray>손님 6 · 상품 33", "<gray>내 땅 17×17칸에서 우클릭"]
   model: store_license_large
   max-stack: 1
 
@@ -30,7 +30,6 @@ store_license_large:
 store_food_banana_milk:
   material: paper
   name: "<white>바나나우유"
-  lore: ["<gray>단지 모양 바나나우유", "<dark_gray>GS26 편의점"]
   model: store_item_banana_milk
   food:
     nutrition: 3
@@ -40,7 +39,7 @@ store_food_banana_milk:
 store_food_candy:
   material: paper
   name: "<white>사탕"
-  lore: ["<gray>할머니가 쥐여 주던 그 사탕", "<dark_gray>GS26 편의점"]
+  lore: ["<gray>할머니가 쥐여 주던 그 사탕"]
   model: store_item_candy
   food:
     nutrition: 1
@@ -51,7 +50,7 @@ store_food_candy:
 store_food_waste:
   material: paper
   name: "<white>폐기 삼각김밥"
-  lore: ["<gray>유통기한이 막 지난 것", "<dark_gray>GS26 편의점"]
+  lore: ["<gray>알바의 낙"]
   model: store_item_samgak_tuna
   food:
     nutrition: 5
