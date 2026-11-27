@@ -167,7 +167,7 @@ def held_box(kind):
     centre = (8, 12, 8)
     third_person(m, centre, (0.5, -9.5, -7.25), _bh().turn(), frame="body", gui_fill=0.8)
     r = _rot_from((0, 0.96, 0.28), z_to=(0, -0.28, 0.96))          # turned to the player, tipped to show its top
-    first_person(m, centre, (1.5, -11.0, -16.5), r, scale=1.0)
+    first_person(m, centre, (1.5, -7.5, -16.0), r, scale=1.0)
     return m
 
 
@@ -207,7 +207,7 @@ def held_jug():
     B("handle", (0.25, 3.25, -0.5), (2.75, 4, 0.5), grip)
     g = (8 + 1.5, 8 + 3.6, 8)
     third_person(m, g, _bh().fist(0, 0.5), _bh().turn(y=90))
-    first_person(m, g, (8.5, -6.5, -13.5), _rot_from((0, 1, 0), z_to=(-0.7, 0, -0.7)), scale=0.9)
+    first_person(m, g, (7.0, -1.0, -14.5), _rot_from((0, 1, 0), z_to=(-0.7, 0, -0.7)), scale=0.9)
     return m
 
 
@@ -231,24 +231,22 @@ def held_waste_bag():
         x, y, z = c.p[0] - 8, c.p[1] - 8, c.p[2] - 8
         if abs(y + 7) < 1 and c.face in S.SIDES:
             return ("pepper", 2) if math.floor(x + z) % 5 else ("snow", 2)          # the 폐기 tape
-        n = vnoise(x + 20, y + 20, z + 20, 3.0, 4)
-        if y < -2 and c.face != "up":
-            if n < 0.3:
-                return ("rice", 2)                                   # a kimbap's rice through the film
-            if n < 0.38:
-                return ("roe", 2)
-            if n > 0.72:
-                return ("corn", 2) if n < 0.8 else ("iron", 2)       # a lunch box's lid, its tray
-        if (math.floor(x * 0.6 + y) % 7) == 0:
+        n = vnoise(x + 20, y + 20, z + 20, 6.0, 4)
+        if y < -3 and c.face != "up":
+            if n < 0.28:
+                return ("stone", 3)                                  # the goods' shapes through the film
+            if n > 0.74:
+                return ("corn", 3) if n < 0.8 else ("stone", 3)
+        if (math.floor(x * 0.5 + y * 0.8) % 9) == 0 and c.face in S.SIDES:
             return ("snow", 2)                                       # creases catching the light
         return None
-    voxels(m, "bag", cells, lambda _l: Paint("fish_silver", 4, noise=0.03, rim=1.4, decal=film))
+    voxels(m, "bag", cells, lambda _l: Paint("fish_silver", 4, noise=0, rim=1.4, decal=film))
     ear = Paint("fish_silver", 4, noise=0, rim=1.3)
     m.box("ear", (5, 12, 7), (8, 13, 8), ear, rotation=("z", 45, (8, 12, 7.5)))
     m.box("ear", (8, 12, 7), (11, 13, 8), ear, rotation=("z", -45, (8, 12, 7.5)))
     g = (8, 8 + 1.0, 8)
     third_person(m, g, _bh().fist(0, 0.5), _bh().turn(y=90))
-    first_person(m, g, (8.5, -6.0, -13.5), _rot_from((0, 1, 0), z_to=(-0.6, 0, -0.8)), scale=0.9)
+    first_person(m, g, (6.5, -0.5, -14.5), _rot_from((0, 1, 0), z_to=(-0.6, 0, -0.8)), scale=0.9)
     return m
 
 
@@ -285,7 +283,7 @@ def held_tray():
     g = (d(5), d(0.25), d(2.75))
     g = (8 + (g[0] - 8) / 2, 8 + (g[1] - 8) / 2, 8 + (g[2] - 8) / 2)
     third_person(m, g, _bh().fist(0, 1.0), _bh().turn())
-    first_person(m, (8, 8.25, 8), (0.5, -9.5, -15.5), _rot_from((0, 0.9, 0.44), z_to=(0, -0.44, 0.9)), scale=1.0)
+    first_person(m, (8, 8.25, 8), (0.5, -7.0, -15.0), _rot_from((0, 0.9, 0.44), z_to=(0, -0.44, 0.9)), scale=1.0)
     return m
 
 
@@ -318,8 +316,8 @@ def held_pda():
     scr = S._surface("store_pda_screen", lambda: GA.tablet_order("drink").resize((44, 32), 0))
     m.plate("screen", (d(-1.25), d(0), d(-0.52)), (d(1.25), d(2.75), d(-0.52)), {"north": (scr, [0, 0, 44, 32])}, glow=True, one_sided=True)
     g = (8, 8 - 2.0, 8)
-    third_person(m, g, _bh().fist(0, 0.5), _bh().turn(x=40, y=180))
-    first_person(m, g, (4.5, -7.0, -12.5), _rot_from((0, 0.85, -0.53), z_to=(-0.15, 0.53, 0.85)), scale=1.0)
+    third_person(m, g, _bh().fist(0, 0.5, -1.75), _bh().turn(x=25, y=180))
+    first_person(m, g, (4.0, -6.5, -11.5), _rot_from((0, 0.85, -0.53), z_to=(-0.15, 0.53, 0.85)), scale=1.0)
     return m
 
 
@@ -327,15 +325,19 @@ def held_id():
     """받아 든 신분증: the ID card stood up, its face (its print filled in) to the player, a plain back to the
     customer."""
     tex = S._surface("store_held_id_face", GA.id_held_face)
+    back = S._surface("store_held_id_back", GA.id_back)
     m = S.Model("store_held_id")
     m.group("card")
     w, h = 6.4, 4
-    edge = [0, 0, 1, 1]
-    m.box("card", (8 - w / 2, 8 - h / 2, 7.9), (8 + w / 2, 8 + h / 2, 8.1), tex,
-          uv={"south": [0, 0, 128, 80], "north": [127, 79, 128, 80], "up": edge, "down": edge, "east": edge, "west": edge})
-    g = (8 + w / 2 - 0.75, 8 - h / 2 + 0.5, 8)
-    third_person(m, g, _bh().fist(0, 0.5), _bh().turn(x=-25))
-    first_person(m, g, (5.0, -6.5, -11.0), _rot_from((0, 0.94, -0.34), z_to=(0, 0.34, 0.94)), scale=1.0)
+    edge = [30, 18, 31, 19]
+    m.box("card", (8 - w / 2, 8 - h / 2, 7.9), (8 + w / 2, 8 + h / 2, 8.1), back,
+          faces={"south": tex, "north": back, "up": back, "down": back, "east": back, "west": back},
+          uv={"south": [0, 0, 128, 80], "north": [64, 0, 0, 40], "up": edge, "down": edge, "east": edge, "west": edge})
+    g = (8, 8 - h / 2 + 0.4, 8)
+    # third person: pinched up in front of the knuckles (clear of the forearm), its face to the player, its top
+    # tipped a little away so it reads from over the shoulder
+    third_person(m, g, _bh().fist(0, 0, -3.25), _bh().turn(x=-20))
+    first_person(m, g, (4.5, -5.5, -11.5), _rot_from((0, 0.94, -0.34), z_to=(0, -0.34, -0.94)), scale=1.0)
     return m
 
 

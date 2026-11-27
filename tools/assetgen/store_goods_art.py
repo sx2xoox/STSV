@@ -907,6 +907,20 @@ def box_goods(kind):
     return P.im
 
 
+def id_back():
+    """64 x 40: the ID card's back (what the customer sees while the worker holds it): pale blue guilloche, print, a
+    small barcode."""
+    P = Pic(64, 40, ("ice", 3))
+    for x in range(64):
+        y = int(20 + 8 * math.sin(x * 0.25))
+        P.p(x, y, ("ice", 2))
+        P.p(x, 40 - y, ("ice", 2))
+    for k in range(4):
+        P.text(6, 6 + k * 4, 46 - k * 5, ("indigo", 2), seed=k)
+    _barcode(P, 44, 28, 14, 7)
+    return P.im
+
+
 def id_held_face():
     """The ID card's face for the held card (128 x 80): store_art.id_card with its text area printed (a name and a
     birth year as print too small to read), so it reads as a filled-in card in the hand."""
