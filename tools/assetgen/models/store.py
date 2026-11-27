@@ -49,6 +49,17 @@ fills 30% of it, in voxels of 1/4 block):
   store_sign           간판 GS26, 5 x 1 cells (x -2..2), a lightbox 5 x 1 blocks against a wall at +z (store_art.sign_face,
                        an original design), lit; drawn at real size, shrunk by 2.
 
+디테일 (모델링 디테일 강화): the fine print rides on pictures at more than 16 px a block, not on more boxes. HModel.skin
+draws a box without one face and lays a one-sided plate carrying a store_art picture in that face's plane (no face
+more than the plain box), HModel.plate(one_sided=True) a sticker on a surface. So: the goods' fronts on the shelves and
+in the fridges (store_art.facings_hd: 4 texels a px, each kind's own pack art, the gap between packs in shadow), the
+electronic price rails (store_art.price_rail: an e-paper tag with the price under each kind, red promo tags), 1+1 / 2+1
+shelf talkers, the end panels' promo posters, the counter's POS app screen, card terminal keypad, worker-side cubbies
+(rolls of bags, receipt paper, binders, a safe, a first aid kit), a receipt printer, a money tray, a promo poster and a
+봉투 유료 sign, the microwave's and the water heater's fronts, the freezer's baskets from above, the cigarette packs,
+the parasol's GS26 print and stretchers, the eat bar's napkin holder, sauces and card, the boxes' shipping labels and
+handling marks, the goods' printed fronts (bags, boxes, the 도시락 lid), the bag's print.
+
 Display models (an ItemDisplay with no transform: the model's (8, 8, 8) at the display's position, front = north):
 the goods, money and props have their BOTTOM on the display's position (model y 8), centred on it; the buttons and
 the scanner are centred on it.
@@ -832,7 +843,7 @@ def counter():
           faces={"south": None})
     m.elements[-1]["open"] = ("south",)
     ps = _surface("store_pos_screen", ART.pos_screen)
-    m.plate("pos_screen", (9, 19.5, 11.5), (17, 25, 11.5), {"south": (ps, [0, 0, 64, 44])}, glow=True, rotation=rot,
+    m.plate("pos_screen", (9, 19.5, 11.5), (17, 25, 11.5), {"south": (ps, [0, 0, 64, 44])}, rotation=rot,
             one_sided=True)
     # the receipt printer beside it, a receipt curling out of its slot
     m.group("printer")
@@ -1147,7 +1158,7 @@ def _vest_paint(c, x0, x1, y0, y1):
 
 
 def hanger():
-    m = BModel("store_hanger", floor=0)
+    m = HModel("store_hanger", floor=0)
     m.group("stand")
     cyl(m, "base", (8, 8), 10, 0, 1, Paint("iron", 2, "metal", rim=1.2))
     m.box("pole", (7.25, 1, 7.25), (8.75, 30, 8.75), Paint("hinoki", 1, "grain", axis="y", rim=1.0))
@@ -1160,6 +1171,8 @@ def hanger():
     m.box("hanger_hook", (7.5, 26.5, 6.25), (8.5, 28, 6.75), flat("steel", 4))
     vest = Paint(GREEN, 2, "weave", noise=0.03, decal=lambda c: _vest_paint(c, 3, 13, 13, 26))
     m.box("vest", (3, 13, 4.5), (13, 25.5, 6.5), vest)
+    tag = _surface("store_hanger_tag", lambda: ART.header("알바", 32, 16, bg=("snow", 2), fg=(GREEN, 1), edge=(GREEN, 2)))
+    m.plate("name_tag", (3.75, 19.75, 4.49), (6.75, 21.25, 4.49), {"north": (tag, [0, 0, 32, 16])}, one_sided=True)
     m.box("shoulder", (3.5, 25.5, 4.5), (6, 26, 6.5), vest)
     m.box("shoulder", (10, 25.5, 4.5), (12.5, 26, 6.5), vest)
     m.group("cap")
@@ -1202,7 +1215,7 @@ def waste():
 
 
 def mop():
-    m = BModel("store_mop", floor=0)
+    m = HModel("store_mop", floor=0)
     m.group("bucket")
     yellow = Paint("corn", 2, "lacquer", noise=0.03, rim=1.0)
     for (x, z) in ((3, 4), (12, 4), (3, 11.5), (12, 11.5)):
@@ -1213,6 +1226,8 @@ def mop():
     m.box("wall", (2.5, 2, 4.5), (3.5, 9, 11.5), yellow)
     m.box("wall", (12.5, 2, 4.5), (13.5, 9, 11.5), yellow)
     m.box("water", (3.5, 2, 4.5), (12.5, 6.5, 11.5), Paint("stone", 2, noise=0.06))
+    warn = _surface("store_mop_label", lambda: ART.header("미끄럼 주의", 80, 16, bg=("iron", 1), fg=("corn", 2), edge=("iron", 0)))
+    m.plate("label", (3.5, 4.75, 3.49), (12.5, 6.5, 3.49), {"north": (warn, [0, 0, 80, 16])}, one_sided=True)
     m.box("wringer", (3.5, 9, 8.5), (12.5, 12, 11.5), Paint("iron", 3, "metal", rim=1.2))
     m.box("lever", (11.5, 12, 9.5), (12.5, 19, 10.5), flat("iron", 2, rim=1.2))
     m.box("lever_grip", (11.25, 19, 9.25), (12.75, 21, 10.75), flat("pepper", 2))
@@ -1238,6 +1253,9 @@ def sign():
     m.group("box")
     m.box("lightbox", (-32, 0, 11), (48, 16, 16), Paint("steel", 4, "metal", noise=0.02, rim=1.2))
     m.box("cap", (-33, 16, 10), (49, 17, 16), Paint("iron", 3, "metal", rim=1.2))
+    m.box("sill", (-33, -1, 10.5), (49, 0, 16), Paint("iron", 3, "metal", rim=1.2))
+    for bx in (-24, 38):
+        m.box("bracket", (bx, 17, 12), (bx + 2, 18.5, 16), Paint("iron", 2, "metal", rim=1.2))
     m.plate("face", (-32, 0, 10.75), (48, 16, 11),
             {"north": (face, [0, 0, 320, 64]), "up": (back, [0, 0, 16, 1]), "down": (back, [0, 0, 16, 1]),
              "east": (back, [0, 0, 1, 16]), "west": (back, [0, 0, 1, 16])}, glow=True)
@@ -1787,7 +1805,11 @@ def delivery_box(kind):
         if c.face in ("east", "west") and 10 <= y < 13 and abs(c.p[2] - 8) < 2.5:
             return ("bean", 0) if 11 <= y < 12 and abs(c.p[2] - 8) < 1.5 else None   # the hand hole
         return None
-    m.box("box", (2, 8, 3), (14, 16, 13), Paint("bean", 1, "paper", noise=0.05, rim=1.1, decal=kraft))
+    m.skin("box", (2, 8, 3), (14, 16, 13), Paint("bean", 1, "paper", noise=0.05, rim=1.1, decal=kraft), "up",
+           _surface(f"store_box_top_{kind}", lambda c=col: ART.box_top(c)), uv=[48, 40, 0, 0])
+    side = _surface("store_box_side", ART.box_side)
+    m.plate("marks", (14.01, 8.5, 3.5), (14.01, 16, 12.5), {"east": (side, [0, 0, 40, 32])}, one_sided=True)
+    m.plate("marks", (1.99, 8.5, 3.5), (1.99, 16, 12.5), {"west": (side, [0, 0, 40, 32])}, one_sided=True)
     lab = _surface(f"store_box_label_{kind}", lambda w=word, c=col: ART.header(w, 64, 32, bg=("snow", 2), fg=c, edge=c))
     m.plate("label", (8, 10, 2.99), (13, 13, 2.99), {"north": (lab, [0, 0, 64, 32])})
     return gui(m, fill=0.8)
@@ -1807,7 +1829,7 @@ def shopping_bag():
         return None
     p = Paint("snow", 2, noise=0.03, decal=plastic)
     m.box("body", (3, 8, 5), (13, 17, 11), p)
-    m.box("bulge", (2.5, 9.5, 4.5), (13.5, 15, 11.5), p)
+    m.skin("bulge", (2.5, 9.5, 4.5), (13.5, 15, 11.5), p, "north", _surface("store_bag_print", ART.bag_print))
     m.box("top", (4, 17, 6), (12, 18.5, 10), p)
     for x in (4, 10.5):
         m.box("handle", (x, 18.5, 7.5), (x + 1.5, 22, 8.5), p)

@@ -1867,6 +1867,76 @@ def goods_front(kind, W, H):
     return P.im
 
 
+def _kraft(P, W, H):
+    for y in range(H):
+        for x in range(W):
+            n = (x * 7 + y * 13 + (x * y) % 5) % 11
+            P.p(x, y, ("bean", 1) if n else ("bean", 0))
+
+
+def box_top(col):
+    """48 x 40 (a delivery box's top, 12 x 10 px at 4 texels a px, north at the bottom): kraft card, the flaps' seam,
+    brown tape along it, a white shipping label (a barcode, the kind's colour bar, print)."""
+    W, H = 48, 40
+    P = Pic(W, H)
+    _kraft(P, W, H)
+    P.rect(0, H // 2, W, H // 2 + 1, ("bean", 0))
+    P.rect(W // 2 - 4, 0, W // 2 + 4, H, ("bean", 3))
+    for y in range(0, H, 5):
+        P.rect(W // 2 - 4, y, W // 2 + 4, y + 1, ("bean", 2))
+    P.rect(W // 2 - 4, 0, W // 2 - 3, H, ("bean", 2))
+    P.rect(4, 4, 18, 22, ("snow", 2))
+    P.rect(4, 4, 18, 7, col)
+    for x in range(6, 16):
+        if x % 2 == 0 or x % 5 == 0:
+            P.rect(x, 9, x + 1, 14, ("iron", 1))
+    P.text(5, 16, 17, ("iron", 3), seed=1)
+    P.text(5, 18, 15, ("iron", 3), seed=4)
+    P.text(5, 20, 17, ("iron", 3), seed=2)
+    return P.im
+
+
+def box_side():
+    """40 x 32 (a delivery box's end, 10 x 8 px): kraft, the handling marks (this way up, keep dry, fragile) in a
+    printed box, the hand hole."""
+    W, H = 40, 32
+    P = Pic(W, H)
+    _kraft(P, W, H)
+    ink = ("doenjang", 0)
+    P.rect(4, 3, 30, 4, ink)
+    P.rect(4, 13, 30, 14, ink)
+    P.rect(4, 3, 5, 14, ink)
+    P.rect(29, 3, 30, 14, ink)
+    for x0 in (7, 11):                                # two arrows up
+        P.rect(x0 + 1, 7, x0 + 2, 12, ink)
+        P.rect(x0, 7, x0 + 3, 8, ink)
+        P.p(x0 + 1, 6, ink)
+    P.rect(17, 6, 23, 7, ink)                         # an umbrella
+    P.rect(18, 5, 22, 6, ink)
+    P.rect(20, 7, 21, 11, ink)
+    P.p(19, 11, ink)
+    P.rect(25, 6, 28, 8, ink)                         # a glass
+    P.rect(26, 8, 27, 11, ink)
+    P.rect(25, 11, 28, 12, ink)
+    P.rect(12, 18, 28, 22, ("bean", 0))               # the hand hole
+    P.rect(13, 19, 27, 21, ("doenjang", 0))
+    return P.im
+
+
+def bag_print():
+    """44 x 22 (the bag's bulging front, 11 x 5.5 px at 4 texels a px): white film with creases, the GS26 mark, a
+    thank-you line."""
+    W, H = 44, 22
+    P = Pic(W, H, ("snow", 2))
+    for k in range(6):
+        P.line(3 + k * 8, 0, k * 8 - 4, H - 1, ("snow", 1))
+    logo = sign_face().resize((32, 7), Image.NEAREST)
+    P.im.alpha_composite(logo, (6, 5))
+    P.text(9, 15, 35, (GREEN, 2), seed=3)
+    P.rect(0, H - 1, W, H, ("snow", 1))
+    return P.im
+
+
 def stand_card(word, w=48, h=32, bg=(GREEN, 2)):
     """An acrylic stand card's picture: a white card, a coloured head with the word, print lines."""
     P = Pic(w, h, ("snow", 2))
