@@ -1107,6 +1107,8 @@ public final class StoreModule extends EcoModule {
             if (!sh.test && g.visit == null && eco.people() != null) eco.people().met(p, g.type.id(), g.s.shiny(), PeopleSpec.PLACE_STORE);
             career(p, sh, g.type.id(), hour);
         }
+        Player helper = sh.helper == null ? null : Bukkit.getPlayer(sh.helper);
+        if (helper != null) career(helper, sh, g.type.id(), hour);   // 2인 근무: both served them
         day.served(sh, p);
         g.bought = List.copyOf(t.c.items());
         say(g, "thanks");
@@ -1152,7 +1154,7 @@ public final class StoreModule extends EcoModule {
 
     /** The things the worker can press now (the till's items, its buttons, the boxes), in the world. */
     private List<ButtonPick.Target> targets(Shift sh, Player viewer) {
-        List<ButtonPick.Target> out = new ArrayList<>();
+        List<ButtonPick.Target> out = new ArrayList<>();   // (2인 근무: either worker may press anything)
         // 2차: the buttons over customers (each turned to the worker), the spills on the floor, the cups on the eat bar
         Location me = viewer.getLocation();
         for (Prompt pr : sh.prompts) for (Map.Entry<String, TextDisplay> b : pr.buttons.entrySet()) {
@@ -1165,7 +1167,7 @@ public final class StoreModule extends EcoModule {
                 len = 1;
             }
             int chars = Text.plain(pr.labels.getOrDefault(b.getKey(), "")).length();
-            out.add(new ButtonPick.Target(sh.worker, "ask:" + pr.id + ":" + b.getKey(), at.getX(), at.getY() + 0.07, at.getZ(), -dz / len, dx / len,
+            out.add(new ButtonPick.Target(viewer.getUniqueId(), "ask:" + pr.id + ":" + b.getKey(), at.getX(), at.getY() + 0.07, at.getZ(), -dz / len, dx / len,
                     Math.min(0.7, 0.05 * chars + 0.08), 0.075, 0.08));
         }
         StoreLayout.Site site = sh.shop.site;
@@ -1178,35 +1180,35 @@ public final class StoreModule extends EcoModule {
                 if (t.c.scanned(i)) continue;
                 HallLayout.Point p = l.slots().get(i);
                 double[] a = site.at(p.x(), p.y() + 0.12, p.z());
-                out.add(new ButtonPick.Target(sh.worker, "item:" + i, a[0], a[1], a[2], rx, rz, 0.14, 0.13, 0.14));
+                out.add(new ButtonPick.Target(viewer.getUniqueId(), "item:" + i, a[0], a[1], a[2], rx, rz, 0.14, 0.13, 0.14));
             }
             for (String key : t.buttons.keySet()) {
                 HallLayout.Point p = point(l, key);
                 if (p == null) continue;
                 double[] a = site.at(p.x(), p.y(), p.z());
-                out.add(new ButtonPick.Target(sh.worker, key, a[0], a[1], a[2], rx, rz, 0.225, 0.115, 0.06));
+                out.add(new ButtonPick.Target(viewer.getUniqueId(), key, a[0], a[1], a[2], rx, rz, 0.225, 0.115, 0.06));
             }
             if (t.buttons.containsKey("card")) {   // the card terminal itself too
                 double[] a = site.at(l.terminal().x(), l.terminal().y(), l.terminal().z());
-                out.add(new ButtonPick.Target(sh.worker, "card", a[0], a[1], a[2], rx, rz, 0.25, 0.08, 0.2));
+                out.add(new ButtonPick.Target(viewer.getUniqueId(), "card", a[0], a[1], a[2], rx, rz, 0.25, 0.08, 0.2));
             }
         }
         int i = 0;
         for (String box : sh.shop.chores.boxes()) {
             HallLayout.Point p = l.boxes().get(Math.min(i++, l.boxes().size() - 1));
             double[] a = site.at(p.x(), p.y() + 0.25, p.z());
-            out.add(new ButtonPick.Target(sh.worker, "box:" + box, a[0], a[1], a[2], rx, rz, 0.38, 0.25, 0.32));
+            out.add(new ButtonPick.Target(viewer.getUniqueId(), "box:" + box, a[0], a[1], a[2], rx, rz, 0.38, 0.25, 0.32));
         }
         for (String node : sh.shop.chores.spills()) {
             StoreLayout.Node n = l.nodes().get(node);
             if (n == null) continue;
             double[] a = site.at(n.x(), 0.05, n.z());
-            out.add(new ButtonPick.Target(sh.worker, "spill:" + node, a[0], a[1], a[2], rx, rz, 0.45, 0.12, 0.45));
+            out.add(new ButtonPick.Target(viewer.getUniqueId(), "spill:" + node, a[0], a[1], a[2], rx, rz, 0.45, 0.12, 0.45));
         }
         for (int seat = 0; seat < StoreLayout.EAT.size(); seat++) {
             if (!sh.shop.chores.cup(seat)) continue;
             double[] a = site.at(cupSpot(seat)[0], cupSpot(seat)[1] + 0.1, cupSpot(seat)[2]);
-            out.add(new ButtonPick.Target(sh.worker, "cup:" + seat, a[0], a[1], a[2], rx, rz, 0.2, 0.15, 0.2));
+            out.add(new ButtonPick.Target(viewer.getUniqueId(), "cup:" + seat, a[0], a[1], a[2], rx, rz, 0.2, 0.15, 0.2));
         }
         return out;
     }
@@ -1678,7 +1680,12 @@ public final class StoreModule extends EcoModule {
         shop.shift = null;
         working.remove(sh.worker);
         clearTill(sh);
+        Player worker = Bukkit.getPlayer(sh.worker);
         for (Guest g : new ArrayList<>(sh.guests)) {
+            if (g.visit != null && !g.visitDone && g.visitor != null && worker != null) {   // another module's customer never served
+                g.visitDone = true;
+                g.visitor.missed(worker, shop.name, g.visit);
+            }
             if (g.m.isValid()) g.m.remove();
             if (g.partner != null && g.partner.isValid()) g.partner.remove();
         }

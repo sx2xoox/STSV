@@ -557,7 +557,7 @@ final class StoreDay {
         BusModule bus = m.eco().bus();
         BusSpec.Type type = bus == null || bus.spec() == null ? null : bus.spec().types().get(kind);
         if (type == null || shop.world() == null) return;
-        Location at = shop.at(-1.5, 0, 1.6, 0);
+        Location at = shop.at(-1.0, 0, 2.3, 0);   // by the parasol table, looking in
         if (!at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return;
         Mannequin f = bus.spawnGuest(at, type, skin, false, x -> x.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1));
         at.getWorld().spawnParticle(Particle.END_ROD, at.clone().add(0, 1, 0), 8, 0.3, 0.6, 0.3, 0.01);
