@@ -13,9 +13,13 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:26.3.build.237-stable")
     compileOnly("dev.stsv:stsv-core")
+    // the official Anthropic Java SDK (hidden secret "newcomer": secret/newcomer/ClaudeMind): downloaded by the server at
+    // startup (plugin.yml "libraries"), not shaded. Tests never call it (NewcomerMind has a scripted implementation)
+    compileOnly("com.anthropic:anthropic-java:3.3.0")
 
     testImplementation("io.papermc.paper:paper-api:26.3.build.237-stable")
     testImplementation("dev.stsv:stsv-core")
+    testImplementation("com.anthropic:anthropic-java:3.3.0")
     testImplementation("org.xerial:sqlite-jdbc:3.47.1.0")
     testImplementation(platform("org.junit:junit-bom:5.13.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
