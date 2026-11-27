@@ -47,6 +47,20 @@ final class ClaudeMind implements NewcomerMind {
      * The key in the server's key file, or null: the first line that is not blank and not a # comment, stripped.
      * The file lives only on the server (never in the repository, never in the content pack); its value is never logged.
      */
+    /** Puts an empty key file (comment lines only) in the data folder when there is none, so the owner finds where the key goes. */
+    static void keyTemplate(java.nio.file.Path dataFolder) {
+        if (dataFolder == null) return;
+        try {
+            java.nio.file.Path f = dataFolder.resolve(KEY_FILE);
+            if (java.nio.file.Files.exists(f)) return;
+            java.nio.file.Files.createDirectories(dataFolder);
+            java.nio.file.Files.writeString(f, "# 이 줄 아래에 API 키를 한 줄로 붙여 넣고 저장한 뒤 서버를 다시 시작하세요.\n"
+                    + "# (# 으로 시작하는 줄과 빈 줄은 읽지 않습니다. 이 파일은 남에게 주지 마세요.)\n", java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ignored) {
+            // no template: the path is still told in the console and in 상태
+        }
+    }
+
     static String keyFile(java.nio.file.Path dataFolder) {
         if (dataFolder == null) return null;
         try {

@@ -485,6 +485,9 @@ class NewcomerAuditTest {
     void theKeyFileIsReadFromTheServersFolderOnly(@org.junit.jupiter.api.io.TempDir java.nio.file.Path dir) throws Exception {
         assertNull(ClaudeMind.keyFile(dir));
         assertNull(ClaudeMind.keyFile(null));
+        ClaudeMind.keyTemplate(dir.resolve("STSV-Economy"));   // the folder and an empty template (comments only = no key)
+        assertTrue(java.nio.file.Files.isRegularFile(dir.resolve("STSV-Economy").resolve(ClaudeMind.KEY_FILE)));
+        assertNull(ClaudeMind.keyFile(dir.resolve("STSV-Economy")));
         java.nio.file.Files.writeString(dir.resolve(ClaudeMind.KEY_FILE), "# 여기에 키 한 줄\n\n   \n");
         assertNull(ClaudeMind.keyFile(dir));
         java.nio.file.Files.writeString(dir.resolve(ClaudeMind.KEY_FILE), "\uFEFF# 주석\n\n  sk-test-not-a-real-key  \n다른 줄\n");

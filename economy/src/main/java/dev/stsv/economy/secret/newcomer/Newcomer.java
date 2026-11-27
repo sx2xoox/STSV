@@ -408,10 +408,11 @@ public final class Newcomer extends Secret {
             if (model == null || model.isBlank()) model = ClaudeMind.DEFAULT_MODEL;
             long maxTokens = Math.max(1024, cfg.getLong("ai.max-tokens", 16000));
             try {
+                ClaudeMind.keyTemplate(eco.getDataFolder().toPath());
                 String key = ClaudeMind.keyFile(eco.getDataFolder().toPath());   // the server's own file first, then the environment
                 if (key == null && !ClaudeMind.credential()) {
-                    eco.getLogger().info("[비밀] 새로 온 사람: ai.enabled 이지만 키가 없어서 대본으로만 말합니다 (plugins/" + eco.getDataFolder().getName()
-                            + "/" + ClaudeMind.KEY_FILE + " 또는 환경 변수 ANTHROPIC_API_KEY)");
+                    eco.getLogger().warning("[비밀] 새로 온 사람: AI 키가 없어서 대본으로만 말합니다. 키 넣는 곳: "
+                            + eco.getDataFolder().toPath().resolve(ClaudeMind.KEY_FILE).toAbsolutePath() + " (또는 환경 변수 ANTHROPIC_API_KEY)");
                 } else {
                     Optional<NewcomerMind> made = Sdk.mind(model.strip(), maxTokens, java.time.Duration.ofMillis(st.timeoutMs()), voice::error, key);
                     if (made.isPresent()) {
