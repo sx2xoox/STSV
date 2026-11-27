@@ -8,21 +8,21 @@
 store_license_alley:
   material: paper
   name: "<#1f9d55><b>GS26 골목점 권리증"
-  lore: ["<gray>내 가게 · 손님 2명까지 · 상품 12종", "<gray>내 땅에서 들고 우클릭 → 그 자리에 가게 (17×17칸)", "<gray>윗 등급으로 바꾸면 지금 등급 값을 돌려받음", "<dark_gray>값 500,000 G · 철거하면 권리증으로 돌아옴"]
+  lore: ["<gray>손님 2명 · 상품 12종 · 17×17칸", "<gray>내 땅에서 우클릭", "<dark_gray>500,000 G"]
   model: store_license_alley
   max-stack: 1
 
 store_license_standard:
   material: paper
   name: "<#1f9d55><b>GS26 표준점 권리증"
-  lore: ["<gray>내 가게 · 손님 4명까지 · 상품 22종", "<gray>내 땅에서 들고 우클릭 → 그 자리에 가게 (17×17칸)", "<gray>윗 등급으로 바꾸면 지금 등급 값을 돌려받음", "<dark_gray>값 1,500,000 G · 철거하면 권리증으로 돌아옴"]
+  lore: ["<gray>손님 4명 · 상품 22종 · 17×17칸", "<gray>내 땅에서 우클릭", "<dark_gray>1,500,000 G"]
   model: store_license_standard
   max-stack: 1
 
 store_license_large:
   material: paper
   name: "<#1f9d55><b>GS26 대형점 권리증"
-  lore: ["<gray>내 가게 · 손님 6명까지 · 상품 33종", "<gray>내 땅에서 들고 우클릭 → 그 자리에 가게 (17×17칸)", "<gray>윗 등급으로 바꾸면 지금 등급 값을 돌려받음", "<dark_gray>값 3,000,000 G · 철거하면 권리증으로 돌아옴"]
+  lore: ["<gray>손님 6명 · 상품 33종 · 17×17칸", "<gray>내 땅에서 우클릭", "<dark_gray>3,000,000 G"]
   model: store_license_large
   max-stack: 1
 
@@ -51,7 +51,7 @@ store_food_candy:
 store_food_waste:
   material: paper
   name: "<white>폐기 삼각김밥"
-  lore: ["<gray>유통기한이 막 지난 것 · 알바의 낙", "<dark_gray>GS26 편의점"]
+  lore: ["<gray>유통기한이 막 지난 것", "<dark_gray>GS26 편의점"]
   model: store_item_samgak_tuna
   food:
     nutrition: 5

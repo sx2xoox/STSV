@@ -103,7 +103,6 @@ final class StoreDay {
         if (p == null) return;
         p.playSound(p.getLocation(), Sound.EVENT_RAID_HORN, 0.5f, 1.4f);
         p.sendMessage(Lang.msg("store.rush-start", "n", r.target(), "s", r.seconds(), "g", StoreModule.gold(r.bonus())));
-        HudModule.flash(p, Lang.mm("store.rush-flash"), 2500);
     }
 
     /** A customer served: the rush counts them; cleared = the bonus and the fanfare. */
@@ -120,8 +119,7 @@ final class StoreDay {
         Bukkit.getScheduler().runTaskLater(m.eco(), () -> p.playSound(p.getLocation(), Sound.ENTITY_FIREWORK_ROCKET_TWINKLE, 0.8f, 1.1f), 6L);
         at.getWorld().spawnParticle(Particle.FIREWORK, at, 40, 0.6, 0.4, 0.6, 0.08);
         at.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, at, 16, 0.8, 0.5, 0.8, 0.1);
-        p.sendMessage(Lang.msg("store.rush-cleared", "g", StoreModule.gold(paid)));
-        HudModule.flash(p, Lang.mm("store.rush-cleared-flash"), 3500);
+        HudModule.flash(p, Lang.mm("store.rush-cleared-flash", "g", StoreModule.gold(paid)), 3500);
     }
 
     // ------------------------------------------------------------------------------------------ 하루 이벤트
@@ -177,7 +175,6 @@ final class StoreDay {
         }
         if (p != null) {
             p.sendMessage(Lang.msg("store.outage", "s", o.seconds()));
-            HudModule.flash(p, Lang.mm("store.outage-flash"), 3000);
             p.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.DARKNESS, 60, 0, false, false, false));
         }
         return true;
@@ -245,8 +242,7 @@ final class StoreDay {
         sh.crowdLeft = StoreLife.between(c.min(), c.max(), ThreadLocalRandom.current());
         sh.crowdClock = 0;
         if (p != null) {
-            p.sendMessage(Lang.msg("store.crowd", "n", sh.crowdLeft));
-            HudModule.flash(p, Lang.mm("store.crowd-flash"), 3000);
+            HudModule.flash(p, Lang.mm("store.crowd-flash", "n", sh.crowdLeft), 3000);
             p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_CELEBRATE, 0.7f, 1.3f);
         }
         return true;
@@ -317,6 +313,7 @@ final class StoreDay {
         if (!at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return false;
         Mannequin man = bus.spawnGuest(at, type, in.skin(), false, x -> {
             x.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1);
+            x.setDescription(net.kyori.adventure.text.Component.empty());   // (not "NPC")
             x.customName(Lang.mm("store.inspector-name"));
             x.setCustomNameVisible(true);
         });
@@ -333,7 +330,6 @@ final class StoreDay {
         w.playSound(door, Sound.BLOCK_NOTE_BLOCK_BELL, 0.8f, 1.7f);
         if (p != null) {
             p.sendMessage(Lang.msg("store.inspect", "s", in.seconds(), "pass", in.pass()));
-            HudModule.flash(p, Lang.mm("store.inspect-flash"), 3000);
         }
         return true;
     }
@@ -412,6 +408,34 @@ final class StoreDay {
         return o != null && o[0].equals(Long.toString(day)) && life().order().groups().containsKey(o[1]) ? o[1] : null;
     }
 
+    /** The box kind of an order group (its tablet page, the box the truck brings, §17), null: none. */
+    String kind(StoreLife.Group g) {
+        Map<String, String> boxOf = new java.util.HashMap<>();
+        for (StoreSpec.Shelf s : m.spec().shelves().values()) boxOf.put(s.place(), s.box());
+        return StoreMotion.kind(g, id -> {
+            StoreSpec.Product p = m.spec().products().get(id);
+            return p == null ? null : p.place();
+        }, boxOf);
+    }
+
+    /** The box of today's 발주 (the truck brings it along), null: no order today. */
+    String orderedBox(StoreModule.Shop shop) {
+        String o = ordered(shop, gameDay(shop.world()));
+        return o == null ? null : kind(life().order().groups().get(o));
+    }
+
+    /** The tablet shows a page a while (then its own screen again). */
+    private void page(StoreModule.Shop shop, String model, int seconds) {
+        m.show().furnish(shop, "order", model);
+        shop.tabletUntil = System.currentTimeMillis() + seconds * 1000L;
+        Bukkit.getScheduler().runTaskLater(m.eco(), () -> {
+            if (shop.tabletUntil > 0 && System.currentTimeMillis() >= shop.tabletUntil) {
+                shop.tabletUntil = 0;
+                m.show().furnish(shop, "order", m.show().wanted(shop, "order"));
+            }
+        }, seconds * 20L + 2);
+    }
+
     /** What sells best in this store today (fixed for the game day once asked). */
     String wanted(StoreModule.Shop shop, long day) {
         if (shop.demandDay == day && shop.demand != null) return shop.demand;
@@ -465,12 +489,25 @@ final class StoreDay {
             m.eco().kv().set("store.order." + shop.name, (day + 1) + "|" + cur + "|" + u);
             m.ordering.remove(u);
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.7f, 1.6f);
-            p.sendMessage(Lang.msg("store.order-done", "store", shop.name, "group", g.name()));
+            boolean sent = m.has(StoreMotion.tabletModel(null, true));
+            if (sent) {   // §17: the screen says 보냄, a beep
+                shop.tabletUntil = 0;
+                m.show().furnish(shop, "order", StoreMotion.tabletModel(null, true));
+                Bukkit.getScheduler().runTaskLater(m.eco(), () -> p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 0.6f, 2.0f), 3L);
+                if (m.hands().holds(p, StoreMotion.PDA)) m.hands().touch(p, 1);
+            }
+            HudModule.flash(p, Lang.mm("store.order-done", "group", g.name()), 2500);
             return;
         }
         StoreLife.Group next = life().order().after(cur);
         if (next == null) return;
         m.ordering.put(u, new String[]{shop.name, next.id()});
+        String model = StoreMotion.tabletModel(kind(next), false);
+        if (m.has(model)) page(shop, model, 10);   // §17: the page turns on the tablet
+        if (m.working(u) && m.has(StoreMotion.PDA)) {   // the PDA in hand while ordering
+            if (m.hands().holds(p, StoreMotion.PDA)) m.hands().touch(p, 10);
+            else if (m.hands().held(p) == null) m.hands().hold(p, StoreMotion.PDA, 10);
+        }
         String today = ordered(shop, day), tomorrow = ordered(shop, day + 1);
         List<String> names = new ArrayList<>();
         for (String id : next.products()) if (m.spec().products().containsKey(id)) names.add(m.spec().products().get(id).name());
@@ -559,7 +596,10 @@ final class StoreDay {
         if (type == null || shop.world() == null) return;
         Location at = shop.at(-1.0, 0, 2.3, 0);   // by the parasol table, looking in
         if (!at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return;
-        Mannequin f = bus.spawnGuest(at, type, skin, false, x -> x.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1));
+        Mannequin f = bus.spawnGuest(at, type, skin, false, x -> {
+            x.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1);
+            x.setDescription(net.kyori.adventure.text.Component.empty());   // (not "NPC")
+        });
         at.getWorld().spawnParticle(Particle.END_ROD, at.clone().add(0, 1, 0), 8, 0.3, 0.6, 0.3, 0.01);
         Bukkit.getScheduler().runTaskLater(m.eco(), () -> {
             if (f.isValid()) f.setRotation(f.getLocation().getYaw(), 25);   // a nod

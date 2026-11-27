@@ -772,6 +772,7 @@ public final class StoreModule extends EcoModule {
 
     private void tagGuest(Mannequin x, String name) {
         x.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
+        x.setDescription(Component.empty());   // (a mannequin's default line under its name is "NPC")
         if (name != null) {
             x.customName(Text.mm(name));
             x.setCustomNameVisible(true);
@@ -1333,9 +1334,8 @@ public final class StoreModule extends EcoModule {
             int seat = Integer.parseInt(key.substring(4));
             Chores ch = sh.shop.chores;
             if (!ch.cup(seat)) return;
-            if (has(StoreMotion.TRAY)) {   // §17: onto the tray, carried to the 폐기 바구니
-                if (!freeHands(p, StoreMotion.TRAY)) return;
-                if (!hands.holds(p, StoreMotion.TRAY) && !hands.hold(p, StoreMotion.TRAY, 0)) return;
+            if (has(StoreMotion.TRAY) && !freeHands(p, StoreMotion.TRAY)) return;
+            if (has(StoreMotion.TRAY) && (hands.holds(p, StoreMotion.TRAY) || hands.hold(p, StoreMotion.TRAY, 0))) {   // §17: onto the tray, to the 폐기 바구니
                 ch.trayCup(seat);
                 show.cupOff(sh.messes.remove("cup:" + seat), p);
                 p.playSound(me, Sound.BLOCK_DECORATED_POT_INSERT, 0.6f, 1.4f);
@@ -1376,7 +1376,6 @@ public final class StoreModule extends EcoModule {
                 to.setYaw(0);   // (its turn is in its transformation)
                 if (it.isValid()) it.teleport(to);
             }
-            if (did.size() > 1) HudModule.flash(p, Lang.mm(regular && did.size() == t.c.size() ? "store.scan-bundle" : "store.scan-many", "n", did.size()), 1500);
             drawScreen(sh);
             if (t.c.allScanned()) startPaying(sh);
             return;
@@ -1803,9 +1802,7 @@ public final class StoreModule extends EcoModule {
         p.sendMessage(Lang.msg(test ? "store.in-test" : hiredHere ? "store.in-hired" : shop.owner != null ? "store.in-own" : "store.in", "store", shop.name,
                 "share", Math.round(shop.share(p.getUniqueId()) * 100), "tier", shop.tier() == null ? "" : shop.tier().name(),
                 "owner", shop.owner == null ? "" : String.valueOf(Bukkit.getOfflinePlayer(shop.owner).getName())));
-        if (!test) p.sendMessage(Lang.msg(night ? "store.in-night" : "store.in-rank", "rank", rank(p.getUniqueId()).name(),
-                "x", String.format(java.util.Locale.ROOT, "%.1f", life.night().pay())));
-        HudModule.flash(p, Lang.mm(night ? "store.in-flash-night" : "store.in-flash"), 3000);
+        if (!test && night) p.sendMessage(Lang.msg("store.in-night", "x", String.format(java.util.Locale.ROOT, "%.1f", life.night().pay())));
         if (core.hud() != null) core.hud().refreshBoard();
         return true;
     }
@@ -2043,8 +2040,7 @@ public final class StoreModule extends EcoModule {
         StoreLife.Rank r = life.rank(book.served(u));
         int before = book.shown(u, r.index());
         if (r.index() <= before) return;
-        p.sendMessage(Lang.msg("store.rank-up", "rank", r.name()));
-        p.sendMessage(Lang.msg("store.unlock." + r.id()));
+        p.sendMessage(Lang.msg("store.unlock." + r.id(), "rank", r.name()));
         p.playSound(p.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 0.7f, 1.3f);
         HudModule.flash(p, Lang.mm("store.rank-flash", "rank", r.name()), 3500);
         if (r == life.top() && !life.title().isEmpty() && core.profiles() != null) core.profiles().grantTitle(u, life.title());
@@ -2067,9 +2063,6 @@ public final class StoreModule extends EcoModule {
         StoreLife.Rank r = rank(worker), next = life.next(r);
         if (!test) p.sendMessage(Lang.mm(next == null ? "store.receipt-rank-top" : "store.receipt-rank", "rank", r.name(), "next", next == null ? "" : next.name(),
                 "left", next == null ? 0 : Math.max(0, next.at() - book.served(worker))));
-        String word = pay.served() == 0 ? "store.word-none" : pay.stars() >= 4.5 ? "store.word-5" : pay.stars() >= 3.5 ? "store.word-4"
-                : pay.stars() >= 2.5 ? "store.word-3" : "store.word-low";
-        p.sendMessage(Lang.mm("store.receipt-word", "line", Lang.raw(word)));
         p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_WORK_CARTOGRAPHER, 0.8f, 1.2f);
     }
 
@@ -2361,10 +2354,10 @@ public final class StoreModule extends EcoModule {
         if (!sh.prompts.isEmpty()) out.add(Lang.raw("store.todo-ask"));
         if (ch.oven() == Chores.Oven.DONE) out.add(Lang.raw("store.todo-ding"));
         else if (sh.till != null && sh.till.c.asks().contains("warm") && ch.oven() == Chores.Oven.IDLE) out.add(Lang.raw("store.todo-warm"));
-        if (ch.carrying() != null) out.add(Lang.raw("store.todo-carry", "box", Lang.raw("store.box." + ch.carrying())));
+        if (ch.carrying() != null && hands.book.who(StoreMotion.heldBox(ch.carrying())) == null) out.add(Lang.raw("store.todo-carry", "box", Lang.raw("store.box." + ch.carrying())));
         for (String place : ch.empty()) out.add(Lang.raw("store.todo-empty", "shelf", Lang.raw("store.place." + place)));
         if (!ch.boxes().isEmpty()) out.add(Lang.raw("store.todo-boxes", "n", ch.boxes().size()));
-        if (ch.carriedWaste() > 0) out.add(Lang.raw("store.todo-waste-carry", "n", ch.carriedWaste()));
+        if (ch.carriedWaste() > 0 && hands.book.who(StoreMotion.WASTE_BAG) == null) out.add(Lang.raw("store.todo-waste-carry", "n", ch.carriedWaste()));
         else if (ch.expired(rules.waste().place()) > 0) out.add(Lang.raw("store.todo-waste", "n", ch.expired(rules.waste().place())));
         if (sh.shop.has("kettle") && ch.water(rules.mess().water()) <= 0) out.add(Lang.raw("store.todo-water"));
         if (ch.messes() > 0) out.add(Lang.raw(ch.mop() || ch.spills().isEmpty() ? "store.todo-mess" : "store.todo-mop", "n", ch.messes()));
@@ -2720,7 +2713,6 @@ public final class StoreModule extends EcoModule {
         Player p = Bukkit.getPlayer(sh.worker);
         if (p != null) {
             p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_HAT, 0.6f, 1.6f);
-            HudModule.flash(p, Lang.mm("store.ask-flash", "type", eco.bus().typeTag(g.type, g.s.shiny())), 2500);
         }
         return pr;
     }
@@ -3417,10 +3409,7 @@ public final class StoreModule extends EcoModule {
         String place = rules.waste().place();
         if (shop.has("shelf_" + place) && ++sh.wasteClock >= rules.waste().every()) {
             sh.wasteClock = 0;
-            if (shop.chores.expire(place, rules.waste().most())) {
-                drawWaste(sh);
-                HudModule.flash(p, Lang.mm("store.expired", "n", shop.chores.expired(place)), 2500);
-            }
+            if (shop.chores.expire(place, rules.waste().most())) drawWaste(sh);   // (red on the shelf)
         }
         long now = System.currentTimeMillis();
         for (Prompt pr : new ArrayList<>(sh.prompts)) {
@@ -3533,7 +3522,7 @@ public final class StoreModule extends EcoModule {
         if (!food.isBlank()) dev.stsv.economy.util.Items.create(food, 1).ifPresent(it -> {
             for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
         });
-        HudModule.flash(p, Lang.mm("store.waste-done", "n", n), 2000);
+        if (!bag) HudModule.flash(p, Lang.mm("store.waste-done", "n", n), 2000);
         task(p, sh, life.staff().chore());
     }
 
@@ -3694,7 +3683,6 @@ public final class StoreModule extends EcoModule {
         if (e.gift() != null && !sh.test) dev.stsv.economy.util.Items.create(e.gift().item(), e.gift().amount()).ifPresent(it -> {
             for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
         });
-        p.sendMessage(Lang.mm("store.scene-done", "title", esc(pl.scene.title())));
         p.playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_CHIME, 0.6f, 1.8f);
         if (!sh.test && eco.people() != null && eco.people().sawScene(p, StoreScenes.seenId(pl.scene.id()))) {
             p.sendMessage(Lang.mm("store.scene-new", "n", seenScenes(p).stream().filter(scenes.scenes()::containsKey).count(), "all", scenes.scenes().size()));

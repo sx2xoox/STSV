@@ -273,24 +273,20 @@ def cup_coffee_lid(D):
 
 
 def banana_wrap(W, H):
-    """바나나우유 (an original design): the jar's own pale banana yellow shows; printed on it a green bow-shaped banner
-    with print, a little banana, and a white band near the base."""
+    """바나나우유 (an original design), round the jar's belly (H rows): the pale jar shows; printed on it a green
+    banner with print and a little banana on the front, a thin green line all round."""
     P = Pic(W, H)
     cx = W / 2
-    P.rect(0, H - 4, W, H - 3, ("petal_yellow", 3))
-    for x in range(int(cx - 11), int(cx + 12)):
-        d = abs(x - cx)
-        top = 3 + int(d * 0.15)
-        P.rect(x, top, x + 1, top + 6, (GREEN, 2))
+    P.rect(0, H - 1, W, H, (GREEN, 2))
+    for x in range(int(cx - 9), int(cx + 10)):
+        d = abs(x + 0.5 - cx)
+        top = int(d * 0.12)
+        P.rect(x, top, x + 1, top + 5, (GREEN, 2))
         P.p(x, top, (GREEN, 3))
-    P.text(int(cx - 8), 6, int(cx + 8), ("corn", 3), seed=2)
-    P.text(int(cx - 6), 8, int(cx + 6), WHITE, seed=4)
-    # the banana
-    for k in range(8):
-        P.p(cx - 4 + k, 13 + abs(k - 3.5) * 0.45, ("corn", 2))
-        P.p(cx - 4 + k, 14 + abs(k - 3.5) * 0.45, ("corn", 1))
-    P.p(cx - 5, 12, ("doenjang", 1))
-    P.p(cx + 4, 13, ("doenjang", 1))
+    P.text(int(cx - 7), 2, int(cx + 7), ("corn", 3), seed=2)
+    for k in range(6):
+        P.p(cx - 3 + k, H - 3 + (k in (0, 5)) * -1, ("corn", 1))
+    P.p(cx - 4, H - 4, ("doenjang", 1))
     return P.im
 
 
@@ -371,8 +367,8 @@ def sleeve_top(W, H):
     P.text(3, int(H * 0.3) + 3, W - 5, ("iron", 2), seed=5)
     P.text(4, int(H * 0.3) + 6, W - 4, ("iron", 2), seed=1)
     _star(P, W - 5, int(H * 0.12) + 3, 3, ("pepper", 2), ("corn", 2))
-    P.rect(2, int(H * 0.7), W - 2, int(H * 0.88), ("corn", 2))
-    P.digits("4500", 4, int(H * 0.72), INK, font={**_D35})
+    P.rect(3, int(H * 0.72), W - 3, int(H * 0.72) + 7, ("corn", 2))
+    P.text(4, int(H * 0.72) + 3, W - 4, INK, seed=2)
     return P.im
 
 
@@ -395,11 +391,14 @@ def bag_front(kind, W, H):
                 a = math.atan2(y - H * 0.62, x - cx)
                 if int(a * 5) % 2:
                     P.p(x, y, ("corn", 3))
-        P.rect(0, 0, W, int(H * 0.3), ("pepper", 2))
-        P.rect(0, int(H * 0.3), W, int(H * 0.3) + 2, ("pepper", 1))
         m = mask("칩")
-        _blit(P, m, int(cx - len(m[0]) / 2), 2, WHITE, shadow=("pepper", 0))
-        P.text(3, int(H * 0.3) - 3, W - 3, ("corn", 3), seed=1)
+        bh = len(m) + 8
+        P.rect(0, 0, W, bh, ("pepper", 2))
+        P.rect(0, bh, W, bh + 2, ("pepper", 1))
+        _blit(P, m, int(cx - len(m[0]) / 2) - 6, 3, WHITE, shadow=("pepper", 0))
+        P.text(int(cx + len(m[0]) / 2), 6, W - 3, ("corn", 3), seed=1)
+        P.text(int(cx + len(m[0]) / 2), 9, W - 5, WHITE, seed=4)
+        P.text(4, bh - 3, W - 4, ("corn", 3), seed=1)
         for (fx, fy, rx, ry) in ((0.32, 0.6, 7, 5), (0.62, 0.66, 8, 5.5), (0.45, 0.8, 7, 4.5), (0.72, 0.85, 5, 3.5)):
             P.ell(W * fx, H * fy, rx, ry, ("corn", 3), ring=("onion", 3))
             P.ell(W * fx - 1.5, H * fy - 1.5, rx * 0.5, ry * 0.4, ("cream", 3))
@@ -409,11 +408,12 @@ def bag_front(kind, W, H):
         P.rect(2, H - 4, W - 2, H - 3, ("pepper", 2))
     elif kind == "shrimp":
         P.rect(0, 0, W, H, WHITE)
-        P.rect(0, 0, W, int(H * 0.28), ("pepper", 2))
-        P.rect(0, int(H * 0.28), W, int(H * 0.28) + 3, ("sapphire", 2))
         m = mask("새우")
-        _blit(P, m, int(cx - len(m[0]) / 2), 2, WHITE, shadow=("pepper", 0))
-        P.text(3, int(H * 0.28) + 1, W - 3, WHITE, seed=2)
+        bh = len(m) + 5
+        P.rect(0, 0, W, bh, ("pepper", 2))
+        P.rect(0, bh, W, bh + 4, ("sapphire", 2))
+        _blit(P, m, int(cx - len(m[0]) / 2), 3, WHITE, shadow=("pepper", 0))
+        P.text(3, bh + 1, W - 3, WHITE, seed=2)
         # a curled shrimp
         sx, sy, r = cx + 3, H * 0.62, H * 0.16
         for a in range(-40, 230, 4):
@@ -432,7 +432,7 @@ def bag_front(kind, W, H):
         P.rect(0, 0, W, H, ("crystal", 3))
         P.rect(0, 0, W, 5, ("crystal", 2))
         m = mask("젤리")
-        _blit(P, m, int(cx - len(m[0]) / 2), 4, WHITE, shadow=("grape", 1))
+        _blit(P, m, int(cx - len(m[0]) / 2), 6, WHITE, shadow=("grape", 1))
         P.ell(cx, H * 0.66, W * 0.38, H * 0.25, ("crystal", 4), ring=WHITE)
         cols = [("tomato", 3), ("corn", 2), (GREEN, 3), ("pink", 2), ("fox", 3)]
         k = 0
@@ -451,11 +451,12 @@ def bag_front(kind, W, H):
         for y in range(0, H, 6):
             for x in range((y // 6) % 2 * 3, W, 6):
                 P.p(x, y, ("pink", 3))
-        P.rect(0, 0, W, int(H * 0.26), ("pepper", 3))
         m = mask("사탕")
-        _blit(P, m, int(cx - len(m[0]) / 2), 2, WHITE, shadow=("wine", 1))
-        P.rect(4, int(H * 0.36), W - 4, H - 5, WHITE)
-        P.rect(5, int(H * 0.36) + 1, W - 5, H - 6, ("ice", 3))
+        bh = len(m) + 5
+        P.rect(0, 0, W, bh, ("pepper", 3))
+        _blit(P, m, int(cx - len(m[0]) / 2), 3, WHITE, shadow=("wine", 1))
+        P.rect(4, int(H * 0.4), W - 4, H - 5, WHITE)
+        P.rect(5, int(H * 0.4) + 1, W - 5, H - 6, ("ice", 3))
         for (fx, fy, col) in ((0.3, 0.48, ("tomato", 3)), (0.66, 0.52, ("sapphire", 3)), (0.42, 0.72, ("corn", 2)), (0.72, 0.76, (GREEN, 3)),
                               (0.25, 0.82, ("grape", 3))):
             x, y = W * fx, H * fy
@@ -499,11 +500,12 @@ def box_front(kind, W, H):
     cx = W / 2
     if kind == "choco_snack":
         P.rect(0, 0, W, H, ("pepper", 2))
-        P.rect(0, 0, W, int(H * 0.3), WHITE)
         m = mask("초코")
-        _blit(P, m, 4, int(H * 0.15 - len(m) / 2), ("pepper", 2))
-        P.text(len(m[0]) + 8, int(H * 0.12), W - 4, ("doenjang", 1), seed=1)
-        P.text(len(m[0]) + 8, int(H * 0.12) + 3, W - 8, ("iron", 2), seed=3)
+        P.rect(0, 0, W, len(m) + 6, WHITE)
+        _blit(P, m, 5, 3, ("pepper", 2), shadow=("pepper", 0))
+        P.text(len(m[0]) + 10, 5, W - 6, ("doenjang", 1), seed=1)
+        P.text(len(m[0]) + 10, 8, W - 10, ("iron", 2), seed=3)
+        P.text(len(m[0]) + 10, 11, W - 8, ("iron", 2), seed=5)
         for k, fx in enumerate((0.3, 0.68)):
             x, y, r = W * fx, H * 0.64, H * 0.24
             P.ell(x, y + 2, r, r * 0.55, ("doenjang", 0))
@@ -659,6 +661,264 @@ def lottery_face():
             for x in range(27, 31):                       # the ragged scratched edge
                 P.rect(x, y0 + (x % 3), x + 1, y0 + 9 - (x % 2), ("cream", 3))
     P.text(5, H - 5, W - 5, ("fabric_red", 1), seed=1)
+    return P.im
+
+
+# ================================================================================================
+# §17 행동을 눈으로: the furniture states' screens and windows, the held things' pictures, the signs
+# ================================================================================================
+
+ORDER_GROUPS = {"snack": ("과자", ("fox", 3), [("corn", 2), ("pepper", 2), ("crystal", 3), ("pink", 2)]),
+                "noodle": ("라면", ("pepper", 2), [("pepper", 2), ("fox", 3), ("wine", 3), ("corn", 2)]),
+                "daily": ("생활", ("sapphire", 2), [("snow", 1), ("iron", 2), ("pink", 2), ("ice", 3)]),
+                "meal": ("도시락", (GREEN, 2), [("rice", 2), ("iron", 1), ("fox", 3), ("bean", 3)]),
+                "drink": ("음료", ("water", 2), [("petal_yellow", 2), ("doenjang", 2), ("cucumber", 3), ("bottle_green", 2)])}
+
+
+def tablet_order(group):
+    """88 x 64, lit: the 발주 app on one group: the header in the group's colour with 발주 and the group's word, four
+    lines of its goods (their colours), the line being ordered picked out in yellow with its count going up (+1), the
+    green send key."""
+    import gamble_art as GAM
+    word, col, chips = ORDER_GROUPS[group]
+    W, H = 88, 64
+    P = Pic(W, H, WHITE)
+    P.rect(0, 0, W, 15, col)
+    P.rect(0, 15, W, 16, (col[0], col[1] - 1))
+    m = GAM.word_mask("발주", bold=False, spacing=1)
+    _blit(P, m, 4, 1, WHITE)
+    P.rect(4 + len(m[0]) + 3, 3, 4 + len(m[0]) + 4, 12, WHITE)
+    m2 = GAM.word_mask(word, bold=False, spacing=1)
+    _blit(P, m2, 4 + len(m[0]) + 8, 1, ("corn", 2))
+    counts = ["12", "8", "24", "6"]
+    for r in range(4):
+        y0 = 18 + r * 9
+        pick = r == 1
+        if pick:
+            P.rect(1, y0 - 1, W - 1, y0 + 8, ("corn", 2))
+            P.rect(2, y0, W - 2, y0 + 7, ("cream", 3))
+        P.rect(2, y0 + 8, W - 2, y0 + 9, ("snow", 0))
+        P.rect(4, y0 + 1, 10, y0 + 7, chips[r])
+        P.rect(4, y0 + 1, 10, y0 + 2, (chips[r][0], chips[r][1] + 1))
+        P.text(13, y0 + 3, 13 + 20 + r * 4, ("iron", 3), seed=r)
+        P.text(13, y0 + 5, 13 + 12 + r * 3, ("iron", 3), seed=r + 3)
+        P.rect(55, y0 + 1, 61, y0 + 7, ("car_white", 1))
+        P.rect(56, y0 + 4, 60, y0 + 5, ("iron", 2))
+        P.rect(77, y0 + 1, 83, y0 + 7, (GREEN, 2) if not pick else ("pepper", 2))
+        P.rect(78, y0 + 4, 82, y0 + 5, WHITE)
+        P.rect(79.5, y0 + 2, 80.5, y0 + 6, WHITE)
+        c = counts[r] if not pick else "9"
+        P.digits(c, 69 - (len(c) * 4 - 1) // 2, y0 + 1, ("iron", 1) if not pick else ("pepper", 2), font=_D35)
+    P.rect(4, 55, W - 4, 63, (GREEN, 2))
+    P.rect(4, 61, W - 4, 63, (GREEN, 1))
+    m3 = GAM.word_mask("보내기", bold=False, spacing=1)
+    if len(m3) <= 8:
+        _blit(P, m3, (W - len(m3[0])) // 2, 55, WHITE)
+    else:
+        for k in range(4):
+            P.rect(40 + k, 57 + k, 41 + k, 59 + k, WHITE)
+        for k in range(6):
+            P.rect(44 + k, 59 - k, 45 + k, 61 - k, WHITE)
+    return P.im
+
+
+def tablet_sent():
+    """88 x 64, lit: 발주 sent: the green header, a big green disc with a white check, a delivery truck driving off
+    under it, print (tomorrow's arrival)."""
+    import gamble_art as GAM
+    W, H = 88, 64
+    P = Pic(W, H, WHITE)
+    P.rect(0, 0, W, 15, (GREEN, 2))
+    P.rect(0, 15, W, 16, (GREEN, 0))
+    m = GAM.word_mask("발주 완료", bold=False, spacing=1)
+    _blit(P, m, 4, 1, WHITE)
+    P.ell(24, 36, 12, 12, (GREEN, 2), ring=(GREEN, 1))
+    for k in range(5):
+        P.rect(17 + k, 35 + k, 19 + k, 37 + k, WHITE)
+    for k in range(9):
+        P.rect(21 + k, 39 - k, 23 + k, 41 - k, WHITE)
+    # the truck
+    P.rect(44, 30, 70, 44, ("car_white", 2))
+    P.rect(44, 30, 70, 32, (GREEN, 2))
+    P.rect(70, 34, 80, 44, (GREEN, 2))
+    P.rect(72, 36, 78, 39, ("ice", 3))
+    for wx in (50, 74):
+        P.ell(wx, 45, 3, 3, ("iron", 1))
+        P.ell(wx, 45, 1.2, 1.2, ("iron", 3))
+    for k in range(3):
+        P.rect(34 + k * 2, 34 + k * 4, 41, 35 + k * 4, ("iron", 3))      # speed lines
+    P.text(44, 51, 82, ("iron", 2), seed=3)
+    P.text(8, 55, 40, ("iron", 2), seed=1)
+    P.rect(4, 58, W - 4, 63, ("snow", 0))
+    P.text(8, 60, W - 8, ("iron", 2), seed=4)
+    return P.im
+
+
+def micro_window(state):
+    """The microwave door's window (56 x 48, 8 texels a px, read from in front): run = lit warm inside, the turning
+    plate and a lunch box on it, the mesh over it all; done = the same dimmed (the lamp off), steam over the box."""
+    W, H = 56, 48
+    lit = state == "run"
+    P = Pic(W, H, ("corn", 3) if lit else ("iron", 1))
+    if lit:
+        for y in range(H):
+            for x in range(W):
+                d = math.hypot(x - W / 2, y - H * 0.4) / (W * 0.6)
+                if d > 0.55:
+                    P.p(x, y, ("corn", 2))
+                if d > 0.8:
+                    P.p(x, y, ("fox", 3))
+    P.ell(W / 2, H - 9, 22, 3.5, ("fish_silver", 4) if lit else ("iron", 3))
+    P.ell(W / 2, H - 9, 20, 2.5, ("cream", 3) if lit else ("iron", 2))
+    # a lunch box on the plate
+    P.rect(W / 2 - 12, H - 19, W / 2 + 12, H - 10, ("iron", 0))
+    P.rect(W / 2 - 11, H - 21, W / 2 + 11, H - 17, ("rice", 2) if lit else ("stone", 2))
+    P.rect(W / 2 - 3, H - 21, W / 2 + 3, H - 10, (GREEN, 2) if lit else (GREEN, 0))
+    if not lit:
+        for k in range(3):                              # steam
+            x = W / 2 - 8 + k * 8
+            for y in range(H - 34, H - 23):
+                P.p(x + int(2 * math.sin((y + k * 3) * 0.6)), y, ("stone", 3))
+    for y in range(H):
+        for x in range(W):
+            if (x + y) % 3 == 0:
+                P.shade(x, y, 0.82)
+    if lit:
+        P.line(4, 4, 14, 4, ("cream", 3))
+    return P.im
+
+
+def micro_display(state):
+    """The clock display (17 x 9 texels, lit): run = 1:00 counting down, done = End, open = 0:00 (the lamp's on)."""
+    W, H = 17, 9
+    P = Pic(W, H, INK)
+    g = (110, 240, 150)
+    font = {**_D35, ":": [".", "#", ".", "#", "."], "E": ["###", "#..", "##.", "#..", "###"], "n": ["...", "##.", "#.#", "#.#", "#.#"],
+            "d": ["..#", "..#", "###", "#.#", "###"]}
+    text = {"run": "1:00", "done": "End", "open": "0:00"}[state]
+    P.digits(text, 2, 2, g, font=font)
+    return P.im
+
+
+def micro_inside():
+    """The microwave's inside walls (16 x 16): pale enamel, lit by its lamp, a few vent dots."""
+    P = Pic(16, 16, ("cream", 3))
+    for y in range(16):
+        for x in range(16):
+            if (x * 3 + y * 5) % 11 == 0:
+                P.p(x, y, ("car_white", 2))
+    return P.im
+
+
+def wet_sign_face():
+    """60 x 84 (a 10 x 14 px panel of the A-frame wet floor sign, 6 texels a px): safety yellow, a black caution
+    triangle with a figure slipping on a puddle, 미끄럼 / 주의 under it (주의 in red), a black band at the foot; the
+    handle slot at the top."""
+    import gamble_art as GAM
+    W, H = 60, 84
+    P = Pic(W, H, ("corn", 2))
+    P.rect(0, 0, W, 3, ("corn", 3))
+    P.rect(W / 2 - 8, 5, W / 2 + 8, 10, INK)
+    cx, top, bot = W / 2, 14, 44
+    for y in range(top, bot):
+        hw = (y - top) * 0.62 + 1.5
+        P.rect(cx - hw, y, cx + hw, y + 1, INK)
+        if top + 4 < y < bot - 3:
+            P.rect(cx - hw + 4, y, cx + hw - 4, y + 1, ("corn", 2))
+    fx, fy = cx, 33
+    P.ell(fx + 4, fy - 9, 2.4, 2.4, INK)
+    for d in (-0.5, 0, 0.5, 1):
+        P.line(fx + 3 + d, fy - 6, fx - 1 + d, fy + 1, INK)
+    for d in (0, 1):
+        P.line(fx - 1, fy + 1 + d, fx + 6, fy + 5 + d, INK)
+        P.line(fx - 1, fy + 1 + d, fx - 7, fy + 4 + d, INK)
+        P.line(fx + 2, fy - 4 + d, fx + 8, fy - 3 + d, INK)
+        P.line(fx + 2, fy - 4 + d, fx - 5, fy - 7 + d, INK)
+    P.rect(cx - 10, fy + 7, cx + 10, fy + 8, ("water", 2))
+    P.rect(cx - 7, fy + 8, cx + 4, fy + 9, ("water", 2))
+    m1 = GAM.word_mask("미끄럼", bold=True, spacing=1)
+    m2 = GAM.word_mask("주의", bold=True, spacing=1)
+    _blit(P, m1, int((W - len(m1[0])) / 2), 49, INK)
+    _blit(P, m2, int((W - len(m2[0])) / 2), 64, ("pepper", 2))
+    P.rect(0, H - 4, W, H, INK)
+    return P.im
+
+
+def box_goods(kind):
+    """64 x 52 (an open delivery box's goods seen from above, 12 x ~10 px at ~5 texels a px, north = the bottom): rows
+    of the kind's goods packed in: snack = crisp bags and choco pie boxes, noodle = cup ramen lids, daily = tissue
+    packs and bandage boxes, meal = triangle kimbap and lunch boxes, drink = bottle caps and cans."""
+    W, H = 64, 52
+    P = Pic(W, H, ("bean", 0))
+    if kind == "snack":
+        for i in range(3):
+            x0 = 2 + i * 21
+            col = [("corn", 2), ("pepper", 2), ("crystal", 3)][i]
+            for j in range(4):
+                y0 = 2 + j * 12
+                P.rect(x0, y0, x0 + 19, y0 + 11, col)
+                P.rect(x0, y0, x0 + 19, y0 + 2, (col[0], col[1] - 1))
+                P.rect(x0 + 3, y0 + 4, x0 + 16, y0 + 8, WHITE if i != 1 else ("doenjang", 1))
+                P.text(x0 + 4, y0 + 6, x0 + 15, (col[0], col[1] - 1), seed=j)
+    elif kind == "noodle":
+        for i in range(4):
+            for j in range(3):
+                cx, cy = 9 + i * 15.5, 9 + j * 17
+                col = [("pepper", 2), ("fox", 3)][(i + j) % 2]
+                P.ell(cx, cy, 7.5, 7.5, ("car_white", 3), ring=col)
+                P.ell(cx, cy - 1, 3.5, 2.5, col)
+                P.rect(cx - 1, cy + 5, cx + 1, cy + 8, ("car_white", 2))
+    elif kind == "daily":
+        for i in range(2):
+            for j in range(3):
+                x0, y0 = 2 + i * 31, 2 + j * 16
+                P.rect(x0, y0, x0 + 29, y0 + 15, WHITE)
+                if (i + j) % 2:
+                    P.rect(x0, y0 + 11, x0 + 29, y0 + 15, ("sapphire", 3))
+                    P.ell(x0 + 14, y0 + 6, 8, 3, ("car_white", 1))
+                else:
+                    P.rect(x0, y0, x0 + 29, y0 + 4, ("pink", 2))
+                    P.rect(x0 + 8, y0 + 7, x0 + 21, y0 + 11, ("salmon", 3))
+                    P.rect(x0 + 12, y0 + 7, x0 + 17, y0 + 11, ("bean", 3))
+    elif kind == "meal":
+        for i in range(5):
+            x0 = 2 + i * 12
+            for j in range(2):
+                y0 = 2 + j * 13
+                P.rect(x0, y0, x0 + 11, y0 + 11, ("rice", 2))
+                P.rect(x0, y0 + 7, x0 + 11, y0 + 11, ("roe", 1))
+                P.rect(x0 + 5, y0, x0 + 6, y0 + 11, ("pepper", 2))
+                P.rect(x0 + 2, y0 + 3, x0 + 9, y0 + 6, [("sapphire", 2), ("pepper", 2), ("doenjang", 1)][(i + j) % 3])
+        for i in range(2):
+            x0 = 2 + i * 31
+            P.rect(x0, 29, x0 + 29, 50, ("iron", 1))
+            P.rect(x0 + 1, 30, x0 + 14, 49, ("rice", 2))
+            P.rect(x0 + 15, 30, x0 + 28, 39, ("pepper", 3))
+            P.rect(x0 + 15, 40, x0 + 28, 49, ("corn", 2))
+            P.rect(x0 + 13, 29, x0 + 16, 50, (GREEN, 2))
+    elif kind == "drink":
+        for i in range(5):
+            for j in range(4):
+                cx, cy = 7 + i * 12.5, 7 + j * 12.5
+                col = [("petal_yellow", 2), (GREEN, 2), ("sapphire", 2), ("snow", 2), ("doenjang", 1)][(i + 2 * j) % 5]
+                P.ell(cx, cy, 5.5, 5.5, ("ice", 3), ring=("glass", 2))
+                P.ell(cx, cy, 3, 3, col)
+                P.p(cx - 1, cy - 1, WHITE)
+    return P.im
+
+
+def id_held_face():
+    """The ID card's face for the held card (128 x 80): store_art.id_card with its text area printed (a name and a
+    birth year as print too small to read), so it reads as a filled-in card in the hand."""
+    import store_art as SA
+    im = SA.id_card()
+    P = Pic(im.width, im.height)
+    P.im, P.px = im, im.load()
+    for k in range(2):
+        P.text(13, 31 + k, 52, ("indigo", 1), seed=7)
+    for k in range(3):
+        P.text(14, 46 + k * 8, 66 - k * 10, ("indigo", 1), seed=k)
+        P.text(14, 47 + k * 8, 66 - k * 10, ("indigo", 1), seed=k)
     return P.im
 
 

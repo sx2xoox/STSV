@@ -18,9 +18,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -489,16 +487,5 @@ final class StoreShow {
         if (eq != null && eq.getItemInMainHand().getPersistentDataContainer().has(StoreModule.GUEST)) eq.setItemInMainHand(null);
         if (!m.has(StoreMotion.ID_CARD)) return null;
         return m.display(sh.shop.at(-2.45, StoreLayout.TOP, 6.95, 270), StoreMotion.ID_CARD, 1f);
-    }
-
-    /** Drops what is left (a clock-out): nothing tracked here past the shift's own lists. */
-    void forget(Map<String, Entity> messes) {
-        for (Iterator<Map.Entry<String, Entity>> it = messes.entrySet().iterator(); it.hasNext(); ) {
-            Map.Entry<String, Entity> e = it.next();
-            if (e.getKey().startsWith("sign:")) {
-                e.getValue().remove();
-                it.remove();
-            }
-        }
     }
 }
