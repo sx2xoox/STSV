@@ -124,6 +124,9 @@ public final class StoreModule extends EcoModule {
     private final Map<String, Set<UUID>> applied = new HashMap<>();
     /** a player paging the 발주 tablet: {store, group shown} */
     final Map<UUID, String[]> ordering = new HashMap<>();
+    /** §17: what a worker holds in place of the scanner, and the actions shown in the world */
+    private final StoreHands hands = new StoreHands(this);
+    private final StoreShow show = new StoreShow(this);
 
     private record Confirm(String what, String key, long at) {}
 
@@ -173,6 +176,7 @@ public final class StoreModule extends EcoModule {
         link = new StoreBus(this);
         if (eco.bus() != null) eco.bus().watch("store", link);
         day.relight(shops.values());
+        for (Shop s : shops.values()) show.restyle(s);   // §17: pieces left showing a state (a crash) as they are now
         if (core.hud() != null) {
             core.hud().board(HUD, BOARD_SHIFT, p -> working.containsKey(p.getUniqueId()), this::board);
             core.hud().line(HUD, 0, this::actionLine);
@@ -232,6 +236,28 @@ public final class StoreModule extends EcoModule {
         return book;
     }
 
+    dev.stsv.core.STSVPlugin core() {
+        return core;
+    }
+
+    StoreHands hands() {
+        return hands;
+    }
+
+    StoreShow show() {
+        return show;
+    }
+
+    /** Whether the pack has this item (a §17 model the asset side may not have made yet: the old look then). */
+    boolean has(String id) {
+        return core != null && core.content().item(id).isPresent();
+    }
+
+    /** Whether tomorrow's 발주 is in (the tablet shows it sent). */
+    boolean orderedTomorrow(Shop shop) {
+        return day != null && day.ordered(shop, StoreDay.gameDay(shop.world()) + 1) != null;
+    }
+
     EcoPlugin eco() {
         return eco;
     }
@@ -268,7 +294,10 @@ public final class StoreModule extends EcoModule {
         final StoreLayout.Site site;
         final Chores chores;
         Shift shift;
-        final Map<String, String> shown = new HashMap<>();   // place -> the shelf state shown
+        final Map<String, String> shown = new HashMap<>();   // place -> the shelf state shown; "role:" + role -> the model shown
+        final Map<String, UUID> pieces = new HashMap<>();   // role -> its furniture display (looked up again when gone)
+        /** 발주: the tablet shows a page until (ms) */
+        long tabletUntil;
         /** 내 가게 (2차): its owner and 등급 id (null: a 직영점) */
         UUID owner;
         String tier;
@@ -382,6 +411,13 @@ public final class StoreModule extends EcoModule {
         final Map<String, Entity> messes = new HashMap<>();
         TextDisplay wasteTag;
         int wasteClock;
+        /** §17: the shift's short-lived displays, the red 폐기 on the shelf, the shelves filling now, the food in the oven,
+         *  the kettle being filled */
+        final List<Entity> fx = new ArrayList<>();
+        final List<ItemDisplay> wasteItems = new ArrayList<>();
+        final Set<String> filling = new java.util.HashSet<>();
+        ItemDisplay ovenFood;
+        boolean pouring;
         long sceneCheck;
         Playing playing;
         String forceScene;
@@ -464,6 +500,8 @@ public final class StoreModule extends EcoModule {
         /** 2차: a question to answer before anything is scanned; all on credit (외상) */
         boolean hold, free;
         TextDisplay idCard;
+        /** §17: the ID card lying on the counter */
+        ItemDisplay idModel;
 
         Till(Guest g, Checkout c) {
             this.g = g;
@@ -476,6 +514,13 @@ public final class StoreModule extends EcoModule {
     private void frame() {
         ticks++;
         bubbles.tick();
+        if (ticks % 10 == 0 && !hands.book.isEmpty()) {   // §17: brief things go back by themselves
+            for (UUID u : hands.book.due(System.currentTimeMillis())) {
+                Player p = Bukkit.getPlayer(u);
+                if (p == null) hands.forget(u);
+                else handsBack(p);
+            }
+        }
         for (Shop shop : shops.values()) {
             Shift sh = shop.shift;
             if (sh == null) continue;
@@ -499,7 +544,7 @@ public final class StoreModule extends EcoModule {
             if (w == null) continue;
             int hour = Chores.hour(w.getTime());
             // the truck
-            List<String> came = shop.chores.delivery(spec, Chores.slot(w.getFullTime(), spec.deliveries()));
+            List<String> came = shop.chores.delivery(spec, Chores.slot(w.getFullTime(), spec.deliveries()), day.orderedBox(shop));   // 발주: its box too
             if (!came.isEmpty()) {
                 showBoxes(sh);
                 p.sendMessage(Lang.msg("store.delivery", "n", came.size()));
@@ -526,6 +571,10 @@ public final class StoreModule extends EcoModule {
                 for (Guest g : new ArrayList<>(sh.guests)) if (g.s == sh.line.getFirst() && g.s.state() == Shopper.State.COUNTER) atCounter(sh, g);
             }
             chores(shop, sh, p, hour);
+            if (shop.tabletUntil > 0 && System.currentTimeMillis() > shop.tabletUntil) {   // the 발주 tablet back to its screen
+                shop.tabletUntil = 0;
+                show.furnish(shop, "order", show.wanted(shop, "order"));
+            }
             sceneTick(sh, p);
             if (shop.shift != sh) continue;
             day.second(shop, sh, p, hour);
@@ -872,7 +921,9 @@ public final class StoreModule extends EcoModule {
         StoreLayout.Layout l = StoreLayout.of();
         for (int i = 0; i < things.size(); i++) {
             HallLayout.Point p = l.slots().get(i);
-            t.items.add(display(sh.shop.at(p), spec.products().get(things.get(i)).item(), 0.75f));
+            ItemDisplay d = display(sh.shop.at(p), spec.products().get(things.get(i)).item(), 0.75f);
+            d.setTeleportDuration(4);   // a scan slides it across (§17)
+            t.items.add(d);
         }
         EntityEquipment eq = g.m.getEquipment();
         if (eq != null) {
@@ -1069,6 +1120,7 @@ public final class StoreModule extends EcoModule {
         for (String x : t.c.items()) if ("noodle".equals(placeOf(x))) ramen = true;
         if (ramen && sh.shop.has("kettle")) {
             if (sh.shop.chores.pour(rules.mess().water())) {
+                show.kettle(sh.shop);   // §17: the water level
                 if (sh.shop.has("eatbar") && rnd.nextDouble() < rules.mess().eat()) g.eats = true;
             } else {
                 g.s.mood(rules.mess().dry());
@@ -1111,14 +1163,15 @@ public final class StoreModule extends EcoModule {
                 leaves = true;
             }
         }
-        // what they bought goes with them in a GS26 bag
+        // what they bought slides into a GS26 bag on the counter (§17), then goes with them
         EntityEquipment eq = leaves ? null : g.m.getEquipment();
-        if (eq != null) {
+        show.bag(sh, t, g, () -> {
+            if (eq == null || !g.m.isValid()) return;
             ItemStack bag = StoreBuilder.shown(core, "economy:store_bag");
             bag.editMeta(m -> m.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1));
             if (eq.getItemInMainHand().getType().isAir()) eq.setItemInMainHand(bag);
             else if (eq.getItemInOffHand().getType().isAir()) eq.setItemInOffHand(bag);
-        }
+        });
         clearTill(sh);
         sh.line.remove(g.s);
         g.tallied = true;
@@ -1133,6 +1186,7 @@ public final class StoreModule extends EcoModule {
         for (Entity e : t.buttons.values()) e.remove();
         for (Entity e : t.extra) e.remove();
         if (t.idCard != null) t.idCard.remove();
+        if (t.idModel != null) t.idModel.remove();
         if (t.screen != null) t.screen.remove();
         if (t.face != null) t.face.remove();
         sh.till = null;
@@ -1247,31 +1301,56 @@ public final class StoreModule extends EcoModule {
         }
         if (key.startsWith("spill:")) {
             String node = key.substring(6);
-            if (!sh.shop.chores.mop()) {
+            Chores ch = sh.shop.chores;
+            if (has(StoreMotion.MOP)) {   // §17: the mop in this worker's hand, a few strokes
+                if (!hands.holds(p, StoreMotion.MOP)) {
+                    HudModule.flash(p, Lang.mm("store.need-mop"), 2000);
+                    return;
+                }
+                int after = ch.wipeOnce(node);
+                if (after < 0) return;
+                hands.touch(p, 30);
+                show.stroke(sh, p, node, after);
+                if (after == 0) {
+                    task(p, sh, life.staff().chore());
+                    if (ch.spills().isEmpty()) hands.touch(p, 4);   // all dry: the mop goes back by itself
+                }
+                return;
+            }
+            if (!ch.mop()) {
                 HudModule.flash(p, Lang.mm("store.need-mop"), 2000);
                 return;
             }
-            if (sh.shop.chores.wipe(node)) {
+            if (ch.wipe(node)) {
                 Entity d = sh.messes.remove("spill:" + node);
                 if (d != null) d.remove();
                 p.playSound(me, Sound.ITEM_BUCKET_EMPTY, 0.6f, 1.4f);
-                HudModule.flash(p, Lang.mm("store.mopped"), 1500);
                 task(p, sh, life.staff().chore());
             }
             return;
         }
         if (key.startsWith("cup:")) {
             int seat = Integer.parseInt(key.substring(4));
-            if (sh.shop.chores.clearCup(seat)) {
+            Chores ch = sh.shop.chores;
+            if (!ch.cup(seat)) return;
+            if (has(StoreMotion.TRAY)) {   // §17: onto the tray, carried to the 폐기 바구니
+                if (!freeHands(p, StoreMotion.TRAY)) return;
+                if (!hands.holds(p, StoreMotion.TRAY) && !hands.hold(p, StoreMotion.TRAY, 0)) return;
+                ch.trayCup(seat);
+                show.cupOff(sh.messes.remove("cup:" + seat), p);
+                p.playSound(me, Sound.BLOCK_DECORATED_POT_INSERT, 0.6f, 1.4f);
+                return;
+            }
+            if (ch.clearCup(seat)) {
                 Entity d = sh.messes.remove("cup:" + seat);
                 if (d != null) d.remove();
                 p.playSound(me, Sound.ITEM_BUNDLE_INSERT, 0.6f, 1.2f);
-                HudModule.flash(p, Lang.mm("store.cleared"), 1500);
                 task(p, sh, life.staff().chore());
             }
             return;
         }
         if (key.startsWith("item:") && t != null) {
+            if (!freeHands(p, null)) return;
             if (!isTool(p.getInventory().getItemInMainHand())) {
                 HudModule.flash(p, Lang.mm("store.need-scanner"), 2000);
                 return;
@@ -1291,7 +1370,7 @@ public final class StoreModule extends EcoModule {
                 int pitch = k;
                 Bukkit.getScheduler().runTaskLater(eco, () -> p.getWorld().playSound(p.getLocation(), Sound.BLOCK_NOTE_BLOCK_BIT, 0.8f, 2.0f - 0.05f * pitch), 2L * k);
             }
-            for (int k : did) {
+            for (int k : did) {   // slides across to the bagging side (the display's teleport duration: the client's)
                 ItemDisplay it = t.items.get(k);
                 Location to = sh.shop.at(StoreLayout.of().scanned().get(k));
                 to.setYaw(0);   // (its turn is in its transformation)
@@ -1378,12 +1457,56 @@ public final class StoreModule extends EcoModule {
                 HudModule.flash(p, Lang.mm("store.box-hands-full"), 2000);
                 return;
             }
+            boolean visible = has(StoreMotion.heldBox(box));
+            if (visible && !freeHands(p, null)) return;
             if (sh.shop.chores.pick(box)) {
                 p.playSound(me, Sound.ITEM_BUNDLE_INSERT, 0.8f, 0.8f);
-                HudModule.flash(p, Lang.mm("store.box-picked", "box", Lang.raw("store.box." + box)), 2500);
+                if (!visible || !hands.hold(p, StoreMotion.heldBox(box), 0))   // §17: in both arms; else the old word
+                    HudModule.flash(p, Lang.mm("store.box-picked", "box", Lang.raw("store.box." + box)), 2500);
                 showBoxes(sh);
             }
         }
+    }
+
+    /**
+     * The worker's hand for something (§17): free when it holds nothing or `forId`; a brief thing (the mop, the jug, the
+     * PDA, an ID) is put back first; a box, the 폐기 bag or the tray must be put where it goes first (false, and they are told).
+     */
+    private boolean freeHands(Player p, String forId) {
+        String h = hands.held(p);
+        if (h == null || h.equals(forId)) return true;
+        if (StoreMotion.brief(h)) {
+            handsBack(p);
+            return true;
+        }
+        HudModule.flash(p, Lang.mm("store.hands-full"), 1500);
+        return false;
+    }
+
+    /** The held thing goes back (the scanner in hand again); the mop's bucket knows whether anyone still holds it. */
+    void handsBack(Player p) {
+        String was = hands.release(p);
+        if (StoreMotion.MOP.equals(was)) {
+            Shop shop = working.get(p.getUniqueId());
+            if (shop != null) shop.chores.mop(hands.book.who(StoreMotion.MOP) != null);
+            p.playSound(p.getLocation(), Sound.BLOCK_WOOD_PLACE, 0.5f, 1.2f);
+        }
+    }
+
+    /**
+     * A worker leaves the shift (clock-out, a quit, the helper goes): what they held is put back where it belongs (a box by the
+     * door, the mop in its bucket), and they are forgotten. Their tools are taken away by the caller.
+     */
+    private void dropHands(Shift sh, UUID u) {
+        String h = hands.book.id(u);
+        hands.forget(u);
+        if (h == null) return;
+        Chores ch = sh.shop.chores;
+        if (h.startsWith("economy:store_held_box_") && ch.carrying() != null) {
+            ch.putDown();
+            showBoxes(sh);
+        }
+        if (h.equals(StoreMotion.MOP)) ch.mop(hands.book.who(StoreMotion.MOP) != null);
     }
 
     /** A pressed button grows a moment. */
@@ -1411,13 +1534,18 @@ public final class StoreModule extends EcoModule {
         }
     }
 
-    /** A shelf's model follows its stock (full / half / empty). */
-    private void refreshShelf(Shop shop, String place) {
+    /** A shelf's model follows its stock (full / half / empty); a shelf being filled shows its fill. */
+    void refreshShelf(Shop shop, String place) {
+        if (shop.shift != null && shop.shift.filling.contains(place)) return;
         String state = shop.chores.state(spec, place);
         if (state.equals(shop.shown.get(place))) return;
-        World w = shop.world();
-        if (w == null) return;
-        Map<String, UUID> pieces = StoreBuilder.pieces(w, shop.name, shop.site);
+        showShelf(shop, place, state);
+    }
+
+    /** A shelf (or the fridges) shows this state. */
+    void showShelf(Shop shop, String place, String state) {
+        if (state.equals(shop.shown.get(place))) return;
+        if (shop.world() == null) return;
         List<String> roles = new ArrayList<>();
         String item;
         if (place.equals("fridge")) {
@@ -1427,11 +1555,11 @@ public final class StoreModule extends EcoModule {
             roles.add("shelf_" + place);
             item = "economy:store_shelf_" + place + "_" + state;
         }
-        if (core.content().item(item).isEmpty()) return;   // (the pack does not have it yet)
+        if (!has(item)) return;   // (the pack does not have it yet)
         ItemStack stack = StoreBuilder.shown(core, item);
         for (String r : roles) {
-            UUID u = pieces.get(r);
-            if (u != null && Bukkit.getEntity(u) instanceof ItemDisplay d) d.setItemStack(stack);
+            ItemDisplay d = show.piece(shop, r);
+            if (d != null) d.setItemStack(stack);
         }
         shop.shown.put(place, state);
     }
@@ -1443,14 +1571,26 @@ public final class StoreModule extends EcoModule {
             HudModule.flash(p, Lang.mm(state.equals("full") ? "store.shelf-full" : "store.shelf-need-box", "shelf", Lang.raw("store.place." + place)), 2000);
             return;
         }
+        String box = ch.carrying();
+        UUID carrier = hands.book.who(StoreMotion.heldBox(box));
+        if (carrier != null && !carrier.equals(p.getUniqueId())) {   // 2인 근무: the one with the box in their arms fills
+            HudModule.flash(p, Lang.mm("store.box-other"), 1500);
+            return;
+        }
+        int from = Math.max(0, ch.stock(place));
         if (!ch.restock(spec, place)) {
-            HudModule.flash(p, Lang.mm("store.box-wrong", "box", Lang.raw("store.box." + ch.carrying()), "shelf", Lang.raw("store.place." + place)), 2500);
+            HudModule.flash(p, Lang.mm("store.box-wrong", "box", Lang.raw("store.box." + box), "shelf", Lang.raw("store.place." + place)), 2500);
             p.playSound(p.getLocation(), Sound.ENTITY_VILLAGER_NO, 0.5f, 1.2f);
             return;
         }
-        p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.8f, 1.3f);
-        HudModule.flash(p, Lang.mm("store.restocked", "shelf", Lang.raw("store.place." + place)), 2000);
-        refreshShelf(sh.shop, place);
+        if (hands.holds(p, StoreMotion.heldBox(box))) {   // §17: the box opened by the shelf, its things onto it one by one
+            handsBack(p);
+            show.fill(sh, p, place, from);
+        } else {
+            p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_LEATHER, 0.8f, 1.3f);
+            HudModule.flash(p, Lang.mm("store.restocked", "shelf", Lang.raw("store.place." + place)), 2000);
+            refreshShelf(sh.shop, place);
+        }
         task(p, sh, life.staff().restock());
     }
 
@@ -1467,11 +1607,17 @@ public final class StoreModule extends EcoModule {
                 ch.startOven(spec.warm().seconds());
                 sh.warmFor = t.g;
                 p.playSound(p.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_CLOSE, 0.6f, 1.6f);
-                HudModule.flash(p, Lang.mm("store.oven-start", "s", spec.warm().seconds()), 2000);
+                String food = null;
+                for (String x : t.c.items()) if (food == null && spec.warm().items().contains(x)) food = spec.products().get(x).item();
+                show.ovenIn(sh, food);   // §17: the door, the food inside, the light
+                if (!ovenShown()) HudModule.flash(p, Lang.mm("store.oven-start", "s", spec.warm().seconds()), 2000);
             }
-            case WARMING -> HudModule.flash(p, Lang.mm("store.oven-wait", "s", (ch.ovenTicks() + 19) / 20), 1500);
+            case WARMING -> {
+                if (!ovenShown()) HudModule.flash(p, Lang.mm("store.oven-wait", "s", (ch.ovenTicks() + 19) / 20), 1500);
+            }
             case DONE -> {
                 ch.takeOut();
+                show.ovenOut(sh);
                 p.playSound(p.getLocation(), Sound.BLOCK_IRON_TRAPDOOR_OPEN, 0.6f, 1.6f);
                 Guest g = sh.warmFor;
                 sh.warmFor = null;
@@ -1491,16 +1637,21 @@ public final class StoreModule extends EcoModule {
         Chores ch = sh.shop.chores;
         Chores.OvenEvent e = ch.tickOven(spec.warm().forget());
         if (e == Chores.OvenEvent.NONE) {
-            if (ticks % 20 == 0) drawOven(sh);
+            if (ticks % 20 == 0) {
+                drawOven(sh);
+                if (ch.oven() == Chores.Oven.WARMING) show.ovenSpin(sh, ticks);
+                else if (ch.oven() == Chores.Oven.DONE && ticks % 40 == 0) show.steam(sh);
+            }
             return;
         }
         Location at = sh.shop.at(StoreLayout.of().oven());
         if (e == Chores.OvenEvent.DING) {
             at.getWorld().playSound(at, Sound.BLOCK_NOTE_BLOCK_BELL, 1.0f, 2.0f);   // 띵
+            show.ding(sh);
             Player p = Bukkit.getPlayer(sh.worker);
-            if (p != null) HudModule.flash(p, Lang.mm("store.oven-ding"), 2500);
+            if (p != null && !ovenShown()) HudModule.flash(p, Lang.mm("store.oven-ding"), 2500);
         } else {
-            at.getWorld().spawnParticle(Particle.LARGE_SMOKE, at, 10, 0.2, 0.2, 0.2, 0.01);
+            show.burnt(sh);
             Guest g = sh.warmFor;
             sh.warmFor = null;
             Till t = sh.till;
@@ -1515,9 +1666,14 @@ public final class StoreModule extends EcoModule {
         drawScreen(sh);
     }
 
+    /** Whether the microwave's own models show its state (§17): no words over it then. */
+    private boolean ovenShown() {
+        return has("economy:store_microwave_run");
+    }
+
     private void drawOven(Shift sh) {
         Chores ch = sh.shop.chores;
-        if (ch.oven() == Chores.Oven.IDLE) {
+        if (ch.oven() == Chores.Oven.IDLE || ovenShown()) {
             if (sh.ovenText != null) sh.ovenText.remove();
             sh.ovenText = null;
             return;
@@ -1637,7 +1793,7 @@ public final class StoreModule extends EcoModule {
         shop.shift = sh;
         working.put(p.getUniqueId(), shop);
         shop.shown.clear();
-        for (String place : spec.shelves().keySet()) refreshShelf(shop, place);
+        show.restyle(shop);   // the shelves, the empty hanger (§17), the kettle's water, the tablet
         World w = shop.world();
         if (w != null) shop.chores.delivery(spec, Chores.slot(w.getFullTime(), spec.deliveries()));   // (the first one only remembers)
         showBoxes(sh);
@@ -1665,6 +1821,7 @@ public final class StoreModule extends EcoModule {
         if (sh.helper != null) helperOut(shop, why);
         day.endOutage(sh, false);
         if (sh.visitProp != null) sh.visitProp.remove();
+        dropHands(sh, sh.worker);
         shop.shift = null;
         working.remove(sh.worker);
         clearTill(sh);
@@ -1689,17 +1846,21 @@ public final class StoreModule extends EcoModule {
         for (Entity e : sh.messes.values()) e.remove();
         sh.messes.clear();
         if (sh.wasteTag != null) sh.wasteTag.remove();
+        show.clear(sh);
         sh.playing = null;
         shop.chores.putDown();
         shop.chores.resetOven();
         shop.chores.mop(false);
+        shop.chores.dumpCups();
         settleOut(shop, sh, sh.worker, sh.log, sh.test, why);
+        show.restyle(shop);   // the vest back on its hanger, the microwave shut, the tablet as the order stands
         if (core.hud() != null) core.hud().refreshBoard();
     }
 
     /** One worker's end of a shift: the tools back, the rest of the pay (the rating bonus), the receipt, the 발주 reminder. */
     private void settleOut(Shop shop, Shift sh, UUID worker, ShiftLog log, boolean test, String why) {
         Player p = Bukkit.getPlayer(worker);
+        hands.forget(worker);
         if (p != null) stripTools(p);
         double share = shop.share(worker);
         ShiftLog.Payout pay = log.payout(spec, share);
@@ -1723,6 +1884,7 @@ public final class StoreModule extends EcoModule {
     private void handOverTill(Shop shop, Shift sh, String why) {
         UUID gone = sh.worker;
         ShiftLog log = sh.log;
+        dropHands(sh, gone);
         working.remove(gone);
         settleOut(shop, sh, gone, log, sh.test, why);
         sh.worker = sh.helper;
@@ -1745,6 +1907,7 @@ public final class StoreModule extends EcoModule {
         if (sh == null || sh.helper == null) return;
         UUID u = sh.helper;
         ShiftLog log = sh.helperLog;
+        dropHands(sh, u);
         sh.helper = null;
         sh.helperLog = null;
         working.remove(u);
@@ -1912,7 +2075,7 @@ public final class StoreModule extends EcoModule {
 
     // ------------------------------------------------------------------------------------------ tools
 
-    private ItemStack tool(String id) {
+    ItemStack tool(String id) {
         ItemStack it = dev.stsv.economy.util.Items.create(id, 1).orElse(null);
         if (it == null) {
             boolean vest = id.contains("vest");
@@ -2071,10 +2234,27 @@ public final class StoreModule extends EcoModule {
 
     @EventHandler(ignoreCancelled = true)
     public void onInventory(InventoryClickEvent e) {
+        if (StoreHands.isHeld(e.getCurrentItem()) || StoreHands.isHeld(e.getCursor())
+                || (e.getHotbarButton() >= 0 && StoreHands.isHeld(e.getWhoClicked().getInventory().getItem(e.getHotbarButton())))
+                || (e.getClick() == org.bukkit.event.inventory.ClickType.SWAP_OFFHAND && StoreHands.isHeld(e.getWhoClicked().getInventory().getItemInOffHand()))) {
+            e.setCancelled(true);   // §17: a held thing stays in the hand
+            return;
+        }
         if (e.getView().getTopInventory().getType() == InventoryType.CRAFTING) return;   // their own inventory: move it about freely
         boolean tool = isTool(e.getCurrentItem()) || isTool(e.getCursor());
         if (!tool && e.getHotbarButton() >= 0) tool = isTool(e.getWhoClicked().getInventory().getItem(e.getHotbarButton()));
         if (tool) e.setCancelled(true);
+    }
+
+    /** §17: while holding something for a moment the hand stays on it (no scrolling away, no swapping hands). */
+    @EventHandler(ignoreCancelled = true)
+    public void onHeldSlot(org.bukkit.event.player.PlayerItemHeldEvent e) {
+        if (StoreHands.isHeld(e.getPlayer().getInventory().getItem(e.getPreviousSlot()))) e.setCancelled(true);
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onSwapHands(org.bukkit.event.player.PlayerSwapHandItemsEvent e) {
+        if (StoreHands.isHeld(e.getMainHandItem()) || StoreHands.isHeld(e.getOffHandItem())) e.setCancelled(true);
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -2115,7 +2295,21 @@ public final class StoreModule extends EcoModule {
 
     @EventHandler
     public void onEntitiesLoad(EntitiesLoadEvent e) {
-        for (Entity x : e.getEntities()) if (x.getPersistentDataContainer().has(GUEST)) x.remove();
+        Set<Shop> again = new LinkedHashSet<>();
+        for (Entity x : e.getEntities()) {
+            if (x.getPersistentDataContainer().has(GUEST)) {
+                x.remove();
+                continue;
+            }
+            String name = x.getPersistentDataContainer().get(StoreBuilder.TAG, PersistentDataType.STRING);
+            String role = name == null ? null : x.getPersistentDataContainer().get(StoreBuilder.ROLE, PersistentDataType.STRING);
+            Shop shop = role == null ? null : shops.get(name);
+            if (shop != null && (StoreShow.STATEFUL.contains(role) || role.startsWith("shelf_") || role.startsWith("fridge_"))) again.add(shop);
+        }
+        // §17: a piece saved showing a state (the empty hanger, the open microwave, a page) shows the store's state now
+        if (!again.isEmpty()) Bukkit.getScheduler().runTask(eco, () -> {
+            for (Shop s : again) if (shops.get(s.name) == s) show.restyle(s);
+        });
     }
 
     private void purge() {
@@ -2659,6 +2853,7 @@ public final class StoreModule extends EcoModule {
         if (g.card != null && IdCheck.restricted(t.c.items(), rules.id().items())) {
             t.hold = true;
             t.c.ask("id");
+            show.idOut(g);   // §17: the card held out
             sayLine(g, rules.id().lines("ask"));
             Map<String, String> c = new LinkedHashMap<>();
             c.put("check", Lang.raw("store.id-check"));
@@ -2936,6 +3131,7 @@ public final class StoreModule extends EcoModule {
         Location me = p.getLocation();
         switch (choice) {
             case "check" -> {
+                if (has(StoreMotion.HELD_ID) && freeHands(p, StoreMotion.HELD_ID)) hands.hold(p, StoreMotion.HELD_ID, 3);   // §17: taken a moment
                 showCard(sh, g);
                 sayLine(g, rules.id().lines("show"));
                 Map<String, String> c = new LinkedHashMap<>();
@@ -2994,6 +3190,10 @@ public final class StoreModule extends EcoModule {
         if (t == null || t.g != g) return;
         if (t.idCard != null) t.idCard.remove();
         t.idCard = null;
+        if (t.idModel != null) t.idModel.remove();
+        t.idModel = null;
+        EntityEquipment eq = g.m.getEquipment();
+        if (eq != null && eq.getItemInMainHand().getPersistentDataContainer().has(GUEST)) eq.setItemInMainHand(null);
         t.c.answer("id");
         t.hold = false;
         counterQuestions(sh, g);
@@ -3008,14 +3208,17 @@ public final class StoreModule extends EcoModule {
         Component text = Lang.mm("store.id-card", "name", c.name(), "year", c.birthYear(), "age", year - c.birthYear(),
                 "photo", Lang.raw(c.sibling() ? "store.id-photo-other" : "store.id-photo-same"));
         if (t.idCard != null) t.idCard.remove();
-        Location at = sh.shop.at(-2.45, StoreLayout.TOP + 0.3, 6.95, 270);
+        if (t.idModel == null) t.idModel = show.idOnCounter(sh, g);   // §17: the card from their hand onto the counter
+        boolean card = t.idModel != null;
+        Location at = sh.shop.at(-2.45, StoreLayout.TOP + (card ? 0.12 : 0.3), 6.95, 270);
         t.idCard = at.getWorld().spawn(at, TextDisplay.class, d -> {
             d.setPersistent(false);
             d.text(text);
             d.setBillboard(Display.Billboard.CENTER);
             d.setAlignment(TextDisplay.TextAlignment.LEFT);
-            d.setBackgroundColor(Color.fromARGB(240, 228, 236, 246));
-            d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.38f, 0.38f, 0.38f), new Quaternionf()));
+            d.setBackgroundColor(card ? Color.fromARGB(150, 228, 236, 246) : Color.fromARGB(240, 228, 236, 246));
+            float sc = card ? 0.26f : 0.38f;
+            d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(sc, sc, sc), new Quaternionf()));
             d.setViewRange(0.25f);
             d.getPersistentDataContainer().set(GUEST, PersistentDataType.BYTE, (byte) 1);
         });
@@ -3268,6 +3471,7 @@ public final class StoreModule extends EcoModule {
     /** The red 폐기 tag over the shelf (how many), gone when there are none. */
     private void drawWaste(Shift sh) {
         int n = sh.shop.chores.expired(rules.waste().place());
+        show.waste(sh, rules.waste().place(), sh.shop.has("shelf_" + rules.waste().place()) ? Math.max(0, n) : 0);   // §17: on the shelf, red
         if (n <= 0 || !sh.shop.has("shelf_" + rules.waste().place())) {
             if (sh.wasteTag != null) sh.wasteTag.remove();
             sh.wasteTag = null;
@@ -3293,46 +3497,87 @@ public final class StoreModule extends EcoModule {
 
     private void takeWaste(Player p, Shift sh) {
         String place = rules.waste().place();
+        boolean bag = has(StoreMotion.WASTE_BAG);
+        if (bag && !freeHands(p, StoreMotion.WASTE_BAG)) return;
         int n = sh.shop.chores.takeExpired(place);
         if (n <= 0) return;
+        if (bag) {   // §17: the red ones hop off into the 폐기 bag in the worker's hand
+            show.takeWaste(sh, p);
+            if (!hands.holds(p, StoreMotion.WASTE_BAG)) hands.hold(p, StoreMotion.WASTE_BAG, 0);
+        }
         refreshShelf(sh.shop, place);
         drawWaste(sh);
         p.playSound(p.getLocation(), Sound.ITEM_BUNDLE_INSERT, 0.7f, 0.9f);
-        HudModule.flash(p, Lang.mm("store.waste-taken", "n", n), 2500);
+        if (!bag) HudModule.flash(p, Lang.mm("store.waste-taken", "n", n), 2500);
     }
 
-    /** Into the 폐기 바구니; one of them is the worker's (알바의 낙). */
+    /** Into the 폐기 바구니 (the bag, the tray's cups); one of the 폐기 is the worker's (알바의 낙). */
     private void dispose(Player p, Shift sh) {
-        int n = sh.shop.chores.dispose();
+        Chores ch = sh.shop.chores;
+        int cups = ch.carriedCups() > 0 && (hands.holds(p, StoreMotion.TRAY) || hands.book.who(StoreMotion.TRAY) == null) ? ch.dumpCups() : 0;
+        if (cups > 0) {   // §17: the tray's cups into the basket
+            if (hands.holds(p, StoreMotion.TRAY)) handsBack(p);
+            show.dump(sh, "economy:store_trash_cup");
+            for (int i = 0; i < cups; i++) task(p, sh, life.staff().chore());
+            if (ch.carriedWaste() <= 0) return;
+        }
+        int n = ch.dispose();
         if (n <= 0) {
             HudModule.flash(p, Lang.mm("store.waste-nothing"), 2000);
             return;
         }
-        p.playSound(p.getLocation(), Sound.BLOCK_COMPOSTER_FILL, 0.8f, 1.0f);
+        boolean bag = hands.holds(p, StoreMotion.WASTE_BAG);
+        if (bag) handsBack(p);
+        show.dump(sh, bag ? StoreMotion.WASTE_BAG : null);
         String food = rules.waste().food();
         if (!food.isBlank()) dev.stsv.economy.util.Items.create(food, 1).ifPresent(it -> {
             for (ItemStack left : p.getInventory().addItem(it).values()) p.getWorld().dropItem(p.getLocation(), left);
         });
-        HudModule.flash(p, Lang.mm("store.waste-done", "n", n), 3000);
+        HudModule.flash(p, Lang.mm("store.waste-done", "n", n), 2000);
         task(p, sh, life.staff().chore());
     }
 
-    /** The worker fills the kettle. */
+    /** The worker fills the kettle (§17: the jug in hand, poured in steps, the water level rising). */
     private void kettle(Player p, Shift sh) {
         int cap = rules.mess().water();
-        if (sh.shop.chores.refill(cap)) {
+        if (sh.pouring) return;
+        int from = sh.shop.chores.water(cap);
+        if (from >= cap) {
+            HudModule.flash(p, Lang.mm("store.water-full", "n", from, "all", cap), 1500);
+            return;
+        }
+        if (has(StoreMotion.JUG) && !freeHands(p, StoreMotion.JUG)) return;
+        boolean jug = has(StoreMotion.JUG) && (hands.holds(p, StoreMotion.JUG) || hands.hold(p, StoreMotion.JUG, 5));
+        sh.shop.chores.refill(cap);
+        task(p, sh, life.staff().chore());
+        if (jug) show.pour(sh, p, from, cap);
+        else {
             p.playSound(p.getLocation(), Sound.ITEM_BUCKET_EMPTY, 0.7f, 1.2f);
-            HudModule.flash(p, Lang.mm("store.water-filled", "n", cap), 2000);
-            task(p, sh, life.staff().chore());
-        } else HudModule.flash(p, Lang.mm("store.water-full", "n", sh.shop.chores.water(cap), "all", cap), 2000);
+            show.kettle(sh.shop);
+        }
     }
 
-    /** The mop from its bucket (or back). */
+    /** The mop from its bucket (or back): §17 into the worker's hand. */
     private void mop(Player p, Shift sh) {
+        if (has(StoreMotion.MOP)) {
+            if (hands.holds(p, StoreMotion.MOP)) {
+                handsBack(p);
+                return;
+            }
+            UUID other = hands.book.who(StoreMotion.MOP);
+            if (other != null) {
+                HudModule.flash(p, Lang.mm("store.mop-other"), 1500);
+                return;
+            }
+            if (!freeHands(p, StoreMotion.MOP) || !hands.hold(p, StoreMotion.MOP, 45)) return;
+            sh.shop.chores.mop(true);
+            p.playSound(p.getLocation(), Sound.ITEM_ARMOR_EQUIP_GENERIC, 0.6f, 1.2f);
+            return;
+        }
         boolean on = !sh.shop.chores.mop();
         sh.shop.chores.mop(on);
         p.playSound(p.getLocation(), on ? Sound.ITEM_ARMOR_EQUIP_GENERIC : Sound.BLOCK_WOOD_PLACE, 0.6f, 1.2f);
-        HudModule.flash(p, Lang.mm(on ? "store.mop-on" : "store.mop-off"), 2500);
+        if (on) HudModule.flash(p, Lang.mm("store.mop-on"), 2000);
     }
 
     // ------------------------------------------------------------------------------------------ scenes
