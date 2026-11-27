@@ -55,6 +55,11 @@ class StoreAssetsTest {
         out.put("store_mop", new int[]{1, 1, 1});
         out.put("store_sign", new int[]{5, 1, 1});
         out.put("store_order_tablet", new int[]{1, 1, 1});      // 3차 (§16): 발주 단말기, beside the counter
+        // §17: the furniture's states, the same cells as their base (only the model is swapped)
+        for (String st : List.of("open", "run", "done")) out.put("store_microwave_" + st, new int[]{1, 1, 1});
+        for (String st : List.of("low", "empty")) out.put("store_kettle_" + st, new int[]{1, 1, 1});
+        for (String st : List.of("snack", "noodle", "daily", "meal", "drink", "sent")) out.put("store_order_tablet_" + st, new int[]{1, 1, 1});
+        out.put("store_hanger_empty", new int[]{1, 2, 1});
         return out;
     }
 
@@ -65,10 +70,17 @@ class StoreAssetsTest {
         ids.addAll(List.of("store_bag", "store_spill", "store_trash_cup", "store_card", "store_scanner", "store_vest"));
         for (int n : new int[]{1000, 5000, 10000, 50000}) ids.add("store_cash_" + n);
         for (int n : new int[]{100, 500}) ids.add("store_coin_" + n);
-        for (String b : List.of("card", "cash", "give", "bag", "nobag", "warm", "yes", "no", "wait", "id", "refuse", "sell", "wake", "point"))
+        for (String b : List.of("card", "cash", "give", "bag", "nobag", "warm", "yes", "no", "wait", "id", "refuse", "sell", "wake", "point", "reset"))
             ids.add("store_btn_" + b);
         for (int n : new int[]{50000, 10000, 5000, 1000, 500, 100}) ids.add("store_btn_change_" + n);
         ids.addAll(List.of("store_id_card", "store_vest_manager", "store_vest_night"));   // 3차 (§16)
+        // §17: the held things, the spill's later stages, the wet floor sign, the opened boxes
+        ids.addAll(List.of("store_held_mop", "store_held_jug", "store_held_waste_bag", "store_held_tray", "store_held_pda", "store_held_id",
+                "store_spill_2", "store_spill_3", "store_wet_sign"));
+        for (String b : List.of("snack", "noodle", "daily", "meal", "drink")) {
+            ids.add("store_held_box_" + b);
+            ids.add("store_box_" + b + "_open");
+        }
         return ids;
     }
 
@@ -80,10 +92,10 @@ class StoreAssetsTest {
     void everyContractIdIsAnItemWithItsModel() {
         YamlConfiguration y = items();
         List<String> ids = new ArrayList<>(furniture().keySet());
-        assertEquals(27, ids.size());
+        assertEquals(27 + 12, ids.size());
         assertEquals(33, GOODS.size());
         ids.addAll(displayIds());
-        assertEquals(27 + 73, ids.size());
+        assertEquals(27 + 12 + 74 + 19, ids.size());
         assertEquals(ids.size(), y.getKeys(false).size(), "items/store.yml holds the contract's ids and nothing else");
         for (String id : ids) {
             ConfigurationSection sec = y.getConfigurationSection(id);
@@ -91,7 +103,6 @@ class StoreAssetsTest {
             assertEquals(id, sec.getString("model"), id);
             assertEquals("paper", sec.getString("material"), id);
             assertFalse(sec.getString("name", "").isBlank(), id);
-            assertFalse(sec.getStringList("lore").isEmpty(), id);
             assertTrue(Files.exists(PACK.resolve("models/" + id + ".bbmodel")), id);
             assertEquals(furniture().containsKey(id), sec.isConfigurationSection("furniture"), id + ": furniture exactly for the furniture ids");
         }

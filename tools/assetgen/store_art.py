@@ -51,9 +51,9 @@ GREEN = "sign_green"
 
 BUTTON_WORDS = {"card": "카드", "cash": "현금", "give": "건네기", "bag": "봉투", "nobag": "봉투없음", "warm": "데우기",
                 "yes": "네", "no": "아니요", "wait": "잠시만요", "id": "신분증", "refuse": "거절", "sell": "판매",
-                "wake": "깨우기", "point": "가리키기"}
+                "wake": "깨우기", "point": "가리키기", "reset": "다시"}
 # white keys with green words: the "no / not now" answers
-LIGHT_KEYS = {"nobag", "no", "wait", "refuse"}
+LIGHT_KEYS = {"nobag", "no", "wait", "refuse", "reset"}
 
 CHANGE = (50000, 10000, 5000, 1000, 500, 100)
 CHANGE_WORDS = {50000: "5만원", 10000: "1만원", 5000: "5천원", 1000: "1천원", 500: "500원", 100: "100원"}
@@ -171,6 +171,14 @@ def change_button(n):
                     px[x, y] = _c("fish_silver", 1)
     _word(px, CHANGE_WORDS[n], W, H, _c(GREEN, 1), _c("car_white", 1), x0=26)
     return im
+
+
+def key_back(light):
+    """160 x 80: a key seen from behind (the customer's side): the same key face and bezel without its word, so the
+    keys read as keys from both sides instead of black plates."""
+    if light:
+        return _key(160, 80, _c("car_white", 3), _c("snow", 2), _c("car_white", 1))
+    return _key(160, 80, _c(GREEN, 2), _c(GREEN, 3), _c(GREEN, 1))
 
 
 def plate_back():
@@ -1418,41 +1426,38 @@ def promo_poster(title, sub, w=96, h=112, bg=("pepper", 2), band=("corn", 2), ki
 # --- 계산대: the POS screen, the card terminal, the counter's front poster ------------------
 
 def pos_screen():
-    """64 x 44 (an 8 x 5.5 px screen at 8 texels a px, the worker's): the POS app: a green title bar with the clock,
-    the receipt list (name bars, quantities, prices), the total in big digits, the pay keys (card · cash · bag)."""
+    """64 x 44 (an 8 x 5.5 px screen at 8 texels a px, the worker's): the POS app idle: a thin green title bar (the
+    GS26 disc, print, the clock), the rest a clean dark field (a faint frame line) where the store's TextDisplay shows
+    the real total and change (items/store.yml header: the face's position and tilt). No numbers baked in."""
     W, H = 64, 44
     P = Pic(W, H, ("iron", 1))
-    P.rect(2, 2, W - 2, H - 2, ("snow", 2))
-    P.rect(2, 2, W - 2, 8, (GREEN, 2))
-    P.text(4, 4, 24, ("snow", 2), seed=1)
-    P.digits("23:41", W - 24, 3, ("snow", 2), font={**DIG35, ":": [".", "#", ".", "#", "."]})
-    for r in range(4):
-        y = 10 + r * 5
-        P.rect(3, y + 4, 40, y + 5, ("car_white", 2))
-        P.text(4, y + 1, 22, ("iron", 3), seed=r + 2)
-        P.digits(str(r % 2 + 1), 26, y, ("iron", 2), font=DIG35)
-        P.digits(ESL_PRICES[r], 32, y, ("iron", 1), font=DIG35)
-    P.rect(42, 10, W - 3, 28, ("ice", 3))
-    P.text(44, 12, W - 5, ("sapphire", 1), seed=3)
-    P.digits("5,400", 44, 18, ("sapphire", 0), font=DIG35)
-    for i, col in enumerate(((GREEN, 2), ("sapphire", 2), ("corn", 2), ("pepper", 2))):
-        x0 = 3 + i * 15
-        P.rect(x0, 32, x0 + 13, H - 3, col)
-        P.rect(x0, 32, x0 + 13, 33, (col[0], col[1] + 1))
-        P.text(x0 + 2, 36, x0 + 11, ("snow", 2), seed=i)
+    P.rect(1, 1, W - 1, H - 1, ("tint", 1))
+    P.rect(1, 1, W - 1, 7, (GREEN, 2))
+    P.rect(1, 7, W - 1, 8, (GREEN, 0))
+    P.ell(5, 4, 2.2, 2.2, ("corn", 2))
+    P.text(9, 4, 26, ("snow", 2), seed=1)
+    P.digits("23:41", W - 22, 2, ("snow", 2), font={**DIG35, ":": [".", "#", ".", "#", "."]})
+    for x in range(3, W - 3):
+        P.p(x, H - 4, ("tint", 2))
+    for y in range(10, H - 4):
+        P.p(3, y, ("tint", 2))
+        P.p(W - 4, y, ("tint", 2))
     return P.im
 
 
 def terminal_face():
-    """32 x 52 (a 4 x 6.5 px card terminal, 8 texels a px, read from the customer's side): the small lit screen,
-    the 12-key pad in rows, the green OK and red cancel keys, the card slot line."""
+    """32 x 52 (a 4 x 6.5 px card terminal, 8 texels a px, read from the customer's side): the small lit screen
+    (idle: a card going in, no amount), the 12-key pad in rows, the green OK and red cancel keys, the card slot line."""
     W, H = 32, 52
     P = Pic(W, H, ("iron", 2))
     P.rect(0, 0, W, 1, ("iron", 3))
     P.rect(3, 3, W - 3, 15, ("iron", 0))
     P.rect(4, 4, W - 4, 14, (120, 200, 160))
-    P.text(6, 6, W - 6, (40, 90, 70), seed=2)
-    P.digits("5,400", 8, 8, (30, 70, 50), font=DIG35)
+    # idle: a card going into the slot (an arrow down), no amount baked in
+    P.rect(11, 5, 21, 10, (40, 90, 70))
+    P.rect(12, 6, 20, 7, (120, 200, 160))
+    P.rect(15, 10, 17, 12, (40, 90, 70))
+    P.rect(13, 11, 19, 12, (40, 90, 70))
     for r in range(4):
         for c in range(3):
             x0, y0 = 4 + c * 9, 18 + r * 7

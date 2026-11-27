@@ -282,13 +282,13 @@ def hotbar():
     return held(m, tilt=0)
 
 
-EGG = [(5.5, 3, 8.5, 4), (5, 8.5, 10.5, 4), (4, 10.5, 12, 4), (2.5, 12, 13, 2)]
+EGG = [(5.5, 3, 7, 4), (5.25, 7, 9, 4), (4.75, 9, 10.5, 4), (4, 10.5, 11.75, 2), (3, 11.75, 12.75, 2), (1.75, 12.75, 13.25, 2)]
 
 
 def _egg(m, name, cx, paint, side):
     for (r, a, b, n) in EGG:
         octa(m, name, r, 3 + a, 3 + b, paint, c=(cx, 0), n=n, side=side,
-             top=lambda x, z: ("bean", 2))
+             top=lambda x, z: ("bean", 2), top_paint=Paint("bean", 2, noise=0, rim=0.3, ao=0.4))
 
 
 def egg():
@@ -593,8 +593,9 @@ def ice_cone():
 # ================================================================================================
 
 def umbrella():
-    """우산: a folded clear vinyl umbrella lying along x: the rolled canopy (pale, its folds), a white strap with a
-    snap round it, the steel tip, the shaft and a black J hook. In a hand it hangs from the hook, tip down."""
+    """우산: a folded clear vinyl umbrella lying along x (about 9 px, so it sits on the counter mat): the rolled canopy
+    (pale, its folds), a white strap with a snap round it, the steel tip, the shaft and a black J hook. In a hand it
+    hangs from the hook, tip down."""
     m = G4("store_item_umbrella")
 
     def fold(c):
@@ -602,18 +603,19 @@ def umbrella():
             return ("glass", 2)
         return None
     can = Paint("ice", 3, noise=0, rim=1.3, decal=fold)
-    for (a, b, r) in ((-18, -8, 5), (-8, 4, 5.5), (4, 14, 4.25), (14, 20, 3)):
-        bx(m, "canopy", (a, 5.5 - r, -r * 0.7), (b, 5.5 + r, r * 0.7), can)
-        bx(m, "canopy", (a + 0.1, 5.5 - r * 0.7, -r), (b - 0.1, 5.5 + r * 0.7, r), can)
-    bx(m, "strap", (-4, 0.25, -5.75), (-1, 11.25, 5.75), flat("snow", 2, rim=1.2, decal=lambda c: ("fish_silver", 4) if c.face == "north" and 7 <= c.p[1] - 8 < 9 else None))
-    bx(m, "tip", (20, 4.75, -0.75), (27, 6.25, 0.75), flat("steel", 4, rim=1.2))
-    bx(m, "shaft", (-24, 4.75, -0.75), (-18, 6.25, 0.75), flat("steel", 4, rim=1.2))
+    for (a, b, r) in ((-11, -5, 4.5), (-5, 3, 5), (3, 9, 3.75), (9, 12, 2.75)):
+        bx(m, "canopy", (a, 5 - r, -r * 0.7), (b, 5 + r, r * 0.7), can)
+        bx(m, "canopy", (a + 0.1, 5 - r * 0.7, -r), (b - 0.1, 5 + r * 0.7, r), can)
+    bx(m, "strap", (-2.5, 0.25, -5.25), (0, 10.25, 5.25), flat("snow", 2, rim=1.2,
+       decal=lambda c: ("fish_silver", 4) if c.face == "north" and 6.5 <= c.p[1] - 8 < 8 else None))
+    bx(m, "tip", (12, 4.25, -0.75), (16, 5.75, 0.75), flat("steel", 4, rim=1.2))
+    bx(m, "shaft", (-15, 4.25, -0.75), (-11, 5.75, 0.75), flat("steel", 4, rim=1.2))
     hook = flat("iron", 1, rim=1.3)
-    bx(m, "handle", (-33, 4, -1.5), (-24, 7, 1.5), hook)
-    bx(m, "hook", (-36, 0, -1.5), (-33, 7, 1.5), hook)
-    bx(m, "hook", (-33, 0, -1.5), (-30, 2.5, 1.5), hook)
+    bx(m, "handle", (-20, 3.5, -1.5), (-15, 6.5, 1.5), hook)
+    bx(m, "hook", (-22.5, 0, -1.5), (-20, 6.5, 1.5), hook)
+    bx(m, "hook", (-20, 0, -1.5), (-17.5, 2.5, 1.5), hook)
     from models import bus_hold as BH
-    tr = BH.hold_transform(grip=m.to_model(P(-29, 5.5, 0)), at=BH.fist(), turn=BH.turn(z=90), scale=1.0, pose=BH.STANDING)
+    tr = BH.hold_transform(grip=m.to_model(P(-17.5, 5, 0)), at=BH.fist(), turn=BH.turn(z=90), scale=1.0, pose=BH.STANDING)
     BH.displays(m, tr, gui_fill=0.9)
     return m
 

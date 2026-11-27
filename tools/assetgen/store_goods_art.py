@@ -196,11 +196,11 @@ def bottle_label(kind, W, H):
         P.digits("1", int(cx - 1), H - 3, ("sapphire", 2), font={"1": ["#", "#"]})
         _barcode(P, 1, 3, 6, 4)
     elif kind == "beer":
-        P.ell(cx, H / 2, 8, H / 2 - 0.5, ("gold", 2), ring=("gold", 1))
-        P.ell(cx, H / 2, 6, H / 2 - 2.5, ("cream", 3))
-        P.rect(int(cx - 9), int(H / 2) - 1, int(cx + 10), int(H / 2) + 2, ("pepper", 2))
-        P.text(int(cx - 7), int(H / 2), int(cx + 7), WHITE, seed=5)
-        P.ell(cx, 4, 1.5, 1.5, ("pepper", 2))
+        P.ell(cx, H / 2, 5, H / 2 - 0.5, ("pepper", 2))
+        P.ell(cx, H / 2, 4, H / 2 - 1.5, ("cream", 3))
+        P.rect(int(cx - 5), int(H / 2) - 1, int(cx + 5), int(H / 2) + 2, ("pepper", 2))
+        P.text(int(cx - 4), int(H / 2), int(cx + 4), ("gold", 3), seed=5)
+        P.ell(cx, 4, 1.6, 1.6, ("gold", 2))
         P.text(int(cx - 4), H - 5, int(cx + 4), ("doenjang", 1), seed=3)
         P.rect(1, 3, 8, H - 3, ("gold", 2))              # the back label
         _barcode(P, 2, 5, 5, 4)

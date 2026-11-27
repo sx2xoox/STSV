@@ -140,6 +140,11 @@ public record StoreLife(List<Rank> ranks, String title, String vestManager, Stri
 
     // ------------------------------------------------------------------------------------------ 단골 메뉴
 
+    /** Whether a regular's usual can be fetched now: its place never runs out, or has some left. */
+    public static boolean usualInStock(boolean stocked, int stock) {
+        return !stocked || stock > 0;
+    }
+
     /** 단골: after `at` of a kind served, now and then (`chance`) they ask for their usual (menu: kind -> product). */
     public record Regulars(int at, double chance, double mood, double tip, double wrong, int hint, Map<String, String> menu,
                            Map<String, List<String>> talk) {

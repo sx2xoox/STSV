@@ -26,6 +26,7 @@ public final class Checkout {
     private final List<String> asks = new ArrayList<>();
     private int tendered;
     private int inHand;
+    private final List<Integer> counted = new ArrayList<>();
     private boolean paid;
     private boolean mistake;
     private int overpaid;
@@ -156,12 +157,64 @@ public final class Checkout {
 
     /** A change button: `amount` more in hand. */
     public void press(int amount) {
-        if (amount > 0) inHand += amount;
+        if (amount <= 0) return;
+        inHand += amount;
+        counted.add(amount);
     }
 
     /** [다시]: nothing in hand. */
     public void clear() {
         inHand = 0;
+        counted.clear();
+    }
+
+    /** The pieces counted out so far (each key pressed, in order): what lies on the cash tray. */
+    public List<Integer> counted() {
+        return counted;
+    }
+
+    /**
+     * How notes handed over lie (as {@link #notes} gives them, largest first): for each, the pile it is on (0, 1, … one for
+     * each kind of note) and how many of its kind lie under it.
+     */
+    public static List<double[]> piles(List<Integer> notes) {
+        List<double[]> out = new ArrayList<>();
+        List<Integer> kinds = new ArrayList<>();
+        for (int i = 0; i < notes.size(); i++) {
+            int n = notes.get(i), under = 0;
+            for (int k = 0; k < i; k++) if (notes.get(k) == n) under++;
+            if (!kinds.contains(n)) kinds.add(n);
+            out.add(new double[]{kinds.indexOf(n), under});
+        }
+        return out;
+    }
+
+    /**
+     * Where the next piece of change lies on the cash tray, given what is on it: {along the tray (the worker's left +),
+     * across it (toward the customer +), how many pieces up}. Notes on the worker's half fanned by kind, coins on the
+     * customer's half; the same kind goes on its own pile.
+     */
+    public static double[] trayPlace(List<Integer> onTray, int amount) {
+        int under = 0;
+        for (int a : onTray) if (a == amount) under++;
+        boolean coin = amount < 1000;
+        double along = switch (amount) {
+            case 50000 -> -0.045;
+            case 10000 -> -0.015;
+            case 5000 -> 0.015;
+            case 1000 -> 0.045;
+            case 500 -> -0.07;
+            default -> 0.07;
+        };
+        // (a kind's pile starts a hair over the kinds fanned under it, so no two lie in one plane)
+        double lift = switch (amount) {
+            case 50000 -> 0;
+            case 10000 -> 0.25;
+            case 5000 -> 0.5;
+            case 1000 -> 0.75;
+            default -> 0;
+        };
+        return new double[]{coin ? 0.055 : -0.04, along, under + lift};
     }
 
     /**
@@ -171,6 +224,7 @@ public final class Checkout {
     public Given give() {
         if (method != Method.CASH || paid) return Given.NOTHING;
         int owed = change();
+        counted.clear();
         if (inHand == owed) {
             paid = true;
             inHand = 0;

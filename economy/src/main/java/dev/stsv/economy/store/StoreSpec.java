@@ -25,7 +25,7 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
     public static final List<String> SITUATIONS = List.of("enter", "browse", "pay", "wait", "thanks", "angry");
     /** The extra situations (default lines only, a kind may have its own). */
     public static final List<String> EXTRA = List.of("empty", "warm", "short", "over", "recognize", "card", "cash", "burnt", "warmed",
-            "dry", "expired", "messy");
+            "dry", "expired", "messy", "unwarmed");
 
     /** A product: its id (economy:store_item_&lt;id&gt; is its model), name, price (원, the till's number) and place. */
     public record Product(String id, String name, int price, String place, double weight) {
@@ -73,8 +73,11 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
     /** Paying: `card` of customers pay by card; cash customers pay a bill (or round up in 1,000s with `roundUp`); `manual`: the worker gives change. */
     public record Cash(boolean manual, double card, double roundUp, List<Integer> bills, List<Integer> change) {}
 
-    /** 데워 주세요: these products, `chance` per customer with one, `seconds` in the microwave, `forget` seconds after the ding it burns. */
-    public record Warm(Set<String> items, double chance, int seconds, int forget) {}
+    /**
+     * 데워 주세요: these products, `chance` per customer with one, `seconds` in the microwave, `forget` seconds after the ding
+     * it burns; nobody starts it within `patience` seconds of their paying and they take it cold (mood `sour`).
+     */
+    public record Warm(Set<String> items, double chance, int seconds, int forget, int patience, double sour) {}
 
     /** Waiting in line or at the counter: after `grace` seconds the mood sinks to `floor` at `full`; at `giveUp` seconds they leave. */
     public record Patience(double grace, double full, double floor, double giveUp) {
@@ -169,7 +172,7 @@ public record StoreSpec(Map<String, Product> products, Map<String, Shelf> shelve
                 bills.stream().sorted().toList(), change.stream().sorted(java.util.Comparator.reverseOrder()).toList());
         ConfigurationSection w = section(c, "warm");
         Warm warm = new Warm(Set.copyOf(w.getStringList("items")), Math.clamp(w.getDouble("chance", 0.5), 0, 1), Math.max(1, w.getInt("seconds", 20)),
-                Math.max(1, w.getInt("forget", 20)));
+                Math.max(1, w.getInt("forget", 20)), Math.max(5, w.getInt("wait", 45)), Math.min(0, w.getDouble("sour", -10)));
         for (String id : warm.items()) if (!products.containsKey(id)) problems.add("warm.items: 없는 상품 " + id);
         ConfigurationSection pt = section(c, "patience");
         Patience patience = new Patience(pt.getDouble("grace", 20), pt.getDouble("full", 90), pt.getDouble("floor", 20), pt.getDouble("give-up", 120));

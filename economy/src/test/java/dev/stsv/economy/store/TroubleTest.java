@@ -199,4 +199,27 @@ class TroubleTest {
         for (String k : StoreRules.Id.TALK) assertFalse(r.id().lines(k).isEmpty(), k);
         for (String item : r.id().items()) assertFalse(r.tier("standard").sells(item), "only the 대형점 (and the 직영점) ask for IDs");
     }
+
+    // ---- 점검 규칙-1 · 규칙-4
+
+    @Test
+    void onlyASneakingClickAccusesAndOnlyOnce() {
+        assertFalse(Trouble.mayAccuse(false, false), "a plain click on a customer is a click at something past them");
+        assertTrue(Trouble.mayAccuse(true, false));
+        assertFalse(Trouble.mayAccuse(true, true), "a customer is accused once");
+    }
+
+    @Test
+    void aPaidCustomersQuestionDoesNotHoldTheCounterForEver() {
+        assertEquals(20_000, Trouble.timeout(Trouble.Kind.LOTTERY), "the 복권 손님 has paid: 20 s, then as if shrugged at");
+        assertEquals(150_000, Trouble.timeout(Trouble.Kind.DRUNK));
+        assertEquals(30_000, Trouble.timeout(Trouble.Kind.TOURIST));
+        assertEquals(-1, Trouble.timeout(Trouble.Kind.REFUND), "before paying their patience runs meanwhile");
+        // what the timeout does for the 복권 손님: an outcome that lets the till go on, for every prize
+        for (int prize = 0; prize <= 2; prize++) {
+            Trouble.Outcome o = Trouble.resolve(Trouble.Kind.LOTTERY, "shrug", new Trouble.Context(60, false, false, 1000, 0, prize), N, 0);
+            assertNotNull(o);
+            assertEquals(Trouble.Result.GO_ON, o.result(), "prize " + prize);
+        }
+    }
 }

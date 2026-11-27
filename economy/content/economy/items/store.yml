@@ -13,7 +13,16 @@
 #   - 막힘(barrier)은 모델이 칸을 30% 넘게 채울 때만 (좌석 칸은 비움).
 #   - 계산대 위 자리 (모델 px, 기준 칸 x 0..16 · z 0..16 · 바닥 y 0): 손님 물건 놓는 매트 x -14..2, z 2..12, 윗면 y 15.25 /
 #     손님 쪽 화면 (텍스트 표시 자리) 면 x 1.5..8, y 19.5..24.5, z 1.5 (-z 를 봄) / POS 화면은 점원 쪽 (+z) /
-#     카드 단말기 x 19..23, z 2.5..9 / 봉투 걸이 x -15.5..-11.5 (점원 쪽 +z 밖).
+#     카드 단말기 x 19..23, z 2.5..9 (자판 면이 손님 쪽 -z 를 보고 뒤끝이 들림) / 봉투 걸이 x -15.5..-11.5 (점원 쪽 +z 밖).
+#   - POS 모니터 화면 (점원이 읽음. 대기 화면: 위 1 px 초록 띠 말고는 빈 검은 칸 → 합계 · 거스름돈 TextDisplay 자리):
+#     판 x 9..17 (폭 8 px = 0.5칸), 면을 따라 높이 5.5 px (0.34칸), 아래 끝 (y 19.69, z 11.46) · 위 끝 (y 24.77, z 9.36).
+#     가운데 (13, 22.23, 10.41). 면의 바깥 방향 (0, 0.383, 0.924) = 점원 쪽 (+z) 을 보며 22.5° 위로 (윗변이 점원에게서 멀어지게
+#     뒤로 누움: 모델 x 축 -22.5° 회전, 축 (13, 19.5, 11)). 글자 칸 (초록 띠 아래): 폭 7 px · 면을 따라 3.9 px, 가운데 (13, 21.94, 10.53).
+#     블록 단위 (기준 칸 원점): 글자 칸 가운데 (0.8125, 1.371, 0.658), 법선 위와 같음, 글자는 면에서 0.01칸 앞으로.
+#   - 현금 트레이 (손님 쪽, 낸 돈 · 거스름돈을 쌓는 자리): 접시 안쪽 x 10.5..15.5, z 2.5..6, 바닥 y 15.5 → 가운데 (13, 15.5, 4.25)
+#     = 블록 (0.8125, 0.969, 0.266). 지폐 (7 × 3.5 px) 는 0.55배면 접시 안에 들어감, 같은 권종은 y +0.004칸씩 쌓기.
+#   - 시식대 상판: 윗면 y 14 (0.875칸), 깊이 z 12..16 (칸 안 0.75..1.0, 창 쪽 +z), 너비 x -16..32 (세 칸) → 컵은 각 칸 가운데,
+#     y 0.875, 칸 안 z 0.875 (상판 가운데).
 #
 # 표시 전용 (ItemDisplay, 변환 없음 = 모델의 (8, 8, 8) 이 위치, 앞 = 북 -z):
 #   상품 · 상자 · 봉투 · 엎지른 음료 · 빈 컵라면 · 카드 · 지폐 · 동전: 바닥 = 위치 (모델 y 8), 가운데 정렬.
@@ -24,12 +33,26 @@
 #   store_id_card (바닥 = 위치, 북쪽에서 읽음; 글씨 칸 = 모델 px x 7.2..10.8 · z 6.5..8.7, 윗면 y 8.25: 이름 · 생년은
 #   TextDisplay 로 얹음), 점장 조끼 store_vest_manager · 야간 조끼 store_vest_night (가슴 칸, store_vest 와 같은 방식).
 #   권리증 모델 store_license_alley · standard · large 는 아이템이 items/store_extra.yml 에 있음 (model: 만 여기 모델).
+#
+# §17 행동을 눈으로 (미리보기 docs/previews/store_assets_4.png, models/store_action.py · store_goods.py):
+#   손에 드는 것 store_held_* (주손에 잠깐; 3인칭은 서 있는 플레이어 (팔 18° 앞) 기준, 1인칭 따로):
+#     mop 대걸레 (손잡이 비스듬히, 걸레가 발 앞 바닥에) · box_<snack|noodle|daily|meal|drink> 가슴 앞에 안은 배송 상자 ·
+#     jug 온수기 물통 (손잡이로 늘어뜨림) · waste_bag 폐기 봉지 (매듭으로) · tray 치운 컵 쟁반 (허리 높이 수평) ·
+#     pda 발주기 (화면이 얼굴 쪽) · id 받아 든 신분증 (앞면이 근무자 쪽, 1인칭에서 크게).
+#   가구 상태 (기본과 같은 칸 · 기준점, 모델만 바꿔 끼움): store_microwave_open (문이 왼쪽 경첩으로 90° 열려 칸 앞 -z 로
+#     6.75 px 나옴, 안 불 켜짐) · _run (창 안 노란 불, 도시락) · _done (불 꺼짐, 김, End) / store_kettle (가득) · _low · _empty
+#     (수위 창, 빨간 등) / store_order_tablet_<snack|noodle|daily|meal|drink> (그 묶음을 고르는 화면) · _sent (발주 완료) /
+#     store_hanger_empty (빈 옷걸이, 모자는 남음). 모두 앞면 = -z: 근무자에게 보이려면 앞면이 근무 통로 쪽을 보게 놓을 것.
+#   사물: store_spill (1단계, 컵 옆) → store_spill_2 → store_spill_3 (닦을수록 작아짐, 바닥 = 위치) · store_wet_sign (미끄럼 주의
+#     A자 간판, 바닥 = 위치, 폭 10 · 높이 13.5 px) · store_box_<kind>_open (store_box 와 같은 칸 · 크기, 날개 4장이 밖으로 접힘,
+#     안에 상품) · store_trash_cup (store_item_ramen_red 와 같은 치수의 빈 컵, 뚜껑이 뒤로 젖혀 섬).
+#   상품 33종은 다시 깎음 (같은 표시 약속 · 비슷한 크기; 우산은 9.6 px 로 줄여 매트 안에 들어감).
+#   버튼 store_btn_reset ("다시": 쥔 돈을 0 으로). 버튼 뒷면은 앞과 같은 색 (손님 쪽에서 검은 판이 아님).
 
 # ── 가구 ─────────────────────────────────────────────────────────────────────────────
 store_counter:
   material: paper
   name: "<#2f9e5b>편의점 계산대"
-  lore: ["<gray>편의점 가구 · 3×1칸", "<gray>POS · 손님 화면 · 카드 단말기 · 봉투 걸이"]
   model: store_counter
   max-stack: 1
   furniture:
@@ -38,7 +61,6 @@ store_counter:
 store_cig_shelf:
   material: paper
   name: "<#2f9e5b>담배 진열장"
-  lore: ["<gray>편의점 가구 · 3×1칸, 높이 2 · 벽에 붙임", "<gray>담배 · 복권 · 껌"]
   model: store_cig_shelf
   max-stack: 1
   furniture:
@@ -47,7 +69,6 @@ store_cig_shelf:
 store_shelf_snack_full:
   material: paper
   name: "<#2f9e5b>과자 진열대 (가득)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 가득"]
   model: store_shelf_snack_full
   max-stack: 1
   furniture:
@@ -56,7 +77,6 @@ store_shelf_snack_full:
 store_shelf_snack_half:
   material: paper
   name: "<#2f9e5b>과자 진열대 (반쯤)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 반쯤"]
   model: store_shelf_snack_half
   max-stack: 1
   furniture:
@@ -65,7 +85,6 @@ store_shelf_snack_half:
 store_shelf_snack_empty:
   material: paper
   name: "<#2f9e5b>과자 진열대 (빈)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 빈"]
   model: store_shelf_snack_empty
   max-stack: 1
   furniture:
@@ -74,7 +93,6 @@ store_shelf_snack_empty:
 store_shelf_noodle_full:
   material: paper
   name: "<#2f9e5b>라면 진열대 (가득)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 가득"]
   model: store_shelf_noodle_full
   max-stack: 1
   furniture:
@@ -83,7 +101,6 @@ store_shelf_noodle_full:
 store_shelf_noodle_half:
   material: paper
   name: "<#2f9e5b>라면 진열대 (반쯤)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 반쯤"]
   model: store_shelf_noodle_half
   max-stack: 1
   furniture:
@@ -92,7 +109,6 @@ store_shelf_noodle_half:
 store_shelf_noodle_empty:
   material: paper
   name: "<#2f9e5b>라면 진열대 (빈)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 빈"]
   model: store_shelf_noodle_empty
   max-stack: 1
   furniture:
@@ -101,7 +117,6 @@ store_shelf_noodle_empty:
 store_shelf_daily_full:
   material: paper
   name: "<#2f9e5b>생활용품 진열대 (가득)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 가득"]
   model: store_shelf_daily_full
   max-stack: 1
   furniture:
@@ -110,7 +125,6 @@ store_shelf_daily_full:
 store_shelf_daily_half:
   material: paper
   name: "<#2f9e5b>생활용품 진열대 (반쯤)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 반쯤"]
   model: store_shelf_daily_half
   max-stack: 1
   furniture:
@@ -119,7 +133,6 @@ store_shelf_daily_half:
 store_shelf_daily_empty:
   material: paper
   name: "<#2f9e5b>생활용품 진열대 (빈)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 빈"]
   model: store_shelf_daily_empty
   max-stack: 1
   furniture:
@@ -128,7 +141,6 @@ store_shelf_daily_empty:
 store_shelf_meal_full:
   material: paper
   name: "<#2f9e5b>도시락 · 김밥 진열대 (가득)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 가득"]
   model: store_shelf_meal_full
   max-stack: 1
   furniture:
@@ -137,7 +149,6 @@ store_shelf_meal_full:
 store_shelf_meal_half:
   material: paper
   name: "<#2f9e5b>도시락 · 김밥 진열대 (반쯤)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 반쯤"]
   model: store_shelf_meal_half
   max-stack: 1
   furniture:
@@ -146,7 +157,6 @@ store_shelf_meal_half:
 store_shelf_meal_empty:
   material: paper
   name: "<#2f9e5b>도시락 · 김밥 진열대 (빈)"
-  lore: ["<gray>편의점 가구 · 1×3칸, 높이 2 · 양면", "<gray>상품 채움: 빈"]
   model: store_shelf_meal_empty
   max-stack: 1
   furniture:
@@ -155,7 +165,6 @@ store_shelf_meal_empty:
 store_fridge_full:
   material: paper
   name: "<#2f9e5b>냉장 쇼케이스 (가득)"
-  lore: ["<gray>편의점 가구 · 2×1칸, 높이 2 · 벽에 붙임", "<gray>유리문 · 음료 · 유제품 · 술"]
   model: store_fridge_full
   max-stack: 1
   furniture:
@@ -164,7 +173,6 @@ store_fridge_full:
 store_fridge_half:
   material: paper
   name: "<#2f9e5b>냉장 쇼케이스 (반쯤)"
-  lore: ["<gray>편의점 가구 · 2×1칸, 높이 2 · 벽에 붙임", "<gray>유리문 · 음료 · 유제품 · 술"]
   model: store_fridge_half
   max-stack: 1
   furniture:
@@ -173,7 +181,6 @@ store_fridge_half:
 store_fridge_empty:
   material: paper
   name: "<#2f9e5b>냉장 쇼케이스 (빈)"
-  lore: ["<gray>편의점 가구 · 2×1칸, 높이 2 · 벽에 붙임", "<gray>유리문 · 음료 · 유제품 · 술"]
   model: store_fridge_empty
   max-stack: 1
   furniture:
@@ -182,7 +189,6 @@ store_fridge_empty:
 store_freezer:
   material: paper
   name: "<#2f9e5b>아이스크림 냉동고"
-  lore: ["<gray>편의점 가구 · 2×1칸", "<gray>미닫이 유리 뚜껑"]
   model: store_freezer
   max-stack: 1
   furniture:
@@ -191,7 +197,6 @@ store_freezer:
 store_microwave:
   material: paper
   name: "<#2f9e5b>전자레인지"
-  lore: ["<gray>편의점 가구 · 1×1칸 · 벽에 붙임", "<gray>스테인리스 장 위"]
   model: store_microwave
   max-stack: 1
   furniture:
@@ -200,7 +205,6 @@ store_microwave:
 store_kettle:
   material: paper
   name: "<#2f9e5b>온수기"
-  lore: ["<gray>편의점 가구 · 1×1칸 · 벽에 붙임", "<gray>컵라면 물 · 종이컵"]
   model: store_kettle
   max-stack: 1
   furniture:
@@ -209,7 +213,6 @@ store_kettle:
 store_eat_bar:
   material: paper
   name: "<#2f9e5b>창가 시식대"
-  lore: ["<gray>편의점 가구 · 3×1칸 · 좌석 3", "<gray>창 (+z) 에 붙는 바 · 둥근 의자", "<yellow>우클릭: 앉기"]
   model: store_eat_bar
   max-stack: 1
   furniture:
@@ -222,7 +225,6 @@ store_eat_bar:
 store_parasol:
   material: paper
   name: "<#2f9e5b>파라솔 테이블"
-  lore: ["<gray>편의점 가구 · 3×1칸 · 좌석 2", "<gray>초록 · 흰 파라솔, 의자 둘", "<yellow>우클릭: 앉기"]
   model: store_parasol
   max-stack: 1
   furniture:
@@ -236,7 +238,6 @@ store_parasol:
 store_hanger:
   material: paper
   name: "<#2f9e5b>조끼 걸이"
-  lore: ["<gray>편의점 가구 · 1×1칸, 높이 2", "<gray>근무 조끼 (출근 · 퇴근)"]
   model: store_hanger
   max-stack: 1
   furniture:
@@ -245,7 +246,6 @@ store_hanger:
 store_waste:
   material: paper
   name: "<#2f9e5b>폐기 바구니"
-  lore: ["<gray>편의점 가구 · 1×1칸", "<gray>유통기한 지난 김밥 · 도시락"]
   model: store_waste
   max-stack: 1
   furniture:
@@ -254,7 +254,6 @@ store_waste:
 store_mop:
   material: paper
   name: "<#2f9e5b>대걸레 통"
-  lore: ["<gray>편의점 가구 · 1×1칸", "<gray>짜개 달린 노란 통"]
   model: store_mop
   max-stack: 1
   furniture:
@@ -263,7 +262,6 @@ store_mop:
 store_sign:
   material: paper
   name: "<#2f9e5b>GS26 간판"
-  lore: ["<gray>편의점 가구 · 5×1칸 벽걸이 · 빛", "<gray>불 들어온 간판"]
   model: store_sign
   max-stack: 1
   furniture:
@@ -276,231 +274,198 @@ store_sign:
 store_item_samgak_tuna:
   material: paper
   name: "<white>참치마요 삼각김밥"
-  lore: ["<gray>편의점 상품 (표시용) · 1,200원"]
   model: store_item_samgak_tuna
   max-stack: 1
 
 store_item_samgak_bibim:
   material: paper
   name: "<white>전주비빔 삼각김밥"
-  lore: ["<gray>편의점 상품 (표시용) · 1,200원"]
   model: store_item_samgak_bibim
   max-stack: 1
 
 store_item_samgak_bulgogi:
   material: paper
   name: "<white>불고기 삼각김밥"
-  lore: ["<gray>편의점 상품 (표시용) · 1,300원"]
   model: store_item_samgak_bulgogi
   max-stack: 1
 
 store_item_dosirak:
   material: paper
   name: "<white>도시락"
-  lore: ["<gray>편의점 상품 (표시용) · 4,500원"]
   model: store_item_dosirak
   max-stack: 1
 
 store_item_hotbar:
   material: paper
   name: "<white>핫바"
-  lore: ["<gray>편의점 상품 (표시용) · 2,000원"]
   model: store_item_hotbar
   max-stack: 1
 
 store_item_egg:
   material: paper
   name: "<white>구운 계란"
-  lore: ["<gray>편의점 상품 (표시용) · 1,800원"]
   model: store_item_egg
   max-stack: 1
 
 store_item_ramen_red:
   material: paper
   name: "<white>매운 컵라면"
-  lore: ["<gray>편의점 상품 (표시용) · 1,300원"]
   model: store_item_ramen_red
   max-stack: 1
 
 store_item_ramen_mild:
   material: paper
   name: "<white>순한 컵라면"
-  lore: ["<gray>편의점 상품 (표시용) · 1,200원"]
   model: store_item_ramen_mild
   max-stack: 1
 
 store_item_ramen_big:
   material: paper
   name: "<white>큰 컵라면"
-  lore: ["<gray>편의점 상품 (표시용) · 1,700원"]
   model: store_item_ramen_big
   max-stack: 1
 
 store_item_banana_milk:
   material: paper
   name: "<white>바나나우유"
-  lore: ["<gray>편의점 상품 (표시용) · 1,700원"]
   model: store_item_banana_milk
   max-stack: 1
 
 store_item_coffee_can:
   material: paper
   name: "<white>캔커피"
-  lore: ["<gray>편의점 상품 (표시용) · 1,400원"]
   model: store_item_coffee_can
   max-stack: 1
 
 store_item_coffee_cup:
   material: paper
   name: "<white>컵커피"
-  lore: ["<gray>편의점 상품 (표시용) · 2,200원"]
   model: store_item_coffee_cup
   max-stack: 1
 
 store_item_soda:
   material: paper
   name: "<white>사이다"
-  lore: ["<gray>편의점 상품 (표시용) · 1,500원"]
   model: store_item_soda
   max-stack: 1
 
 store_item_ion_drink:
   material: paper
   name: "<white>이온음료"
-  lore: ["<gray>편의점 상품 (표시용) · 1,600원"]
   model: store_item_ion_drink
   max-stack: 1
 
 store_item_water:
   material: paper
   name: "<white>생수"
-  lore: ["<gray>편의점 상품 (표시용) · 900원"]
   model: store_item_water
   max-stack: 1
 
 store_item_soju:
   material: paper
   name: "<white>소주"
-  lore: ["<gray>편의점 상품 (표시용) · 1,900원"]
   model: store_item_soju
   max-stack: 1
 
 store_item_beer:
   material: paper
   name: "<white>맥주"
-  lore: ["<gray>편의점 상품 (표시용) · 2,800원"]
   model: store_item_beer
   max-stack: 1
 
 store_item_hangover:
   material: paper
   name: "<white>숙취해소제"
-  lore: ["<gray>편의점 상품 (표시용) · 4,000원"]
   model: store_item_hangover
   max-stack: 1
 
 store_item_chips:
   material: paper
   name: "<white>감자칩"
-  lore: ["<gray>편의점 상품 (표시용) · 1,700원"]
   model: store_item_chips
   max-stack: 1
 
 store_item_shrimp:
   material: paper
   name: "<white>새우과자"
-  lore: ["<gray>편의점 상품 (표시용) · 1,500원"]
   model: store_item_shrimp
   max-stack: 1
 
 store_item_choco_snack:
   material: paper
   name: "<white>초코과자"
-  lore: ["<gray>편의점 상품 (표시용) · 1,800원"]
   model: store_item_choco_snack
   max-stack: 1
 
 store_item_jelly:
   material: paper
   name: "<white>젤리"
-  lore: ["<gray>편의점 상품 (표시용) · 1,200원"]
   model: store_item_jelly
   max-stack: 1
 
 store_item_chocolate:
   material: paper
   name: "<white>초콜릿"
-  lore: ["<gray>편의점 상품 (표시용) · 1,500원"]
   model: store_item_chocolate
   max-stack: 1
 
 store_item_candy:
   material: paper
   name: "<white>사탕"
-  lore: ["<gray>편의점 상품 (표시용) · 800원"]
   model: store_item_candy
   max-stack: 1
 
 store_item_gum:
   material: paper
   name: "<white>껌"
-  lore: ["<gray>편의점 상품 (표시용) · 1,000원"]
   model: store_item_gum
   max-stack: 1
 
 store_item_ice_bar:
   material: paper
   name: "<white>아이스바"
-  lore: ["<gray>편의점 상품 (표시용) · 1,000원"]
   model: store_item_ice_bar
   max-stack: 1
 
 store_item_ice_cone:
   material: paper
   name: "<white>콘 아이스크림"
-  lore: ["<gray>편의점 상품 (표시용) · 2,000원"]
   model: store_item_ice_cone
   max-stack: 1
 
 store_item_umbrella:
   material: paper
   name: "<white>우산"
-  lore: ["<gray>편의점 상품 (표시용) · 7,000원"]
   model: store_item_umbrella
   max-stack: 1
 
 store_item_battery:
   material: paper
   name: "<white>건전지"
-  lore: ["<gray>편의점 상품 (표시용) · 3,500원"]
   model: store_item_battery
   max-stack: 1
 
 store_item_tissue:
   material: paper
   name: "<white>휴지"
-  lore: ["<gray>편의점 상품 (표시용) · 2,500원"]
   model: store_item_tissue
   max-stack: 1
 
 store_item_bandage:
   material: paper
   name: "<white>반창고"
-  lore: ["<gray>편의점 상품 (표시용) · 2,000원"]
   model: store_item_bandage
   max-stack: 1
 
 store_item_lottery:
   material: paper
   name: "<white>즉석복권"
-  lore: ["<gray>편의점 상품 (표시용) · 1,000원"]
   model: store_item_lottery
   max-stack: 1
 
 store_item_cigarette:
   material: paper
   name: "<white>담배"
-  lore: ["<gray>편의점 상품 (표시용) · 4,500원"]
   model: store_item_cigarette
   max-stack: 1
 
@@ -508,105 +473,90 @@ store_item_cigarette:
 store_box_snack:
   material: paper
   name: "<#c8a46e>배송 상자 (과자)"
-  lore: ["<gray>편의점 표시용 · 들고 맞는 진열대 우클릭"]
   model: store_box_snack
   max-stack: 1
 
 store_box_noodle:
   material: paper
   name: "<#c8a46e>배송 상자 (라면)"
-  lore: ["<gray>편의점 표시용 · 들고 맞는 진열대 우클릭"]
   model: store_box_noodle
   max-stack: 1
 
 store_box_daily:
   material: paper
   name: "<#c8a46e>배송 상자 (생활용품)"
-  lore: ["<gray>편의점 표시용 · 들고 맞는 진열대 우클릭"]
   model: store_box_daily
   max-stack: 1
 
 store_box_meal:
   material: paper
   name: "<#c8a46e>배송 상자 (도시락)"
-  lore: ["<gray>편의점 표시용 · 들고 맞는 진열대 우클릭"]
   model: store_box_meal
   max-stack: 1
 
 store_box_drink:
   material: paper
   name: "<#c8a46e>배송 상자 (음료)"
-  lore: ["<gray>편의점 표시용 · 들고 맞는 진열대 우클릭"]
   model: store_box_drink
   max-stack: 1
 
 store_bag:
   material: paper
   name: "<white>편의점 봉투"
-  lore: ["<gray>편의점 표시용 · GS26 비닐봉투"]
   model: store_bag
   max-stack: 1
 
 store_spill:
   material: paper
   name: "<white>엎지른 음료"
-  lore: ["<gray>편의점 표시용 · 대걸레로 치움"]
   model: store_spill
   max-stack: 1
 
 store_trash_cup:
   material: paper
   name: "<white>다 먹은 컵라면"
-  lore: ["<gray>편의점 표시용 · 시식대 치우기"]
   model: store_trash_cup
   max-stack: 1
 
 store_card:
   material: paper
   name: "<white>손님 카드"
-  lore: ["<gray>편의점 표시용 · 결제 카드"]
   model: store_card
   max-stack: 1
 
 store_cash_1000:
   material: paper
   name: "<white>1,000원 지폐"
-  lore: ["<gray>편의점 표시용 · 손님이 낸 돈"]
   model: store_cash_1000
   max-stack: 1
 
 store_cash_5000:
   material: paper
   name: "<white>5,000원 지폐"
-  lore: ["<gray>편의점 표시용 · 손님이 낸 돈"]
   model: store_cash_5000
   max-stack: 1
 
 store_cash_10000:
   material: paper
   name: "<white>10,000원 지폐"
-  lore: ["<gray>편의점 표시용 · 손님이 낸 돈"]
   model: store_cash_10000
   max-stack: 1
 
 store_cash_50000:
   material: paper
   name: "<white>50,000원 지폐"
-  lore: ["<gray>편의점 표시용 · 손님이 낸 돈"]
   model: store_cash_50000
   max-stack: 1
 
 store_coin_100:
   material: paper
   name: "<white>100원 동전"
-  lore: ["<gray>편의점 표시용 · 손님이 낸 돈"]
   model: store_coin_100
   max-stack: 1
 
 store_coin_500:
   material: paper
   name: "<white>500원 동전"
-  lore: ["<gray>편의점 표시용 · 손님이 낸 돈"]
   model: store_coin_500
   max-stack: 1
 
@@ -614,140 +564,126 @@ store_coin_500:
 store_btn_card:
   material: paper
   name: "<white>카드 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_card
   max-stack: 1
 
 store_btn_cash:
   material: paper
   name: "<white>현금 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_cash
   max-stack: 1
 
 store_btn_give:
   material: paper
   name: "<white>건네기 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_give
   max-stack: 1
 
 store_btn_bag:
   material: paper
   name: "<white>봉투 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_bag
   max-stack: 1
 
 store_btn_nobag:
   material: paper
   name: "<white>봉투없음 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_nobag
   max-stack: 1
 
 store_btn_warm:
   material: paper
   name: "<white>데우기 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_warm
   max-stack: 1
 
 store_btn_yes:
   material: paper
   name: "<white>네 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_yes
   max-stack: 1
 
 store_btn_no:
   material: paper
   name: "<white>아니요 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_no
   max-stack: 1
 
 store_btn_wait:
   material: paper
   name: "<white>잠시만요 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_wait
   max-stack: 1
 
 store_btn_id:
   material: paper
   name: "<white>신분증 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_id
   max-stack: 1
 
 store_btn_refuse:
   material: paper
   name: "<white>거절 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_refuse
   max-stack: 1
 
 store_btn_sell:
   material: paper
   name: "<white>판매 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_sell
   max-stack: 1
 
 store_btn_wake:
   material: paper
   name: "<white>깨우기 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_wake
   max-stack: 1
 
 store_btn_point:
   material: paper
   name: "<white>가리키기 버튼"
-  lore: ["<gray>편의점 표시용 · 계산대 버튼"]
   model: store_btn_point
+  max-stack: 1
+
+store_btn_reset:
+  material: paper
+  name: "<white>다시 버튼"
+  model: store_btn_reset
   max-stack: 1
 
 store_btn_change_50000:
   material: paper
   name: "<white>거스름돈 5만원 버튼"
-  lore: ["<gray>편의점 표시용 · 거스름돈 맞추기"]
   model: store_btn_change_50000
   max-stack: 1
 
 store_btn_change_10000:
   material: paper
   name: "<white>거스름돈 1만원 버튼"
-  lore: ["<gray>편의점 표시용 · 거스름돈 맞추기"]
   model: store_btn_change_10000
   max-stack: 1
 
 store_btn_change_5000:
   material: paper
   name: "<white>거스름돈 5천원 버튼"
-  lore: ["<gray>편의점 표시용 · 거스름돈 맞추기"]
   model: store_btn_change_5000
   max-stack: 1
 
 store_btn_change_1000:
   material: paper
   name: "<white>거스름돈 1천원 버튼"
-  lore: ["<gray>편의점 표시용 · 거스름돈 맞추기"]
   model: store_btn_change_1000
   max-stack: 1
 
 store_btn_change_500:
   material: paper
   name: "<white>거스름돈 500원 버튼"
-  lore: ["<gray>편의점 표시용 · 거스름돈 맞추기"]
   model: store_btn_change_500
   max-stack: 1
 
 store_btn_change_100:
   material: paper
   name: "<white>거스름돈 100원 버튼"
-  lore: ["<gray>편의점 표시용 · 거스름돈 맞추기"]
   model: store_btn_change_100
   max-stack: 1
 
@@ -755,14 +691,12 @@ store_btn_change_100:
 store_scanner:
   material: paper
   name: "<#2f9e5b>바코드 스캐너"
-  lore: ["<gray>근무 중 손에 자동 지급 · 버릴 수 없음", "<yellow>상품을 바라보고 우클릭: 삑"]
   model: store_scanner
   max-stack: 1
 
 store_vest:
   material: paper
   name: "<#2f9e5b>편의점 근무 조끼"
-  lore: ["<gray>초록 조끼 · 이름표", "<gray>가슴 칸에 입음 (근무 중)"]
   model: store_vest
   max-stack: 1
   equipment: { slot: chest, asset: economy:store_vest }
@@ -771,7 +705,6 @@ store_vest:
 store_order_tablet:
   material: paper
   name: "<#2f9e5b>발주 단말기"
-  lore: ["<gray>편의점 가구 · 1×1칸 · 계산대 옆", "<gray>발주 태블릿 · 손에 드는 발주기 거치대"]
   model: store_order_tablet
   max-stack: 1
   furniture:
@@ -780,14 +713,12 @@ store_order_tablet:
 store_id_card:
   material: paper
   name: "<white>신분증"
-  lore: ["<gray>편의점 표시용 · 손님이 내민 신분증"]
   model: store_id_card
   max-stack: 1
 
 store_vest_manager:
   material: paper
   name: "<#c9a227>편의점 점장 조끼"
-  lore: ["<gray>진초록 조끼 · 금색 테두리 · 점장 이름표", "<gray>가슴 칸에 입음 (근무 중)"]
   model: store_vest_manager
   max-stack: 1
   equipment: { slot: chest, asset: economy:store_vest_manager }
@@ -795,7 +726,219 @@ store_vest_manager:
 store_vest_night:
   material: paper
   name: "<#5a7bd8>편의점 야간 조끼"
-  lore: ["<gray>남색 조끼 · 반사띠", "<gray>가슴 칸에 입음 (야간 근무 중)"]
   model: store_vest_night
   max-stack: 1
   equipment: { slot: chest, asset: economy:store_vest_night }
+
+# ── §17 행동을 눈으로: 가구 상태 (기본과 같은 칸 · 기준점, 모델만 바꿔 끼움) ─────────────────────────────
+store_microwave_open:
+  material: paper
+  name: "<#2f9e5b>전자레인지 (문 열림)"
+  model: store_microwave_open
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_microwave_run:
+  material: paper
+  name: "<#2f9e5b>전자레인지 (돌아가는 중)"
+  model: store_microwave_run
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_microwave_done:
+  material: paper
+  name: "<#2f9e5b>전자레인지 (다 됨)"
+  model: store_microwave_done
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_kettle_low:
+  material: paper
+  name: "<#2f9e5b>온수기 (물 적음)"
+  model: store_kettle_low
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_kettle_empty:
+  material: paper
+  name: "<#2f9e5b>온수기 (빔)"
+  model: store_kettle_empty
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_order_tablet_snack:
+  material: paper
+  name: "<#2f9e5b>발주 단말기 (과자)"
+  model: store_order_tablet_snack
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_order_tablet_noodle:
+  material: paper
+  name: "<#2f9e5b>발주 단말기 (라면)"
+  model: store_order_tablet_noodle
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_order_tablet_daily:
+  material: paper
+  name: "<#2f9e5b>발주 단말기 (생활용품)"
+  model: store_order_tablet_daily
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_order_tablet_meal:
+  material: paper
+  name: "<#2f9e5b>발주 단말기 (도시락)"
+  model: store_order_tablet_meal
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_order_tablet_drink:
+  material: paper
+  name: "<#2f9e5b>발주 단말기 (음료)"
+  model: store_order_tablet_drink
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_order_tablet_sent:
+  material: paper
+  name: "<#2f9e5b>발주 단말기 (보냄)"
+  model: store_order_tablet_sent
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0]]
+
+store_hanger_empty:
+  material: paper
+  name: "<#2f9e5b>빈 조끼 걸이"
+  model: store_hanger_empty
+  max-stack: 1
+  furniture:
+    cells: [[0, 0, 0], [0, 1, 0]]
+
+# ── §17 손에 드는 것 (근무 중 잠깐 주손에) ───────────────────────────────────────────────────────
+store_held_mop:
+  material: paper
+  name: "<#2f9e5b>대걸레"
+  model: store_held_mop
+  max-stack: 1
+
+store_held_box_snack:
+  material: paper
+  name: "<#c8a46e>배송 상자 (과자)"
+  model: store_held_box_snack
+  max-stack: 1
+
+store_held_box_noodle:
+  material: paper
+  name: "<#c8a46e>배송 상자 (라면)"
+  model: store_held_box_noodle
+  max-stack: 1
+
+store_held_box_daily:
+  material: paper
+  name: "<#c8a46e>배송 상자 (생활용품)"
+  model: store_held_box_daily
+  max-stack: 1
+
+store_held_box_meal:
+  material: paper
+  name: "<#c8a46e>배송 상자 (도시락)"
+  model: store_held_box_meal
+  max-stack: 1
+
+store_held_box_drink:
+  material: paper
+  name: "<#c8a46e>배송 상자 (음료)"
+  model: store_held_box_drink
+  max-stack: 1
+
+store_held_jug:
+  material: paper
+  name: "<#2f9e5b>온수기 물통"
+  model: store_held_jug
+  max-stack: 1
+
+store_held_waste_bag:
+  material: paper
+  name: "<#2f9e5b>폐기 봉지"
+  model: store_held_waste_bag
+  max-stack: 1
+
+store_held_tray:
+  material: paper
+  name: "<#2f9e5b>치운 쟁반"
+  model: store_held_tray
+  max-stack: 1
+
+store_held_pda:
+  material: paper
+  name: "<#2f9e5b>발주기"
+  model: store_held_pda
+  max-stack: 1
+
+store_held_id:
+  material: paper
+  name: "<white>신분증"
+  model: store_held_id
+  max-stack: 1
+
+# ── §17 사물 (바닥 = 위치) ─────────────────────────────────────────────────────────────────
+store_spill_2:
+  material: paper
+  name: "<white>엎지른 음료 (닦는 중)"
+  model: store_spill_2
+  max-stack: 1
+
+store_spill_3:
+  material: paper
+  name: "<white>엎지른 음료 (거의 닦음)"
+  model: store_spill_3
+  max-stack: 1
+
+store_wet_sign:
+  material: paper
+  name: "<#e0b020>미끄럼 주의"
+  model: store_wet_sign
+  max-stack: 1
+
+store_box_snack_open:
+  material: paper
+  name: "<#c8a46e>열린 배송 상자 (과자)"
+  model: store_box_snack_open
+  max-stack: 1
+
+store_box_noodle_open:
+  material: paper
+  name: "<#c8a46e>열린 배송 상자 (라면)"
+  model: store_box_noodle_open
+  max-stack: 1
+
+store_box_daily_open:
+  material: paper
+  name: "<#c8a46e>열린 배송 상자 (생활용품)"
+  model: store_box_daily_open
+  max-stack: 1
+
+store_box_meal_open:
+  material: paper
+  name: "<#c8a46e>열린 배송 상자 (도시락)"
+  model: store_box_meal_open
+  max-stack: 1
+
+store_box_drink_open:
+  material: paper
+  name: "<#c8a46e>열린 배송 상자 (음료)"
+  model: store_box_drink_open
+  max-stack: 1

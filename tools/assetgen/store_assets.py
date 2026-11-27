@@ -5,6 +5,7 @@ sheet.
     python3 tools/assetgen/store_assets.py            # models + equipment + skins + docs/previews/store_assets.png, store_assets_3.png
     python3 tools/assetgen/store_assets.py --no-sheet # models + equipment + the two store NPC skins only
     python3 tools/assetgen/store_assets.py --sheet3-only  # docs/previews/store_assets_3.png only (nothing in the pack touched)
+    python3 tools/assetgen/store_assets.py --sheet4-only  # docs/previews/store_assets_4.png only (§17: held things, states, goods)
     (the sheet needs: cd tools/assetgen/render && npm install)
 
   models     economy/content/economy/models/store_*.bbmodel (models/store.py; economy_models.ALL has them too, so a
@@ -488,11 +489,190 @@ def sheet3(path=SHEET3):
     return path
 
 
+# ------------------------------------------------------------------------------------------------
+# §17 행동을 눈으로: the fourth sheet, docs/previews/store_assets_4.png
+# ------------------------------------------------------------------------------------------------
+
+SHEET4 = REPO / "docs" / "previews" / "store_assets_4.png"
+EYE_PX = 1.62 * 16                       # a standing player's eye over the floor (px)
+FP_BASE = (8.96, -8.32, -11.52)          # the right hand's item point in first person (px, the camera frame)
+
+
+def _eye(x, y, w, h, eye, at, fov=70):
+    """A view from eye (px) looking at at (px), as a player sees it (FOV 70)."""
+    d = [eye[i] - at[i] for i in range(3)]
+    dist = math.sqrt(sum(v * v for v in d))
+    return {"x": x, "y": y, "w": w, "h": h, "az": math.degrees(math.atan2(d[0], -d[2])), "el": math.degrees(math.asin(d[1] / dist)),
+            "k": 1.0, "radius": dist, "center": list(at), "fov": fov, "near": 0.8, "far": 6000}
+
+
+def sheet4(path=SHEET4):
+    """§17: the held things on a worker from in front and over the shoulder (F5) and in first person; the furniture's
+    states side by side; the props; the 33 re-modelled goods on the counter from a customer's eye (1.62 over the
+    floor, 1.5 blocks away, at the 0.75 the store shows them); the counter's POS screen from the worker's eye and the
+    card terminal and customer display from the customer's (the screens' tilt)."""
+    import numpy as np
+    import bus_hold_assets as BA
+    from models import store as S
+    import store_art as ART
+    import economy_bus_skins as B
+    BUILD.mkdir(exist_ok=True)
+    held = ["store_held_mop", "store_held_box_snack", "store_held_box_drink", "store_held_jug", "store_held_waste_bag",
+            "store_held_tray", "store_held_pda", "store_held_id"]
+    states = [["store_microwave", "store_microwave_open", "store_microwave_run", "store_microwave_done"],
+              ["store_kettle", "store_kettle_low", "store_kettle_empty", "store_hanger", "store_hanger_empty"],
+              ["store_order_tablet"] + [f"store_order_tablet_{g}" for g in ("snack", "noodle", "daily", "meal", "drink", "sent")]]
+    props = ["store_spill", "store_spill_2", "store_spill_3", "store_wet_sign", "store_trash_cup", "store_item_ramen_red"]
+    boxes = [f"store_box_{k}" for k in S.BOX_KIND] + [f"store_box_{k}_open" for k in S.BOX_KIND]
+    keys = set(held + sum(states, []) + props + boxes + ["store_counter", "store_cig_shelf", "store_btn_reset", "store_btn_no"]
+               + [f"store_item_{g}" for g in S.GOODS])
+    models = {k: S.ALL[k]() for k in keys}
+    pv = {k: m.to_preview() for k, m in models.items()}
+    pvs = {k: (pv[k], models[k].display) for k in keys}
+    tex = _floor_tex()
+    for p in pv.values():
+        tex.update(p["textures"])
+    worker = B.TYPES[[t for t, _, _ in B.TYPES].index("univ")][2](1)
+    tex["worker"] = _uri(worker.finish())
+    tex["vest"] = _uri(ART.vest_layer())
+    els, views, labels = [], [], []
+    W = 1600
+
+    def view(v, label):
+        views.append(v)
+        labels.append((v["x"], v["y"], label))
+
+    def cell(k, x, y, w, h, at, s=1.0, az=22, el=18, k_=2.4, lift=0.0):
+        """One piece in its own view: its bounds framed (the piece placed at at, display convention)."""
+        lo = [min(min(e["from"][q], e["to"][q]) for e in pv[k]["elements"]) for q in range(3)]
+        hi = [max(max(e["from"][q], e["to"][q]) for e in pv[k]["elements"]) for q in range(3)]
+        c = [at[q] + ((lo[q] + hi[q]) / 2 - 8) * s for q in range(3)]
+        c[1] += lift
+        r = max(hi[q] - lo[q] for q in range(3)) * s * 0.62 + 2
+        view({"x": x, "y": y, "w": w, "h": h, "az": az, "el": el, "k": k_, "center": c, "radius": r, "fov": 35, "far": 6000},
+             k.replace("store_", ""))
+
+    # rows 1-2: the held things, worn by a worker: from in front (3/4) and over the shoulder (F5)
+    y0 = 0
+    cw = W // len(held)
+    for i, k in enumerate(held):
+        at = (i * 70, 24, 0)
+        els.extend(_figure("worker", False, at, pvs, main=k, vest="vest"))
+        els.append(_plane("tile", at[0] - 30, -30, at[0] + 30, 30))
+        view({"x": i * cw, "y": y0, "w": cw, "h": 330, "az": -28, "el": 10, "k": 2.35, "center": [at[0] - 1, 14, -4], "radius": 26,
+              "fov": 35, "far": 6000}, k.replace("store_held_", ""))
+        view({"x": i * cw, "y": y0 + 330, "w": cw, "h": 300, "az": 150, "el": 32, "k": 2.2, "center": [at[0] + 2, 12, -3], "radius": 26,
+              "fov": 35, "far": 6000}, "F5 (뒤에서)" if i == 0 else "")
+    # row 3: first person (the camera frame, FOV 70, 16:9; the right hand's item point and firstperson_righthand)
+    y0 += 630
+    for i, k in enumerate(held):
+        off = np.array([4000.0 + i * 300, 0, 0])
+        M = BA._tr(off + np.array(FP_BASE)) @ BA.display_matrix(models[k].display["firstperson_righthand"], False)
+        for e in pv[k]["elements"]:
+            e = json.loads(json.dumps(e))
+            e["matrix"] = [float(x) for x in M.flatten()]
+            els.append(e)
+        els.append(_plane("tile", off[0] - 120, -160, off[0] + 120, 0, y=-EYE_PX))
+        r, c = divmod(i, 4)
+        view({"x": c * 400, "y": y0 + r * 225, "w": 400, "h": 225, "az": 180, "el": 0, "k": 1.0, "center": [off[0], 0, -10],
+              "radius": 10, "fov": 70, "near": 0.5, "far": 6000}, "1인칭: " + k.replace("store_held_", ""))
+    y0 += 450
+
+    # row 4: the furniture's states, each in its own view (a wall behind, as they stand)
+    n = 0
+    for r, row in enumerate(states):
+        w = W // len(row)
+        h = 300 if r != 2 else 250
+        for i, k in enumerate(row):
+            ax = 6000 + n * 60
+            n += 1
+            els.extend(_placed(pv[k], (ax, 8, 0), 1))
+            els.append(_plane("tile", ax - 28, -28, ax + 28, 16))
+            els.append(_wall("wallbg", ax - 28, ax + 28, 0, 40, 16))
+            cell(k, i * w, y0, w, h, (ax, 8, 0), az=24, el=16, k_=2.3 if r != 2 else 2.6)
+        y0 += h
+    # row 5: the props (the spill's stages, the sign, the cups) and the boxes, closed and opened
+    for i, k in enumerate(props):
+        ax = 7400 + i * 60
+        els.extend(_placed(pv[k], (ax, 0, 0), 1))
+        els.append(_plane("tile", ax - 28, -28, ax + 28, 28))
+        cell(k, i * (W // len(props)), y0, W // len(props), 240, (ax, 0, 0), az=18, el=34, k_=2.6)
+    y0 += 240
+    for i, k in enumerate(boxes):
+        ax = 7900 + i * 60
+        els.extend(_placed(pv[k], (ax, 0, 0), 1))
+        els.append(_plane("tile", ax - 28, -28, ax + 28, 28))
+        r, c = divmod(i, 5)
+        cell(k, c * (W // 5), y0 + r * 220, W // 5, 220, (ax, 0, 0), az=22, el=40, k_=2.6)
+    y0 += 440
+
+    # row 6: the 33 goods on the counter (three counters, eleven goods each, at the store's 0.75) from a customer's eye
+    # (1.62 over the floor, 1.5 blocks in front of the counter), and one from the worker's side: each view a 1600 x 480
+    # window of a 1920 x 1080 game screen at FOV 70 (the same size on screen as in the game)
+    goods = list(S.GOODS)
+    fov = round(2 * math.degrees(math.atan(math.tan(math.radians(35)) * 480 / 1080 * 1920 / 1600 * 1600 / 1920)), 2)
+    for r in range(3):
+        cx = 9000 + r * 300
+        els.extend(_placed(pv["store_counter"], (cx, 8, 0), 1))
+        els.append(_plane("tile", cx - 80, -80, cx + 80, 60))
+        row = goods[r * 11:(r + 1) * 11]
+        for i, g in enumerate(row):
+            gx = cx + 14 - i * 3.8            # from the customer's left (+x) to the right, read left to right
+            gz = -5.5 + (i % 2) * 3
+            els.extend(_placed(pv[f"store_item_{g}"], (gx, 15.25, gz), 0.75))
+        view(_eye(0, y0 + r * 480, W, 480, [cx - 4, EYE_PX, -8 - 24], [cx - 4, 15.5, -4], fov=fov),
+             f"손님 눈 (높이 1.62, 1.5칸 앞, 0.75배, 게임 화면 크기): {row[0]} … {row[-1]} (왼쪽부터)")
+    view(_eye(0, y0 + 3 * 480, W, 480, [9000 - 6, EYE_PX, 8 + 10], [9000 - 4, 15.5, -4], fov=fov), "근무자 눈 (계산대 뒤 0.6칸): 첫 열한 가지")
+    y0 += 4 * 480
+
+    # row 7: the counter's screens: the POS from the worker's eye, the card terminal / customer display from the customer's;
+    # the new 다시 key and the keys' backs
+    cx = 10500
+    els.extend(_placed(pv["store_counter"], (cx, 8, 0), 1))
+    els.append(_plane("tile", cx - 60, -60, cx + 60, 60))
+    for i, k in enumerate(("store_btn_reset", "store_btn_no")):
+        els.extend(_placed(pv[k], (cx + 300 + i * 16, 30, 0), 1))
+    pos = [cx + (13 - 8), 22.2, (10.4 - 8)]
+    view(_eye(0, y0, 400, 300, [pos[0] - 2, EYE_PX, 8 + 12], pos), "근무자 눈: POS 화면 (빈 대기 화면, 뒤로 누움)")
+    view({"x": 400, "y": y0, "w": 400, "h": 300, "az": -90, "el": 3, "k": 1.0, "center": pos, "radius": 46, "fov": 26, "far": 6000},
+         "옆에서: POS 기울기 (왼쪽 = 근무자 +z)")
+    term = [cx + (21 - 8), 17, (6 - 8)]
+    view(_eye(800, y0, 400, 300, [term[0] - 4, EYE_PX, -8 - 22], [cx + 3, 18, -3]), "손님 눈: 카드 단말기 · 손님 화면")
+    view({"x": 1200, "y": y0, "w": 400, "h": 150, "az": 0, "el": 4, "k": 1.0, "center": [cx + 308, 30, 0], "radius": 34, "fov": 35,
+          "far": 6000}, "btn_no · store_btn_reset (다시)")
+    view({"x": 1200, "y": y0 + 150, "w": 400, "h": 150, "az": 180, "el": 4, "k": 1.0, "center": [cx + 308, 30, 0], "radius": 34,
+          "fov": 35, "far": 6000}, "뒷면 (손님 쪽)")
+    y0 += 300
+    H = y0
+
+    src = BUILD / "store_assets_4.preview.json"
+    src.write_text(json.dumps({"textures": tex, "elements": els, "grid": False, "size": [W, H], "views": views}))
+    shot = BUILD / "store_assets_4.render.png"
+    subprocess.run(["node", str(RENDER), str(src), str(shot)], check=True, stdout=subprocess.DEVNULL)
+    im = Image.open(shot).convert("RGBA")
+    out = Image.new("RGBA", (W, H), (27, 29, 34, 255))
+    out.alpha_composite(im, (0, 0))
+    d = ImageDraw.Draw(out)
+    f = _font(17)
+    for (x, y, label) in labels:
+        if not label:
+            continue
+        tw = d.textlength(label, font=f)
+        d.rectangle((x + 6, y + 6, x + 16 + tw, y + 32), fill=(20, 22, 26, 210))
+        d.text((x + 11, y + 8), label, font=f, fill=(240, 236, 220))
+    out.convert("RGB").save(path, optimize=True)
+    return path
+
+
 if __name__ == "__main__":
     if "--sheet3-only" in sys.argv:
         print(sheet3())
+        sys.exit()
+    if "--sheet4-only" in sys.argv:
+        print(sheet4())
         sys.exit()
     print(len(write()), "models written")
     if "--no-sheet" not in sys.argv:
         print(sheet())
         print(sheet3())
+        print(sheet4())

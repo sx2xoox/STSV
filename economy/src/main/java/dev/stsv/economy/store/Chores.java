@@ -122,6 +122,19 @@ public final class Chores {
         return came;
     }
 
+    /**
+     * A box at once for the first empty shelf that has none waiting or carried (a shelf left empty between two trucks):
+     * that box, or null when no empty shelf lacks one.
+     */
+    public String quick(StoreSpec spec) {
+        for (StoreSpec.Shelf s : spec.shelves().values()) {
+            if (stock(s.place()) > 0 || boxes.contains(s.box()) || s.box().equals(carrying)) continue;
+            boxes.add(s.box());
+            return s.box();
+        }
+        return null;
+    }
+
     public Set<String> boxes() {
         return boxes;
     }

@@ -270,4 +270,65 @@ class StoreRulesTest {
         assertEquals(100 + 3000, p.deduction(), "1,000원 covered = 100 G, and the fine");
         assertEquals(0, p.pay(), "never below 0");
     }
+
+    // ---- 점검: the shift's small rules
+
+    @Test
+    void standingStillIsWarnedBeforeTheShiftEnds() {
+        assertEquals(StoreRules.Idle.OK, StoreRules.idle(0, 180, 30));
+        assertEquals(StoreRules.Idle.OK, StoreRules.idle(150, 180, 30));
+        assertEquals(StoreRules.Idle.WARN, StoreRules.idle(151, 180, 30), "150 s still: told, 30 s to go");
+        assertEquals(StoreRules.Idle.WARN, StoreRules.idle(180, 180, 30));
+        assertEquals(StoreRules.Idle.OUT, StoreRules.idle(181, 180, 30));
+    }
+
+    @Test
+    void aPaidCustomerWaitingOnlyForTheMicrowaveStepsAside() {
+        assertTrue(StoreRules.stepsAside(true, List.of("warm"), false));
+        assertFalse(StoreRules.stepsAside(false, List.of("warm"), false), "not before paying");
+        assertFalse(StoreRules.stepsAside(true, List.of("warm", "trouble"), false), "something else still asked: at the counter");
+        assertFalse(StoreRules.stepsAside(true, List.of(), false));
+        assertFalse(StoreRules.stepsAside(true, List.of("warm"), true), "one waits aside at a time");
+    }
+
+    @Test
+    void aTwoLetterAnswerButtonIsStillEasyToHit() {
+        assertEquals(0.3, StoreRules.askHalfWidth(2), 1e-9, "판매 · 거절");
+        assertEquals(0.3, StoreRules.askHalfWidth(4), 1e-9);
+        assertEquals(0.58, StoreRules.askHalfWidth(10), 1e-9);
+        assertEquals(0.7, StoreRules.askHalfWidth(40), 1e-9);
+    }
+
+    @Test
+    void onlyTheStoreBeingBuiltCannotBeWorkedIn() {
+        assertFalse(StoreRules.blockedByBuild(false, null, "마을점"));
+        assertFalse(StoreRules.blockedByBuild(true, "도토리네", "마을점"), "someone else's store going up");
+        assertTrue(StoreRules.blockedByBuild(true, "마을점", "마을점"));
+        assertTrue(StoreRules.blockedByBuild(true, null, "마을점"), "a job nobody named: as before");
+    }
+
+    @Test
+    void aStoreComesDownOnlyClosedAndOnlyByItsOwner() {
+        assertEquals(StoreRules.Demolish.OK, StoreRules.mayDemolish(true, false, false));
+        assertEquals(StoreRules.Demolish.ON_SHIFT, StoreRules.mayDemolish(true, true, false), "퇴근 먼저");
+        assertEquals(StoreRules.Demolish.BUILDING, StoreRules.mayDemolish(true, false, true));
+        assertEquals(StoreRules.Demolish.NOT_OWNER, StoreRules.mayDemolish(false, false, false));
+    }
+
+    @Test
+    void theHangerNeverTakesAStoreDownAndSwappingIsItsOwnThing() {
+        // a plain click: the shift (in, out, apply)
+        assertEquals(StoreRules.Hanger.SHIFT, StoreRules.sneakHanger(false, true, true, true, true));
+        assertEquals(StoreRules.Hanger.SHIFT, StoreRules.sneakHanger(false, false, false, false, false));
+        // sneaking, two working here: swap; one working: nothing happens to the store
+        assertEquals(StoreRules.Hanger.SWAP, StoreRules.sneakHanger(true, true, true, true, true));
+        assertEquals(StoreRules.Hanger.SWAP, StoreRules.sneakHanger(true, true, true, false, true));
+        assertEquals(StoreRules.Hanger.BUSY, StoreRules.sneakHanger(true, true, false, true, true), "the owner alone on shift (the helper just left): told to close first");
+        assertEquals(StoreRules.Hanger.NOTHING, StoreRules.sneakHanger(true, true, false, false, true));
+        // sneaking, not on shift: the owner's menu only while the store is closed
+        assertEquals(StoreRules.Hanger.MANAGE, StoreRules.sneakHanger(true, false, false, true, false));
+        assertEquals(StoreRules.Hanger.BUSY, StoreRules.sneakHanger(true, false, false, true, true), "someone works in it");
+        assertEquals(StoreRules.Hanger.NOTHING, StoreRules.sneakHanger(true, false, false, false, false));
+        for (StoreRules.Hanger h : StoreRules.Hanger.values()) assertFalse(h.name().contains("DEMOLISH"), "no hanger click demolishes");
+    }
 }

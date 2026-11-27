@@ -313,4 +313,13 @@ class StoreLifeTest {
         // every smaller store has the tablet too
         for (StoreRules.Tier tier : StoreRulesTest.rules().tiers().values()) assertNotNull(StoreLayout.of(tier.without()).piece("order"), tier.id());
     }
+
+    // ---- 점검 규칙-5
+
+    @Test
+    void aRegularAsksForTheirUsualOnlyWhenItCanBeFetched() {
+        assertTrue(StoreLife.usualInStock(true, 3));
+        assertFalse(StoreLife.usualInStock(true, 0), "the shelf is empty: nobody asks for what cannot be handed over");
+        assertTrue(StoreLife.usualInStock(false, -1), "the freezer and the counter never run out");
+    }
 }

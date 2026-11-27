@@ -29,7 +29,7 @@ import java.util.Set;
  *  z=14  [박스]  ·  [냉장 x-1..0][냉장 1..2][냉장 3..4]   [배송 상자 x 5]
  *  z=13  대걸레 ·         뒤 통로 (BL BM BR)
  *  z=10..12 옷걸이 x-5 · 폐기 x-3 │ 줄 x-2 │ [라면 x0] │   │ [도시락 x3] │
- *  z=9   전자레인지 x-3            │       ML    MM      MR
+ *  z=9   전자레인지 x-3 (문은 근무 통로 쪽) │  ML    MM      MR
  *  z=6..8 담배 x-5 · 일하는 자리 x-4 · [계산대 x-3] · 손님 x-2 │ [과자 x0] │ │ [생활 x3] │
  *  z=5   온수기 x-3               FL         FM          FR
  *  z=4   ·                [시식대 x-2..0] [냉동고 1..2]   문 안 (x 4..5)
@@ -72,9 +72,10 @@ public final class StoreLayout {
      * @param queue   the line: 0 at the counter (facing it), then back along the lane
      * @param slots   where the things put on the counter lie (the customer's mat), in order
      * @param scanned where they slide when scanned (the worker's edge)
-     * @param screen  the till's screen (total, change), over the counter for the worker
+     * @param screen  the till's screen (total, change): the middle of the POS monitor's text area
      * @param customerScreen the customer display on its pole (the total, facing them)
      * @param card    a card customer's card on the counter; terminal: the card terminal (tapped); cardKey: the [카드] key
+     *                (the POS keys lie on the counter's worker edge: {@link #posKey})
      * @param inside  the shop floor (where the worker works, shoppers browse)
      */
     public record Layout(List<Box> clear, List<Column> columns, List<Block> blocks, List<Prop> props, List<Label> labels, List<Piece> pieces,
@@ -152,7 +153,9 @@ public final class StoreLayout {
         });
     }
 
-    /** Where the eat bar's customers stand (facing the window), seat 0 .. 2. */
+    /** The pavement's ends a customer comes from. */
+    public static final String STREET_L = "street_l", STREET_R = "street_r";
+    /** Where the eat bar's customers walk to (then they sit on the stool in front, facing the window), seat 0 .. 2. */
     public static final List<String> EAT = List.of("eat_0", "eat_1", "eat_2");
     /** The aisle spots a drink can be spilt on. */
     public static final List<String> AISLE = List.of("fm", "mm", "ml", "mr", "bm");
@@ -180,33 +183,34 @@ public final class StoreLayout {
         d.walk();
         List<Block> out = new ArrayList<>(d.blocks.values());
         out.sort(Comparator.comparingInt(Block::y));
-        // the counter (store_counter at x -3, z 6..8, its front to the customers at +x; tools/assetgen/models/store.py): its top
-        // 15 px up, the customer's mat on its +z end (x -2.75 .. -2.125, z 7.9 .. 8.9), the customer display's screen at
-        // (-2.09, 1.37, 7.70) facing them, the POS facing the worker at z 7.2, the card terminal at (-2.38, z 6.69)
+        // the counter (store_counter at x -3, z 6..8, its front to the customers at +x; tools/assetgen/models/store.py): a model
+        // px (mx, my, mz) is local (8 - mx / 16, my / 16, -2 - mz / 16). Its top 15 px up, the customer's mat on its +z end
+        // (x -2.75 .. -2.125, z 7.9 .. 8.9), the customer display's screen at (-2.09, 1.37, 7.70) facing them, the POS monitor
+        // facing the worker (POS_*), the cash tray (TRAY), the card terminal at (-2.38, z 6.69)
         double y = TOP;
         List<Point> slots = List.of(new Point(-2.3, y, 8.05, 90), new Point(-2.3, y, 8.4, 90), new Point(-2.3, y, 8.75, 90),
                 new Point(-2.6, y, 8.22, 90), new Point(-2.6, y, 8.6, 90));
         List<Point> scanned = new ArrayList<>();
-        for (int i = 0; i < 5; i++) scanned.add(new Point(-2.88, y, 7.95 + i * 0.2, 270));
+        for (int i = 0; i < 5; i++) scanned.add(new Point(SCANNED_X, y, SCANNED_Z + i * SCANNED_GAP, 270));
         Map<Integer, Point> change = new LinkedHashMap<>();
         int[] top = {50000, 10000, 5000}, low = {1000, 500, 100};
         for (int i = 0; i < 3; i++) {
-            change.put(top[i], new Point(-2.95, 1.80, 6.15 + i * 0.42, 270));
-            change.put(low[i], new Point(-2.95, 1.52, 6.15 + i * 0.42, 270));
+            change.put(top[i], posKey(2 - i, 1));
+            change.put(low[i], posKey(2 - i, 0));
         }
         return new Layout(List.of(new Box(-LOT, 0, 0, LOT, CLEAR, BACK + 1)), List.copyOf(d.columns), List.copyOf(out), List.copyOf(d.props),
                 List.copyOf(d.labels), List.copyOf(d.pieces), Map.copyOf(d.nodes), Map.copyOf(d.edges), Map.copyOf(d.spots),
                 List.of(new Node("q0", -1.5, 7.5, 270), new Node("q1", -1.5, 8.7, 180), new Node("q2", -1.5, 9.9, 180), new Node("q3", -1.5, 11.1, 180),
                         new Node("q4", -1.5, 12.3, 180), new Node("q5", -1.5, 13.5, 180)),
                 slots, List.copyOf(scanned),
-                new Point(-2.6, 2.1, 7.4, 270),
+                new Point(POS_X, POS_Y, POS_Z, 270),
                 new Point(-2.09, 1.32, 7.70, 90),
-                new Point(-2.15, y + 0.005, 6.4, 90),
+                new Point(CARD_X, y + 0.005, CARD_Z, 0),
                 new Point(-2.38, y + 0.05, 6.69, 270),
-                new Point(-2.95, 1.52, 6.57, 270),
+                posKey(3, 0),
                 change,
-                new Point(-2.95, 1.80, 7.55, 270),
-                new Point(-2.95, 1.52, 7.55, 270),
+                posKey(3, 0),
+                posKey(3, 1),
                 new Point(-2.5, 1.95, 9.5, 270),
                 List.of(new Point(5.5, 0, 14.5, 180), new Point(5.5, 0, 13.5, 180), new Point(5.5, 0.5, 14.5, 180), new Point(5.5, 0.5, 13.5, 180),
                         new Point(5.5, 1.0, 14.5, 180)),
@@ -214,6 +218,69 @@ public final class StoreLayout {
                 new Box(-HALF + 1, 0, FRONT + 1, HALF - 1, ROOF - 1, BACK - 1),
                 new Box(-LOT - 1, -FOUNDATION - 2, -1, LOT + 1, CLEAR, BACK + 2));
     }
+
+    // ------------------------------------------------------------------------------------------ on the counter
+
+    /**
+     * The POS keys (거스름돈 · 건네기 · 다시 · 카드): a little keyboard lying on the counter's worker edge under the POS monitor,
+     * KEY_TILT degrees up from flat (its far edge raised), so the worker looks down onto it and nothing stands between them
+     * and the customer or the monitor; from the customers' side only its thin edge shows. Column 0 is the worker's right
+     * (z KEY_Z), each KEY_GAP further left; row 0 is the near one, row 1 KEY_ROW up the slope. KEY_SCALE: store_btn_* are
+     * 12 × 6 px at 1.
+     */
+    public static final double KEY_TILT = 35, KEY_GAP = 0.34, KEY_ROW = 0.185;
+    public static final double KEY_X = -3.06, KEY_Y = 1.02, KEY_Z = 6.72;
+    public static final float KEY_SCALE = 0.42f;
+
+    /** Half the sizes of a key's click box (along the row, up, across the rows): a 12 × 6 px plate lying back. */
+    public static double[] keyBox() {
+        double t = Math.toRadians(KEY_TILT), wide = 12 / 16.0 * KEY_SCALE, tall = 6 / 16.0 * KEY_SCALE;
+        return new double[]{wide / 2, tall / 2 * Math.sin(t) + 0.015, tall / 2 * Math.cos(t) + 0.01};
+    }
+
+    /** Notes and coins on a pile lie this much higher each (blocks). */
+    public static final double PILE = 0.004;
+
+    /** The key in column c (0 .. 3), row r (0 near, 1 far). */
+    public static Point posKey(int c, int r) {
+        double t = Math.toRadians(KEY_TILT);
+        return new Point(KEY_X + r * KEY_ROW * Math.cos(t), KEY_Y + r * KEY_ROW * Math.sin(t), KEY_Z + c * KEY_GAP, 270);
+    }
+
+    /**
+     * The POS monitor's text area (items/store.yml's header: the model's pos_screen under its green band, 7 px wide, 3.9 px
+     * up its face, tipped back POS_TILT degrees so its top leans away from the worker): its middle, its size (blocks), the
+     * size of the text on it. The till's total and change are written there (a fixed text display, 0.01 off the face).
+     */
+    public static final double POS_X = -2.658, POS_Y = 1.371, POS_Z = 7.1875, POS_TILT = 22.5, POS_WIDE = 0.4375, POS_TALL = 0.244;
+    public static final float POS_TEXT = 0.3f;
+    /** The cash tray on the customers' side (the model's cash_tray: the middle of its dish, 15.5 px up). */
+    public static final double TRAY_X = -2.266, TRAY_Y = 15.5 / 16, TRAY_Z = 7.1875;
+    /** A card customer's card: on the clear top between the card terminal and the cash tray. */
+    public static final double CARD_X = -2.3, CARD_Z = 6.905;
+    /** Money and cards lie on the counter at this size (the goods at 0.75). */
+    public static final float MONEY = 0.55f;
+    /** Scanned things: a row along the worker's edge past the keys, this far apart. */
+    public static final double SCANNED_X = -2.9, SCANNED_Z = 7.97, SCANNED_GAP = 0.24;
+    /** The ID card on the worker's edge of the counter, tipped up to them (degrees). */
+    public static final double ID_X = -2.85, ID_Z = 7.72, ID_TILT = 30;
+    /** The green answer buttons of the customer at the counter: between them and the worker, over the mat. */
+    public static final double ASK_X = -2.45, ASK_Y = 1.45, ASK_Z = 7.85, ASK_STEP = 0.3;
+    /** Over a customer in the aisle the buttons start here over their feet (their name tag is hidden meanwhile). */
+    public static final double ASK_HEAD = 2.15;
+    /** A cup left on the eat bar (its top: 14 px up, z 4.0 .. 4.25), seat 0 at CUP_X; the cup's size. */
+    public static final double CUP_X = -1.5, CUP_Y = 14.0 / 16, CUP_Z = 4.13;
+    public static final float CUP_SCALE = 0.5f;
+    /** A customer sitting at the eat bar: on the stool (x -1.5 + seat). */
+    public static final double STOOL_Y = 0.5, STOOL_Z = 4.6;
+    /** Where the food stands inside the microwave (its door to the worker's lane). */
+    public static final double OVEN_X = -2.52, OVEN_Y = 0.92, OVEN_Z = 9.6;
+    /** A visit's thing left on the counter: by the customer display's pole. */
+    public static final double PROP_X = -2.3, PROP_Z = 7.52;
+    /** A figure seen outside from the till (a visit's last beat): right of the parasol table, clear of the kettle. */
+    public static final double FIGURE_X = 0.6, FIGURE_Z = 2.3;
+    /** Where a customer whose food is in the microwave waits (the node "warm"), off the line. */
+    public static final String WARM = "warm";
 
     // ------------------------------------------------------------------------------------------ ground and shell
 
@@ -257,14 +324,14 @@ public final class StoreLayout {
             set(x, ROOF, FRONT, "green_concrete");
             set(x, ROOF + 1, FRONT, Math.abs(x) == HALF ? "green_concrete" : "white_concrete");
         }
-        // the back door to the stockroom (shut), the door bell over the front door (inside)
-        set(DOOR1, 0, BACK, "iron_door[facing=north,half=lower,hinge=left,open=false,powered=false]");
-        set(DOOR1, 1, BACK, "iron_door[facing=north,half=upper,hinge=left,open=false,powered=false]");
+        // the back door to the stockroom (shut, its leaf on the wall's inner face), the door bell over the front door (inside)
+        set(DOOR1, 0, BACK, "iron_door[facing=south,half=lower,hinge=left,open=false,powered=false]");
+        set(DOOR1, 1, BACK, "iron_door[facing=south,half=upper,hinge=left,open=false,powered=false]");
         set(DOOR0, 2, FRONT + 1, "bell[attachment=ceiling,facing=north,powered=false]");
         // the sign (lit, GS26: an item display on the fascia), the 24시 sticker on the glass
         piece("sign", "economy:store_sign", -2, FRONT - 1, 2, FRONT - 1, ROOF, 180);
         labels.add(new Label(2.5, 1.55, FRONT - 0.03, 180, "<#1f9d55><b>24시</b></#1f9d55><dark_gray> 연중무휴", 0.6f, 0xC0FFFFFF));
-        labels.add(new Label(DOOR1 + 0.5, 1.2, BACK - 0.03, 180, "<white><b>STAFF ONLY", 0.5f, 0xC0303030));
+        labels.add(new Label(DOOR1 + 0.5, 2.15, BACK - 0.03, 180, "<white><b>STAFF ONLY", 0.5f, 0xC0303030));   // over the door
     }
 
     // ------------------------------------------------------------------------------------------ inside
@@ -273,12 +340,13 @@ public final class StoreLayout {
         // behind the counter: the worker's lane x -4, the shelf of cigarettes on the wall, the hanger, the mop
         piece("cig", "economy:store_cig_shelf", -5, 6, -5, 8, 0, 90);
         piece("counter", "economy:store_counter", -3, 6, -3, 8, 0, 90);
-        // the kettle and the microwave (each on its own steel cabinet) at the counter's two ends
-        piece("kettle", "economy:store_kettle", -3, 5, -3, 5, 0, 90);
-        piece("microwave", "economy:store_microwave", -3, 9, -3, 9, 0, 90);
+        // the kettle and the microwave (each on its own steel cabinet) at the counter's two ends, the 폐기 basket: their fronts
+        // to the worker's lane (the door, the water level, the basket's mouth are the worker's)
+        piece("kettle", "economy:store_kettle", -3, 5, -3, 5, 0, 270);
+        piece("microwave", "economy:store_microwave", -3, 9, -3, 9, 0, 270);
         set(-3, 0, 4, "white_concrete");
         piece("hanger", "economy:store_hanger", -5, 10, -5, 10, 0, 90);
-        piece("waste", "economy:store_waste", -3, 10, -3, 10, 0, 90);
+        piece("waste", "economy:store_waste", -3, 10, -3, 10, 0, 270);
         set(-3, 0, 11, "white_concrete");
         set(-3, 0, 12, "white_concrete");
         piece("mop", "economy:store_mop", -5, 13, -5, 13, 0, 90);
@@ -368,11 +436,22 @@ public final class StoreLayout {
         spot("fridge", "fridge_b", 2.0, 13.5, 0, "bm");
         spot("fridge", "fridge_c", 4.0, 13.5, 0, "bm", "br");
         spot("freezer", "freezer_a", 2.0, 5.5, 180, "fm", "fr");
-        // the eat bar (x -2..0 at the window): a 컵라면 customer or a dozing 취객 stands at a seat, facing the glass
+        // the eat bar (x -2..0 at the window): a 컵라면 customer or a dozing 취객 walks up behind a stool, then sits on it
         for (int i = 0; i < 3; i++) {
             node("eat_" + i, -1.5 + i, 5.2, 180);
             edge("eat_" + i, "fl");
         }
+        // someone whose food is in the microwave waits here, off the line (a dead end: nobody walks through)
+        node(WARM, -0.55, 8.55, 270);
+        edge(WARM, "ml");
+        // the pavement's two ends: customers come walking from one and go back to it (the left one passes in front of the
+        // parasol tables)
+        node(STREET_R, 7.6, 1.0, 270);
+        node("street_m", 3.4, 0.4, 270);
+        node(STREET_L, -7.6, 0.4, 90);
+        edge(STREET_R, "out");
+        edge("street_m", "out");
+        edge("street_m", STREET_L);
     }
 
     // ------------------------------------------------------------------------------------------ paths

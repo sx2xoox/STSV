@@ -37,10 +37,10 @@ class StoreStaffOnlyTest {
     @Test
     void theLineIsShortAndFriendly() {
         YamlConfiguration m = YamlConfiguration.loadConfiguration(new File("src/main/resources/messages.yml"));
-        assertEquals("store.staff-only-hanger", StoreModule.staffLine(true, false), "a closed store they may work in: the hanger");
+        assertEquals("store.staff-only", StoreModule.staffLine(true, false), "one line for everyone (점검 문구-20)");
         assertEquals("store.staff-only", StoreModule.staffLine(true, true));
         assertEquals("store.staff-only", StoreModule.staffLine(false, false));
-        for (String key : List.of("store.staff-only", "store.staff-only-hanger")) {
+        for (String key : List.of("store.staff-only")) {
             String line = m.getString(key);
             assertNotNull(line, key);
             assertTrue(line.contains("직원만 쓸 수 있어요"), line);

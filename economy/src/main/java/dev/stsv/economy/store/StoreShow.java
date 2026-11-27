@@ -321,7 +321,14 @@ final class StoreShow {
     // ------------------------------------------------------------------------------------------ 전자레인지
 
     private Location ovenInside(StoreModule.Shop shop) {
-        return shop.at(-2.5, 0.92, 9.5, 90);
+        return shop.at(StoreLayout.OVEN_X, StoreLayout.OVEN_Y, StoreLayout.OVEN_Z, 270);   // (its door is the worker's)
+    }
+
+    /** Whoever the food was for has gone: the food away, the door shut. */
+    void ovenAbort(StoreModule.Shift sh) {
+        if (sh.ovenFood != null) sh.ovenFood.remove();
+        sh.ovenFood = null;
+        furnish(sh.shop, "microwave", StoreMotion.ovenModel(Chores.Oven.IDLE, false));
     }
 
     /** Food in: the door open, the food inside, the door shut and the light on. */
@@ -366,7 +373,7 @@ final class StoreShow {
         ItemDisplay d = sh.ovenFood;
         sh.ovenFood = null;
         if (d != null && d.isValid()) {
-            Location to = shop.at(-2.5, StoreLayout.TOP + 0.1, 8.7, 90);
+            Location to = shop.at(-2.6, StoreLayout.TOP + 0.1, 8.75, 90);
             Vector3f by = between(to, d.getLocation());
             move(d, 5, by.add(0, 0.15f, 0), 0.4f);
             later(8, d::remove);
@@ -424,7 +431,7 @@ final class StoreShow {
 
     /** Something dropped into the 폐기 바구니 with a thud (the bag, the tray's cups). */
     void dump(StoreModule.Shift sh, String what) {
-        Location at = sh.shop.at(-2.5, 1.3, 10.5, 90);
+        Location at = sh.shop.at(-2.5, 1.3, 10.5, 270);
         ItemDisplay d = what == null ? null : temp(sh, at, what, 0.5f, 10);
         if (d != null) later(1, () -> move(d, 6, new Vector3f(0, -0.85f, 0), 0.35f));
         later(6, () -> {
@@ -486,6 +493,48 @@ final class StoreShow {
         EntityEquipment eq = g.m.getEquipment();
         if (eq != null && eq.getItemInMainHand().getPersistentDataContainer().has(StoreModule.GUEST)) eq.setItemInMainHand(null);
         if (!m.has(StoreMotion.ID_CARD)) return null;
-        return m.display(sh.shop.at(-2.45, StoreLayout.TOP, 6.95, 270), StoreMotion.ID_CARD, 1f);
+        // on the worker's edge of the counter, its far side raised to them
+        return m.tipped(sh.shop.at(StoreLayout.ID_X, StoreLayout.TOP + 0.03, StoreLayout.ID_Z, 270), StoreMotion.ID_CARD, 1f, StoreLayout.ID_TILT);
+    }
+
+    /**
+     * The photo on the ID: a face (a head pressed flat, in the customer's own skin; on a sibling's card another person's),
+     * beside the card's writing. The worker compares it with who stands there. Null when it cannot be shown.
+     */
+    ItemDisplay idPhoto(StoreModule.Shift sh, StoreModule.Guest g, boolean sibling) {
+        String skin = sibling ? otherFace(g) : g.skin;
+        if (skin == null) return null;
+        try {
+            boolean slim = skin.endsWith(" slim");
+            String key = slim ? skin.substring(0, skin.length() - 5).trim() : skin.trim();
+            ItemStack head = new ItemStack(org.bukkit.Material.PLAYER_HEAD);
+            head.setData(io.papermc.paper.datacomponent.DataComponentTypes.PROFILE, io.papermc.paper.datacomponent.item.ResolvableProfile
+                    .resolvableProfile().name("id_photo").skinPatch(x -> x.body(net.kyori.adventure.key.Key.key(key))).build());
+            Location at = sh.shop.at(StoreLayout.ID_X + 0.03, StoreLayout.TOP + 0.13, StoreLayout.ID_Z - 0.17, 270);
+            float yaw = at.getYaw();
+            at.setYaw(0);
+            return at.getWorld().spawn(at, ItemDisplay.class, d -> {
+                d.setPersistent(false);
+                d.setItemStack(head);
+                d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
+                d.setTransformation(new Transformation(new Vector3f(), new Quaternionf().rotationY((float) Math.toRadians(-yaw))
+                        .rotateX((float) Math.toRadians(-(90 - StoreLayout.ID_TILT))), new Vector3f(0.3f, 0.3f, 0.02f), new Quaternionf()));
+                d.setViewRange(0.25f);
+                d.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1);
+            });
+        } catch (RuntimeException | LinkageError e) {   // (a server without the profile component on heads: no photo)
+            return null;
+        }
+    }
+
+    /** Somebody else's face for a sibling's card: another look of their kind, else of an older kind. */
+    private String otherFace(StoreModule.Guest g) {
+        for (String look : g.type.looks()) if (!look.equals(g.skin)) return look;
+        dev.stsv.economy.bus.BusModule bus = m.eco().bus();
+        if (bus != null && bus.spec() != null) for (String kind : List.of("office", "resident", "uncle")) {
+            dev.stsv.economy.bus.BusSpec.Type t = bus.spec().types().get(kind);
+            if (t != null && !t.id().equals(g.type.id()) && !t.looks().isEmpty()) return t.looks().getFirst();
+        }
+        return null;
     }
 }

@@ -301,4 +301,58 @@ public record StoreRules(Map<String, Tier> tiers, Id id, Map<String, String> gif
         }
         return java.util.Collections.unmodifiableMap(out);
     }
+
+    // ------------------------------------------------------------------------------------------ the shift's small rules (pure)
+
+    /** Standing still: nothing yet, told (the last `warn` seconds), out. */
+    public enum Idle { OK, WARN, OUT }
+
+    /** A worker idle for `idle` seconds, out at `afk`: warned `warn` seconds before. */
+    public static Idle idle(long idle, int afk, int warn) {
+        if (idle > afk) return Idle.OUT;
+        return idle > afk - warn ? Idle.WARN : Idle.OK;
+    }
+
+    /**
+     * Whether a customer leaves the counter to wait aside: paid, the microwave the only thing they still want, and the
+     * waiting spot free (one waits there at a time).
+     */
+    public static boolean stepsAside(boolean paid, java.util.List<String> asks, boolean spotTaken) {
+        return paid && !spotTaken && asks.size() == 1 && asks.contains("warm");
+    }
+
+    /** Half the width of a green answer button's click box for a label of so many letters (never a sliver). */
+    public static double askHalfWidth(int letters) {
+        return Math.clamp(0.05 * letters + 0.08, 0.3, 0.7);
+    }
+
+    /** Whether a build job running somewhere keeps someone from working in `store` (only that store's own). */
+    public static boolean blockedByBuild(boolean running, String building, String store) {
+        return running && (building == null || building.equals(store));
+    }
+
+    /** Taking a 내 가게 down. */
+    public enum Demolish { OK, NOT_OWNER, ON_SHIFT, BUILDING }
+
+    /** Only its owner, only while nobody works in it, only while nothing is being built. */
+    public static Demolish mayDemolish(boolean owner, boolean onShift, boolean building) {
+        if (!owner) return Demolish.NOT_OWNER;
+        if (onShift) return Demolish.ON_SHIFT;
+        return building ? Demolish.BUILDING : Demolish.OK;
+    }
+
+    /** What a click on the hanger is. */
+    public enum Hanger { SHIFT, SWAP, MANAGE, BUSY, NOTHING }
+
+    /**
+     * A plain click starts or ends a shift (or applies). A sneaking click: two working here swap places; the owner of a
+     * closed store gets its menu (hiring, 철거: each a click in chat, never the hanger itself); the owner of an open one is
+     * told to close first; anyone else nothing.
+     */
+    public static Hanger sneakHanger(boolean sneaking, boolean workingHere, boolean twoWorking, boolean owner, boolean open) {
+        if (!sneaking) return Hanger.SHIFT;
+        if (workingHere) return twoWorking ? Hanger.SWAP : owner ? Hanger.BUSY : Hanger.NOTHING;
+        if (!owner) return Hanger.NOTHING;
+        return open ? Hanger.BUSY : Hanger.MANAGE;
+    }
 }

@@ -211,6 +211,28 @@ public final class Trouble {
         return thief ? Outcome.of("caught", -10, Result.GO_ON).andBonus(n.catchBonus()) : Outcome.of("wrong", -20, Result.GO_ON);
     }
 
+    /**
+     * Whether a click on a customer accuses them: only a sneaking click (an ordinary one is a click at a button or a thing
+     * past them), and a customer is accused once.
+     */
+    public static boolean mayAccuse(boolean sneaking, boolean accusedBefore) {
+        return sneaking && !accusedBefore;
+    }
+
+    /**
+     * How long a question of this trouble waits for the worker (ms; -1: as long as it takes, their patience runs meanwhile).
+     * The 취객 wakes by himself, the 관광객 finds it alone, and the 복권 손님 (who has paid: nothing else would move him from
+     * the counter) is taken as shrugged at.
+     */
+    public static long timeout(Kind k) {
+        return switch (k) {
+            case DRUNK -> 150_000;
+            case TOURIST -> 30_000;
+            case LOTTERY -> 20_000;
+            default -> -1;
+        };
+    }
+
     /** The 슬쩍 손님 got away with it: the worker covers the thing (원). */
     public static long escaped(int price) {
         return Math.max(0, price);

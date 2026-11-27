@@ -217,6 +217,27 @@ final class StoreDay {
             if (on && x.getType() == Material.LIGHT_GRAY_CONCRETE) x.setBlockData(Bukkit.createBlockData(LAMP), false);
             else if (!on && x.getType() == Material.SEA_LANTERN) x.setBlockData(Bukkit.createBlockData(DARK), false);
         }
+        // the breaker's handle: down while the power is out
+        int[] lv = shop.site.block(BREAKER[0], BREAKER[1], BREAKER[2]);
+        Block lever = w.getBlockAt(lv[0], lv[1], lv[2]);
+        if (lever.getBlockData() instanceof org.bukkit.block.data.type.Switch sw && sw.isPowered() == on) {
+            sw.setPowered(!on);
+            lever.setBlockData(sw, false);
+            if (on) w.spawnParticle(Particle.ELECTRIC_SPARK, lever.getLocation().add(0.5, 0.5, 0.5), 12, 0.15, 0.2, 0.15, 0.05);
+        }
+    }
+
+    /** The lamps off or on for a moment (the 새벽 door bell): only the blocks, nothing remembered. */
+    void flicker(StoreModule.Shop shop, boolean on) {
+        World w = shop.world();
+        if (w == null || !shop.loaded()) return;
+        for (HallLayout.Block b : shop.layout().blocks()) {
+            if (!b.data().equals(LAMP)) continue;
+            int[] at = shop.site.block(b.x(), b.y(), b.z());
+            Block x = w.getBlockAt(at[0], at[1], at[2]);
+            if (on && x.getType() == Material.LIGHT_GRAY_CONCRETE) x.setBlockData(Bukkit.createBlockData(LAMP), false);
+            else if (!on && x.getType() == Material.SEA_LANTERN) x.setBlockData(Bukkit.createBlockData(DARK), false);
+        }
     }
 
     /** At start: lamps left off by a shift that never ended (a crash) are lit again. */
@@ -471,7 +492,6 @@ final class StoreDay {
     void tablet(Player p, StoreModule.Shop shop, boolean sneaking) {
         UUID u = p.getUniqueId();
         boolean owner = u.equals(shop.owner);
-        if (owner && sneaking && m.acceptApplicant(p, shop)) return;   // 남의 가게 알바: the first who asked is hired
         if (shop.owner != null && !owner && !m.book().hired(shop.name).contains(u)) {
             HudModule.flash(p, Lang.mm("store.order-not-yours"), 2500);
             return;
@@ -482,8 +502,8 @@ final class StoreDay {
             return;
         }
         long day = gameDay(shop.world());
-        String[] shown = m.ordering.get(u);
-        String cur = shown != null && shown[0].equals(shop.name) ? shown[1] : null;
+        StoreModule.Paging shown = m.ordering.get(u);   // (a page left alone 30 s is forgotten: StoreModule.second)
+        String cur = shown != null && shown.store().equals(shop.name) ? shown.group() : null;
         if (sneaking && cur != null) {
             StoreLife.Group g = life().order().groups().get(cur);
             m.eco().kv().set("store.order." + shop.name, (day + 1) + "|" + cur + "|" + u);
@@ -501,7 +521,7 @@ final class StoreDay {
         }
         StoreLife.Group next = life().order().after(cur);
         if (next == null) return;
-        m.ordering.put(u, new String[]{shop.name, next.id()});
+        m.ordering.put(u, new StoreModule.Paging(shop.name, next.id(), System.currentTimeMillis()));
         String model = StoreMotion.tabletModel(kind(next), false);
         if (m.has(model)) page(shop, model, 10);   // §17: the page turns on the tablet
         if (m.working(u) && m.has(StoreMotion.PDA)) {   // the PDA in hand while ordering
@@ -512,7 +532,7 @@ final class StoreDay {
         List<String> names = new ArrayList<>();
         for (String id : next.products()) if (m.spec().products().containsKey(id)) names.add(m.spec().products().get(id).name());
         if (names.size() > 4) names = names.subList(0, 4);
-        p.sendActionBar(Lang.mm("store.order-page", "group", next.name(), "items", String.join(", ", names)));
+        HudModule.flash(p, Lang.mm(cur == null ? "store.order-page-first" : "store.order-page", "group", next.name(), "items", String.join(", ", names)), 4000);
         p.playSound(p.getLocation(), Sound.UI_BUTTON_CLICK, 0.4f, 1.5f);
         if (cur == null) {   // the first click: what stands now
             p.sendMessage(Lang.msg("store.order-state",
@@ -523,6 +543,9 @@ final class StoreDay {
     }
 
     // ------------------------------------------------------------------------------------------ 이달의 점장
+
+    /** The 이달의 점장 line's size (read from across the road). */
+    static final float MONTH_LABEL = 0.9f;
 
     /** Every 30 seconds: under each loaded store's sign, this month's top worker. */
     void labels(java.util.Collection<StoreModule.Shop> shops) {
@@ -543,7 +566,7 @@ final class StoreDay {
                 shop.label.text(text);
                 continue;
             }
-            double[] a = shop.site.at(0.5, 2.6, StoreLayout.FRONT - 0.08);
+            double[] a = shop.site.at(0.5, 2.62, StoreLayout.FRONT - 0.08);   // under the sign, its middle
             Location at = new Location(shop.world(), a[0], a[1], a[2], shop.site.yaw(180), 0);
             shop.label = at.getWorld().spawn(at, TextDisplay.class, d -> {
                 d.setPersistent(false);
@@ -551,7 +574,7 @@ final class StoreDay {
                 d.setBillboard(Display.Billboard.FIXED);
                 d.setAlignment(TextDisplay.TextAlignment.CENTER);
                 d.setBackgroundColor(Color.fromARGB(200, 31, 157, 85));
-                d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(0.5f, 0.5f, 0.5f), new Quaternionf()));
+                d.setTransformation(new Transformation(new Vector3f(), new Quaternionf(), new Vector3f(MONTH_LABEL, MONTH_LABEL, MONTH_LABEL), new Quaternionf()));
                 d.setViewRange(0.5f);
                 d.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1);
             });
@@ -594,13 +617,18 @@ final class StoreDay {
         BusModule bus = m.eco().bus();
         BusSpec.Type type = bus == null || bus.spec() == null ? null : bus.spec().types().get(kind);
         if (type == null || shop.world() == null) return;
-        Location at = shop.at(-1.0, 0, 2.3, 0);   // by the parasol table, looking in
+        Location at = shop.at(StoreLayout.FIGURE_X, 0, StoreLayout.FIGURE_Z, 0);   // right of the parasol table, looking in: seen from the till over the eat bar
         if (!at.getWorld().isChunkLoaded(at.getBlockX() >> 4, at.getBlockZ() >> 4)) return;
         Mannequin f = bus.spawnGuest(at, type, skin, false, x -> {
             x.getPersistentDataContainer().set(StoreModule.GUEST, PersistentDataType.BYTE, (byte) 1);
             x.setDescription(net.kyori.adventure.text.Component.empty());   // (not "NPC")
         });
         at.getWorld().spawnParticle(Particle.END_ROD, at.clone().add(0, 1, 0), 8, 0.3, 0.6, 0.3, 0.01);
+        StoreModule.Shift sh = shop.shift;   // the worker's eyes go there once (it lasts five seconds)
+        Player worker = sh == null ? null : m.worker(sh);
+        if (worker != null && shop.site.inside(worker.getWorld().getName(), worker.getLocation().getX(), worker.getLocation().getY(), worker.getLocation().getZ())) {
+            worker.lookAt(at.getX(), at.getY() + 1.5, at.getZ(), io.papermc.paper.entity.LookAnchor.EYES);
+        }
         Bukkit.getScheduler().runTaskLater(m.eco(), () -> {
             if (f.isValid()) f.setRotation(f.getLocation().getYaw(), 25);   // a nod
         }, 40L);

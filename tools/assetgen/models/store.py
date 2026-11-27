@@ -64,15 +64,17 @@ Display models (an ItemDisplay with no transform: the model's (8, 8, 8) at the d
 the goods, money and props have their BOTTOM on the display's position (model y 8), centred on it; the buttons and
 the scanner are centred on it.
 
-  store_item_<id>      the 33 goods (§15 상품): drawn at twice their size and shrunk by 2 (BModel scale 2: 32 texels
-                       a block), a bit larger than life so they read on the counter (a cup ramen 0.3 blocks across);
-                       each also held in a hand (thirdperson_righthand: upright in the fist of a standing customer).
+  store_item_<id>      the 33 goods (§15 상품), re-modelled for §17 in models/store_goods.py (64 texels a block,
+                       eight-sided round things, printed packaging); a bit larger than life so they read on the counter
+                       (a cup ramen 0.3 blocks across); each also held in a hand (thirdperson_righthand: upright in the
+                       fist of a standing customer).
   store_box_<snack|noodle|daily|meal|drink>
                        배송 상자: a taped cardboard box 12 x 8 x 10 px, a label with the kind (과자 라면 생활용품 도시락
                        음료) in its colour.
   store_bag            봉투: a white plastic bag, full, its handles up, a green GS26 print.
   store_spill          엎지른 음료: a puddle of cola (cut-out) on the floor and the cup it came from.
-  store_trash_cup      다 먹은 컵라면: an empty cup, its lid peeled back, broth left in it, chopsticks across.
+  store_trash_cup      다 먹은 컵라면 (models/store_action.py, §17): store_item_ramen_red's cup emptied, the lid peeled
+                       back, broth left in it, chopsticks across.
   store_card           손님 카드, lying flat (5.5 x 3.5 px), reading from the north.
   store_cash_<1000|5000|10000|50000>  지폐 (made-up notes, 7 x 3.5 px), lying flat.
   store_coin_<100|500> 동전, lying flat.
@@ -1379,7 +1381,9 @@ def button(key, face_fn, tex):
     m = Model(key)
     m.group("plate")
     m.box("face", (2, 5, 7.5), (14, 11, 7.75), back, faces={"north": face, "south": None}, uv={"north": [0, 0, 160, 80]}, glow=True)
-    m.box("plate", (2, 5, 7.75), (14, 11, 8.5), back, glow=True)
+    light = key.startswith("store_btn_change_") or key[len("store_btn_"):] in ART.LIGHT_KEYS
+    rear = _surface(f"store_btn_rear_{'light' if light else 'green'}", lambda lt=light: ART.key_back(lt))
+    m.box("plate", (2, 5, 7.75), (14, 11, 8.5), back, faces={"south": rear}, uv={"south": [0, 0, 160, 80]}, glow=True)
     return gui(m, fill=0.9)
 
 

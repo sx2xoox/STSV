@@ -67,6 +67,8 @@ public final class Shopper {
     private double waited;
     private boolean saidWait;
     private boolean held, seated;
+    /** where they came from: the way out ends there (the pavement's end; "out" itself for one who appeared at the door) */
+    private final String home;
 
     /**
      * @param round       the shelves to visit, in order
@@ -89,6 +91,7 @@ public final class Shopper {
         this.z = start.z();
         this.yaw = start.yaw();
         this.goal = start.id();
+        this.home = start.id();
     }
 
     /**
@@ -236,7 +239,30 @@ public final class Shopper {
             }
             walkTo(env, "out");
         }
+        if (!home.equals("out")) {   // and on along the pavement, back the way they came
+            addPath(env.path("out", home), 1);
+            goal = home;
+        }
         state = State.LEAVE;
+    }
+
+    /**
+     * Paid, they step aside to wait for something (their food in the microwave): straight from the counter to this node,
+     * there until {@link #leave} or {@link #eat} ({@link Event#SAT} when they get there). The line moves up behind them.
+     */
+    public void aside(Env env, String node) {
+        path.clear();
+        List<StoreLayout.Node> at = env.path(node, node);
+        if (!at.isEmpty()) path.add(new double[]{at.getFirst().x(), at.getFirst().z()});
+        goal = node;
+        dwell = Integer.MAX_VALUE;
+        seated = false;
+        state = State.EAT;
+    }
+
+    /** Whether they have got to where they sit or wait (the eat bar's stool, the microwave's side). */
+    public boolean seated() {
+        return state == State.EAT && seated;
     }
 
     /**
@@ -382,6 +408,11 @@ public final class Shopper {
     /** In line (not yet at the counter) or at it. */
     public boolean inLine() {
         return state == State.QUEUE || state == State.COUNTER;
+    }
+
+    /** Waiting past the grace (their mood is sinking): it shows. */
+    public boolean impatient(StoreSpec.Patience p) {
+        return inLine() && waited * sensitivity >= p.grace();
     }
 
     /** Once: whether the "still waiting" line is due (past grace). */

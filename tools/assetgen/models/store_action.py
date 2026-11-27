@@ -215,17 +215,21 @@ def held_waste_bag():
     """폐기 봉지: a tied, half-clear grey bag bulging with expired triangle kimbap and lunch boxes (their colours
     through the film), a red 폐기 tape round it, two knot ears at the top."""
     m = S.HModel("store_held_waste_bag", floor=None, scale=2)
+    # sculpted on a 2-texel grid (1 px cells): a rounder grid costs more faces than the bag is worth
     cells = {}
-    for x in range(-8, 8):
-        for y in range(-20, 2):
-            for z in range(-6, 6):
-                px, py, pz = x + 0.5, y + 0.5, z + 0.5
+    for x in range(-4, 4):
+        for y in range(-10, 1):
+            for z in range(-3, 3):
+                px, py, pz = 2 * x + 1, 2 * y + 1, 2 * z + 1
                 if (px / 7.5) ** 2 + ((py + 9) / 10.5) ** 2 + (pz / 5.5) ** 2 <= 1 and py < 0:
-                    cells[(8 + x, 8 + y, 8 + z)] = "bag"
-    for y in range(0, 4):
-        for x in range(-1 - (y > 1), 1 + (y > 1)):
-            for z in (-1, 0):
-                cells[(8 + x, 8 + y, 8 + z)] = "bag"
+                    cells[(x, y, z)] = "bag"
+    for y in range(0, 2):
+        for x in (-1, 0):
+            cells[(x, y, -1)] = "bag"
+
+    class _Twice:
+        def box(self, name, a, b, paint):
+            m.box(name, tuple(8 + 2 * v for v in a), tuple(8 + 2 * v for v in b), paint)
 
     def film(c):
         x, y, z = c.p[0] - 8, c.p[1] - 8, c.p[2] - 8
@@ -240,7 +244,7 @@ def held_waste_bag():
         if (math.floor(x * 0.5 + y * 0.8) % 9) == 0 and c.face in S.SIDES:
             return ("snow", 2)                                       # creases catching the light
         return None
-    voxels(m, "bag", cells, lambda _l: Paint("fish_silver", 4, noise=0, rim=1.4, decal=film))
+    voxels(_Twice(), "bag", cells, lambda _l: Paint("fish_silver", 4, noise=0, rim=1.4, decal=film))
     ear = Paint("fish_silver", 4, noise=0, rim=1.3)
     m.box("ear", (5, 12, 7), (8, 13, 8), ear, rotation=("z", 45, (8, 12, 7.5)))
     m.box("ear", (8, 12, 7), (11, 13, 8), ear, rotation=("z", -45, (8, 12, 7.5)))
@@ -355,24 +359,22 @@ def spill(stage):
 
     def puddle(c):
         x, z = c.p[0] - 8, c.p[2] - 8
-        v = vnoise(x + 30 + stage * 7, 0, z + 30, 3.0, 5 + stage)
+        v = vnoise(x + 30 + stage * 7, 0, z + 30, 5.0, 5 + stage)
         r = math.hypot(x / 1.3, z)
         a = math.hypot(x + 10, z + 7)                 # the mop swung from the front left
-        arc = (a * 1.2) % 3.0
+        arc = (a * 0.45) % 3.0
         if stage == 3:
             if r + (v - 0.5) * 4 > rad * 1.7:
                 return clear
-            if arc < 0.6 and r < rad * 1.5:
+            if arc < 0.55 and r < rad * 1.5:
                 return ("doenjang", 2) if v > 0.45 else ("bean", 2)      # the last streaks of cola
-            if arc > 2.2 and r < rad * 1.3 and (math.floor(x) + math.floor(z)) % 2 == 0:
-                return ("ice", 3)                                        # the wet shine
+            if 1.7 < arc < 2.5 and r + (v - 0.5) * 3 < rad * 1.2:
+                return ("ice", 3)                                        # the wet shine between them
             return clear
         if r + (v - 0.5) * 6 > rad * 1.45:
             return clear
         if r + (v - 0.5) * 6 > rad:
-            if arc < 0.8:
-                return ("doenjang", 2)                                   # dragged out in arcs
-            return ("ice", 3) if (math.floor(x) + math.floor(z)) % 2 == 0 else clear
+            return ("doenjang", 2) if arc < 0.8 else ("ice", 3)          # dragged out in arcs, the wet floor
         if h3(c.i[0], c.i[2], 0, 2) < 0.08 or (abs(x + z * 0.5 - 2) < 0.6 and r < 4):
             return ("doenjang", 3)
         return ("doenjang", 2) if arc < 0.7 else ("doenjang", 1)
@@ -438,8 +440,9 @@ def trash_cup():
     w, _ = S.T.size_of(lid)
     dd = w / 2
     foil = S._surface("store_trash_cup_foil", lambda: _foil(w))
-    rot = ("x", 45, SG.P(0, h, r_top - 0.5))
-    m.plate("lid", SG.P(-dd / 2, h, r_top - 0.5), SG.P(dd / 2, h + dd, r_top - 0.5),
+    # still stuck on along the back of the rim: the disc's lower part tucked behind the rim, the rest folded back
+    rot = ("x", 45, SG.P(0, h, r_top - 1.5))
+    m.plate("lid", SG.P(-dd / 2, h - 4, r_top - 1.5), SG.P(dd / 2, h - 4 + dd, r_top - 1.5),
             {"south": (lid, [0, 0, w, w]), "north": (foil, [0, 0, w, w])}, rotation=rot)
     chop = Paint("hinoki", 3, noise=0, rim=1.2)
     for dz in (-1.5, 0.5):

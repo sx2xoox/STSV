@@ -133,4 +133,56 @@ class CheckoutTest {
         c.tender(tendered);
         return c;
     }
+
+    // ---- 점검 연출-1 · 위치-17: the money that is seen
+
+    @Test
+    void everyKeyPressedIsAPieceOnTheTrayUntilItIsGivenOrTakenBack() {
+        Checkout c = new Checkout(List.of("a"), List.of(5400), Checkout.Method.CASH);
+        c.scan(0);
+        c.tender(10000);
+        c.press(1000);
+        c.press(1000);
+        c.press(500);
+        assertEquals(List.of(1000, 1000, 500), c.counted());
+        c.clear();
+        assertTrue(c.counted().isEmpty(), "[다시]: back off the tray");
+        c.press(1000);
+        assertEquals(Checkout.Given.SHORT, c.give());
+        assertTrue(c.counted().isEmpty(), "handed over: the tray is empty, the rest is counted anew");
+        for (int a : List.of(1000, 1000, 1000, 500, 100)) c.press(a);
+        assertEquals(Checkout.Given.EXACT, c.give());
+        assertTrue(c.counted().isEmpty());
+    }
+
+    @Test
+    void allTheNotesHandedOverLieOnTheCounterTheSameOnesInAPile() {
+        // 19,000원 = 10,000 + 5,000 + 1,000 × 4: six notes, all shown (the screen's "받음" is what is seen)
+        List<Integer> notes = Checkout.notes(19000, List.of(1000, 5000, 10000, 50000));
+        assertEquals(6, notes.size());
+        List<double[]> lie = Checkout.piles(notes);
+        assertEquals(6, lie.size());
+        assertEquals(0, lie.get(0)[0], 1e-9);
+        assertEquals(1, lie.get(1)[0], 1e-9);
+        for (int i = 2; i < 6; i++) {
+            assertEquals(2, lie.get(i)[0], 1e-9, "the four 1,000s on one pile");
+            assertEquals(i - 2, lie.get(i)[1], 1e-9, "one on the other");
+        }
+    }
+
+    @Test
+    void changeOnTheTrayStaysInsideItsDishAndNoTwoPiecesShareAPlace() {
+        // the dish: 0.3125 along (model x 10.5 .. 15.5), 0.219 across (z 2.5 .. 6); a note 0.24 × 0.12 at 0.55, a coin 0.14
+        List<Integer> on = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (int amount : List.of(50000, 10000, 5000, 1000, 1000, 500, 100, 100, 100)) {
+            double[] at = Checkout.trayPlace(on, amount);
+            assertTrue(Math.abs(at[0]) <= 0.06 && Math.abs(at[1]) <= 0.09, amount + " off the dish: " + at[0] + ", " + at[1]);
+            assertTrue(seen.add(at[0] + "|" + at[1] + "|" + at[2]), amount + " lies in another piece");
+            on.add(amount);
+        }
+        assertEquals(1, Checkout.trayPlace(List.of(1000), 1000)[2], 1e-9, "the second of a kind one up");
+        assertEquals(2, Checkout.trayPlace(List.of(100, 500, 100), 100)[2], 1e-9);
+        assertTrue(Checkout.trayPlace(List.of(), 500)[0] > Checkout.trayPlace(List.of(), 1000)[0], "coins on the customer's half");
+    }
 }
