@@ -913,6 +913,21 @@ store_wet_sign:
   model: store_wet_sign
   max-stack: 1
 
+# 영수증 (계산대 프린터에서 밀려 나옴; ItemDisplay 를 (1, s, 1) 로 0 → 1 늘림). 계산대 모델 기준 (가구와 함께 돎, 칸 원점에서 블록):
+#   프린터 홈 (17.5px 위): (1.71875, 1.09375, 0.671875) · 놓는 자리 (홈 + 0.05px): (1.71875, 1.0949, 0.6748)
+#   나오는 방향 (0, 0.924, -0.383) = 위로, 손님 쪽(-z)으로 22.5° 기움 → 표시 회전: x 축 -22.5° 뒤 가구 yaw. 인쇄 면은 +z (근무자 쪽)
+store_receipt:
+  material: paper
+  name: "<white>영수증"
+  model: store_receipt
+  max-stack: 1
+
+store_receipt_glitch:
+  material: paper
+  name: "<white>영수증"
+  model: store_receipt_glitch
+  max-stack: 1
+
 store_box_snack_open:
   material: paper
   name: "<#c8a46e>열린 배송 상자 (과자)"

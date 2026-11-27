@@ -76,7 +76,7 @@ class StoreAssetsTest {
         ids.addAll(List.of("store_id_card", "store_vest_manager", "store_vest_night"));   // 3차 (§16)
         // §17: the held things, the spill's later stages, the wet floor sign, the opened boxes
         ids.addAll(List.of("store_held_mop", "store_held_jug", "store_held_waste_bag", "store_held_tray", "store_held_pda", "store_held_id",
-                "store_spill_2", "store_spill_3", "store_wet_sign"));
+                "store_spill_2", "store_spill_3", "store_wet_sign", "store_receipt", "store_receipt_glitch"));
         for (String b : List.of("snack", "noodle", "daily", "meal", "drink")) {
             ids.add("store_held_box_" + b);
             ids.add("store_box_" + b + "_open");
@@ -95,7 +95,7 @@ class StoreAssetsTest {
         assertEquals(27 + 12, ids.size());
         assertEquals(33, GOODS.size());
         ids.addAll(displayIds());
-        assertEquals(27 + 12 + 74 + 19, ids.size());
+        assertEquals(27 + 12 + 74 + 21, ids.size());
         assertEquals(ids.size(), y.getKeys(false).size(), "items/store.yml holds the contract's ids and nothing else");
         for (String id : ids) {
             ConfigurationSection sec = y.getConfigurationSection(id);
