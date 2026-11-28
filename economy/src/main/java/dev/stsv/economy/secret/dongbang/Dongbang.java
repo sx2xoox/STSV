@@ -38,6 +38,7 @@ import org.bukkit.inventory.ItemStack;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -255,7 +256,24 @@ public final class Dongbang extends Secret {
 
     @Override
     public void start(Player p) {
-        begin(p);
+        // as on their day: the row comes up in /주식 (with the news cue and the far horn) a little later, for offer.minutes;
+        // buying the share is theirs to do. (단계 동방해운 <플레이어> 1 gives the share at once.)
+        UUID u = p.getUniqueId();
+        m.set(this, u, "offer-day", m.today(u));
+        m.remove(this, u, "offer-min");
+        offerClock.remove(u);
+        long delay = 20L * (20 + ThreadLocalRandom.current().nextInt(70));
+        Bukkit.getScheduler().runTaskLater(eco, () -> {
+            if (!p.isOnline() || m.stage(this, u) != 0) return;
+            offerUntil.put(u, System.currentTimeMillis() + Math.max(1, cfg.getLong("offer.minutes", 4)) * 60_000L);
+            cue(p);
+        }, delay);
+    }
+
+    @Override
+    public String startNote(Player p) {
+        return "1~2분 안에 /주식 목록 맨 아래에 줄이 뜹니다 (" + Math.max(1, cfg.getLong("offer.minutes", 4)) + "분 동안; 지금 바로 주식을 주려면: 단계 동방해운 "
+                + p.getName() + " 1)";
     }
 
     /** They own the share now (bought, or given by an admin): stage 1, a fresh price, the 본사 being chosen. */

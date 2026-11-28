@@ -216,7 +216,8 @@ final class LostItems {
     void drop(Player p, BusModule.Run run, BusModule.Rider r, BusStop here) {
         BusEvents.Lost lo = cfg();
         ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        if (!lo.enabled() || run.lostHere || r.secret || r.type.x().ghost() || r.from == here.id() || rnd.nextDouble() >= lo.chance()) return;
+        boolean wanted = bus.watcherWants(p);   // an admin's 시작 of a hidden secret: this drop-off leaves something, whatever the chance
+        if (!lo.enabled() || run.lostHere || r.secret || r.type.x().ghost() || r.from == here.id() || !wanted && rnd.nextDouble() >= lo.chance()) return;
         BusStop home = bus.stopMap().get(r.from);
         if (home == null) return;
         long now = System.currentTimeMillis();
@@ -225,7 +226,7 @@ final class LostItems {
             BusEvents.LostTag t = BusModule.lostTag(it);
             if (t != null && !t.expired(now) && t.finder().equals(p.getUniqueId())) n++;
         }
-        if (n >= lo.maxHeld()) return;
+        if (n >= lo.maxHeld() && !wanted) return;
         if (bus.watcherLeft(p, r, home, here)) {   // something else was left instead (a hidden secret: BusModule.Watcher)
             run.lostHere = true;
             return;

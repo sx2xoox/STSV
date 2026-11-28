@@ -489,7 +489,9 @@ public final class SecretModule extends EcoModule {
             case "시작" -> withSecret(s, a, 1, x -> online(s, a.length > 2 ? a[2] : null, p -> {
                 x.cleanup(p.getUniqueId());
                 x.start(p);
-                s.sendMessage(Text.msg("<green>" + p.getName() + ": " + x.name() + " 시작 (단계 " + stage(x, p.getUniqueId()) + "/" + x.stages() + ")"));
+                String note = x.startNote(p);
+                s.sendMessage(Text.msg("<green>" + p.getName() + ": " + x.name() + (note != null ? " " + note
+                        : " 시작 (단계 " + stage(x, p.getUniqueId()) + "/" + x.stages() + ")")));
             }));
             case "단계" -> withSecret(s, a, 1, x -> {
                 if (a.length < 4) {

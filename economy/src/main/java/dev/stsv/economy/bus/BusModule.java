@@ -2951,6 +2951,11 @@ public final class BusModule extends EcoModule {
             return false;
         }
 
+        /** Whether this watcher wants the driver's next drop-off to leave something (events.lost's chance and room skipped). */
+        default boolean wantsLeftBehind(Player driver) {
+            return false;
+        }
+
         /** The driver's bus pulled into a stop's bay. */
         default void stopped(Player driver, BusStop here) {}
 
@@ -3099,6 +3104,18 @@ public final class BusModule extends EcoModule {
     /** LostItems: a lost item went back to its owner. */
     void watcherGaveBack(Player driver, String thing, String owner, BusStop here) {
         forWatchers(x -> x.gaveBack(driver, thing, owner, here));
+    }
+
+    /** LostItems: whether a watcher wants the next drop-off on this driver's bus to leave something (an admin's 시작). */
+    boolean watcherWants(Player driver) {
+        for (Watcher w : watchers.values()) {
+            try {
+                if (w.wantsLeftBehind(driver)) return true;
+            } catch (RuntimeException e) {
+                eco.getLogger().log(java.util.logging.Level.WARNING, "[버스] watcher 오류", e);
+            }
+        }
+        return false;
     }
 
     /** LostItems: whether a watcher left something of its own in place of a lost item. */

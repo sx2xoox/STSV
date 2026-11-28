@@ -87,6 +87,11 @@ public abstract class Secret implements Listener {
     /** Starts it for this player now, whatever the chance, hour or conditions (admin 시작, or its own trigger). */
     public abstract void start(Player p);
 
+    /** What the admin is told after 시작 besides the stage (null: nothing more). For a secret whose 시작 only arms its own trigger. */
+    public String startNote(Player p) {
+        return null;
+    }
+
     /** Jumps a player to a stage (admin 단계): the secret sets up whatever that stage needs. */
     public void jump(Player p, int stage) {
         m.stage(this, p.getUniqueId(), stage);

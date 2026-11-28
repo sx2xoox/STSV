@@ -366,6 +366,11 @@ public final class LostKey extends Secret implements BusModule.Watcher {
     public boolean leftBehind(Player driver, Entity passenger, String passengerTag, BusStop gotOn, BusStop here) {
         UUID u = driver.getUniqueId();
         if (!on() || !open(u) || stage(u) != 0) return false;
+        if (m.get(this, u, "armed") != null) {   // an admin's 시작: this very drop-off, as if the chance had come up
+            m.remove(this, u, "armed");
+            begin(driver, passenger, passengerTag, here);
+            return true;
+        }
         boolean test = m.test(u);
         if (!test && m.get(this, u, "given") != null) return false;   // once a player, ever (until 초기화)
         if (!test && bus().lostReturned(u) < cfg.getLong("start.returns", 30)) return false;
@@ -395,11 +400,26 @@ public final class LostKey extends Secret implements BusModule.Watcher {
         later(p, 25 + lines.size() * 50L + 40, () -> p.sendMessage(Text.mm(text("lines.got-later"))));
     }
 
+    /**
+     * Admin 시작: nothing happens now. The next passenger who gets off this driver's bus leaves the key (their kind, their
+     * whisper, that stop), exactly as when the chance comes up. To give the key on the spot instead: 단계 … 1.
+     */
     @Override
     public void start(Player p) {
         cleanup(p.getUniqueId());
-        BusStop near = nearestStop(p.getLocation());
-        begin(p, null, null, near);
+        m.set(this, p.getUniqueId(), "armed", System.currentTimeMillis());
+    }
+
+    @Override
+    public String startNote(Player p) {
+        return m.get(this, p.getUniqueId(), "armed") != null
+                ? "다음에 버스에서 내리는 손님이 열쇠를 두고 내립니다 (지금 바로 주려면: 단계 분실물센터 " + p.getName() + " 1)" : null;
+    }
+
+    @Override
+    public boolean wantsLeftBehind(Player driver) {
+        UUID u = driver.getUniqueId();
+        return on() && open(u) && stage(u) == 0 && m.get(this, u, "armed") != null;
     }
 
     @Override
