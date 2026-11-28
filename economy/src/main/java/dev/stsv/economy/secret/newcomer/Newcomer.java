@@ -840,9 +840,18 @@ public final class Newcomer extends Secret {
         ask(v, now);
         if (v.next == Math.min(2, v.qs.size())) hanyoung(v, now);
         if (v.night != null && v.night.equals(eco.kv().get(NIGHT))) eco.kv().set(ASKED, v.next);
-        if (v.next >= v.qs.size()) v.endAt = now + (v.quick ? seconds("chat.test-linger-seconds", 120) : seconds("chat.linger-seconds", 1800));
+        if (v.next >= v.qs.size()) v.endAt = now + (v.quick ? seconds("chat.test-linger-seconds", 120) : linger(v));
         else v.nextAt = now + gap(v, false) + typing(v.qs.get(v.next).text());
         return true;
+    }
+
+    /**
+     * How long he stays to chat after his last question. Awake (AI on, a real visit): until the night's answers run out
+     * (he says good night then), so the half-hour of the scripted nights must not cut him off first — ai.linger-seconds (3 h).
+     */
+    private long linger(Visit v) {
+        if (v.viewer == null && voice.active()) return seconds("ai.linger-seconds", 10_800);
+        return seconds("chat.linger-seconds", 1800);
     }
 
     /**
@@ -933,7 +942,7 @@ public final class Newcomer extends Secret {
         boolean join = !night.equals(eco.kv().get(JOINED));
         eco.kv().set(NIGHT, night);
         eco.kv().set(ASKED, waiting ? count() : v.next);
-        if (waiting) v.endAt = now + seconds("chat.linger-seconds", 1800);
+        if (waiting) v.endAt = now + linger(v);
         eco.kv().set(SEEN, 1);
         if (join) {
             eco.kv().set(JOINED, night);
